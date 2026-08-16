@@ -205,6 +205,25 @@ describe('DshConversationBridge', () => {
     expect(second).toHaveBeenCalledOnce()
   })
 
+  it('routes App-owned command contributions only through the selected Session', () => {
+    const sessionId = 'dsh-session-product-command' as SessionId
+    const otherSessionId = 'dsh-session-other-command' as SessionId
+    const list = sessionList()
+    const bridge = new DshConversationBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const runCommand = vi.fn()
+    bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn(), runCommand })
+    bridge.syncSession(sessionId)
+
+    bridge.runProductCommand(otherSessionId, 'trace')
+    expect(runCommand).not.toHaveBeenCalled()
+    bridge.runProductCommand(sessionId, 'trace')
+    expect(runCommand).toHaveBeenCalledWith('trace')
+
+    bridge.dispose()
+    bridge.runProductCommand(sessionId, 'runs')
+    expect(runCommand).toHaveBeenCalledOnce()
+  })
+
   it('applies official reference events to the product draft and serializes through the source codec', async () => {
     const sessionId = 'dsh-session-reference' as SessionId
     const list = sessionList()

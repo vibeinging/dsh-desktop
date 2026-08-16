@@ -2560,9 +2560,15 @@ function DshWorkAgentConversation({
         color: level === 'error' ? 'orange' : 'blue',
         title: level === 'error' ? '命令执行失败' : '命令已完成',
         message: text
-      })
+      }),
+      runCommand: (name) => {
+        if (name === 'new') onNewConversation?.()
+        else if (name === 'runs' || name === 'trace') {
+          eventBus.emit(EVENT_TYPES.OPEN_AGENT_REVIEW, { view: name === 'trace' ? 'trace' : 'runs', runId: null })
+        }
+      }
     })
-  }, [dshClientHost, send])
+  }, [dshClientHost, onNewConversation, send])
   const onKey = (e: React.KeyboardEvent) => {
     const officialKey = e.key === 'ArrowUp'
       ? 'up'

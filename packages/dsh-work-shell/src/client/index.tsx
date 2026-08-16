@@ -8,6 +8,7 @@ import {
 import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { ThemePreference, ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react'
@@ -65,6 +66,11 @@ type DshTurnTailTarget = Pick<DshTurnTailOwner, 'seq'> & {
 export const inject = ['slots', 'sessions', 'theme', 'locale', 'inputTriggers']
 
 const APP_MAPPED_GENERAL_ITEMS = new Set(['appearance', 'composer-enter', 'language', 'permission'])
+const DSH_WORK_COMMANDS = [
+  { name: 'new', description: '新建空白对话' },
+  { name: 'runs', description: '打开当前对话的 DSH 运行记录' },
+  { name: 'trace', description: '查看当前对话的 DSH 事件、耗时和 Token' }
+] as const
 
 class DshWorkLayoutAdapter implements ILayout {
   #dispatch(action: DshWorkLayoutAction) {
@@ -88,6 +94,23 @@ class DshWorkLayoutAdapter implements ILayout {
 export function apply(ctx: ClientContext) {
   const layout = new DshWorkLayoutAdapter()
   const conversation = new DshConversationBridge(ctx.sessions)
+  const productCommandSource: InputTriggerSource = {
+    trigger: '/',
+    name: 'dsh-work',
+    order: -10,
+    candidates: (_session, request) => Promise.resolve(
+      request.position === 'leading'
+        ? DSH_WORK_COMMANDS
+          .filter((command) => command.name.startsWith(request.query.toLowerCase()))
+          .map((command) => ({ name: command.name, description: command.description }))
+        : []
+    ),
+    onPick: ({ candidate, session }) => {
+      if (!DSH_WORK_COMMANDS.some((command) => command.name === candidate.name)) return undefined
+      queueMicrotask(() => conversation.runProductCommand(session.sessionId, candidate.name))
+      return { text: '' }
+    }
+  }
   const runtime: DshClientRuntimeBridge = {
     conversation,
     locale: {
@@ -310,6 +333,10 @@ export function apply(ctx: ClientContext) {
   }
 
   ctx.effect(() => conversation.dispose, 'dsh-work conversation bridge')
+  ctx.effect(
+    () => ctx.inputTriggers.registerSource(productCommandSource),
+    'dsh-work product command source'
+  )
   ctx.effect(() => ctx.reflect.provide('layout', layout), 'dsh-work shell layout adapter')
 
   ctx.effect(() => ctx.slots.register({

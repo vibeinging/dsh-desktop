@@ -27,6 +27,7 @@ export interface DshWorkInputHandlers {
   setDraft: (draft: string) => void
   submit: () => void
   notify?: (level: 'info' | 'error', text: string) => void
+  runCommand?: (name: string) => void
 }
 
 interface DshWorkInputActions {
@@ -265,6 +266,12 @@ export class DshConversationBridge {
     return () => {
       if (this.#handlers === handlers) this.#handlers = null
     }
+  }
+
+  /** Run one App-owned command contributed through the official input-trigger registry. */
+  runProductCommand(sessionId: SessionId, name: string) {
+    if (this.#disposed || this.#desiredSessionId !== sessionId) return
+    this.#handlers?.runCommand?.(name)
   }
 
   /** Bind standard conversation file actions to the product Files workbench. */
