@@ -5,7 +5,7 @@ import type {
   SessionId,
   SessionListState
 } from '@deepseek-ai/dsh-client-runtime/client'
-import type { MenuState } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
+import type { MenuState, PickOutcome } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { DshConversationBridge } from './DshConversationBridge'
 
 function inputScope(sessionId: SessionId) {
@@ -34,12 +34,14 @@ function inputScope(sessionId: SessionId) {
     highlight: null
   })
   const launcher = snapshotStore<string | null>(null)
+  const adjudicate = vi.fn(async (_line: string, _signal: AbortSignal): Promise<PickOutcome> => undefined)
   const controller = {
     serializeReference,
     menu,
     launcher,
     track: vi.fn(),
     arbitrate: vi.fn(() => 'consumed' as const),
+    adjudicate,
     dismiss: vi.fn()
   }
   const ctx = {
@@ -430,6 +432,171 @@ describe('DshConversationBridge', () => {
     expect(bridge.getInputSnapshot()).toMatchObject({ draft: '/other', phase: 'plain' })
     expect(bridge.getInputSnapshot().claim).toBeUndefined()
     expect(bridge.submitCommandClaim()).toBe(false)
+    bridge.dispose()
+  })
+
+  it('adjudicates a leading slash and reaches the product sender only on a directory miss', async () => {
+    const sessionId = 'dsh-session-adjudicate-miss' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const submitDefault = vi.fn()
+    const scope = inputScope(sessionId)
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn(), submitDefault })
+    descriptor!.resolve(scope.binding)
+    bridge.updateDraft('/unknown')
+
+    expect(bridge.submitOfficialInput()).toBe(true)
+    expect(bridge.getInputSnapshot().phase).toBe('adjudicating')
+    await vi.waitFor(() => expect(bridge.getInputSnapshot().phase).toBe('plain'))
+    expect(scope.controller.adjudicate).toHaveBeenCalledWith('/unknown', expect.any(AbortSignal))
+    expect(submitDefault).toHaveBeenCalledOnce()
+    expect(bridge.getInputSnapshot().draft).toBe('/unknown')
+
+    bridge.updateDraft('ordinary prompt')
+    expect(bridge.submitOfficialInput()).toBe(false)
+    bridge.dispose()
+  })
+
+  it('retains the slash draft when official directory adjudication fails', async () => {
+    const sessionId = 'dsh-session-adjudicate-failure' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const notify = vi.fn()
+    const submitDefault = vi.fn()
+    const scope = inputScope(sessionId)
+    scope.controller.adjudicate.mockRejectedValueOnce(new Error('command catalog unavailable'))
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn(), submitDefault, notify })
+    descriptor!.resolve(scope.binding)
+    bridge.updateDraft('/compact')
+
+    expect(bridge.submitOfficialInput()).toBe(true)
+    await vi.waitFor(() => expect(bridge.getInputSnapshot().phase).toBe('plain'))
+    expect(bridge.getInputSnapshot().draft).toBe('/compact')
+    expect(submitDefault).not.toHaveBeenCalled()
+    expect(notify).toHaveBeenCalledWith('error', 'command catalog unavailable')
+    bridge.dispose()
+  })
+
+  it('submits an adjudicated bare command claim without sending a chat prompt', async () => {
+    const sessionId = 'dsh-session-adjudicate-claim' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const setDraft = vi.fn()
+    const submitDefault = vi.fn()
+    const scope = inputScope(sessionId)
+    const claim = { token: '/goal ', submit: vi.fn(async () => ({ kind: 'success' as const })) }
+    scope.controller.adjudicate.mockResolvedValueOnce({ claim })
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft, submit: vi.fn(), submitDefault })
+    descriptor!.resolve(scope.binding)
+    bridge.updateDraft('/goal')
+
+    expect(bridge.submitOfficialInput()).toBe(true)
+    await vi.waitFor(() => expect(bridge.getInputSnapshot().phase).toBe('plain'))
+    expect(claim.submit).toHaveBeenCalledWith('', scope.binding.ctx)
+    expect(bridge.getInputSnapshot().draft).toBe('')
+    expect(setDraft).toHaveBeenLastCalledWith('')
+    expect(submitDefault).not.toHaveBeenCalled()
+    bridge.dispose()
+  })
+
+  it('accepts an adjudicator-owned token mutation without replaying the default sender', async () => {
+    const sessionId = 'dsh-session-adjudicate-handled' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const submitDefault = vi.fn()
+    const scope = inputScope(sessionId)
+    scope.controller.adjudicate.mockImplementationOnce(async () => {
+      scope.emit('slash/input-consume-token', { guard: { kind: 'bare-token', token: '/new' } })
+      return 'handled'
+    })
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn(), submitDefault })
+    descriptor!.resolve(scope.binding)
+    bridge.updateDraft('/new')
+
+    expect(bridge.submitOfficialInput()).toBe(true)
+    await vi.waitFor(() => expect(bridge.getInputSnapshot().phase).toBe('plain'))
+    expect(bridge.getInputSnapshot().draft).toBe('')
+    expect(submitDefault).not.toHaveBeenCalled()
+    bridge.dispose()
+  })
+
+  it('aborts and ignores a late adjudication after the product selects another Session', async () => {
+    const sessionId = 'dsh-session-adjudicate-old' as SessionId
+    const nextSessionId = 'dsh-session-adjudicate-new' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    let settle: ((outcome: PickOutcome) => void) | undefined
+    let signal: AbortSignal | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const submitDefault = vi.fn()
+    const scope = inputScope(sessionId)
+    scope.controller.adjudicate.mockImplementationOnce((_line, attemptSignal) => {
+      signal = attemptSignal
+      return new Promise<PickOutcome>((resolve) => { settle = resolve })
+    })
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn(), submitDefault })
+    descriptor!.resolve(scope.binding)
+    bridge.updateDraft('/unknown')
+    expect(bridge.submitOfficialInput()).toBe(true)
+
+    bridge.syncSession(nextSessionId)
+    bridge.updateDraft('new session draft')
+    expect(signal?.aborted).toBe(true)
+    settle!(undefined)
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(bridge.getInputSnapshot()).toMatchObject({ draft: 'new session draft', phase: 'plain' })
+    expect(submitDefault).not.toHaveBeenCalled()
     bridge.dispose()
   })
 

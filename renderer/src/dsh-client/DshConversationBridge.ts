@@ -14,6 +14,7 @@ import type {
   ConsumeTokenRequest,
   InsertReferenceRequest,
   InputTriggerController,
+  PickOutcome,
   TokenSpan
 } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 
@@ -26,6 +27,7 @@ type ScopeDisposer = () => Promise<void>
 export interface DshWorkInputHandlers {
   setDraft: (draft: string) => void
   submit: () => void
+  submitDefault?: () => void
   notify?: (level: 'info' | 'error', text: string) => void
   runCommand?: (name: string) => void
 }
@@ -68,6 +70,15 @@ interface DshWorkCommandState {
   readonly claim: CommandClaim
   readonly actx: ClientContext
   readonly attempt?: DshWorkCommandAttempt
+}
+
+interface DshWorkAdjudicationAttempt {
+  readonly seq: number
+  readonly sessionId: SessionId
+  readonly draft: string
+  readonly draftRev: number
+  readonly actx: ClientContext
+  readonly abort: AbortController
 }
 
 function diffEdit(previous: string, next: string): EditRange {
@@ -121,6 +132,10 @@ function argsAfter(draft: string, token: string) {
   return /^\s/.test(rest) ? rest.slice(1) : rest
 }
 
+function claimMatchesDraft(draft: string, token: string) {
+  return draft.startsWith(token) || draft.trim() === token.trim()
+}
+
 function releaseClaim(snapshot: DshWorkComposerInputSnapshot): DshWorkComposerInputSnapshot {
   const { claim: _claim, ...plain } = snapshot
   return { ...plain, phase: 'plain' }
@@ -166,6 +181,7 @@ export class DshConversationBridge {
   readonly #stores = new Map<SessionId, BridgeInputStore>()
   readonly #actions = new Map<SessionId, DshWorkInputActions>()
   readonly #inputControllers = new Map<SessionId, InputTriggerController>()
+  readonly #inputContexts = new Map<SessionId, ClientContext>()
   readonly #scopeDisposers = new Map<SessionId, ScopeDisposer>()
   readonly #inputTriggerListeners = new Set<() => void>()
   readonly #commandStates = new Map<SessionId, DshWorkCommandState>()
@@ -173,6 +189,8 @@ export class DshConversationBridge {
   #input = EMPTY_INPUT
   #occurrenceSeq = 0
   #commandSeq = 0
+  #adjudicationSeq = 0
+  #adjudication: DshWorkAdjudicationAttempt | undefined
   #handlers: DshWorkInputHandlers | null = null
   #openFileHandler: ((path: string) => void) | null = null
   #disposed = false
@@ -201,6 +219,7 @@ export class DshConversationBridge {
       this.#reconcileSession()
       return
     }
+    this.#abortAdjudication()
     if (this.#desiredSessionId) this.#commandStates.delete(this.#desiredSessionId)
     this.#desiredSessionId = next
     this.#input = { ...EMPTY_INPUT, draftRev: this.#input.draftRev + 1 }
@@ -333,7 +352,7 @@ export class DshConversationBridge {
     if (this.#input.phase !== 'claimed') return false
     const sessionId = this.#desiredSessionId
     const state = sessionId ? this.#commandStates.get(sessionId) : undefined
-    if (!sessionId || !state || !this.#input.draft.startsWith(state.claim.token)) return false
+    if (!sessionId || !state || !claimMatchesDraft(this.#input.draft, state.claim.token)) return false
 
     this.#commandSeq += 1
     const attempt = { seq: this.#commandSeq, draft: this.#input.draft }
@@ -351,6 +370,45 @@ export class DshConversationBridge {
           error instanceof Error ? error.message : String(error)
         )
       )
+    return true
+  }
+
+  /** Let official Enter adjudication decide a leading slash before the product sends it as chat. */
+  submitOfficialInput() {
+    if (this.submitCommandClaim()) return true
+    if (this.#disposed) return false
+    if (this.#input.phase === 'adjudicating' || this.#input.phase === 'submitting') return true
+    const trimmed = this.#input.draft.trim()
+    if (!trimmed.startsWith('/')) return false
+
+    const sessionId = this.#desiredSessionId
+    const controller = this.#selectedInputController()
+    const actx = sessionId ? this.#inputContexts.get(sessionId) : undefined
+    if (!sessionId || !controller || !actx) {
+      this.#handlers?.notify?.('error', '当前 DSH Session 尚未准备好命令目录')
+      return true
+    }
+
+    this.#adjudicationSeq += 1
+    const attempt: DshWorkAdjudicationAttempt = {
+      seq: this.#adjudicationSeq,
+      sessionId,
+      draft: this.#input.draft,
+      draftRev: this.#input.draftRev,
+      actx,
+      abort: new AbortController()
+    }
+    this.#adjudication = attempt
+    this.#publishInput({ ...this.#input, phase: 'adjudicating' })
+    controller.track(this.#input.draft, 0, { tier: 'frozen' }, this.#input.draftRev)
+    controller.adjudicate(trimmed, attempt.abort.signal).then(
+      (outcome) => this.#settleAdjudication(attempt, outcome),
+      (error: unknown) => this.#settleAdjudication(
+        attempt,
+        undefined,
+        error instanceof Error ? error.message : String(error)
+      )
+    )
     return true
   }
 
@@ -377,12 +435,14 @@ export class DshConversationBridge {
     this.#unsubscribeSessions()
     this.#listeners.clear()
     this.#inputTriggerListeners.clear()
+    this.#abortAdjudication()
     this.#stores.clear()
     this.#actions.clear()
     this.#commandStates.clear()
     for (const dispose of this.#scopeDisposers.values()) void dispose()
     this.#scopeDisposers.clear()
     this.#inputControllers.clear()
+    this.#inputContexts.clear()
     this.#handlers = null
     this.#openFileHandler = null
   }
@@ -404,7 +464,7 @@ export class DshConversationBridge {
     const sessionId = this.#desiredSessionId
     if (next.phase === 'claimed') {
       const state = sessionId ? this.#commandStates.get(sessionId) : undefined
-      if (!state || !next.draft.startsWith(state.claim.token)) {
+      if (!state || !claimMatchesDraft(next.draft, state.claim.token)) {
         if (sessionId) this.#commandStates.delete(sessionId)
         normalized = releaseClaim(next)
       }
@@ -416,13 +476,17 @@ export class DshConversationBridge {
     if (sessionId) this.#storeFor(sessionId).set(normalized)
   }
 
-  #replaceDraft(draft: string, notifyProduct: boolean) {
-    const occurrences = reconcileOccurrences(this.#input.occurrences, diffEdit(this.#input.draft, draft))
+  #replaceDraft(draft: string, notifyProduct: boolean, preserveAdjudication = false) {
+    if (!preserveAdjudication) this.#abortAdjudication()
+    const current = this.#input.phase === 'adjudicating' && !preserveAdjudication
+      ? { ...this.#input, phase: 'plain' as const }
+      : this.#input
+    const occurrences = reconcileOccurrences(current.occurrences, diffEdit(current.draft, draft))
     this.#publishInput({
-      ...this.#input,
+      ...current,
       draft,
       occurrences,
-      draftRev: this.#input.draftRev + 1
+      draftRev: current.draftRev + 1
     })
     if (notifyProduct) this.#handlers?.setDraft(draft)
   }
@@ -466,12 +530,12 @@ export class DshConversationBridge {
     if (this.#disposed || this.#desiredSessionId !== sessionId) return false
     if (request.guard.kind === 'bare-token') {
       if (this.#input.draft.trim() !== request.guard.token) return false
-      this.#replaceDraft('', true)
+      this.#replaceDraft('', true, true)
       return true
     }
     const { span } = request.guard
     if (!this.#spanMatches(span) || span.start === span.end) return false
-    this.#replaceDraft(this.#input.draft.slice(0, span.start) + this.#input.draft.slice(span.end), true)
+    this.#replaceDraft(this.#input.draft.slice(0, span.start) + this.#input.draft.slice(span.end), true, true)
     return true
   }
 
@@ -528,7 +592,7 @@ export class DshConversationBridge {
       return
     }
 
-    const keepClaim = this.#input.draft === attempt.draft && this.#input.draft.startsWith(state.claim.token)
+    const keepClaim = this.#input.draft === attempt.draft && claimMatchesDraft(this.#input.draft, state.claim.token)
     if (keepClaim) {
       this.#commandStates.set(sessionId, { claim: state.claim, actx: state.actx })
       this.#publishInput({ ...this.#input, phase: 'claimed' })
@@ -539,10 +603,52 @@ export class DshConversationBridge {
     this.#handlers?.notify?.('error', text || '命令执行失败')
   }
 
+  #settleAdjudication(attempt: DshWorkAdjudicationAttempt, outcome: PickOutcome, error?: string) {
+    if (this.#adjudication?.seq !== attempt.seq) return
+    this.#adjudication = undefined
+    if (this.#disposed || this.#desiredSessionId !== attempt.sessionId) return
+
+    if (error !== undefined) {
+      if (this.#input.phase === 'adjudicating') this.#publishInput({ ...this.#input, phase: 'plain' })
+      this.#handlers?.notify?.('error', error)
+      return
+    }
+
+    const unchanged = this.#input.draftRev === attempt.draftRev && this.#input.draft === attempt.draft
+    if (outcome !== undefined && outcome !== 'handled' && 'claim' in outcome) {
+      if (!unchanged) {
+        if (this.#input.phase === 'adjudicating') this.#publishInput({ ...this.#input, phase: 'plain' })
+        return
+      }
+      this.#commandStates.set(attempt.sessionId, { claim: outcome.claim, actx: attempt.actx })
+      this.#publishInput({
+        ...this.#input,
+        phase: 'claimed',
+        claim: {
+          token: outcome.claim.token,
+          ...(outcome.claim.hint !== undefined ? { hint: outcome.claim.hint } : {})
+        }
+      })
+      this.submitCommandClaim()
+      return
+    }
+
+    if (this.#input.phase === 'adjudicating') this.#publishInput({ ...this.#input, phase: 'plain' })
+    if (outcome === undefined && unchanged) this.#handlers?.submitDefault?.()
+  }
+
+  #abortAdjudication() {
+    const attempt = this.#adjudication
+    if (!attempt) return
+    this.#adjudication = undefined
+    attempt.abort.abort()
+  }
+
   #ensureInputScope(binding: SessionBinding) {
     if (this.#inputControllers.has(binding.sessionId)) return
     const controller = binding.ctx.inputTriggers.sessionOf(binding.ctx)
     this.#inputControllers.set(binding.sessionId, controller)
+    this.#inputContexts.set(binding.sessionId, binding.ctx)
     if (binding.sessionId === this.#desiredSessionId) this.#emitInputTrigger()
     const disposer = binding.ctx.effect(() => {
       const offMenu = controller.menu.subscribe(() => {
@@ -566,7 +672,14 @@ export class DshConversationBridge {
         offLauncher()
         for (const off of offs) off()
         if (this.#inputControllers.get(binding.sessionId) === controller) {
+          if (this.#adjudication?.sessionId === binding.sessionId) {
+            this.#abortAdjudication()
+            if (binding.sessionId === this.#desiredSessionId && this.#input.phase === 'adjudicating') {
+              this.#publishInput({ ...this.#input, phase: 'plain' })
+            }
+          }
           this.#inputControllers.delete(binding.sessionId)
+          this.#inputContexts.delete(binding.sessionId)
           this.#scopeDisposers.delete(binding.sessionId)
           const releasedClaim = this.#commandStates.delete(binding.sessionId)
           if (releasedClaim && binding.sessionId === this.#desiredSessionId && !this.#disposed) {

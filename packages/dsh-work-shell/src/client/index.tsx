@@ -8,7 +8,7 @@ import {
 import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
+import type { ConsumeTokenRequest, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { ThemePreference, ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react'
@@ -94,6 +94,16 @@ class DshWorkLayoutAdapter implements ILayout {
 export function apply(ctx: ClientContext) {
   const layout = new DshWorkLayoutAdapter()
   const conversation = new DshConversationBridge(ctx.sessions)
+  const consumeProductCommand = (
+    sessionId: Parameters<typeof conversation.runProductCommand>[0],
+    name: string,
+    guard: ConsumeTokenRequest['guard']
+  ) => {
+    const actx = ctx.sessions.scope(sessionId)
+    if (!actx || actx.bail(actx, 'slash/input-consume-token', { guard }) !== true) return false
+    queueMicrotask(() => conversation.runProductCommand(sessionId, name))
+    return true
+  }
   const productCommandSource: InputTriggerSource = {
     trigger: '/',
     name: 'dsh-work',
@@ -105,10 +115,21 @@ export function apply(ctx: ClientContext) {
           .map((command) => ({ name: command.name, description: command.description }))
         : []
     ),
-    onPick: ({ candidate, session }) => {
+    onPick: ({ candidate, session, span }) => {
       if (!DSH_WORK_COMMANDS.some((command) => command.name === candidate.name)) return undefined
-      queueMicrotask(() => conversation.runProductCommand(session.sessionId, candidate.name))
-      return { text: '' }
+      return consumeProductCommand(session.sessionId, candidate.name, { kind: 'span', span })
+        ? 'handled'
+        : undefined
+    },
+    matchEnter: async (session, line, signal) => {
+      if (signal.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('DSH command adjudication aborted')
+      const trimmed = line.trim()
+      const command = DSH_WORK_COMMANDS.find((candidate) => trimmed === `/${candidate.name}`)
+      if (!command) return undefined
+      if (!consumeProductCommand(session.sessionId, command.name, { kind: 'bare-token', token: trimmed })) {
+        throw new Error(`DSH Session could not consume /${command.name}`)
+      }
+      return 'handled'
     }
   }
   const runtime: DshClientRuntimeBridge = {

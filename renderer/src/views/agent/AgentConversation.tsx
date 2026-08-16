@@ -565,7 +565,7 @@ function DshWorkAgentConversation({
     if (!conversation) return
     conversation.updateDraft(input)
     const caret = taRef.current?.selectionStart ?? input.length
-    const reserveLeadingSlash = !input.includes('\n') && /^\//.test(input)
+    const reserveLeadingSlash = !dshClientHost && !input.includes('\n') && /^\//.test(input)
     conversation.trackInputTrigger(input, caret, { reserveLeadingSlash })
   }, [dshClientHost, input])
 
@@ -576,6 +576,10 @@ function DshWorkAgentConversation({
   }, [officialInputMenuActive])
 
   useEffect(() => {
+    if (dshClientHost) setSlash(null)
+  }, [dshClientHost])
+
+  useEffect(() => {
     const selectedSkill = selectedSkills[selectedSkills.length - 1]
     if (!selectedSkill) return
     if (selectedSkill.prompt) setInput((current) => current.trim() ? current : selectedSkill.prompt || '')
@@ -583,7 +587,7 @@ function DshWorkAgentConversation({
   }, [selectedSkills])
   // Inline composer trigger (@ file / # conversation): track trigger char position and query text.
   const [trigger, setTrigger] = useState<{ mode: PickMode; start: number; query: string } | null>(null)
-  // Slash commands (/compact etc.): show when input starts with "/" and user is still typing command name.
+  // Standalone fallback only; the formal DSH Client host owns slash candidates and execution.
   const [slash, setSlash] = useState<{ query: string; args: string; skillsOnly?: boolean } | null>(null)
   const [slashActiveIndex, setSlashActiveIndex] = useState(0)
   const [slashSkills, setSlashSkills] = useState<SlashSkill[]>([])
@@ -1760,8 +1764,8 @@ function DshWorkAgentConversation({
     }
   }
 
-  const send = async (text?: string, extra?: DispatchExtra) => {
-    if (text == null && dshClientHost?.conversation.submitCommandClaim()) return
+  const send = async (text?: string, extra?: DispatchExtra, skipOfficialInput = false) => {
+    if (text == null && !skipOfficialInput && dshClientHost?.conversation.submitOfficialInput()) return
     const composerDraft = text ?? input
     const atts = text == null ? attachments : []
     const comments = text == null ? reviewComments : []
@@ -2325,16 +2329,16 @@ function DshWorkAgentConversation({
     }
   }
 
-  // On composer change: update value and detect slash command (line-start /) and inline references (@ file / # conversation).
+  // Update the shared draft, retaining local slash detection only for standalone development.
   const onInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setInput(val)
     // Slash commands own the first input line. `/skill 质量` filters Skills; other commands may keep text as arguments.
     const slashMatch = !val.includes('\n') ? val.match(/^\/([^\s]*)(?:\s+(.*))?$/) : null
     dshClientHost?.conversation.trackInputTrigger(val, e.target.selectionStart ?? val.length, {
-      reserveLeadingSlash: slashMatch !== null
+      reserveLeadingSlash: !dshClientHost && slashMatch !== null
     })
-    if (slashMatch) {
+    if (slashMatch && !dshClientHost) {
       const commandName = String(slashMatch[1] || '')
       const args = String(slashMatch[2] || '')
       const skillsOnly = commandName.toLowerCase() === 'skill' && /\s/.test(val)
@@ -2357,7 +2361,7 @@ function DshWorkAgentConversation({
     }
   }
 
-  // Execute slash command (operation only, no text insertion).
+  // Execute a standalone fallback command without inserting prompt text.
   const runSlash = async (name: string) => {
     const args = slash?.args?.trim() || ''
     if (name === 'skill') {
@@ -2556,6 +2560,7 @@ function DshWorkAgentConversation({
     return dshClientHost.conversation.bindInputHandlers({
       setDraft: (draft) => setInput(draft),
       submit: () => void send(),
+      submitDefault: () => void send(undefined, undefined, true),
       notify: (level, text) => notifications.show({
         color: level === 'error' ? 'orange' : 'blue',
         title: level === 'error' ? '命令执行失败' : '命令已完成',
@@ -2607,7 +2612,7 @@ function DshWorkAgentConversation({
       setSlashActiveIndex(next)
       return
     }
-    // When slash command panel is open, Enter executes the highlighted item instead of sending a chat message.
+    // The standalone slash fallback executes its highlight; the formal host was handled above.
     if (e.key === 'Enter' && !e.shiftKey && slash) {
       e.preventDefault()
       const item = visibleSlashItems[slashActiveIndex]
@@ -2848,7 +2853,7 @@ function DshWorkAgentConversation({
           onChange={onInputChange}
           onSelect={(event) => {
             const value = event.currentTarget.value
-            const reserveLeadingSlash = !value.includes('\n') && /^\//.test(value)
+            const reserveLeadingSlash = !dshClientHost && !value.includes('\n') && /^\//.test(value)
             dshClientHost?.conversation.trackInputTrigger(
               value,
               event.currentTarget.selectionStart ?? value.length,
