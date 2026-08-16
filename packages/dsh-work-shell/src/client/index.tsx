@@ -51,6 +51,7 @@ type DshWorkConversationSlot =
   | 'conversation.composer.dock'
   | 'conversation.input.left'
   | 'conversation.input.right'
+  | 'conversation.input.model'
   | 'conversation.chat.assistant-actions'
   | 'conversation.chat.turnTail'
 type DshWorkConversationProps = PropsRuntime<'conversation'> & PropsRenderSlots<DshWorkConversationSlot>
@@ -227,6 +228,7 @@ export function apply(ctx: ClientContext) {
       'conversation.composer.dock': null,
       'conversation.input.left': null,
       'conversation.input.right': null,
+      'conversation.input.model': null,
       'conversation.chat.assistant-actions': null,
       'conversation.chat.turnTail': null
     })
@@ -240,7 +242,8 @@ export function apply(ctx: ClientContext) {
         'conversation.input.dock': '[data-dsh-conversation-input-dock]',
         'conversation.composer.dock': '[data-dsh-conversation-composer-dock]',
         'conversation.input.left': '[data-dsh-conversation-input-left]',
-        'conversation.input.right': '[data-dsh-conversation-input-right]'
+        'conversation.input.right': '[data-dsh-conversation-input-right]',
+        'conversation.input.model': '[data-dsh-conversation-input-model]'
       }
       const syncTarget = () => setTargets((current) => {
         const next = Object.fromEntries(Object.entries(selectors).map(([slot, selector]) => (
@@ -330,6 +333,10 @@ export function apply(ctx: ClientContext) {
           renderSlot('conversation.input.right', inputZone),
           targets['conversation.input.right']
         )}
+        {targets['conversation.input.model'] && createPortal(
+          renderSlot('conversation.input.model', { locked: session.removed }),
+          targets['conversation.input.model']
+        )}
         {assistantActionTargets.map(({ element, messageId }) => createPortal(
           renderSlot('conversation.chat.assistant-actions', { messageId }),
           element,
@@ -397,6 +404,7 @@ export function apply(ctx: ClientContext) {
           'conversation.composer.dock': { kind: 'list', scope: 'session' },
           'conversation.input.left': { kind: 'list', scope: 'session' },
           'conversation.input.right': { kind: 'list', scope: 'session' },
+          'conversation.input.model': { kind: 'single', scope: 'session' },
           'conversation.chat.assistant-actions': { kind: 'list', scope: 'session' },
           'conversation.chat.turnTail': { kind: 'chain', scope: 'session' }
         }

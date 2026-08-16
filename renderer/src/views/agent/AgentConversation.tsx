@@ -652,6 +652,10 @@ function DshWorkAgentConversation({
   const consumedBrowserPageRef = useRef<number | null>(null)
   const consumedArtifactReferenceRef = useRef<number | null>(null)
 
+  useEffect(() => {
+    if (dshClientHost) setModelRuntime(null)
+  }, [dshClientHost])
+
   // Resolve the project write target so diff files can be opened in external editors.
   useEffect(() => {
     let cancelled = false
@@ -1592,10 +1596,10 @@ function DshWorkAgentConversation({
         input: buildAgentTurnInput(runtimePrompt, requestAttachments),
         temporary,
         clientUserMessageId,
-        model: modelRuntime?.modelId,
-        effort: modelRuntime?.reasoningEffort,
-        summary: modelRuntime?.reasoningSummary,
-        verbosity: modelRuntime?.verbosity,
+        model: dshClientHost ? undefined : modelRuntime?.modelId,
+        effort: dshClientHost ? undefined : modelRuntime?.reasoningEffort,
+        summary: dshClientHost ? undefined : modelRuntime?.reasoningSummary,
+        verbosity: dshClientHost ? undefined : modelRuntime?.verbosity,
         searchMode,
         collaborationMode: collaborationModeRef.current,
         clientCapabilities,
@@ -1745,10 +1749,10 @@ function DshWorkAgentConversation({
     let runFailed = false
     try {
       const req = startAgentReview(projectId, sid, {
-        model: modelRuntime?.modelId,
-        effort: modelRuntime?.reasoningEffort,
-        summary: modelRuntime?.reasoningSummary,
-        verbosity: modelRuntime?.verbosity,
+        model: dshClientHost ? undefined : modelRuntime?.modelId,
+        effort: dshClientHost ? undefined : modelRuntime?.reasoningEffort,
+        summary: dshClientHost ? undefined : modelRuntime?.reasoningSummary,
+        verbosity: dshClientHost ? undefined : modelRuntime?.verbosity,
         clientUserMessageId,
       }, stopController.signal)
       const streamResult = await consumeAgentStream(req, sid)
@@ -2947,13 +2951,17 @@ function DshWorkAgentConversation({
           <span>{searchMode === 'auto' ? '联网自动' : searchMode === 'required' ? '联网' : '不联网'}</span>
         </button>
         <div className={styles.spacer} />
-        <ConversationModelSelector
-          projectId={projectId}
-          conversationId={sessionId}
-          onChange={setModelRuntime}
-          onOpenSettings={onOpenModelSettings}
-          openRequest={modelMenuRequest}
-        />
+        {dshClientHost ? (
+          <div className={styles.composerInlineSlot} data-dsh-conversation-input-model />
+        ) : (
+          <ConversationModelSelector
+            projectId={projectId}
+            conversationId={sessionId}
+            onChange={setModelRuntime}
+            onOpenSettings={onOpenModelSettings}
+            openRequest={modelMenuRequest}
+          />
+        )}
         <div className={styles.composerInlineSlot} data-dsh-conversation-input-right />
         <button
           data-testid="agent-send-button"

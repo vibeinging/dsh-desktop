@@ -228,6 +228,11 @@ try {
     timeout: 15_000,
     label: '对话显示 DSH 协作最终回答',
   })
+  const officialModelTrigger = '[data-dsh-conversation-input-model] button[aria-haspopup="menu"]'
+  await ui.waitFor(officialModelTrigger, { timeout: 15_000 })
+  await ui.click(officialModelTrigger)
+  await ui.waitFor('[data-dsh-conversation-input-model] [role="menu"]', { timeout: 15_000 })
+  await ui.press('Escape')
   await ui.fill('[data-testid="agent-message-input"]', '/runs')
   await ui.waitFor('[role="listbox"]', { timeout: 10_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-slash-menu]') === null`), true)
