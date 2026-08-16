@@ -229,6 +229,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
   const [showSearch, setShowSearch] = useState(false)
   const [wsCollapsed, setWsCollapsed] = useState(true) // Right workbench collapsed.
   const [wsClosing, setWsClosing] = useState(false)
+  const [standardDetailsOpen, setStandardDetailsOpen] = useState(false)
   const [workbenchTabs, setWorkbenchTabs] = useState(EMPTY_WORKBENCH_TABS)
   const [workbenchTools, setWorkbenchTools] = useState<WorkbenchContribution[]>([])
   const [workbenchCatalogLoading, setWorkbenchCatalogLoading] = useState(true)
@@ -308,6 +309,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
   const openWorkbenchTab = useCallback((tab: WorkbenchTab, options?: { resetWidth?: boolean }) => {
     clearWorkspaceCloseTimer()
     setWorkbenchAddOpen(false)
+    setStandardDetailsOpen(false)
     setWorkbenchTabs((current) => openWorkbenchTabState(current, tab))
     setWsCollapsed(false)
     setWsClosing(false)
@@ -315,6 +317,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
   }, [clearWorkspaceCloseTimer])
   const activateWorkbenchTab = useCallback((tab: WorkbenchTab, focus = false) => {
     setWorkbenchAddOpen(false)
+    setStandardDetailsOpen(false)
     if (focus) pendingWorkbenchFocusRef.current = tab
     setWorkbenchTabs((current) => activateWorkbenchTabState(current, tab))
   }, [])
@@ -1576,7 +1579,9 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
         wsCloseTimerRef.current = null
       }
       setWsClosing(false)
-      setWsCollapsed(action === 'close-details')
+      const opening = action === 'open-details'
+      setStandardDetailsOpen(opening)
+      setWsCollapsed(!opening)
     }
     window.addEventListener(DSH_WORK_LAYOUT_EVENT, onDshLayout)
     return () => window.removeEventListener(DSH_WORK_LAYOUT_EVENT, onDshLayout)
@@ -1867,7 +1872,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
   }
 
   const rightTab = workbenchTabs.active
-  const workbenchNativeViewActive = showWsInGrid && !wsClosing && !workbenchAddOpen
+  const workbenchNativeViewActive = showWsInGrid && !wsClosing && !workbenchAddOpen && !standardDetailsOpen
   const workbenchHidden = !showWsInGrid && !wsClosing
   const handleWorkbenchTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, tab: WorkbenchTab) => {
     const currentIndex = workbenchTabs.opened.indexOf(tab)
@@ -1966,7 +1971,11 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
   }
 
   const workspacePanel = (
-    <div className={styles.workbenchFrame}>
+    <div
+      className={styles.workbenchFrame}
+      data-dsh-workbench-surface
+      hidden={standardDetailsOpen}
+    >
       {workbenchTabs.opened.length === 0 ? (
         <div className={styles.workbenchEmpty} data-workbench-empty aria-label="选择工作台工具">
           <div className={styles.workbenchEmptyContent}>
@@ -2431,6 +2440,11 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
             ref={asideRef}
           >
             {workspacePanel}
+            <div
+              className={styles.standardDetailsFrame}
+              data-dsh-standard-details
+              hidden={!standardDetailsOpen}
+            />
           </aside>
         </>
       )}

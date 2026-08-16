@@ -42,6 +42,7 @@ const DSH_WORK_MAPPED_CLIENT_SLOTS = Object.freeze([
   "conversation.composer.dock",
   "conversation.input.left",
   "conversation.input.right",
+  "details",
 ]);
 const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
   "root",
@@ -63,7 +64,6 @@ const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
   "conversation.composer.bar",
   "conversation.input.plan",
   "conversation.input.model",
-  "details",
   "settings.trigger",
   "settings.header",
   "settings.action",

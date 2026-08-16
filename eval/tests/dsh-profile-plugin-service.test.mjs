@@ -598,6 +598,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         "conversation.composer.dock",
         "conversation.input.left",
         "conversation.input.right",
+        "details",
       ],
       host_unmapped_slots: [
         "root",
@@ -619,7 +620,6 @@ test("the Profile catalog is projected from the official Web Profile order", {
         "conversation.composer.bar",
         "conversation.input.plan",
         "conversation.input.model",
-        "details",
         "settings.trigger",
         "settings.header",
         "settings.action",

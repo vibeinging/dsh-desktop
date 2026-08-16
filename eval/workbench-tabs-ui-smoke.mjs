@@ -62,6 +62,36 @@ try {
   }`, { timeout: 10_000, label: '从空状态打开浏览器' })
 
   await session.evalJs(`
+    window.dispatchEvent(new CustomEvent('dsh-work:layout', { detail: { action: 'open-details' } }));
+    return true;
+  `)
+  await ui.waitUntil(`async () => {
+    const state = await window.electronAPI.browserWorkspaceGetState();
+    return Boolean(document.querySelector('[data-dsh-standard-details]:not([hidden])'))
+      && Boolean(document.querySelector('[data-dsh-workbench-surface][hidden]'))
+      && document.querySelector('[data-edge-toggle="workspace"]')?.getAttribute('data-collapsed') === 'false'
+      && state.visible === false;
+  }`, { timeout: 10_000, label: '标准 details 使用现有右栏并隐藏原生浏览器视图' })
+
+  await session.evalJs(`
+    window.dispatchEvent(new CustomEvent('dsh-work:layout', { detail: { action: 'close-details' } }));
+    return true;
+  `)
+  await ui.waitUntil(`async () => (
+    document.querySelector('[data-edge-toggle="workspace"]')?.getAttribute('data-collapsed') === 'true'
+      && Boolean(document.querySelector('[data-dsh-standard-details][hidden]'))
+  )`, { timeout: 10_000, label: '标准 details 通过共享 layout 服务关闭' })
+
+  await ui.click('[data-edge-toggle="workspace"]')
+  await ui.waitUntil(`async () => {
+    const state = await window.electronAPI.browserWorkspaceGetState();
+    return document.querySelector('[data-edge-toggle="workspace"]')?.getAttribute('data-collapsed') === 'false'
+      && Boolean(document.querySelector('[data-dsh-workbench-surface]:not([hidden])'))
+      && document.querySelector('[data-workbench-tab="browser"]')?.getAttribute('data-active') === 'true'
+      && state.visible === true;
+  }`, { timeout: 10_000, label: '退出标准 details 后恢复产品工作台' })
+
+  await session.evalJs(`
     document.querySelector('[data-workbench-add]')?.click();
     return true;
   `)
@@ -146,7 +176,7 @@ try {
   await ui.waitFor('[data-workbench-empty]', { timeout: 5_000 })
   assert.equal(await session.evalJs(`return document.querySelectorAll('[data-workbench-tab]').length`), 0)
 
-  console.log('[workbench-tabs-ui-smoke] PASS Profile贡献/官方Slot挂载/添加/切换/折叠保留/逐个关闭/浏览器原生视图显隐')
+  console.log('[workbench-tabs-ui-smoke] PASS Profile贡献/官方Slot挂载/标准details/添加/切换/折叠保留/逐个关闭/浏览器原生视图显隐')
 } finally {
   try { await session?.close() } catch { /* ignore */ }
   try { rmSync(evalHome, { recursive: true, force: true }) } catch { /* ignore */ }

@@ -91,7 +91,26 @@ export function apply(ctx: ClientContext) {
         <DshWorkApp />
         {renderSlot('sidebar', { collapsed: false, width: 263 }, { only: 'dsh-work-sidebar' })}
         {renderSlot('conversation', {}, { only: 'dsh-work-conversation' })}
+        <DshWorkDetails renderSlot={renderSlot} />
       </DshClientHostProvider>
+    )
+  }
+
+  function DshWorkDetails({ renderSlot }: Pick<DshWorkRootProps, 'renderSlot'>) {
+    const [target, setTarget] = useState<Element | null>(null)
+    useLayoutEffect(() => {
+      const syncTarget = () => setTarget(document.querySelector('[data-dsh-standard-details]'))
+      syncTarget()
+      const observer = new MutationObserver(syncTarget)
+      observer.observe(document.body, { childList: true, subtree: true })
+      return () => observer.disconnect()
+    }, [])
+    if (!target) return null
+    return createPortal(
+      <div data-dsh-standard-details-content>
+        {renderSlot('details', {})}
+      </div>,
+      target
     )
   }
 

@@ -4618,6 +4618,21 @@
   min-height: 0;
   background: var(--dsh-surface);
 }
+.workbenchFrame[hidden],
+.standardDetailsFrame[hidden] {
+  display: none;
+}
+.standardDetailsFrame {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--dsh-surface);
+}
+.standardDetailsFrame > :global([data-dsh-standard-details-content]) {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
 .workbenchTabs {
   display: flex;
   align-items: center;
