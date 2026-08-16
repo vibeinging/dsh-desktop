@@ -1391,14 +1391,15 @@ function DshWorkAgentConversation({
   }
 
   useEffect(() => {
+    const dshConversation = dshClientHost?.conversation
     if (temporary || !selectedId) {
-      dshClientHost?.conversation.syncSession(null)
+      dshConversation?.syncSession(null)
       applyDshQueueSnapshot(null)
       applyDshPermissionSnapshot(null)
       applyDshPlanSnapshot(null)
       return
     }
-    dshClientHost?.conversation.syncSession(null)
+    dshConversation?.syncSession(null)
     const controller = new AbortController()
     let delayMs = 250
     const waitToRetry = () => new Promise<void>((resolve) => {
@@ -1413,8 +1414,8 @@ function DshWorkAgentConversation({
         const response: any = await getDshSessionProtocolState(projectId, selectedId)
         if (!controller.signal.aborted && sessionIdRef.current === selectedId) {
           const state = response?.data as DshSessionProtocolState
-          dshClientHost?.conversation.syncSession(state.dshSessionId)
-          dshClientHost?.conversation.updateDraft(input)
+          dshConversation?.syncSession(state.dshSessionId)
+          dshConversation?.updateDraft(input)
           applyDshQueueSnapshot(state)
           applyDshPermissionSnapshot(state)
           applyDshPlanSnapshot(state)
@@ -1439,7 +1440,7 @@ function DshWorkAgentConversation({
             if (!event || controller.signal.aborted || sessionIdRef.current !== selectedId) return
             if (event.type === 'dsh/session-state') {
               const state = event.payload?.state as DshSessionProtocolState
-              dshClientHost?.conversation.syncSession(state.dshSessionId)
+              dshConversation?.syncSession(state.dshSessionId)
               applyDshQueueSnapshot(state)
               applyDshPermissionSnapshot(state)
               applyDshPlanSnapshot(state)
@@ -1467,7 +1468,7 @@ function DshWorkAgentConversation({
     // The stream is scoped only by the selected app session. Patch helpers use
     // refs for current state so reconnects do not restart on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dshClientHost, projectId, selectedId, temporary])
+  }, [dshClientHost?.conversation, projectId, selectedId, temporary])
 
   const consumeAgentStream = async (req: ReturnType<typeof startAgentTurn>, expectedThreadId: string | null) => {
     let runCompleted = false

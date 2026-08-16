@@ -21,6 +21,7 @@ import type {
 type ComposerDockOwner = OwnerOf<'conversation.composer.dock'>
 export type DshWorkComposerInputSnapshot = ComposerDockOwner['input']
 type DshSessions = Pick<ClientContext['sessions'], 'list' | 'open' | 'clear' | 'provide'>
+type DshInputTriggers = Pick<ClientContext['inputTriggers'], 'sessionOf'>
 type DshWorkOccurrence = DshWorkComposerInputSnapshot['occurrences'][number]
 type ScopeDisposer = () => Promise<void>
 
@@ -175,6 +176,7 @@ class BridgeInputStore implements SnapshotStore<DshWorkComposerInputSnapshot> {
  */
 export class DshConversationBridge {
   readonly #sessions: DshSessions
+  readonly #inputTriggers: DshInputTriggers
   readonly #listeners = new Set<() => void>()
   readonly #unsubscribeSessions: () => void
   readonly #disposeProvider: () => void
@@ -195,8 +197,9 @@ export class DshConversationBridge {
   #openFileHandler: ((path: string) => void) | null = null
   #disposed = false
 
-  constructor(sessions: DshSessions) {
+  constructor(sessions: DshSessions, inputTriggers: DshInputTriggers) {
     this.#sessions = sessions
+    this.#inputTriggers = inputTriggers
     this.#unsubscribeSessions = sessions.list.subscribe(() => this.#reconcileSession())
     this.#disposeProvider = sessions.provide({
       hooks: ['input'],
@@ -658,7 +661,7 @@ export class DshConversationBridge {
 
   #ensureInputScope(binding: SessionBinding) {
     if (this.#inputControllers.has(binding.sessionId)) return
-    const controller = binding.ctx.inputTriggers.sessionOf(binding.ctx)
+    const controller = this.#inputTriggers.sessionOf(binding.ctx)
     this.#inputControllers.set(binding.sessionId, controller)
     this.#inputContexts.set(binding.sessionId, binding.ctx)
     if (binding.sessionId === this.#desiredSessionId) this.#emitInputTrigger()

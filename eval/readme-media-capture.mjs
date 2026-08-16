@@ -164,8 +164,12 @@ try {
       && Number(style.opacity) <= 0.01
   }`, { timeout: 10_000, label: '左侧栏收起动画和预览已经结束' })
   await ui.fill('[data-testid="agent-message-input"]', '/runs')
-  await ui.waitFor('[data-slash-menu]', { timeout: 10_000 })
-  await ui.press('Enter')
+  await ui.waitFor('[role="listbox"]', { timeout: 10_000 })
+  assert.equal(await session.evalJs(`return document.querySelector('[data-slash-menu]') === null`), true)
+  const productCommand = '[role="option"][id^="dsh-slash-option-dsh-work-"]'
+  await ui.waitFor(productCommand, { timeout: 10_000 })
+  assert.match(await session.evalJs(`return document.querySelector(${JSON.stringify(productCommand)})?.innerText || ''`), /^runs\b/)
+  await ui.click(productCommand)
   await ui.waitFor('[data-dsh-trajectory][data-dsh-trajectory-source="session.history"]', { timeout: 20_000 })
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/call"]', { timeout: 20_000 })
   await capture(session, '01-trajectory', 'dsh-trajectory.png')

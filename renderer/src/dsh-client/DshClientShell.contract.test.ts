@@ -10,6 +10,11 @@ describe('dsh-work Client shell contract', () => {
     const shell = read('../../../packages/dsh-work-shell/src/client/index.tsx')
     const settings = read('../views/agent/AgentSettings.tsx')
 
+    expect(shell).toContain('new DshConversationBridge(ctx.sessions, ctx.inputTriggers)')
+    expect(shell).toContain("}, 'dsh-work shell slot tree')")
+    expect(shell.indexOf("name: 'root'")).toBeLessThan(shell.indexOf("name: 'sidebar'"))
+    expect(shell.indexOf("name: 'root'")).toBeLessThan(shell.indexOf("name: 'conversation'"))
+    expect(shell.indexOf("name: 'root'")).toBeLessThan(shell.indexOf("name: 'settings.section'"))
     expect(shell).toContain("children: { 'settings.general.item': { kind: 'list', scope: 'root' } }")
     expect(shell).not.toContain("children: { 'settings.plugins.tab': { kind: 'list', scope: 'root' } }")
     expect(shell).toContain("'sidebar.footer.action': { kind: 'list', scope: 'root' }")

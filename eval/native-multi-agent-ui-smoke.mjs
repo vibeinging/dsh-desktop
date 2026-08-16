@@ -229,14 +229,12 @@ try {
     label: '对话显示 DSH 协作最终回答',
   })
   await ui.fill('[data-testid="agent-message-input"]', '/runs')
-  await ui.waitFor('[data-slash-menu]', { timeout: 10_000 })
-  await session.evalJs(`
-    const command = [...document.querySelectorAll('[data-slash-menu] button')]
-      .find((button) => button.innerText.includes('/runs'));
-    if (!command) throw new Error('找不到 /runs 命令');
-    command.click();
-    return true;
-  `)
+  await ui.waitFor('[role="listbox"]', { timeout: 10_000 })
+  assert.equal(await session.evalJs(`return document.querySelector('[data-slash-menu]') === null`), true)
+  const productCommand = '[role="option"][id^="dsh-slash-option-dsh-work-"]'
+  await ui.waitFor(productCommand, { timeout: 10_000 })
+  assert.match(await session.evalJs(`return document.querySelector(${JSON.stringify(productCommand)})?.innerText || ''`), /^runs\b/)
+  await ui.click(productCommand)
   await ui.waitFor('[data-dsh-trajectory][data-dsh-trajectory-source="session.history"]', { timeout: 15_000 })
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/call"]', { timeout: 15_000 })
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })

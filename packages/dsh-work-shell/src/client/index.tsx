@@ -93,7 +93,7 @@ class DshWorkLayoutAdapter implements ILayout {
 /** Register the dsh-work product shell into the shared DSH root Slot. */
 export function apply(ctx: ClientContext) {
   const layout = new DshWorkLayoutAdapter()
-  const conversation = new DshConversationBridge(ctx.sessions)
+  const conversation = new DshConversationBridge(ctx.sessions, ctx.inputTriggers)
   const consumeProductCommand = (
     sessionId: Parameters<typeof conversation.runProductCommand>[0],
     name: string,
@@ -360,55 +360,63 @@ export function apply(ctx: ClientContext) {
   )
   ctx.effect(() => ctx.reflect.provide('layout', layout), 'dsh-work shell layout adapter')
 
-  ctx.effect(() => ctx.slots.register({
-    name: 'root',
-    priority: -100,
-    children: {
-      [WORKBENCH_SLOT]: { kind: 'list', scope: 'root' },
-      'sidebar': { kind: 'single', scope: 'root' },
-      'conversation': { kind: 'single', scope: 'session-maybe' },
-      'details': { kind: 'single', scope: 'session' },
-      'settings.section': { kind: 'list', scope: 'root' },
-      'shell.overlay': { kind: 'list', scope: 'root' }
+  ctx.effect(() => {
+    const disposers: Array<() => void> = []
+    try {
+      disposers.push(ctx.slots.register({
+        name: 'root',
+        priority: -100,
+        children: {
+          [WORKBENCH_SLOT]: { kind: 'list', scope: 'root' },
+          'sidebar': { kind: 'single', scope: 'root' },
+          'conversation': { kind: 'single', scope: 'session-maybe' },
+          'details': { kind: 'single', scope: 'session' },
+          'settings.section': { kind: 'list', scope: 'root' },
+          'shell.overlay': { kind: 'list', scope: 'root' }
+        }
+      }, DshWorkRoot))
+      disposers.push(ctx.slots.register({
+        name: 'sidebar',
+        id: 'dsh-work-sidebar',
+        priority: 100,
+        children: {
+          'sidebar.workspaces': { kind: 'single', scope: 'root' },
+          'sidebar.settings': { kind: 'single', scope: 'root' },
+          'sidebar.footer.action': { kind: 'list', scope: 'root' }
+        }
+      }, DshWorkSidebar))
+      disposers.push(ctx.slots.register({
+        name: 'conversation',
+        id: 'dsh-work-conversation',
+        priority: -100,
+        children: {
+          'conversation.session.header.actions': { kind: 'list', scope: 'session' },
+          'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
+          'conversation.input.overlay': { kind: 'list', scope: 'session' },
+          'conversation.input.dock': { kind: 'list', scope: 'session' },
+          'conversation.composer.dock': { kind: 'list', scope: 'session' },
+          'conversation.input.left': { kind: 'list', scope: 'session' },
+          'conversation.input.right': { kind: 'list', scope: 'session' },
+          'conversation.chat.assistant-actions': { kind: 'list', scope: 'session' },
+          'conversation.chat.turnTail': { kind: 'chain', scope: 'session' }
+        }
+      }, DshWorkConversation))
+      disposers.push(ctx.slots.register({
+        name: 'settings.section',
+        id: 'general',
+        order: 0,
+        priority: -100,
+        label: '常规',
+        children: { 'settings.general.item': { kind: 'list', scope: 'root' } }
+      }, DshWorkGeneralSettings))
+    } catch (error) {
+      for (const dispose of disposers.reverse()) dispose()
+      throw error
     }
-  }, DshWorkRoot), 'dsh-work shell root registration')
-
-  ctx.effect(() => ctx.slots.register({
-    name: 'sidebar',
-    id: 'dsh-work-sidebar',
-    priority: 100,
-    children: {
-      'sidebar.workspaces': { kind: 'single', scope: 'root' },
-      'sidebar.settings': { kind: 'single', scope: 'root' },
-      'sidebar.footer.action': { kind: 'list', scope: 'root' }
+    return () => {
+      for (const dispose of disposers.reverse()) dispose()
     }
-  }, DshWorkSidebar), 'dsh-work sidebar adapter')
-
-  ctx.effect(() => ctx.slots.register({
-    name: 'conversation',
-    id: 'dsh-work-conversation',
-    priority: -100,
-    children: {
-      'conversation.session.header.actions': { kind: 'list', scope: 'session' },
-      'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
-      'conversation.input.overlay': { kind: 'list', scope: 'session' },
-      'conversation.input.dock': { kind: 'list', scope: 'session' },
-      'conversation.composer.dock': { kind: 'list', scope: 'session' },
-      'conversation.input.left': { kind: 'list', scope: 'session' },
-      'conversation.input.right': { kind: 'list', scope: 'session' },
-      'conversation.chat.assistant-actions': { kind: 'list', scope: 'session' },
-      'conversation.chat.turnTail': { kind: 'chain', scope: 'session' }
-    }
-  }, DshWorkConversation), 'dsh-work conversation adapter')
-
-  ctx.effect(() => ctx.slots.register({
-    name: 'settings.section',
-    id: 'general',
-    order: 0,
-    priority: -100,
-    label: '常规',
-    children: { 'settings.general.item': { kind: 'list', scope: 'root' } }
-  }, DshWorkGeneralSettings), 'dsh-work general settings section')
+  }, 'dsh-work shell slot tree')
 
   ctx.effect(() => {
     const presenter = createDshThemePresenter(document)

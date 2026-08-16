@@ -60,6 +60,7 @@ function inputScope(sessionId: SessionId) {
   }
   return {
     binding: { sessionId, ctx, session: {} } as unknown as SessionBinding,
+    ctx,
     controller,
     emit: (name: string, request: unknown) => listeners.get(name)?.(request)
   }
@@ -89,13 +90,24 @@ function sessionList() {
   }
 }
 
+function createBridge(
+  sessions: ConstructorParameters<typeof DshConversationBridge>[0],
+  inputTriggers: ConstructorParameters<typeof DshConversationBridge>[1] = {
+    sessionOf: (ctx) => ctx.inputTriggers.sessionOf(ctx)
+  }
+) {
+  return new DshConversationBridge(sessions, {
+    sessionOf: inputTriggers.sessionOf
+  })
+}
+
 describe('DshConversationBridge', () => {
   it('opens the bound DSH Session only after the Client list knows it', () => {
     const list = sessionList()
     const open = vi.fn()
     const clear = vi.fn()
     const provide = vi.fn(() => vi.fn())
-    const bridge = new DshConversationBridge({ list, open, clear, provide })
+    const bridge = createBridge({ list, open, clear, provide })
     const sessionId = 'dsh-session-1' as SessionId
 
     bridge.syncSession(sessionId)
@@ -139,7 +151,7 @@ describe('DshConversationBridge', () => {
       }
     })
     const clear = vi.fn()
-    const bridge = new DshConversationBridge({ list, open: vi.fn(), clear, provide: vi.fn(() => vi.fn()) })
+    const bridge = createBridge({ list, open: vi.fn(), clear, provide: vi.fn(() => vi.fn()) })
     const listener = vi.fn()
     bridge.subscribeInput(listener)
 
@@ -158,6 +170,32 @@ describe('DshConversationBridge', () => {
     bridge.dispose()
   })
 
+  it('resolves input controllers from the injected root service instead of the Agent scope', () => {
+    const sessionId = 'dsh-session-root-input-trigger' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const scope = inputScope(sessionId)
+    const sessionOf = vi.fn(() => (
+      scope.controller as unknown as ReturnType<ClientContext['inputTriggers']['sessionOf']>
+    ))
+    const bridge = createBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    }, { sessionOf })
+
+    bridge.syncSession(sessionId)
+    descriptor!.resolve(scope.binding)
+
+    expect(sessionOf).toHaveBeenCalledWith(scope.ctx)
+    expect(scope.ctx.inputTriggers.sessionOf).not.toHaveBeenCalled()
+    bridge.dispose()
+  })
+
   it('provides the App input through the standard per-Session DSH kit', () => {
     const sessionId = 'dsh-session-3' as SessionId
     const list = sessionList()
@@ -166,7 +204,7 @@ describe('DshConversationBridge', () => {
       descriptor = value
       return vi.fn()
     })
-    const bridge = new DshConversationBridge({ list, open: vi.fn(), clear: vi.fn(), provide })
+    const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide })
     const setDraft = vi.fn()
     const submit = vi.fn()
     bridge.syncSession(sessionId)
@@ -190,7 +228,7 @@ describe('DshConversationBridge', () => {
 
   it('routes standard conversation file actions through the current product handler', () => {
     const list = sessionList()
-    const bridge = new DshConversationBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
     const first = vi.fn()
     const second = vi.fn()
     const unbindFirst = bridge.bindOpenFileHandler(first)
@@ -212,7 +250,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-product-command' as SessionId
     const otherSessionId = 'dsh-session-other-command' as SessionId
     const list = sessionList()
-    const bridge = new DshConversationBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
     const runCommand = vi.fn()
     bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn(), runCommand })
     bridge.syncSession(sessionId)
@@ -231,7 +269,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-reference' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -289,7 +327,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-edit' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -322,7 +360,7 @@ describe('DshConversationBridge', () => {
     const otherSessionId = 'dsh-session-other' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -367,7 +405,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-command' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -440,7 +478,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-adjudicate-miss' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -472,7 +510,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-adjudicate-failure' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -502,7 +540,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-adjudicate-claim' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -534,7 +572,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-adjudicate-handled' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -568,7 +606,7 @@ describe('DshConversationBridge', () => {
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
     let settle: ((outcome: PickOutcome) => void) | undefined
     let signal: AbortSignal | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -607,7 +645,7 @@ describe('DshConversationBridge', () => {
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
     let settle: ((value: { kind: 'success'; text: string }) => void) | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -648,7 +686,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-trigger' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
@@ -706,7 +744,7 @@ describe('DshConversationBridge', () => {
     const sessionId = 'dsh-session-space-claim' as SessionId
     const list = sessionList()
     let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
-    const bridge = new DshConversationBridge({
+    const bridge = createBridge({
       list,
       open: vi.fn(),
       clear: vi.fn(),
