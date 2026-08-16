@@ -859,11 +859,12 @@ test("real current DSH Web Profile serves client slots and its text prompt wire"
       runtimeHome,
     );
     assert.equal(profile.layers.at(-1).packageName, "@deepseek-ai/dsh-work-shell");
+    assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-workbench-pages"), true);
     const profileRows = profileApi.composeEntries([
       profile.layers.flatMap((layer) => layer.patches),
       profile.patches,
     ]);
-    for (const id of ["product-bridge"]) {
+    for (const id of ["dsh-work-product-host-ipc", "dsh-work-project-tools", "dsh-work-canvas-tools", "dsh-work-structured-ui-tools", "product-bridge", "dsh-work-office-tools"]) {
       assert.equal(profileRows.filter((row) => row.id === id).length, 1, `${id} must mount once through Profile`);
     }
     assert.equal(profileRows.find((row) => row.id === "web-runtime")?.name, "@deepseek-ai/dsh-web-app");
@@ -939,7 +940,12 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     assert.equal((await ready).version, DSH_NPM_VERSION);
     const manifest = JSON.parse(readFileSync(join(runtimeHome, "profiles", "web", "package.json"), "utf8"));
     assert.equal(manifest.dsh.profile.bundles.at(-1), "@deepseek-ai/dsh-work-shell");
+    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-work-product-host-ipc"), true);
+    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-project-tools"), true);
+    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-canvas-tools"), true);
+    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-structured-ui-tools"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-product-bridge"), true);
+    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-workbench-pages"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-theme-pack"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-product-client"), false);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-turn-navigator"), false);
@@ -952,6 +958,7 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     const surface = await client.waitForClientSurface();
     const html = await fetch(surface).then((response) => response.text());
     assert.match(html, /\/plugins\/@deepseek-ai\/dsh-work-shell\/client\.js\?rev=/);
+    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-theme-pack\/client\.js\?rev=/);
     assert.match(html, /const preference = "dark"/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-product-client\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-turn-navigator\/client\.js\?rev=/);

@@ -36,7 +36,14 @@ type DshWorkRootSlot = typeof WORKBENCH_SLOT | (typeof STANDARD_ROOT_SLOTS)[numb
 type DshWorkRootProps = PropsRuntime<'root'> & PropsRenderSlots<DshWorkRootSlot>
 type DshWorkSidebarProps = PropsRuntime<'sidebar'> & PropsRenderSlots<'sidebar.footer.action'>
 type DshWorkGeneralProps = PropsRuntime<'settings.section'> & PropsRenderSlots<'settings.general.item'>
-type DshWorkConversationProps = PropsRuntime<'conversation'> & PropsRenderSlots<'conversation.composer.dock'>
+type DshWorkConversationSlot =
+  | 'conversation.session.header.actions'
+  | 'conversation.session.header.utilities'
+  | 'conversation.input.dock'
+  | 'conversation.composer.dock'
+  | 'conversation.input.left'
+  | 'conversation.input.right'
+type DshWorkConversationProps = PropsRuntime<'conversation'> & PropsRenderSlots<DshWorkConversationSlot>
 
 export const inject = ['slots', 'sessions', 'theme', 'locale']
 
@@ -132,33 +139,71 @@ export function apply(ctx: ClientContext) {
       conversation.getInputSnapshot,
       conversation.getInputSnapshot
     )
-    const version = useSyncExternalStore(
-      (listener) => ctx.slots.subscribe('conversation.composer.dock', listener),
-      () => ctx.slots.getVersion('conversation.composer.dock'),
-      () => 0
-    )
-    const [target, setTarget] = useState<Element | null>(null)
+    const [targets, setTargets] = useState<Record<DshWorkConversationSlot, Element | null>>({
+      'conversation.session.header.actions': null,
+      'conversation.session.header.utilities': null,
+      'conversation.input.dock': null,
+      'conversation.composer.dock': null,
+      'conversation.input.left': null,
+      'conversation.input.right': null
+    })
     useLayoutEffect(() => {
-      const syncTarget = () => setTarget(document.querySelector('[data-dsh-conversation-composer-dock]'))
+      const selectors: Record<DshWorkConversationSlot, string> = {
+        'conversation.session.header.actions': '[data-dsh-session-header-actions]',
+        'conversation.session.header.utilities': '[data-dsh-session-header-utilities]',
+        'conversation.input.dock': '[data-dsh-conversation-input-dock]',
+        'conversation.composer.dock': '[data-dsh-conversation-composer-dock]',
+        'conversation.input.left': '[data-dsh-conversation-input-left]',
+        'conversation.input.right': '[data-dsh-conversation-input-right]'
+      }
+      const syncTarget = () => setTargets((current) => {
+        const next = Object.fromEntries(Object.entries(selectors).map(([slot, selector]) => (
+          [slot, document.querySelector(selector)]
+        ))) as Record<DshWorkConversationSlot, Element | null>
+        return Object.keys(selectors).every((slot) => (
+          current[slot as DshWorkConversationSlot] === next[slot as DshWorkConversationSlot]
+        )) ? current : next
+      })
       syncTarget()
       const observer = new MutationObserver(syncTarget)
       observer.observe(document.body, { childList: true, subtree: true })
       return () => observer.disconnect()
     }, [])
-    const hasEntries = useMemo(
-      () => ctx.slots.entriesOfSlot('conversation.composer.dock').length > 0,
-      [version]
-    )
-    if (!host || !target || !hasEntries || !sessionId || !session) return null
+    useLayoutEffect(() => {
+      if (session) conversation.updateQueue(session.queue)
+    }, [session?.queue])
+    if (!host || !sessionId || !session) return null
     if (host.conversation.getSessionId() !== sessionId) return null
-    return createPortal(
-      <div data-dsh-standard-conversation-composer-dock>
-        {renderSlot('conversation.composer.dock', {
-          session,
-          input: { ...input, queue: session.queue }
-        })}
-      </div>,
-      target
+    const inputZone = { session, input }
+    return (
+      <>
+        {targets['conversation.session.header.actions'] && createPortal(
+          renderSlot('conversation.session.header.actions', {}),
+          targets['conversation.session.header.actions']
+        )}
+        {targets['conversation.session.header.utilities'] && createPortal(
+          renderSlot('conversation.session.header.utilities', {}),
+          targets['conversation.session.header.utilities']
+        )}
+        {targets['conversation.input.dock'] && createPortal(
+          renderSlot('conversation.input.dock', inputZone),
+          targets['conversation.input.dock']
+        )}
+        {targets['conversation.composer.dock'] && createPortal(
+          <div data-dsh-standard-conversation-composer-dock>
+            {renderSlot('conversation.composer.dock', inputZone)}
+          </div>,
+          targets['conversation.composer.dock']
+        )}
+        {targets['conversation.input.left'] && createPortal(
+          renderSlot('conversation.input.left', inputZone),
+          targets['conversation.input.left']
+        )}
+        {targets['conversation.input.right'] && createPortal(
+          renderSlot('conversation.input.right', inputZone),
+          targets['conversation.input.right']
+        )}
+      </>
     )
   }
 
@@ -194,7 +239,12 @@ export function apply(ctx: ClientContext) {
     id: 'dsh-work-conversation',
     priority: -100,
     children: {
-      'conversation.composer.dock': { kind: 'list', scope: 'session' }
+      'conversation.session.header.actions': { kind: 'list', scope: 'session' },
+      'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
+      'conversation.input.dock': { kind: 'list', scope: 'session' },
+      'conversation.composer.dock': { kind: 'list', scope: 'session' },
+      'conversation.input.left': { kind: 'list', scope: 'session' },
+      'conversation.input.right': { kind: 'list', scope: 'session' }
     }
   }, DshWorkConversation), 'dsh-work conversation adapter')
 

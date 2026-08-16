@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-work-canvas-tools
+      name: '@deepseek-ai/dsh-canvas-tools'

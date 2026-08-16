@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-work-office-tools
+      name: '@deepseek-ai/dsh-office-tools'

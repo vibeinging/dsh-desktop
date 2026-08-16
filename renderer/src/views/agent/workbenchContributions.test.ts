@@ -4,7 +4,7 @@ import { projectWorkbenchContributions, WORKBENCH_SLOT } from './workbenchContri
 describe('Profile workbench contributions', () => {
   it('projects app-managed entries in declared order', () => {
     expect(projectWorkbenchContributions([{
-      name: '@deepseek-ai/dsh-product-bridge',
+      name: '@deepseek-ai/dsh-workbench-pages',
       managed_by: 'app',
       profile_order: 3,
       product: {
@@ -14,8 +14,8 @@ describe('Profile workbench contributions', () => {
         ]
       }
     }])).toMatchObject([
-      { id: 'review', packageName: '@deepseek-ai/dsh-product-bridge' },
-      { id: 'files', packageName: '@deepseek-ai/dsh-product-bridge' }
+      { id: 'review', packageName: '@deepseek-ai/dsh-workbench-pages' },
+      { id: 'files', packageName: '@deepseek-ai/dsh-workbench-pages' }
     ])
   })
 

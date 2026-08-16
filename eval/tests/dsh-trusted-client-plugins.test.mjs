@@ -5,24 +5,48 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import {
+  isReviewedCommunityClient,
   prepareTrustedClientPlugins,
   prepareTrustedProfilePlugins,
 } from "../../server/src/engine/dsh_runtime/trusted_client_plugins.js";
 
-async function fixture(root, name = "@deepseek-ai/dsh-product-bridge", { client = false } = {}) {
+async function fixture(root, name = "@deepseek-ai/dsh-product-bridge", { client = false, version = "1.0.0" } = {}) {
   await mkdir(join(root, "src"), { recursive: true });
   await writeFile(join(root, "src", "index.js"), "export default function apply() {}\n");
   await writeFile(join(root, "cordis.patch.yml"), "- insert: []\n");
   await writeFile(join(root, "package.json"), `${JSON.stringify({
     name,
+    version,
     type: "module",
     main: "./src/index.js",
     dsh: {
       bundle: { patch: "./cordis.patch.yml" },
       ...(client ? { client: { platform: "web" } } : {}),
     },
+    dshWork: {
+      portability: {
+        level: name === "@deepseek-ai/dsh-product-bridge" ? "desktop-adapter" : "portable",
+        surfaces: name === "@deepseek-ai/dsh-product-bridge" ? ["dsh-desktop"] : ["official-web", "dsh-desktop"],
+        hostRequirements: name === "@deepseek-ai/dsh-product-bridge" ? ["product-host"] : [],
+      },
+    },
   }, null, 2)}\n`);
 }
+
+test("only the audited dsh-market release may enter the product Client graph", () => {
+  assert.equal(isReviewedCommunityClient({
+    name: "dshmarket",
+    manifest: { version: "1.4.0" },
+  }), true);
+  assert.equal(isReviewedCommunityClient({
+    name: "dshmarket",
+    manifest: { version: "1.4.1" },
+  }), false);
+  assert.equal(isReviewedCommunityClient({
+    name: "another-client",
+    manifest: { version: "1.4.0" },
+  }), false);
+});
 
 function profileApi() {
   return {
@@ -75,12 +99,32 @@ test("trusted DSH plugins use an exact allowlist and profile resolver link", asy
     const realPluginRoot = await realpath(pluginRoot);
     assert.equal(prepared.length, 1);
     assert.equal(prepared[0].name, "@deepseek-ai/dsh-product-bridge");
+    assert.equal(prepared[0].portability, "desktop-adapter");
     assert.equal(prepared[0].patch, resolve(realPluginRoot, "cordis.patch.yml"));
     assert.equal(prepared[0].entry, resolve(realPluginRoot, "src/index.js"));
     const link = join(dshHome, "profiles", "node_modules", "@deepseek-ai", "dsh-product-bridge");
     assert.equal((await lstat(link)).isSymbolicLink(), true);
     assert.equal(resolve(dirname(link), await readlink(link)), realPluginRoot);
     assert.equal(existsSync(retiredLink), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("trusted app Bundles fail when their portability boundary drifts", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-trusted-portability-"));
+  const pluginRoot = join(root, "plugin");
+  try {
+    await fixture(pluginRoot);
+    const manifestPath = join(pluginRoot, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.dshWork.portability.level = "portable";
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    assert.throws(() => prepareTrustedClientPlugins({
+      appRoot: join(root, "app"),
+      env: { DSH_HOME: join(root, "home"), DSH_PRODUCT_BRIDGE_ROOT: pluginRoot },
+      runtimeRoot: join(root, "runtime"),
+    }), /portability\.level=desktop-adapter/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -128,6 +172,11 @@ test("trusted DSH plugins are composed by the official Profile bundle list", asy
       "@example/community-ui",
       { client: true },
     );
+    await fixture(
+      join(profileDir, "node_modules", "dshmarket"),
+      "dshmarket",
+      { client: true, version: "1.4.0" },
+    );
     await writeFile(join(profileDir, "package.json"), `${JSON.stringify({
       name: "dsh-profile-web",
       private: true,
@@ -136,6 +185,7 @@ test("trusted DSH plugins are composed by the official Profile bundle list", asy
         "@deepseek-ai/dsh-turn-navigator": "file:/retired-turn-navigator",
         "@example/user-bundle": "1.0.0",
         "@example/community-ui": "1.0.0",
+        dshmarket: "1.4.0",
       },
       dsh: { profile: { bundles: [
         "@deepseek-ai/dsh-base",
@@ -144,6 +194,7 @@ test("trusted DSH plugins are composed by the official Profile bundle list", asy
         "@deepseek-ai/dsh-turn-navigator",
         "@example/user-bundle",
         "@example/community-ui",
+        "dshmarket",
       ] } },
     }, null, 2)}\n`);
 
@@ -160,6 +211,7 @@ test("trusted DSH plugins are composed by the official Profile bundle list", asy
       "@deepseek-ai/dsh-base",
       "@deepseek-ai/dsh-web-app",
       "@example/user-bundle",
+      "dshmarket",
       "@deepseek-ai/dsh-product-bridge",
     ]);
     assert.deepEqual(first.quarantined.map((plugin) => plugin.name), ["@example/community-ui"]);
@@ -167,8 +219,11 @@ test("trusted DSH plugins are composed by the official Profile bundle list", asy
     assert.deepEqual(stored.dependencies, {
       "@example/user-bundle": "1.0.0",
       "@example/community-ui": "1.0.0",
+      dshmarket: "1.4.0",
     });
     assert.deepEqual(stored.dsh.profile.bundles, first.bundles);
+    assert.equal(first.bundles.includes("dshmarket"), true);
+    assert.deepEqual(first.reviewed.map((plugin) => plugin.name), ["dshmarket"]);
 
     const second = await prepareTrustedProfilePlugins({
       profileApi: profileApi(),

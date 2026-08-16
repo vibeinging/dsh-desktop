@@ -44,7 +44,7 @@ try {
   `)
   assert.deepEqual(emptyActions, ['review', 'browser', 'files', 'artifacts', 'sites'].map((id) => ({
     id,
-    source: '@deepseek-ai/dsh-product-bridge',
+    source: '@deepseek-ai/dsh-workbench-pages',
   })))
 
   await session.evalJs(`
@@ -53,11 +53,11 @@ try {
   `)
   await ui.waitUntil(`async () => {
     const state = await window.electronAPI.browserWorkspaceGetState();
-    return document.querySelector('[data-workbench-slot-runtime="dsh"]')
+    return document.querySelector('[data-workbench-slot-runtime="dsh-client"]')
       && document.querySelector('[data-workbench-tab="browser"]')?.getAttribute('data-active') === 'true'
       && Boolean(document.querySelector('[data-workbench-panel="browser"]:not([hidden])'))
       && document.querySelector('[data-workbench-panel="browser"]')?.getAttribute('data-workbench-component') === 'dsh-work/browser'
-      && document.querySelector('[data-workbench-panel="browser"]')?.getAttribute('data-workbench-source-bundle') === '@deepseek-ai/dsh-product-bridge'
+      && document.querySelector('[data-workbench-panel="browser"]')?.getAttribute('data-workbench-source-bundle') === '@deepseek-ai/dsh-workbench-pages'
       && state.visible === true;
   }`, { timeout: 10_000, label: '从空状态打开浏览器' })
 

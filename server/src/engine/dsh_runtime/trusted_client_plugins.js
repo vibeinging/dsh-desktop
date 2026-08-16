@@ -14,26 +14,72 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 const TRUSTED_DSH_PLUGINS = Object.freeze([{
+  name: "@deepseek-ai/dsh-work-product-host-ipc",
+  envPath: "DSH_WORK_PRODUCT_HOST_IPC_ROOT",
+  appPackage: "packages/dsh-work-product-host-ipc",
+  browser: false,
+  portability: "desktop-adapter",
+}, {
+  name: "@deepseek-ai/dsh-project-tools",
+  envPath: "DSH_PROJECT_TOOLS_ROOT",
+  appPackage: "packages/dsh-project-tools",
+  browser: false,
+  portability: "desktop-adapter",
+}, {
+  name: "@deepseek-ai/dsh-canvas-tools",
+  envPath: "DSH_CANVAS_TOOLS_ROOT",
+  appPackage: "packages/dsh-canvas-tools",
+  browser: false,
+  portability: "desktop-adapter",
+}, {
+  name: "@deepseek-ai/dsh-structured-ui-tools",
+  envPath: "DSH_STRUCTURED_UI_TOOLS_ROOT",
+  appPackage: "packages/dsh-structured-ui-tools",
+  browser: false,
+  portability: "desktop-adapter",
+}, {
   name: "@deepseek-ai/dsh-product-bridge",
   envPath: "DSH_PRODUCT_BRIDGE_ROOT",
   appPackage: "packages/dsh-product-bridge",
   browser: false,
+  portability: "desktop-adapter",
+}, {
+  name: "@deepseek-ai/dsh-office-tools",
+  envPath: "DSH_OFFICE_TOOLS_ROOT",
+  appPackage: "packages/dsh-office-tools",
+  browser: false,
+  portability: "desktop-adapter",
+}, {
+  name: "@deepseek-ai/dsh-workbench-pages",
+  envPath: "DSH_WORKBENCH_PAGES_ROOT",
+  appPackage: "packages/dsh-workbench-pages",
+  browser: false,
+  portability: "desktop-adapter",
 }, {
   name: "@deepseek-ai/dsh-theme-pack",
   envPath: "DSH_THEME_PACK_ROOT",
   appPackage: "packages/dsh-theme-pack",
-  browser: false,
+  browser: true,
+  portability: "portable",
 }, {
   name: "@deepseek-ai/dsh-work-shell",
   envPath: "DSH_WORK_SHELL_ROOT",
   appPackage: "packages/dsh-work-shell",
   browser: true,
+  portability: "desktop-shell",
 }]);
 
 const RETIRED_DSH_PLUGINS = Object.freeze([
   "@deepseek-ai/dsh-product-client",
   "@deepseek-ai/dsh-turn-navigator",
 ]);
+
+// Reviewed community Client Plugins may run in the product renderer only at
+// the exact audited version. Every other user-installed Client stays outside
+// the active graph until the separate no-preload renderer is available.
+const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
+  ["dshmarket", "1.4.0"],
+]));
 
 const WEB_PROFILE = "web";
 
@@ -65,7 +111,7 @@ function resolvePackageFile(root, declared, label) {
   return path;
 }
 
-function readTrustedPlugin(candidate, { name: expectedName, browser }) {
+function readTrustedPlugin(candidate, { name: expectedName, browser, portability }) {
   const root = realpathSync(candidate);
   const manifestPath = join(root, "package.json");
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -75,12 +121,15 @@ function readTrustedPlugin(candidate, { name: expectedName, browser }) {
   if (browser && manifest?.dsh?.client?.platform !== "web") {
     throw new Error(`${expectedName} 没有声明 Web dsh.client`);
   }
+  if (manifest?.dshWork?.portability?.level !== portability) {
+    throw new Error(`${expectedName} 必须声明 dshWork.portability.level=${portability}`);
+  }
   const patch = resolvePackageFile(root, manifest?.dsh?.bundle?.patch, `${expectedName} dsh.bundle.patch`);
   const entry = resolvePackageFile(root, manifest?.main, `${expectedName} main`);
   const client = browser
     ? resolvePackageFile(root, defaultExport(manifest?.exports?.["./client"]), `${expectedName} exports[\"./client\"]`)
     : null;
-  return { name: expectedName, root, patch, entry, client };
+  return { name: expectedName, root, patch, entry, client, portability };
 }
 
 function ensureLink(link, target) {
@@ -174,6 +223,11 @@ function readInstalledPlugin(api, packageName, installAnchor, profileDir) {
   return Object.freeze({ name: packageName, root, manifest });
 }
 
+/** Return whether one installed community Client matches the audited release. */
+export function isReviewedCommunityClient(plugin) {
+  return REVIEWED_COMMUNITY_CLIENTS.get(plugin?.name) === plugin?.manifest?.version;
+}
+
 async function loadProfileApi(appBootPath, profileApi) {
   if (profileApi) return profileApi;
   if (!appBootPath) throw new Error("缺少 DSH app-boot 入口，无法更新 Profile");
@@ -223,9 +277,14 @@ export async function prepareTrustedProfilePlugins({
     ...currentBundles,
     ...Object.keys(dependencies),
   ])].filter((name) => !reviewedNames.has(name));
-  const quarantined = userNames
-    .map((name) => readInstalledPlugin(api, name, inspectionAnchor, profileDir))
-    .filter((plugin) => plugin.manifest?.dsh?.client !== undefined);
+  const userPlugins = userNames
+    .map((name) => readInstalledPlugin(api, name, inspectionAnchor, profileDir));
+  const quarantined = userPlugins
+    .filter((plugin) => plugin.manifest?.dsh?.client !== undefined)
+    .filter((plugin) => !isReviewedCommunityClient(plugin));
+  const reviewed = userPlugins
+    .filter((plugin) => plugin.manifest?.dsh?.client !== undefined)
+    .filter(isReviewedCommunityClient);
   const quarantinedNames = new Set(quarantined.map((plugin) => plugin.name));
   const bundles = [
     ...currentBundles.filter((name) => !managedNames.has(name) && !quarantinedNames.has(name)),
@@ -246,5 +305,5 @@ export async function prepareTrustedProfilePlugins({
       },
     });
   }
-  return Object.freeze({ profileName, profileDir, plugins, bundles, quarantined, changed });
+  return Object.freeze({ profileName, profileDir, plugins, bundles, reviewed, quarantined, changed });
 }

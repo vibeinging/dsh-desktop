@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-work-structured-ui-tools
+      name: '@deepseek-ai/dsh-structured-ui-tools'

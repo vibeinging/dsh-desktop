@@ -189,6 +189,85 @@
   scrollbar-width: thin;
 }
 
+.recommendations {
+  flex: none;
+  padding: 18px 2px 12px;
+  border-bottom: 1px solid var(--dsh-border-soft, #e7e9ef);
+}
+
+.recommendationHeader,
+.recommendationTitle,
+.recommendationActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recommendationHeader {
+  align-items: flex-start;
+  margin-bottom: 12px;
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  h2 {
+    font-size: 15px;
+  }
+
+  p {
+    margin-top: 4px;
+    color: var(--dsh-muted, #697386);
+    font-size: 12px;
+  }
+}
+
+.recommendationGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.recommendationCard {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--dsh-border-soft, #e7e9ef);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--dsh-surface, #fff) 92%, var(--dsh-chip-bg, #f3f1f8));
+
+  p {
+    min-height: 36px;
+    margin: 7px 0 10px;
+    color: var(--dsh-muted, #697386);
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+}
+
+.recommendationTitle {
+  strong {
+    overflow: hidden;
+    font-size: 12.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    flex: none;
+    color: var(--dsh-muted, #697386);
+    font-size: 10.5px;
+  }
+}
+
+.recommendationMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
 .directoryList {
   padding-top: 3px;
 }
@@ -343,6 +422,33 @@
 
   li {
     padding-left: 1px;
+  }
+}
+
+.compatibilityChecks {
+  display: grid;
+  gap: 7px;
+  padding-top: 3px;
+
+  > div {
+    display: grid;
+    grid-template-columns: minmax(112px, max-content) 1fr;
+    align-items: start;
+    gap: 8px;
+  }
+}
+
+.patchSummary {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  border: 1px solid var(--dsh-border-soft, #e7e9ef);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dsh-surface, #fff) 94%, var(--dsh-chip-bg, #f3f1f8));
+
+  ul {
+    max-height: 150px;
+    overflow-y: auto;
   }
 }
 

@@ -1,0 +1,1 @@
+window.__ModuleLoader__.load({id:"@deepseek-ai/dsh-theme-pack",factory:i=>{var r={exports:{}},e=r.exports;Object.defineProperty(e,Symbol.toStringTag,{value:"Module"});const o=["theme"],a="@deepseek-ai/dsh-theme-pack";function d(t){t.effect(()=>t.theme.overrideTokens(a,{"--dsw-alias-brand-primary":{light:"#405fd2",dark:"#7b9cff"}}))}return e.apply=d,e.inject=o,r.exports}});

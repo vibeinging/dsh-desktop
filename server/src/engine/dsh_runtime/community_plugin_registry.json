@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-15",
+  "catalog_source": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin",
+  "plugins": [
+    {
+      "id": "dshmarket",
+      "name": "DSH Plugin Market",
+      "description": "Browse, search, install, and update DSH plugins from the Web settings surface.",
+      "description_zh": "在 Web 设置页浏览、搜索、安装和更新 DSH 插件。",
+      "repository": "https://github.com/dsh-market/dsh-market",
+      "stars": 167,
+      "category": "market",
+      "source": "dshmarket@1.4.0",
+      "compatibility": "reviewed",
+      "priority": 10
+    },
+    {
+      "id": "dsh-web-ui",
+      "name": "DSH Web UI",
+      "description": "Task board, Git graph, live statistics, remote UI, pets, and skins distributed as separate packages.",
+      "description_zh": "以独立子包提供任务看板、Git 图谱、实时统计、远程 UI、宠物和皮肤。",
+      "repository": "https://github.com/zhu1090093659/dsh-web-ui",
+      "stars": 2278,
+      "category": "collection",
+      "source": null,
+      "compatibility": "select-packages",
+      "priority": 20
+    },
+    {
+      "id": "modlens",
+      "name": "modlens",
+      "description": "Vision bridge for text-only agents with structured OCR, layout, and semantic evidence.",
+      "description_zh": "为文本 Agent 提供结构化 OCR、布局和图像语义证据。",
+      "repository": "https://github.com/liustack/modlens",
+      "stars": 1556,
+      "category": "vision",
+      "source": "@liustack/modlens@3.16.6",
+      "compatibility": "security-review",
+      "priority": 30
+    },
+    {
+      "id": "better-sidebar",
+      "name": "DSH Better Sidebar",
+      "description": "File editor, terminal, Git, subagent, and third-party tab workbench.",
+      "description_zh": "文件编辑器、终端、Git、子 Agent 和第三方 Tab 工作台。",
+      "repository": "https://github.com/omdsh-dev/DSH-better-sidebar",
+      "stars": 929,
+      "category": "workspace",
+      "source": "dsh-better-sidebar@0.12.2",
+      "compatibility": "host-adapter-required",
+      "priority": 40
+    },
+    {
+      "id": "vision-toolkit",
+      "name": "DSH Vision Toolkit",
+      "description": "Image questions, OCR, UI restoration, grounding, pixel comparison, Artifacts, and Web UI.",
+      "description_zh": "图像问答、OCR、UI 还原、定位、像素对比、Artifact 和 Web UI。",
+      "repository": "https://github.com/Anionex/dsh-vision-toolkit",
+      "stars": 389,
+      "category": "vision",
+      "source": "@anionex/dsh-vision-toolkit@0.1.7",
+      "compatibility": "slot-adapter-required",
+      "priority": 50
+    },
+    {
+      "id": "at-file",
+      "name": "DSH @file",
+      "description": "Search workspace files from the composer and attach their contents to prompts.",
+      "description_zh": "从输入框搜索工作区文件，并把文件内容附加到提示词。",
+      "repository": "https://github.com/omdsh-dev/dsh-at-file",
+      "stars": 173,
+      "category": "composer",
+      "source": null,
+      "compatibility": "slot-adapter-required",
+      "priority": 60
+    },
+    {
+      "id": "openpencil",
+      "name": "DSH OpenPencil",
+      "description": "OpenPencil design preview and editing integrated with DSH tool views.",
+      "description_zh": "通过 DSH Tool View 集成 OpenPencil 设计预览和编辑。",
+      "repository": "https://github.com/ZSeven-W/dsh-openpencil",
+      "stars": 73,
+      "category": "design",
+      "source": "@zseven-w/dsh-openpencil@0.1.0-rc.1",
+      "compatibility": "slot-adapter-required",
+      "priority": 70
+    },
+    {
+      "id": "dsh-files",
+      "name": "DSH Files",
+      "description": "File uploads, composer attachment cards, and document reading for PDF, DOCX, XLSX, and text.",
+      "description_zh": "提供文件上传、输入框附件卡，以及 PDF、DOCX、XLSX 和文本读取。",
+      "repository": "https://github.com/taxueseek/dsh-files",
+      "stars": 5,
+      "category": "files",
+      "source": "dsh-files@0.2.0",
+      "compatibility": "attachment-bridge-required",
+      "priority": 80
+    },
+    {
+      "id": "dsh-find-plugin",
+      "name": "DSH Find Plugin",
+      "description": "Let the agent search and rank community plugins from the live GitHub catalog.",
+      "description_zh": "让 Agent 从 GitHub 实时目录中搜索并排序社区插件。",
+      "repository": "https://github.com/awesome-dsh-plugin/dsh-find-plugin",
+      "stars": 21,
+      "category": "discovery",
+      "source": "dsh-find-plugin@0.3.6",
+      "compatibility": "sdk-migration-required",
+      "priority": 90
+    },
+    {
+      "id": "dsh-toolkit",
+      "name": "DSH Toolkit",
+      "description": "Ten deterministic tools for time, encoding, JSON, calculation, CSV, regex, Markdown, diff, statistics, and schema work.",
+      "description_zh": "提供时间、编码、JSON、计算、CSV、正则、Markdown、差异、统计和 Schema 十类确定性工具。",
+      "repository": "https://github.com/omdsh-dev/dsh-toolkit",
+      "stars": 16,
+      "category": "tools",
+      "source": "github:omdsh-dev/dsh-toolkit#5d4628929aa2695cab7b4534670c0ca3c9cd7652",
+      "compatibility": "host-preflight-required",
+      "priority": 100
+    },
+    {
+      "id": "distill",
+      "name": "Distill",
+      "description": "Reflect on conversations with a background subagent and distill reusable skills.",
+      "description_zh": "使用后台子 Agent 反思会话，并沉淀可复用 Skill。",
+      "repository": "https://github.com/LoserFox/distill",
+      "stars": 16,
+      "category": "skills",
+      "source": "github:LoserFox/distill#d2aaa395adeffe88e429be796c12d829752cbad1",
+      "compatibility": "host-preflight-required",
+      "priority": 110
+    },
+    {
+      "id": "dsh-mcp-bridge",
+      "name": "DSH MCP Bridge",
+      "description": "A curated bundle of MCP servers with connectivity checks for filesystem, GitHub, Playwright, memory, and remote HTTP.",
+      "description_zh": "提供文件系统、GitHub、Playwright、记忆和远程 HTTP MCP Server，并带连通性检查。",
+      "repository": "https://github.com/Edge-Echo/dsh-mcp-bridge",
+      "stars": 3,
+      "category": "mcp",
+      "source": "dsh-mcp-bridge@0.1.2",
+      "compatibility": "profile-ready-permission-review",
+      "priority": 120
+    }
+  ]
+}

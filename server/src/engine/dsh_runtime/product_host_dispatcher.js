@@ -1,7 +1,7 @@
 // Product-tool IPC dispatcher: the dsh-work parent-side handler for inbound
-// `product-request` messages from the app-owned DSH Profile Bundle. The Bundle
-// sends `{ type: "product-request", id, sessionId, method, payload }` over the
-// fork() IPC channel when one of its project or Office tools runs. This dispatcher owns:
+// `product-request` messages from the app-owned DSH product Host IPC adapter.
+// The adapter sends `{ type: "product-request", id, sessionId, method, payload }`
+// over the fork() IPC channel when a product capability consumer runs. This dispatcher owns:
 //   - the method whitelist (default-deny; a method not listed is rejected),
 //   - the caller identity (the request NEVER carries a userId — the dispatcher
 //     derives it from the bound dsh-work session via resolveUserId),

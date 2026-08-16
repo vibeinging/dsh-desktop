@@ -1,15 +1,14 @@
 {
   "schema_version": 1,
   "interface": {
-    "display_name": "DeepSeek Harness Desktop App 产品桥接",
-    "description": "把项目、对话、Canvas、Site、Office 产物和结构化界面能力接入当前 DSH Web Profile。",
+    "display_name": "DeepSeek Harness Desktop App 工作台页面",
+    "description": "把结果、浏览器、文件、产物和 Site 页面贡献给当前桌面工作台。",
     "developer_name": "DeepSeek Harness Desktop App",
-    "category": "产品能力",
+    "category": "工作台",
     "capabilities": [
-      "项目与对话读取",
-      "Canvas 与本地 Site 读取、编辑和建议",
-      "Office 产物读取与编辑",
-      "安全结构化界面"
+      "结果与证据工作台",
+      "浏览器与文件工作台",
+      "产物与 Site 工作台"
     ]
   },
   "contributions": [

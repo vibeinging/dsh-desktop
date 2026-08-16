@@ -235,7 +235,7 @@ export async function preparePackage() {
   // DSH loader 以裸包名按 Node parent-walk 从 server/node_modules 解析内置 Bundle；
   // 把随包本地插件以实体副本放进 staged node_modules，与 $DSH_HOME/profiles 的
   // flat 链接互为冗余，保证任意平台、任意解析起点都能命中（symlink 不能跨机，必须复制）。
-  for (const pluginName of ['dsh-product-bridge', 'dsh-theme-pack', 'dsh-work-shell']) {
+  for (const pluginName of ['dsh-work-product-host-ipc', 'dsh-project-tools', 'dsh-canvas-tools', 'dsh-structured-ui-tools', 'dsh-product-bridge', 'dsh-office-tools', 'dsh-workbench-pages', 'dsh-theme-pack', 'dsh-work-shell']) {
     await cp(
       join(APP_DIR, 'packages', pluginName),
       join(STAGED_SERVER_DIR, 'node_modules', '@deepseek-ai', pluginName),

@@ -826,6 +826,10 @@
 .conversationRuntime {
   flex: none;
 }
+.conversationHeaderSlot,
+.composerInlineSlot {
+  display: contents;
+}
 .temporaryBadge {
   flex: none;
   padding: 2px 6px;
@@ -3412,6 +3416,13 @@
 .dock {
   padding: 0 clamp(14px, 2vw, 24px) clamp(14px, 2vw, 22px);
   background: linear-gradient(180deg, transparent, var(--dsh-surface) 34%);
+}
+.composerInputDock {
+  width: min(860px, 100%);
+  margin: 0 auto 8px;
+}
+.composerInputDock:empty {
+  display: none;
 }
 
 /* New conversation: workspace selector at top of the composer. */

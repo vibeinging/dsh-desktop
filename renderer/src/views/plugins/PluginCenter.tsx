@@ -52,11 +52,29 @@ interface ProfileBundle {
     host_unmapped_slots?: string[]
   }
   capabilities?: string[]
+  portability?: {
+    level: 'portable' | 'desktop-adapter' | 'desktop-shell'
+    surfaces: string[]
+    host_requirements: string[]
+    compatibility_test: string | null
+  } | null
 }
 
 interface PluginCenterProps {
   surface?: 'directory' | 'settings'
   onOpenSettings?: () => void
+}
+
+interface RecommendedPlugin {
+  id: string
+  name: string
+  description: string
+  description_zh?: string
+  repository: string
+  stars: number
+  category: string
+  source: string | null
+  compatibility: string
 }
 
 interface ProfileBundlePreflight {
@@ -67,6 +85,26 @@ interface ProfileBundlePreflight {
   version: string | null
   surface?: 'dsh_work' | 'dsh_web' | 'host'
   blockers: Array<{ code: string; message: string }>
+  compatibility_checks?: Array<{
+    id: 'host' | 'session' | 'capabilities' | 'client'
+    status: 'profile_checked' | 'review_required' | 'isolation_required' | 'not_detected'
+    label: string
+    message: string
+  }>
+  patch_summary?: {
+    row_count: number
+    inserted_count: number
+    overridden_count: number
+    risk_categories: string[]
+    rows: Array<{
+      id: string | null
+      name: string | null
+      operation: 'insert' | 'override'
+      disabled: boolean
+      config_keys: string[]
+      risks: string[]
+    }>
+  }
 }
 
 function preflightTitle(status: ProfileBundlePreflight['status']) {
@@ -111,6 +149,7 @@ export default function PluginCenter({
 }: PluginCenterProps) {
   const directorySurface = surface === 'directory'
   const [bundles, setBundles] = useState<ProfileBundle[]>([])
+  const [recommendations, setRecommendations] = useState<RecommendedPlugin[]>([])
   const [profileName, setProfileName] = useState('web')
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
@@ -134,6 +173,7 @@ export default function PluginCenter({
       const catalog = response?.data || {}
       const next = Array.isArray(catalog.plugins) ? catalog.plugins : []
       setBundles(next)
+      setRecommendations(Array.isArray(catalog.recommended_plugins) ? catalog.recommended_plugins : [])
       setProfileName(String(catalog.marketplaces?.[0]?.name || 'web'))
     } catch (loadError: any) {
       setError(loadError?.message || loadError?.msg || 'DSH Profile 读取失败')
@@ -179,6 +219,13 @@ export default function PluginCenter({
     } finally {
       setInstalling(false)
     }
+  }
+
+  const openRecommendedInstall = (plugin: RecommendedPlugin) => {
+    if (!plugin.source) return
+    setInstallSource(plugin.source)
+    setPreflight(null)
+    setInstallOpen(true)
   }
 
   const checkCompatibility = async () => {
@@ -270,6 +317,39 @@ export default function PluginCenter({
         <span className={styles.directoryResultCount}>{visibleBundles.length} 个运行层</span>
       </div>
 
+      {!query && recommendations.length > 0 && (
+        <section className={styles.recommendations} data-community-plugin-registry>
+          <div className={styles.recommendationHeader}>
+            <div>
+              <h2>社区插件</h2>
+              <p>社区优先，自研兜底。安装前仍会运行 Profile 兼容性检查。</p>
+            </div>
+            <Badge variant="light">{recommendations.length} 个候选</Badge>
+          </div>
+          <div className={styles.recommendationGrid}>
+            {recommendations.map((plugin) => (
+              <article key={plugin.id} className={styles.recommendationCard}>
+                <div className={styles.recommendationTitle}>
+                  <strong>{plugin.name}</strong>
+                  <span>{plugin.stars} Star</span>
+                </div>
+                <p>{plugin.description_zh || plugin.description}</p>
+                <div className={styles.recommendationMeta}>
+                  <Badge size="xs" variant="outline">{plugin.category}</Badge>
+                  <Badge size="xs" variant="light">{plugin.compatibility}</Badge>
+                </div>
+                <div className={styles.recommendationActions}>
+                  <Button component="a" href={plugin.repository} target="_blank" size="xs" variant="subtle">仓库</Button>
+                  <Button size="xs" variant="light" disabled={!plugin.source} onClick={() => openRecommendedInstall(plugin)}>
+                    {plugin.source ? '检查并安装' : '选择子包'}
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
       {error && (
         <Alert color="red" icon={<IconInfoCircle size={16} />} title="Profile 不可用">
           <div className={styles.inlineErrorAction}>
@@ -286,7 +366,7 @@ export default function PluginCenter({
           <div className={styles.emptyState}>
             <span className={styles.emptyGlyph}><IconBox size={20} /></span>
             <strong>{query ? '没有匹配的 Bundle' : '当前 Profile 没有 Bundle'}</strong>
-            <span>安装时必须提供精确版本或 dsh-external 的完整 commit。</span>
+            <span>安装时必须提供精确版本或 GitHub 仓库的完整 commit。</span>
           </div>
         ) : visibleBundles.map((bundle) => (
           <div
@@ -344,11 +424,11 @@ export default function PluginCenter({
       >
         <div className={styles.marketplaceForm}>
           <Alert color="blue" icon={<IconInfoCircle size={16} />}>
-            社区插件会先在隔离的候选 Profile 中检查。只接受固定 npm 版本或 dsh-external 的完整 commit，不接受 latest 和分支名。
+            社区插件会先在隔离的候选 Profile 中检查。只接受固定 npm 版本或 GitHub 仓库的完整 commit，不接受 latest 和分支名。
           </Alert>
           <TextInput
             label="固定来源"
-            placeholder="github:dsh-external/DSH-better-sidebar#40位commit"
+            placeholder="github:owner/repository#40位commit"
             value={installSource}
             onChange={(event) => {
               setInstallSource(event.currentTarget.value)
@@ -368,6 +448,38 @@ export default function PluginCenter({
                       <li key={`${blocker.code}:${blocker.message}`}>{blocker.message}</li>
                     ))}
                   </ul>
+                )}
+                {Array.isArray(preflight.compatibility_checks) && preflight.compatibility_checks.length > 0 && (
+                  <div className={styles.compatibilityChecks} data-profile-compatibility-checks>
+                    {preflight.compatibility_checks.map((check) => (
+                      <div key={check.id} data-check-status={check.status}>
+                        <Badge size="xs" variant="light">{check.label}</Badge>
+                        <span>{check.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {preflight.patch_summary && (
+                  <div className={styles.patchSummary} data-profile-patch-summary>
+                    <strong>实际 Cordis 插件行</strong>
+                    <span>
+                      新增 {preflight.patch_summary.inserted_count} 行，覆盖 {preflight.patch_summary.overridden_count} 行
+                      {preflight.patch_summary.risk_categories.length > 0
+                        ? `；需要审查 ${preflight.patch_summary.risk_categories.join('、')}`
+                        : ''}
+                    </span>
+                    {preflight.patch_summary.rows.length > 0 && (
+                      <ul>
+                        {preflight.patch_summary.rows.map((row, index) => (
+                          <li key={`${row.operation}:${row.id || row.name || index}`}>
+                            {row.operation === 'insert' ? '新增' : '覆盖'} {row.id || row.name || '未命名行'}
+                            {row.name && row.id ? ` (${row.name})` : ''}
+                            {row.config_keys.length > 0 ? ` - 配置：${row.config_keys.join('、')}` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 )}
                 {preflight.status === 'build_approval_required' && (
                   <span>DeepSeek Harness Desktop App 不会自动放开社区仓库的主机代码执行权限。插件作者应提交已构建产物，或先完成单独安全审查。</span>
@@ -441,6 +553,22 @@ export default function PluginCenter({
                     <p>主窗口尚未映射：{detail.ui_runtime.host_unmapped_slots?.join('、') || '无'}</p>
                     <p>这里说明宿主能力，不代表这个插件实际注册了这些位置。</p>
                   </>
+                )}
+              </div>
+            )}
+            {detail.portability && (
+              <div className={styles.detailSection} data-dsh-work-portability={detail.portability.level}>
+                <h4>可移植性</h4>
+                <p>
+                  {detail.portability.level === 'portable'
+                    ? '通用 DSH 功能插件，可安装到官方 Web 和桌面 Profile。'
+                    : detail.portability.level === 'desktop-adapter'
+                      ? '桌面 Host 适配插件，使用 DSH 生命周期，但依赖桌面能力。'
+                      : '桌面插件宿主，负责窗口和产品布局，不作为通用功能分发。'}
+                </p>
+                <p>支持：{detail.portability.surfaces.join('、')}</p>
+                {detail.portability.host_requirements.length > 0 && (
+                  <p>宿主要求：{detail.portability.host_requirements.join('、')}</p>
                 )}
               </div>
             )}

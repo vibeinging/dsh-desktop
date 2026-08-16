@@ -2515,6 +2515,13 @@ function DshWorkAgentConversation({
       notifications.show({ color: 'orange', title: '立即补充失败', message: error?.message || '当前任务可能已经结束。' })
     }
   }
+  useEffect(() => {
+    if (!dshClientHost) return
+    return dshClientHost.conversation.bindInputHandlers({
+      setDraft: (draft) => setInput(draft),
+      submit: () => send()
+    })
+  }, [dshClientHost, send])
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape' && (trigger || slash)) {
       e.preventDefault()
@@ -2557,7 +2564,9 @@ function DshWorkAgentConversation({
   }
 
   const composer = (
-    <div
+    <>
+      <div className={styles.composerInputDock} data-dsh-conversation-input-dock />
+      <div
       className={styles.composer}
       data-drop-active={dropActive ? 'true' : undefined}
       onDragEnter={onComposerDragEnter}
@@ -2812,6 +2821,7 @@ function DshWorkAgentConversation({
             }}
           />
         )}
+        <div className={styles.composerInlineSlot} data-dsh-conversation-input-left />
         <button
           type="button"
           className={styles.searchModeButton}
@@ -2835,6 +2845,7 @@ function DshWorkAgentConversation({
           onOpenSettings={onOpenModelSettings}
           openRequest={modelMenuRequest}
         />
+        <div className={styles.composerInlineSlot} data-dsh-conversation-input-right />
         <button
           data-testid="agent-send-button"
           className={styles.sendBtn}
@@ -2846,11 +2857,13 @@ function DshWorkAgentConversation({
         </button>
       </div>
       <div className={styles.composerPluginDock} data-dsh-conversation-composer-dock />
-    </div>
+      </div>
+    </>
   )
 
   const conversationHeaderRuntime = (
     <div className={styles.conversationRuntime} data-running={effectiveBusy ? 'true' : undefined}>
+      <div className={styles.conversationHeaderSlot} data-dsh-session-header-actions />
       {headerDiff && <ChangesButton snapshot={headerDiff} onClick={() => openChanges(headerDiff.turnId)} />}
       {temporary && (
         <button type="button" className={styles.temporaryExit} onClick={onExitTemporary} disabled={effectiveBusy}>
@@ -2863,6 +2876,7 @@ function DshWorkAgentConversation({
           <span>正在运行</span>
         </>
       )}
+      <div className={styles.conversationHeaderSlot} data-dsh-session-header-utilities />
     </div>
   )
 

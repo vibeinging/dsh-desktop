@@ -89,13 +89,40 @@ Canvas 保存不可变版本，支持正文编辑、版本比较、精确行内�
 
 普通用户从左侧“插件”页面安装 DSH Profile Bundle：
 
-1. 输入带精确版本的 npm 包，或带完整 commit 的 `dsh-external` 仓库地址。
+1. 从内置社区目录选择候选插件，或输入带精确版本的 npm 包、带完整 commit 的 GitHub 仓库地址。
 2. 先运行兼容性检查；只有结果为“可以安装”时才能写入当前 Profile。
 3. 安装后查看 Bundle 的来源、版本、加载顺序和能力，用户安装的 Bundle 可以卸载。
 
-Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第三方 Client UI 的 Bundle 目前不会进入拥有 Electron 权限的主窗口；随应用提供并经过审核的 Client Bundle 不受此限制。
+Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第三方 Client UI 的 Bundle 默认不会进入拥有 Electron 权限的主窗口；只有经过代码审查并固定到精确版本的 Client Bundle 可以进入当前产品 Renderer，其他插件等待独立的无 preload 运行区。
 
 ![DSH Web Profile Bundle 列表](docs/images/readme/dsh-profile-bundles.png)
+
+### 社区插件目录
+
+项目维护一份机器可读的社区插件目录，插件中心直接读取同一份数据。目录记录仓库、版本来源、Star 快照、兼容状态和采用优先级；Star 只表示社区关注度，安装仍必须通过 Profile 预检和桌面兼容测试。
+
+| 插件 | 社区能力 | 当前采用计划 |
+|---|---|---|
+| [DSH Plugin Market](https://github.com/dsh-market/dsh-market) | 浏览、搜索、安装和更新 DSH 插件 | 首个接入对象，固定 `dshmarket@1.4.0` |
+| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | 任务看板、Git 图谱、实时统计、远程 UI、宠物和皮肤 | 按子包采用，不直接安装全家桶 |
+| [modlens](https://github.com/liustack/modlens) | 为文本模型提供 OCR、布局和图像语义证据 | 完成凭据与数据发送审查后接入 |
+| [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | 文件、编辑器、终端、Git、子 Agent 和第三方 Tab | 等待标准 Slot 或独立运行区，避免与桌面壳冲突 |
+| [DSH Vision Toolkit](https://github.com/Anionex/dsh-vision-toolkit) | 图像问答、OCR、UI 还原、像素差异和 Artifact | 补齐 Tool View Slot 后接入 |
+| [DSH @file](https://github.com/omdsh-dev/dsh-at-file) | 在输入框搜索并引用工作区文件 | 补齐输入浮层 Slot 后接入 |
+| [DSH OpenPencil](https://github.com/ZSeven-W/dsh-openpencil) | OpenPencil 预览和编辑 | 使用社区实现，不重复开发 |
+| [DSH Files](https://github.com/taxueseek/dsh-files) | 文件上传、附件卡和文档读取 | 打通标准附件身份后接入 |
+| [DSH Find Plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin) | 让 Agent 搜索社区插件 | 已确认是 Host Tool Bundle；当前版本需要迁移到 rc.6 SDK |
+| [DSH Toolkit](https://github.com/omdsh-dev/dsh-toolkit) | 时间、编码、JSON、CSV、差异、统计等确定性工具 | 完成 Git 固定版本审查后采用，不重复开发基础工具 |
+| [Distill](https://github.com/LoserFox/distill) | 后台反思会话并沉淀 Skill | 验证 Session、subagent 和 Skill 生命周期后接入 |
+| [DSH MCP Bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) | 文件系统、GitHub、Playwright、记忆和远程 HTTP MCP | rc.6 Profile 预检通过；完成网络与进程权限审查后可安装 |
+
+完整生态可从 [Awesome DeepSeek Harness Plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) 发现。候选目录是经过筛选的产品清单，不复制社区市场的全部数据；新插件优先向社区项目贡献兼容改动，只有社区没有合适实现时才自研。
+
+DSH 插件不等于 UI 插件。Profile Bundle 可以增加或替换 Host 服务、模型与 Provider、Tool、Skill、MCP、Hook、Session 中间件、存储、工作流和 Client UI。DeepSeek Harness Desktop App 对 Host 插件沿用官方 Profile 生命周期；只有需要进入窗口的 Client 代码才额外经过 Slot 映射和 Renderer 权限审查。
+
+### App 自身如何插件化
+
+DeepSeek Harness Desktop App 是一个 DSH Profile 发行版和 Electron 插件宿主，不会把窗口、更新、preload 与系统权限伪装成可安装到官方 Web 的普通插件。可复用功能按三种等级拆分：`portable` Bundle 可同时安装到官方 Web 和桌面；`desktop-adapter` Bundle 使用 DSH 生命周期但依赖明确的桌面 Host 合同；`desktop-shell` 只负责窗口、根布局与安全隔离。当前主题包已经是 `portable`，`dsh-work-product-host-ipc`、项目工具、Canvas 工具、结构化 UI 工具、工作台页面、产品桥和 Office 工具包属于 `desktop-adapter`，`dsh-work-shell` 属于 `desktop-shell`。父进程传输现在只由 `dsh-work-product-host-ipc` 负责；项目工具、Canvas 工具、结构化 UI 工具和产品桥消费 `productHost`，Office 工具消费更窄的 `officeArtifactHost`，功能 Bundle 不再直接接触 IPC。产品桥已经不再注册 Tool 或工作台页面，只保留上下文、记忆和模型继承；`dsh-workbench-pages` 独立贡献 Review、Browser、Files、Artifacts 和 Sites 页面目录。后续这些页面会优先采用社区插件，缺失部分再逐项拆成独立 Bundle。OpenPencil 保持为社区设计插件选择，不与现有版本化 Canvas 重复实现。业务组件不再继续堆入 shell。
 
 ## 与 DSH 官方 Web 的关系
 

@@ -29,10 +29,52 @@ const DSH_WORK_HOST_COMPONENTS = new Map([
   ["sites", "dsh-work/sites"],
 ]);
 const DSH_WORK_HOST_ICONS = new Set(["archive", "dashboard", "file", "terminal", "world"]);
+const DSH_WORK_MAPPED_CLIENT_SLOTS = Object.freeze([
+  "settings.section",
+  "settings.general.item",
+  "settings.plugins.tab",
+  "settings.plugin.item",
+  "shell.overlay",
+  "sidebar.footer.action",
+  "conversation.session.header.actions",
+  "conversation.session.header.utilities",
+  "conversation.input.dock",
+  "conversation.composer.dock",
+  "conversation.input.left",
+  "conversation.input.right",
+]);
+const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
+  "root",
+  "sidebar",
+  "sidebar.workspaces",
+  "sidebar.settings",
+  "conversation",
+  "conversation.session",
+  "conversation.session.header",
+  "conversation.view",
+  "conversation.chat.node",
+  "conversation.chat.commandview",
+  "conversation.chat.turnTail",
+  "conversation.chat.assistant-actions",
+  "conversation.details.tool",
+  "conversation.composer",
+  "conversation.hero.workspace",
+  "conversation.hero.agentPreset",
+  "conversation.composer.bar",
+  "conversation.input.plan",
+  "conversation.input.model",
+  "details",
+  "settings.trigger",
+  "settings.header",
+  "settings.action",
+  "settings.close",
+  "settings.onboarding",
+]);
 const CURRENT_DSH_SDK_VERSION = "0.1.0-rc.6";
 const CURRENT_CORDIS_VERSION = "4.0.1";
+const COMMUNITY_PLUGIN_REGISTRY = readJson(new URL("./community_plugin_registry.json", import.meta.url));
 const EXACT_REGISTRY_SPEC = /^(?<name>(?:@[a-z0-9._~-]+\/)?[a-z0-9._~-]+)@(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/;
-const EXACT_EXTERNAL_GIT_SPEC = /^github:dsh-external\/(?<repo>[a-z0-9._-]+)#(?<commit>[0-9a-f]{40})$/i;
+const EXACT_EXTERNAL_GIT_SPEC = /^github:(?<owner>[a-z0-9._-]+)\/(?<repo>[a-z0-9._-]+)#(?<commit>[0-9a-f]{40})$/i;
 
 function profileError(message, code, details = null) {
   const error = new Error(message);
@@ -133,6 +175,35 @@ function productInterface(manifest, descriptor) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
+/** Validate the product-owned portability contract carried by an app Bundle. */
+export function readDshWorkPortability(manifest) {
+  const value = manifest?.dshWork?.portability;
+  if (value === undefined) return null;
+  const levels = new Set(["portable", "desktop-adapter", "desktop-shell"]);
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || !levels.has(value.level)
+    || !Array.isArray(value.surfaces) || value.surfaces.length === 0
+    || value.surfaces.some((surface) => typeof surface !== "string" || !surface.trim())
+    || !Array.isArray(value.hostRequirements)
+    || value.hostRequirements.some((requirement) => typeof requirement !== "string" || !requirement.trim())
+    || (value.compatibilityTest !== undefined
+      && (typeof value.compatibilityTest !== "string" || !value.compatibilityTest.trim()))) {
+    throw profileError(`${manifest?.name || "App Bundle"} 的 dshWork.portability 无效`, "DSH_PRODUCT_PORTABILITY_INVALID");
+  }
+  if (value.level === "portable" && (value.hostRequirements.length > 0 || !value.surfaces.includes("official-web"))) {
+    throw profileError(
+      `${manifest?.name || "App Bundle"} 标记为 portable 时必须支持 official-web 且不能依赖桌面 Host`,
+      "DSH_PRODUCT_PORTABILITY_INVALID",
+    );
+  }
+  return Object.freeze({
+    level: value.level,
+    surfaces: Object.freeze([...value.surfaces]),
+    host_requirements: Object.freeze([...value.hostRequirements]),
+    compatibility_test: value.compatibilityTest || null,
+  });
+}
+
 function sourceView(packageName, spec, packageDir, managed) {
   if (managed === "app" || managed === "system") {
     return { type: managed, path: packageDir, label: managed === "app" ? "随 DeepSeek Harness Desktop App 提供" : "DSH 内置" };
@@ -158,6 +229,7 @@ function bundleView({
   const source = sourceView(packageName, dependencySpec || "", packageDir, managed);
   const version = typeof manifest.version === "string" ? manifest.version : null;
   const dshClient = manifest?.dsh?.client?.platform === "web";
+  const portability = readDshWorkPortability(manifest);
   return {
     id: packageName,
     name: packageName,
@@ -184,9 +256,9 @@ function bundleView({
       client_graph: dshClient && enabled,
       ...(dshClient && !enabled ? { declares_client: true, isolation: "quarantined" } : {}),
       host_supported_slots: dshClient && enabled
-        ? ["settings.section", "shell.overlay", "sidebar.footer.action", "conversation.composer.dock"]
+        ? DSH_WORK_MAPPED_CLIENT_SLOTS
         : [],
-      host_unmapped_slots: dshClient ? ["sidebar", "conversation", "details"] : [],
+      host_unmapped_slots: dshClient ? DSH_WORK_UNMAPPED_CLIENT_SLOTS : [],
     },
     profile_theme_count: themeCount,
     installation: managed === "system" || managed === "app" ? "INSTALLED_BY_DEFAULT" : "AVAILABLE",
@@ -211,6 +283,7 @@ function bundleView({
     connected_apps_count: 0,
     apps_needing_connection_count: 0,
     product: descriptor,
+    portability,
   };
 }
 
@@ -218,7 +291,7 @@ function bundleView({
 export function normalizeProfileBundleSource(value, { allowLocal = false } = {}) {
   const source = String(value || "").trim();
   if (!source || source.startsWith("-")) {
-    throw profileError("请输入带固定版本的 npm 包，或 dsh-external 的精确 Git commit", "DSH_PROFILE_SOURCE_REQUIRED");
+    throw profileError("请输入带固定版本的 npm 包，或 GitHub 仓库的精确 commit", "DSH_PROFILE_SOURCE_REQUIRED");
   }
   if (EXACT_REGISTRY_SPEC.test(source) || EXACT_EXTERNAL_GIT_SPEC.test(source)) return source;
   const local = source.startsWith("file:") ? source.slice(5) : source;
@@ -226,7 +299,7 @@ export function normalizeProfileBundleSource(value, { allowLocal = false } = {})
     return `file:${resolve(local)}`;
   }
   throw profileError(
-    "来源必须是精确 npm 版本、github:dsh-external/<repo>#<40位commit>，或已允许的本地包目录",
+    "来源必须是精确 npm 版本、github:<owner>/<repo>#<40位commit>，或已允许的本地包目录",
     "DSH_PROFILE_SOURCE_NOT_PINNED",
   );
 }
@@ -315,6 +388,98 @@ export function inspectCommunityClientIsolation(manifest) {
   }];
 }
 
+/** Project a Bundle manifest into the product's four independent compatibility gates. */
+export function inspectProfileBundleCompatibility(manifest) {
+  const dependencies = Object.keys({ ...manifest?.dependencies, ...manifest?.peerDependencies });
+  const uses = (fragment) => dependencies.some((name) => name.includes(fragment));
+  const capabilities = [
+    uses("dsh-tools") ? "Tool" : null,
+    uses("dsh-skill") ? "Skill" : null,
+    uses("dsh-mcp") ? "MCP" : null,
+    uses("dsh-workflow") ? "Workflow" : null,
+    uses("dsh-llm") ? "Model Provider" : null,
+  ].filter(Boolean);
+  const sessionAware = ["dsh-session", "dsh-agent", "dsh-subagent", "dsh-goal", "dsh-plan"]
+    .some((fragment) => uses(fragment));
+  const client = manifest?.dsh?.client?.platform === "web";
+  return [
+    {
+      id: "host",
+      status: "profile_checked",
+      label: "Host 与 Profile",
+      message: "在隔离候选 Profile 中组合，安装脚本保持禁用",
+    },
+    {
+      id: "session",
+      status: sessionAware ? "review_required" : "not_detected",
+      label: "Session 生命周期",
+      message: sessionAware
+        ? "检测到 Session 或 Agent SDK；还需验证 scope、日志和卸载清理"
+        : "清单未检测到 Session 或 Agent SDK 依赖",
+    },
+    {
+      id: "capabilities",
+      status: capabilities.length > 0 ? "review_required" : "not_detected",
+      label: "Tool、Skill 与 MCP",
+      message: capabilities.length > 0
+        ? `检测到 ${capabilities.join("、")}；还需验证 schema、审批、凭据和运行权限`
+        : "清单未检测到 Tool、Skill、MCP、Workflow 或模型 Provider SDK",
+    },
+    {
+      id: "client",
+      status: client ? "isolation_required" : "not_detected",
+      label: "Client UI",
+      message: client
+        ? "检测到浏览器代码；必须继续检查标准 Slot 和 Renderer 权限"
+        : "Host-only Bundle，不需要桌面 Slot",
+    },
+  ];
+}
+
+function patchRowView(row, operation) {
+  if (!row || typeof row !== "object" || Array.isArray(row)) return null;
+  const configKeys = row.config && typeof row.config === "object" && !Array.isArray(row.config)
+    ? Object.keys(row.config).sort()
+    : [];
+  const lowered = configKeys.map((key) => key.toLowerCase());
+  const risks = [
+    lowered.some((key) => /key|token|secret|password|credential/.test(key)) ? "credentials" : null,
+    lowered.some((key) => /url|host|port|endpoint|proxy/.test(key)) ? "network" : null,
+    lowered.some((key) => /command|args|shell|executable|binary/.test(key)) ? "process" : null,
+    lowered.some((key) => /path|root|dir|file|workspace/.test(key)) ? "filesystem" : null,
+  ].filter(Boolean);
+  return {
+    id: typeof row.id === "string" ? row.id : null,
+    name: typeof row.name === "string" ? row.name : null,
+    operation,
+    disabled: row.disabled === true,
+    config_keys: configKeys,
+    risks,
+  };
+}
+
+/** Summarize actual Cordis patch rows without returning configuration values or secrets. */
+export function inspectProfileBundlePatches(patches) {
+  const rows = [];
+  for (const patch of Array.isArray(patches) ? patches : []) {
+    const override = patchRowView(patch, "override");
+    if (override?.id) rows.push(override);
+    if (Array.isArray(patch?.insert)) {
+      for (const inserted of patch.insert) {
+        const view = patchRowView(inserted, "insert");
+        if (view) rows.push(view);
+      }
+    }
+  }
+  return {
+    row_count: rows.length,
+    inserted_count: rows.filter((row) => row.operation === "insert").length,
+    overridden_count: rows.filter((row) => row.operation === "override").length,
+    risk_categories: [...new Set(rows.flatMap((row) => row.risks))].sort(),
+    rows,
+  };
+}
+
 async function defaultCommandRunner(resolved, args, env) {
   try {
     return await execFileAsync(process.execPath, [...resolved.execArgv, resolved.entryPath, ...args], {
@@ -380,6 +545,11 @@ export function inspectProfileBundleManifest(manifest, {
   }
   issues.push(...inspectDshClientManifest(manifest, { clientEntryAvailable }));
   try {
+    readDshWorkPortability(manifest);
+  } catch (error) {
+    issues.push({ code: error?.code || "DSH_PRODUCT_PORTABILITY_INVALID", message: error?.message || String(error) });
+  }
+  try {
     validateProfileBundleSdk(manifest);
   } catch (error) {
     const legacyCount = Object.entries({ ...manifest?.dependencies, ...manifest?.peerDependencies })
@@ -407,7 +577,7 @@ async function inspectPinnedExternalGitSource(source) {
       "--quiet",
       "--filter=blob:none",
       "--no-checkout",
-      `https://github.com/dsh-external/${match.groups.repo}.git`,
+      `https://github.com/${match.groups.owner}/${match.groups.repo}.git`,
       checkout,
     ], { maxBuffer: 8 * 1024 * 1024 });
     const { stdout } = await execFileAsync("git", [
@@ -446,7 +616,7 @@ async function inspectPinnedExternalGitSource(source) {
   } catch (error) {
     if (error?.code?.startsWith?.("DSH_")) throw error;
     throw profileError(
-      `无法读取固定的 dsh-external 插件来源：${error?.stderr || error?.message || error}`,
+      `无法读取固定的 GitHub 插件来源：${error?.stderr || error?.message || error}`,
       "DSH_PROFILE_SOURCE_UNAVAILABLE",
     );
   } finally {
@@ -467,6 +637,7 @@ function preflightStatus(error) {
     "DSH_PROFILE_LEGACY_SDK",
     "DSH_PRODUCT_DESCRIPTOR_INVALID",
     "DSH_PRODUCT_HOST_COMPONENT_FORBIDDEN",
+    "DSH_PRODUCT_PORTABILITY_INVALID",
     "DSH_PROFILE_CANDIDATE_INVALID",
   ].includes(error?.code)) return "migration_required";
   if (["DSH_PROFILE_SOURCE_REQUIRED", "DSH_PROFILE_SOURCE_NOT_PINNED"].includes(error?.code)) return "invalid_source";
@@ -484,6 +655,10 @@ function preflightFailure(source, error) {
     installable: false,
     package_name: error?.details?.package_name || null,
     version: error?.details?.version || null,
+    ...(Array.isArray(error?.details?.compatibility_checks)
+      ? { compatibility_checks: error.details.compatibility_checks }
+      : {}),
+    ...(error?.details?.patch_summary ? { patch_summary: error.details.patch_summary } : {}),
     blockers: issues,
   };
 }
@@ -635,6 +810,9 @@ export class DshProfilePluginService {
         can_remove: false,
       }],
       featured_plugin_ids: [],
+      recommended_plugins: COMMUNITY_PLUGIN_REGISTRY.plugins,
+      recommended_plugins_updated_at: COMMUNITY_PLUGIN_REGISTRY.updated_at,
+      recommended_plugins_source: COMMUNITY_PLUGIN_REGISTRY.catalog_source,
       profile_themes: themes.profile_themes,
       profile_theme_errors: themes.profile_theme_errors,
       catalog_warnings: [],
@@ -700,12 +878,16 @@ export class DshProfilePluginService {
         ...inspectProfileBundleManifest(packageManifest),
         ...inspectCommunityClientIsolation(packageManifest),
       ];
+      const compatibilityChecks = inspectProfileBundleCompatibility(packageManifest);
       const patch = packageManifest?.dsh?.bundle?.patch;
+      let patchSummary = inspectProfileBundlePatches([]);
       if (typeof patch === "string" && patch.startsWith("./")) {
         try {
           const patchPath = realpathSync(resolve(packageDir, patch));
           if (!inside(packageDir, patchPath)) {
             issues.push({ code: "DSH_PROFILE_NOT_A_BUNDLE", message: `${packageName} 的 Bundle patch 越过了包目录` });
+          } else {
+            patchSummary = inspectProfileBundlePatches(state.api.loadOverlayPatches("dsh-work", patchPath));
           }
         } catch (error) {
           issues.push({
@@ -747,6 +929,8 @@ export class DshProfilePluginService {
         throw profileError(issues[0].message, issues[0].code, {
           package_name: packageName,
           version: packageManifest.version || null,
+          compatibility_checks: compatibilityChecks,
+          patch_summary: patchSummary,
           issues,
         });
       }
@@ -757,6 +941,8 @@ export class DshProfilePluginService {
         surface: descriptor?.contributions?.length || themeDescriptor.themes.length
           ? "dsh_work"
           : packageManifest.dsh?.client ? "dsh_web" : "host",
+        compatibilityChecks,
+        patchSummary,
       };
     } finally {
       const profilesRoot = state.api.resolveProfileDir(PROFILE_NAME, state.dshHome);
@@ -791,9 +977,10 @@ export class DshProfilePluginService {
         });
         if (issues.length > 0) {
           return preflightFailure(source, profileError(issues[0].message, issues[0].code, {
-            package_name: inspected.manifest.name || null,
-            version: inspected.manifest.version || null,
-            issues,
+          package_name: inspected.manifest.name || null,
+          version: inspected.manifest.version || null,
+          compatibility_checks: inspectProfileBundleCompatibility(inspected.manifest),
+          issues,
           }));
         }
       }
@@ -813,6 +1000,8 @@ export class DshProfilePluginService {
         package_name: candidate.packageName,
         version: candidate.version,
         surface: candidate.surface,
+        compatibility_checks: candidate.compatibilityChecks,
+        patch_summary: candidate.patchSummary,
         blockers: [],
       };
     } catch (error) {

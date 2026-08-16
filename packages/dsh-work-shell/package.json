@@ -31,6 +31,13 @@
       "platform": "web"
     }
   },
+  "dshWork": {
+    "portability": {
+      "level": "desktop-shell",
+      "surfaces": ["dsh-desktop"],
+      "hostRequirements": ["electron-window", "dsh-work-renderer"]
+    }
+  },
   "files": [
     "src/index.js",
     "lib/client.js",

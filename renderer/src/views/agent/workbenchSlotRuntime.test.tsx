@@ -20,7 +20,7 @@ const tools: WorkbenchContribution[] = [
     label: '文件',
     icon: 'file',
     order: 30,
-    packageName: '@deepseek-ai/dsh-product-bridge'
+    packageName: '@deepseek-ai/dsh-workbench-pages'
   },
   {
     slot: 'agent.workbench.tool',
@@ -29,7 +29,7 @@ const tools: WorkbenchContribution[] = [
     label: '结果',
     icon: 'terminal',
     order: 10,
-    packageName: '@deepseek-ai/dsh-product-bridge'
+    packageName: '@deepseek-ai/dsh-workbench-pages'
   }
 ]
 

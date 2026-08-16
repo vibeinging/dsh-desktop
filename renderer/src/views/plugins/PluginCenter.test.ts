@@ -28,4 +28,11 @@ describe('DSH Profile Bundle community plugin flow', () => {
     expect(source).not.toContain('dsh-work 尚未承载该图')
     expect(source).not.toContain('按这里显示的顺序进入 DSH Web')
   })
+
+  it('shows whether an app-owned Bundle is portable, a desktop adapter, or the desktop shell', () => {
+    expect(source).toContain('data-dsh-work-portability={detail.portability.level}')
+    expect(source).toContain("detail.portability.level === 'portable'")
+    expect(source).toContain("detail.portability.level === 'desktop-adapter'")
+    expect(source).toContain('桌面插件宿主')
+  })
 })

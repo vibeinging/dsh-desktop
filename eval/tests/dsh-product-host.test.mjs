@@ -15,14 +15,31 @@ import {
   overrideServices,
 } from "../../server/src/engine/dsh_runtime/product_host_dispatcher.js";
 import {
-  createDshWorkProductTools,
+  apply as applyProductBridge,
   createDshWorkInstructionMessage,
   createDshWorkMemoryMessage,
-  createCanvasProductTools,
-  createOfficeProductTools,
-  createPresentationProductTools,
-  sendRuntimeParentMessage,
+  inject as productBridgeInject,
 } from "../../packages/dsh-product-bridge/src/index.js";
+import {
+  apply as applyCanvasTools,
+  createCanvasProductTools,
+} from "../../packages/dsh-canvas-tools/src/index.js";
+import {
+  apply as applyOfficeTools,
+  createOfficeProductTools,
+} from "../../packages/dsh-office-tools/src/index.js";
+import {
+  apply as applyProjectTools,
+  createProjectProductTools,
+} from "../../packages/dsh-project-tools/src/index.js";
+import {
+  apply as applyStructuredUiTools,
+  createStructuredUiProductTools,
+} from "../../packages/dsh-structured-ui-tools/src/index.js";
+import {
+  createProductHostServices,
+  sendRuntimeParentMessage,
+} from "../../packages/dsh-work-product-host-ipc/src/index.js";
 
 const emptyDb = { query() {}, queryOne() {}, transaction() {} };
 
@@ -44,6 +61,53 @@ test("product bridge IPC treats parent shutdown as a normal lifecycle edge", () 
   assert.deepEqual(messages, [{ type: "client-ready" }]);
   assert.deepEqual(errors, ["ERR_IPC_CHANNEL_CLOSED"]);
   assert.equal(sendRuntimeParentMessage({ connected: false }, { type: "ready" }), false);
+});
+
+test("the IPC adapter exposes narrow product and Office Host services", async () => {
+  const calls = [];
+  const services = createProductHostServices({
+    async request(sessionId, method, payload, signal) {
+      calls.push({ sessionId, method, payload, signal });
+      return { method };
+    },
+  });
+  const signal = new AbortController().signal;
+  await services.productHost.projectList({ search: "alpha" }, { sessionId: "dsh-product", signal });
+  await services.productHost.capabilitySnapshot({ sessionId: "dsh-product", signal });
+  await services.officeArtifactHost.edit(
+    { artifact_id: "artifact-1" },
+    { sessionId: "dsh-office", signal },
+  );
+  assert.deepEqual(calls, [{
+    sessionId: "dsh-product",
+    method: "projectList",
+    payload: { search: "alpha" },
+    signal,
+  }, {
+    sessionId: "dsh-product",
+    method: "capabilitySnapshot",
+    payload: {},
+    signal,
+  }, {
+    sessionId: "dsh-office",
+    method: "artifactOfficeEdit",
+    payload: { artifact_id: "artifact-1" },
+    signal,
+  }]);
+  await assert.rejects(
+    services.productHost.projectList({}, { sessionId: "" }),
+    { name: "DshWorkProductHostError", code: "product-rejected" },
+  );
+  assert.equal(Object.hasOwn(services.productHost, "request"), false);
+});
+
+test("feature Bundles fail loudly when their required Host service is absent", () => {
+  const missing = { get: () => null };
+  assert.throws(() => applyProductBridge(missing), /requires the productHost conversationMemory method/);
+  assert.throws(() => applyProjectTools(missing), /requires the productHost project methods/);
+  assert.throws(() => applyCanvasTools(missing), /requires the productHost Canvas methods/);
+  assert.throws(() => applyStructuredUiTools(missing), /requires the productHost uiRender method/);
+  assert.throws(() => applyOfficeTools(missing), /requires the officeArtifactHost service/);
 });
 
 function bindSession(dispatcher, overrides = {}) {
@@ -376,16 +440,16 @@ test("office create and edit use the parent-bound user, project, and App Session
   }
 });
 
-test("the DSH product bridge registers scoped office tools with native tool results", async () => {
+test("the Office Bundle registers scoped tools with native tool results", async () => {
   const calls = [];
-  const productHost = {
-    async request(sessionId, method, payload, signal) {
-      calls.push({ sessionId, method, payload, signal });
+  const officeArtifactHost = {
+    async inspect(payload, context) {
+      calls.push({ operation: "inspect", payload, context });
       return { success: true, artifact: { id: "artifact-1" } };
     },
   };
   const agent = { session: { id: "dsh-office-session" } };
-  const tools = createOfficeProductTools(productHost, agent);
+  const tools = createOfficeProductTools(officeArtifactHost, agent);
   assert.deepEqual(
     new Set(tools.keys()),
     new Set(["artifact_office_inspect", "artifact_office_create", "artifact_office_edit"]),
@@ -402,15 +466,64 @@ test("the DSH product bridge registers scoped office tools with native tool resu
   );
   assert.equal(value.success, true);
   assert.deepEqual(calls[0], {
-    sessionId: "dsh-office-session",
-    method: "artifactOfficeInspect",
+    operation: "inspect",
     payload: { artifact_id: "artifact-1" },
-    signal,
+    context: { sessionId: "dsh-office-session", signal },
   });
   assert.equal(
     tools.get("artifact_office_inspect").definition.output.render({}, value)[0].text,
     JSON.stringify(value),
   );
+});
+
+test("the Office Bundle follows Agent scope disposal and DSH write approval", async () => {
+  const handlers = new Map();
+  const effects = [];
+  const registered = [];
+  const disposed = [];
+  const officeArtifactHost = {
+    inspect: async () => ({ ok: true }),
+    create: async () => ({ ok: true }),
+    edit: async () => ({ ok: true }),
+  };
+  const ctx = {
+    get(name) {
+      return name === "officeArtifactHost" ? officeArtifactHost : null;
+    },
+    on(name, handler) {
+      handlers.set(name, handler);
+      return () => handlers.delete(name);
+    },
+    effect(factory) {
+      effects.push(factory());
+    },
+  };
+  applyOfficeTools(ctx);
+  const agent = {
+    id: "agent-office",
+    session: { id: "session-office" },
+    ctx: {
+      get(name) {
+        if (name !== "tools") return null;
+        return {
+          register(definition) {
+            registered.push(definition.name);
+            return () => disposed.push(definition.name);
+          },
+        };
+      },
+    },
+  };
+  handlers.get("agent/created")({ agent });
+  assert.deepEqual(registered, ["artifact_office_inspect", "artifact_office_create", "artifact_office_edit"]);
+  assert.deepEqual(await handlers.get("tools/pre-execute")({ name: "artifact_office_edit" }, () => "next"), {
+    kind: "ask",
+    reason: "artifact_office_edit changes parent-owned DeepSeek Harness Desktop App product data",
+  });
+  assert.equal(await handlers.get("tools/pre-execute")({ name: "artifact_office_inspect" }, () => "next"), "next");
+  handlers.get("agent/disposed")({ agent });
+  assert.deepEqual(disposed, registered);
+  for (const dispose of effects) dispose();
 });
 
 test("Canvas tools use the parent-bound App Session and project", async () => {
@@ -491,11 +604,11 @@ test("Canvas tools use the parent-bound App Session and project", async () => {
   }
 });
 
-test("the DSH product bridge registers Canvas and local Site tools", async () => {
+test("the Canvas Bundle registers Canvas and local Site tools", async () => {
   const calls = [];
   const productHost = {
-    async request(sessionId, method, payload, signal) {
-      calls.push({ sessionId, method, payload, signal });
+    async canvasInspect(payload, context) {
+      calls.push({ payload, context });
       return { success: true, canvas: { id: "canvas-1" } };
     },
   };
@@ -521,11 +634,60 @@ test("the DSH product bridge registers Canvas and local Site tools", async () =>
     { agent, signal },
   );
   assert.deepEqual(calls[0], {
-    sessionId: "dsh-canvas-session",
-    method: "canvasInspect",
     payload: { canvas_id: "canvas-1" },
-    signal,
+    context: { sessionId: "dsh-canvas-session", signal },
   });
+});
+
+test("the Canvas Bundle follows Agent scope disposal and DSH write approval", async () => {
+  const handlers = new Map();
+  const effects = [];
+  const registered = [];
+  const disposed = [];
+  const productHost = {
+    canvasInspect: async () => ({ ok: true }),
+    canvasCreate: async () => ({ ok: true }),
+    canvasEdit: async () => ({ ok: true }),
+    canvasSuggest: async () => ({ ok: true }),
+  };
+  const ctx = {
+    get(name) {
+      return name === "productHost" ? productHost : null;
+    },
+    on(name, handler) {
+      handlers.set(name, handler);
+      return () => handlers.delete(name);
+    },
+    effect(factory) {
+      effects.push(factory());
+    },
+  };
+  applyCanvasTools(ctx);
+  const agent = {
+    id: "agent-canvas",
+    session: { id: "session-canvas" },
+    ctx: {
+      get(name) {
+        if (name !== "tools") return null;
+        return {
+          register(definition) {
+            registered.push(definition.name);
+            return () => disposed.push(definition.name);
+          },
+        };
+      },
+    },
+  };
+  handlers.get("agent/created")({ agent });
+  assert.deepEqual(registered, ["canvas_inspect", "canvas_create", "canvas_edit", "canvas_suggest"]);
+  assert.deepEqual(await handlers.get("tools/pre-execute")({ name: "canvas_edit" }, () => "next"), {
+    kind: "ask",
+    reason: "canvas_edit changes parent-owned DeepSeek Harness Desktop App product data",
+  });
+  assert.equal(await handlers.get("tools/pre-execute")({ name: "canvas_inspect" }, () => "next"), "next");
+  handlers.get("agent/disposed")({ agent });
+  assert.deepEqual(disposed, registered);
+  for (const dispose of effects) dispose();
 });
 
 test("ui_render is validated by the bound parent and registered in the DSH Agent scope", async () => {
@@ -575,13 +737,13 @@ test("ui_render is validated by the bound parent and registered in the DSH Agent
 
   const calls = [];
   const productHost = {
-    async request(sessionId, method, payload) {
-      calls.push({ sessionId, method, payload });
+    async uiRender(payload, context) {
+      calls.push({ payload, context });
       return { success: true, generative_ui: payload };
     },
   };
   const agent = { session: { id: "dsh-ui-session" } };
-  const tools = createPresentationProductTools(productHost, agent);
+  const tools = createStructuredUiProductTools(productHost, agent);
   assert.deepEqual([...tools.keys()], ["ui_render"]);
   assert.deepEqual(tools.get("ui_render").definition.parameters.required, [
     "schema_version",
@@ -591,42 +753,161 @@ test("ui_render is validated by the bound parent and registered in the DSH Agent
     "root",
   ]);
   await tools.get("ui_render").definition.execute(document, { agent });
-  assert.deepEqual(calls[0], { sessionId: "dsh-ui-session", method: "uiRender", payload: document });
+  assert.deepEqual(calls[0], { payload: document, context: { sessionId: "dsh-ui-session", signal: undefined } });
 });
 
-test("the DSH product bridge owns project tools removed from the current SDK", async () => {
+test("the Structured UI Bundle follows Agent scope registration and cleanup", () => {
+  const handlers = new Map();
+  const effects = [];
+  const registered = [];
+  const disposed = [];
+  const productHost = { uiRender: async () => ({ ok: true }) };
+  const ctx = {
+    get(name) {
+      return name === "productHost" ? productHost : null;
+    },
+    on(name, handler) {
+      handlers.set(name, handler);
+      return () => handlers.delete(name);
+    },
+    effect(factory) {
+      effects.push(factory());
+    },
+  };
+  applyStructuredUiTools(ctx);
+  const agent = {
+    id: "agent-structured-ui",
+    session: { id: "session-structured-ui" },
+    ctx: {
+      get(name) {
+        if (name !== "tools") return null;
+        return {
+          register(definition) {
+            registered.push(definition.name);
+            return () => disposed.push(definition.name);
+          },
+        };
+      },
+    },
+  };
+  handlers.get("agent/created")({ agent });
+  assert.deepEqual(registered, ["ui_render"]);
+  handlers.get("agent/disposed")({ agent });
+  assert.deepEqual(disposed, registered);
+  for (const dispose of effects) dispose();
+});
+
+test("the Project Bundle registers read-only tools over productHost", async () => {
   const calls = [];
   const productHost = {
-    async request(sessionId, method, payload) {
-      calls.push({ sessionId, method, payload });
+    async projectList(payload, context) {
+      calls.push({ operation: "projectList", payload, context });
+      return { items: [] };
+    },
+    async conversationList(payload, context) {
+      calls.push({ operation: "conversationList", payload, context });
       return { items: [] };
     },
   };
   const agent = { session: { id: "dsh-project-session" } };
-  const tools = createDshWorkProductTools(productHost, agent);
-  assert.deepEqual(new Set(tools.keys()), new Set([
-    "project_list",
-    "conversation_list",
-    "artifact_office_inspect",
-    "artifact_office_create",
-    "artifact_office_edit",
-    "canvas_inspect",
-    "canvas_create",
-    "canvas_edit",
-    "canvas_suggest",
-    "ui_render",
-  ]));
+  const tools = createProjectProductTools(productHost, agent);
+  assert.deepEqual(new Set(tools.keys()), new Set(["project_list", "conversation_list"]));
   await tools.get("project_list").definition.execute({ search: "alpha" }, { agent });
   await tools.get("conversation_list").definition.execute({ archived: true }, { agent });
   assert.deepEqual(calls, [{
-    sessionId: "dsh-project-session",
-    method: "projectList",
+    operation: "projectList",
     payload: { search: "alpha" },
+    context: { sessionId: "dsh-project-session", signal: undefined },
   }, {
-    sessionId: "dsh-project-session",
-    method: "conversationList",
+    operation: "conversationList",
     payload: { archived: true },
+    context: { sessionId: "dsh-project-session", signal: undefined },
   }]);
+});
+
+test("the Project Bundle follows Agent scope registration and cleanup", () => {
+  const handlers = new Map();
+  const effects = [];
+  const registered = [];
+  const disposed = [];
+  const productHost = {
+    projectList: async () => ({ items: [] }),
+    conversationList: async () => ({ items: [] }),
+  };
+  const ctx = {
+    get(name) {
+      return name === "productHost" ? productHost : null;
+    },
+    on(name, handler) {
+      handlers.set(name, handler);
+      return () => handlers.delete(name);
+    },
+    effect(factory) {
+      effects.push(factory());
+    },
+  };
+  applyProjectTools(ctx);
+  const agent = {
+    id: "agent-project",
+    session: { id: "session-project" },
+    ctx: {
+      get(name) {
+        if (name !== "tools") return null;
+        return {
+          register(definition) {
+            registered.push(definition.name);
+            return () => disposed.push(definition.name);
+          },
+        };
+      },
+    },
+  };
+  handlers.get("agent/created")({ agent });
+  assert.deepEqual(registered, ["project_list", "conversation_list"]);
+  handlers.get("agent/disposed")({ agent });
+  assert.deepEqual(disposed, registered);
+  for (const dispose of effects) dispose();
+});
+
+test("the product bridge no longer owns a Tool registry dependency", () => {
+  assert.deepEqual(productBridgeInject, ["agents", "productHost"]);
+});
+
+test("the product bridge keeps context and model hooks in the Agent lifecycle", () => {
+  const handlers = new Map();
+  const agentHandlers = new Map();
+  const disposed = [];
+  const effects = [];
+  const ctx = {
+    agents: { get: () => null },
+    get(name) {
+      return name === "productHost" ? { conversationMemory: async () => ({}) } : null;
+    },
+    on(name, handler) {
+      handlers.set(name, handler);
+      return () => handlers.delete(name);
+    },
+    effect(factory) {
+      effects.push(factory());
+    },
+  };
+  applyProductBridge(ctx);
+  const agent = {
+    id: "agent-context",
+    session: { id: "session-context", header: {} },
+    ctx: {
+      logger: { warn() {} },
+      on(name, handler) {
+        agentHandlers.set(name, handler);
+        return () => disposed.push(name);
+      },
+    },
+  };
+  handlers.get("agent/created")({ agent });
+  assert.deepEqual(new Set(agentHandlers.keys()), new Set(["agent/request", "agent/pre-step"]));
+  handlers.get("agent/disposed")({ agent });
+  assert.deepEqual(new Set(disposed), new Set(["agent/request", "agent/pre-step"]));
+  for (const dispose of effects) dispose();
 });
 
 test("session dispatcher routes concurrent DSH sessions to separate identities", async () => {

@@ -89,13 +89,40 @@ Local themes are restricted to safe color and appearance settings. They cannot i
 
 Regular users install DSH Profile Bundles from the “Plugins” page:
 
-1. Enter an npm package with an exact version, or a `dsh-external` repository with a full commit.
+1. Select a candidate plugin from the built-in community directory, or enter an npm package with an exact version or a GitHub repository URL pinned to a full commit.
 2. Run compatibility checks first. Installation becomes available only when the result is “Ready”.
 3. Inspect the installed Bundle's source, version, order, and capabilities. User-installed Bundles can be removed.
 
-Host Bundles that provide Tools, Skills, MCP servers, or Hooks can enter the DSH runtime. A Bundle containing third-party Client UI cannot currently enter the Electron-privileged main window; reviewed Client Bundles shipped with the application are supported.
+Host Bundles that provide Tools, Skills, MCP servers, or Hooks can enter the DSH runtime. Bundles containing third-party Client UI do not enter the Electron-privileged main window by default. Only Client Bundles that have passed code review and are pinned to an exact version can enter the current product Renderer; other plugins remain pending until a separate preload-free runtime area is available.
 
 ![DSH Web Profile Bundle list](docs/images/readme/dsh-profile-bundles.png)
+
+### Community Plugin Directory
+
+The project maintains a machine-readable community plugin directory, and the Plugin Center reads the same data directly. The directory records repositories, version sources, Star snapshots, compatibility status, and adoption priority. Stars indicate community interest only; installation must still pass the Profile preflight and desktop compatibility tests.
+
+| Plugin | Community capabilities | Current adoption plan |
+|---|---|---|
+| [DSH Plugin Market](https://github.com/dsh-market/dsh-market) | Browse, search, install, and update DSH plugins | First integration target, pinned to `dshmarket@1.4.0` |
+| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Task board, Git graph, real-time statistics, remote UI, pet, and skins | Adopt by subpackage instead of installing the entire suite |
+| [modlens](https://github.com/liustack/modlens) | Provide OCR, layout, and semantic evidence from images to text models | Integrate after credential and data transmission review |
+| [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | Files, editor, terminal, Git, Sub-Agents, and third-party tabs | Wait for a standard Slot or separate runtime area to avoid conflicts with the desktop shell |
+| [DSH Vision Toolkit](https://github.com/Anionex/dsh-vision-toolkit) | Image Q&A, OCR, UI reconstruction, pixel differences, and Artifacts | Integrate after the Tool View Slot is available |
+| [DSH @file](https://github.com/omdsh-dev/dsh-at-file) | Search and reference workspace files from the input box | Integrate after the input overlay Slot is available |
+| [DSH OpenPencil](https://github.com/ZSeven-W/dsh-openpencil) | OpenPencil preview and editing | Use the community implementation instead of developing another one |
+| [DSH Files](https://github.com/taxueseek/dsh-files) | File uploads, attachment cards, and document reading | Integrate after standard attachment identity is wired through |
+| [DSH Find Plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin) | Let the Agent search for community plugins | Confirmed as a Host Tool Bundle; the current version needs migration to the rc.6 SDK |
+| [DSH Toolkit](https://github.com/omdsh-dev/dsh-toolkit) | Deterministic tools for time, encoding, JSON, CSV, diffs, and statistics | Adopt after pinned Git revision review instead of rebuilding basic tools |
+| [Distill](https://github.com/LoserFox/distill) | Reflect on conversations and distill reusable Skills | Integrate after Session, subagent, and Skill lifecycle verification |
+| [DSH MCP Bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) | Filesystem, GitHub, Playwright, memory, and remote HTTP MCP | Passed the rc.6 Profile preflight; can be installed after network and process permission review |
+
+Discover the full ecosystem through [Awesome DeepSeek Harness Plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin). The candidate directory is a curated product list, not a copy of all community marketplace data. Compatibility changes should be contributed to community projects first; develop an in-house implementation only when the community has no suitable option.
+
+A DSH plugin is not necessarily a UI plugin. A Profile Bundle can add or replace Host services, models and providers, Tools, Skills, MCP, Hooks, Session middleware, storage, workflows, and Client UI. DeepSeek Harness Desktop App uses the official Profile lifecycle for Host plugins; only Client code entering the window requires additional Slot mapping and Renderer permission review.
+
+### How the App Itself Is Split into Plugins
+
+DeepSeek Harness Desktop App is a DSH Profile distribution and an Electron plugin host. It does not disguise windows, updates, preload, or system permissions as ordinary plugins that can be installed into the official Web. Reusable functionality is split into three levels: `portable` Bundles can be installed into both the official Web and the desktop app; `desktop-adapter` Bundles use the DSH lifecycle but depend on explicit desktop Host contracts; `desktop-shell` is responsible only for windows, the root layout, and security isolation. The theme package is already `portable`; `dsh-work-product-host-ipc`, the project tools, the Canvas tools, the structured UI tools, the workbench pages, the product bridge, and the Office tools package are `desktop-adapter`; and `dsh-work-shell` is a `desktop-shell`. Parent-process transport is now owned solely by `dsh-work-product-host-ipc`; the project tools, Canvas tools, structured UI tools, and product bridge consume `productHost`, the Office tools consume the narrower `officeArtifactHost`, and feature Bundles no longer access IPC directly. The product bridge no longer registers any Tool or workbench page and retains only context, memory, and model inheritance; `dsh-workbench-pages` independently contributes the Review, Browser, Files, Artifacts, and Sites page catalog. These pages will use community plugins first, with missing pieces then split into independent Bundles one by one. OpenPencil remains the community design plugin option instead of duplicating the existing versioned Canvas implementation. Product components will no longer be added to the shell.
 
 ## Relationship with the official DSH Web
 

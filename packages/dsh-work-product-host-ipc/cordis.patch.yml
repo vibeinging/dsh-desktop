@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-work-product-host-ipc
+      name: '@deepseek-ai/dsh-work-product-host-ipc'

@@ -280,14 +280,14 @@ try {
   }`, { timeout: 10_000, label: '插件页左侧栏已完全收起' })
   await capture(session, '07-profile', 'dsh-profile-bundles.png')
 
-  const productBridgeRow = '[data-profile-bundle="@deepseek-ai/dsh-product-bridge"]'
-  await ui.waitFor(productBridgeRow, { timeout: 20_000 })
-  await ui.click(`${productBridgeRow} button`)
+  const workbenchPagesRow = '[data-profile-bundle="@deepseek-ai/dsh-workbench-pages"]'
+  await ui.waitFor(workbenchPagesRow, { timeout: 20_000 })
+  await ui.click(`${workbenchPagesRow} button`)
   await ui.waitUntil(`() => {
     const dialog = document.querySelector('[role="dialog"]');
-    return dialog?.textContent?.includes('Canvas') && dialog?.textContent?.includes('安全结构化界面');
-  }`, { timeout: 20_000, label: '产品桥 Bundle 详情已打开' })
-  await capture(session, '08-product-bridge', 'dsh-product-bridge.png')
+    return dialog?.textContent?.includes('结果') && dialog?.textContent?.includes('浏览器');
+  }`, { timeout: 20_000, label: '工作台页面 Bundle 详情已打开' })
+  await capture(session, '08-workbench-pages', 'dsh-workbench-pages.png')
 
   console.log(JSON.stringify({
     source: 'real Electron + current DSH model + session.history',
@@ -299,7 +299,7 @@ try {
       path.join(outputDir, 'dsh-work-canvas.png'),
       path.join(outputDir, 'dsh-work-site.png'),
       path.join(outputDir, 'dsh-profile-bundles.png'),
-      path.join(outputDir, 'dsh-product-bridge.png'),
+      path.join(outputDir, 'dsh-workbench-pages.png'),
     ],
   }, null, 2))
 } finally {

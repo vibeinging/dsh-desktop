@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-product-bridge",
-  "description": "Session-scoped DeepSeek Harness Desktop App capabilities for the current DSH Web profile",
+  "description": "Session-scoped product context and model inheritance for the current DSH Web profile",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -20,11 +20,14 @@
     }
   },
   "dshWork": {
-    "product": "./product.json"
+    "portability": {
+      "level": "desktop-adapter",
+      "surfaces": ["dsh-desktop"],
+      "hostRequirements": ["product-host"]
+    }
   },
   "files": [
     "src/index.js",
-    "product.json",
     "cordis.patch.yml",
     "README.md",
     "README.zh.md"
@@ -33,13 +36,11 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-agent": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6"
+    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-agent": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6"
+    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6"
   }
 }

@@ -93,6 +93,46 @@
         ]
       },
       {
+        "from": "../packages/dsh-work-product-host-ipc",
+        "to": "packages/dsh-work-product-host-ipc",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "README.md",
+          "src/index.js"
+        ]
+      },
+      {
+        "from": "../packages/dsh-project-tools",
+        "to": "packages/dsh-project-tools",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "README.md",
+          "src/index.js"
+        ]
+      },
+      {
+        "from": "../packages/dsh-canvas-tools",
+        "to": "packages/dsh-canvas-tools",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "README.md",
+          "src/index.js"
+        ]
+      },
+      {
+        "from": "../packages/dsh-structured-ui-tools",
+        "to": "packages/dsh-structured-ui-tools",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "README.md",
+          "src/index.js"
+        ]
+      },
+      {
         "from": "../packages/dsh-product-bridge",
         "to": "packages/dsh-product-bridge",
         "filter": [
@@ -100,6 +140,27 @@
           "cordis.patch.yml",
           "README.md",
           "README.zh.md",
+          "src/index.js"
+        ]
+      },
+      {
+        "from": "../packages/dsh-office-tools",
+        "to": "packages/dsh-office-tools",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "README.md",
+          "src/index.js"
+        ]
+      },
+      {
+        "from": "../packages/dsh-workbench-pages",
+        "to": "packages/dsh-workbench-pages",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "product.json",
+          "README.md",
           "src/index.js"
         ]
       },
