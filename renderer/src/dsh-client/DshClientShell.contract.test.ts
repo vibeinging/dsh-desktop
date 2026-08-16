@@ -46,6 +46,7 @@ describe('dsh-work Client shell contract', () => {
     expect(conversation).toContain('conversation.arbitrateInputTrigger')
     expect(conversation).toContain('conversation.applyInputSpace')
     expect(conversation).toContain('conversation.submitOfficialInput')
+    expect(conversation).toContain('data-dsh-command-hint')
     expect(conversation).toContain('reserveLeadingSlash: !dshClientHost && slashMatch !== null')
     expect(conversation).toContain('if (slashMatch && !dshClientHost)')
     expect(conversation).toContain("data-active={officialInputMenuActive ? 'true' : undefined}")

@@ -149,6 +149,7 @@ export type { FileReferenceOpenTarget } from './conversation/types'
 
 const NOOP_SUBSCRIBE = () => () => {}
 const FALSE_SNAPSHOT = () => false
+const NULL_INPUT_SNAPSHOT = () => null
 
 export type ConversationSkillSelection = {
   name: string
@@ -545,6 +546,18 @@ function DshWorkAgentConversation({
     dshClientHost?.conversation.getInputTriggerActive || FALSE_SNAPSHOT,
     FALSE_SNAPSHOT
   )
+  const officialInputSnapshot = useSyncExternalStore(
+    dshClientHost?.conversation.subscribeInput || NOOP_SUBSCRIBE,
+    dshClientHost?.conversation.getInputSnapshot || NULL_INPUT_SNAPSHOT,
+    NULL_INPUT_SNAPSHOT
+  )
+  const officialClaim = officialInputSnapshot?.claim
+  const officialClaimHint = officialClaim
+    && (officialInputSnapshot.phase === 'claimed' || officialInputSnapshot.phase === 'submitting')
+    && officialInputSnapshot.draft.startsWith(officialClaim.token)
+    && officialInputSnapshot.draft.slice(officialClaim.token.length).trim() === ''
+      ? officialClaim.hint
+      : undefined
   const appName = useAppName()
   const showAnimeHome = useSkinsStore((state) => {
     const skin = state.getAppliedSkin()
@@ -2868,6 +2881,11 @@ function DshWorkAgentConversation({
           onPaste={onPaste}
           onKeyDown={onKey}
         />
+        {officialClaimHint && (
+          <div className={styles.composerCommandHint} role="status" data-dsh-command-hint>
+            {officialClaimHint}
+          </div>
+        )}
       </div>
       <div className={styles.composerBar}>
         <ComposerActions

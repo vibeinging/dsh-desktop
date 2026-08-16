@@ -3750,6 +3750,13 @@
 .ta::placeholder {
   color: var(--dsh-muted);
 }
+.composerCommandHint {
+  margin: -1px 7px 2px;
+  color: var(--dsh-muted);
+  font-size: 11.5px;
+  line-height: 1.4;
+  pointer-events: none;
+}
 .composerBar {
   display: flex;
   align-items: center;
