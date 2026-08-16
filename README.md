@@ -112,7 +112,7 @@ Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第
 | [DSH OpenPencil](https://github.com/ZSeven-W/dsh-openpencil) | OpenPencil 预览和编辑 | 使用社区实现，不重复开发 |
 | [DSH Files](https://github.com/taxueseek/dsh-files) | 文件上传、附件卡和文档读取 | 打通标准附件身份后接入 |
 | [DSH Find Plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin) | 让 Agent 搜索社区插件 | 已确认是 Host Tool Bundle；当前版本需要迁移到 rc.6 SDK |
-| [DSH Native Memory](https://github.com/highland0971/dsh-native-memory) | 按工作区保存、检索和审批长期记忆 | 已完成 `dsh-native-memory@0.2.0` 源码审查与 rc.6 Profile 实测，可从插件中心安装以替代 App 自建记忆 |
+| [DSH Native Memory](https://github.com/highland0971/dsh-native-memory) | 按工作区保存、检索和审批长期记忆 | 已完成 `dsh-native-memory@0.2.0` 源码审查，以及 rc.6 Profile 安装、Host 启动、Session 创建与卸载实测；可从插件中心安装以替代 App 自建记忆 |
 | [DSH Toolkit](https://github.com/omdsh-dev/dsh-toolkit) | 时间、编码、JSON、CSV、差异、统计等确定性工具 | 完成 Git 固定版本审查后采用，不重复开发基础工具 |
 | [Distill](https://github.com/LoserFox/distill) | 后台反思会话并沉淀 Skill | 验证 Session、subagent 和 Skill 生命周期后接入 |
 | [DSH MCP Bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) | 文件系统、GitHub、Playwright、记忆和远程 HTTP MCP | rc.6 Profile 预检通过；完成网络与进程权限审查后可安装 |
