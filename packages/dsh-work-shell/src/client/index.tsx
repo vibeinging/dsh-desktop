@@ -61,7 +61,7 @@ type DshTurnTailTarget = Pick<DshTurnTailOwner, 'seq'> & {
   produced: DshProducedPath[]
 }
 
-export const inject = ['slots', 'sessions', 'theme', 'locale']
+export const inject = ['slots', 'sessions', 'theme', 'locale', 'inputTriggers']
 
 const APP_MAPPED_GENERAL_ITEMS = new Set(['appearance', 'composer-enter', 'language', 'permission'])
 

@@ -1,6 +1,35 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { ClientContext, SessionId, SessionListState } from '@deepseek-ai/dsh-client-runtime/client'
+import type {
+  ClientContext,
+  SessionBinding,
+  SessionId,
+  SessionListState
+} from '@deepseek-ai/dsh-client-runtime/client'
 import { DshConversationBridge } from './DshConversationBridge'
+
+function inputScope(sessionId: SessionId) {
+  const listeners = new Map<string, (request: unknown) => unknown>()
+  const serializeReference = vi.fn(async (source: string, ref: string) => `<${source}>${ref}</${source}>`)
+  const controller = { serializeReference }
+  const ctx = {
+    inputTriggers: { sessionOf: vi.fn(() => controller) },
+    on: vi.fn((name: string, listener: (request: unknown) => unknown) => {
+      listeners.set(name, listener)
+      return () => listeners.delete(name)
+    }),
+    effect: vi.fn((execute: () => void | (() => void)) => {
+      const cleanup = execute()
+      return async () => {
+        if (typeof cleanup === 'function') cleanup()
+      }
+    })
+  }
+  return {
+    binding: { sessionId, ctx, session: {} } as unknown as SessionBinding,
+    controller,
+    emit: (name: string, request: unknown) => listeners.get(name)?.(request)
+  }
+}
 
 function sessionList() {
   let snapshot: SessionListState = {
@@ -109,7 +138,7 @@ describe('DshConversationBridge', () => {
     bridge.syncSession(sessionId)
     bridge.bindInputHandlers({ setDraft, submit })
 
-    const resolved = descriptor!.resolve({ sessionId } as never)
+    const resolved = descriptor!.resolve(inputScope(sessionId).binding)
     const props = resolved.props as {
       inputActions: { setDraft: (draft: string) => void; submit: () => void }
     }
@@ -119,7 +148,7 @@ describe('DshConversationBridge', () => {
     props.inputActions.setDraft('from plugin')
     props.inputActions.submit()
 
-    expect(hooks.input.getSnapshot().draft).toBe('')
+    expect(hooks.input.getSnapshot().draft).toBe('from plugin')
     expect(setDraft).toHaveBeenCalledWith('from plugin')
     expect(submit).toHaveBeenCalledOnce()
     bridge.dispose()
@@ -143,5 +172,141 @@ describe('DshConversationBridge', () => {
     bridge.dispose()
     bridge.openFile('ignored.txt')
     expect(second).toHaveBeenCalledOnce()
+  })
+
+  it('applies official reference events to the product draft and serializes through the source codec', async () => {
+    const sessionId = 'dsh-session-reference' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const setDraft = vi.fn()
+    const scope = inputScope(sessionId)
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft, submit: vi.fn() })
+    bridge.updateDraft('@report')
+    descriptor!.resolve(scope.binding)
+    const draftRev = bridge.getInputSnapshot().draftRev
+
+    const applied = scope.emit('slash/input-insert-reference', {
+      reference: {
+        source: 'files',
+        ref: 'uploads/report.csv',
+        label: 'report.csv',
+        clipboardText: 'uploads/report.csv'
+      },
+      span: { start: 0, end: 7, draftRev }
+    })
+
+    expect(applied).toBe(true)
+    expect(bridge.getInputSnapshot()).toMatchObject({
+      draft: '\uFFFC ',
+      occurrences: [{
+        occurrenceId: 1,
+        source: 'files',
+        ref: 'uploads/report.csv',
+        offset: 0,
+        label: 'report.csv'
+      }]
+    })
+    expect(setDraft).toHaveBeenCalledWith('\uFFFC ')
+    expect(bridge.projectDraft('\uFFFC ')).toBe('uploads/report.csv ')
+    await expect(bridge.serializeDraft('\uFFFC ')).resolves.toBe('<files>uploads/report.csv</files>')
+    expect(scope.controller.serializeReference).toHaveBeenCalledWith(
+      'files',
+      'uploads/report.csv',
+      expect.any(AbortSignal)
+    )
+
+    expect(scope.emit('slash/input-insert-reference', {
+      reference: { source: 'files', ref: 'stale', label: 'stale', clipboardText: 'stale' },
+      span: { start: 0, end: 0, draftRev }
+    })).toBeUndefined()
+    bridge.dispose()
+  })
+
+  it('keeps occurrence offsets aligned with product edits and drops deleted placeholders', () => {
+    const sessionId = 'dsh-session-edit' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const scope = inputScope(sessionId)
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn() })
+    bridge.updateDraft('open @x please')
+    const resolved = descriptor!.resolve(scope.binding)
+    const actions = resolved.props?.inputActions as { setDraft: (draft: string) => void }
+    scope.emit('slash/input-insert-reference', {
+      reference: { source: 'files', ref: 'x', label: 'x', clipboardText: 'x' },
+      span: { start: 5, end: 7, draftRev: bridge.getInputSnapshot().draftRev }
+    })
+
+    actions.setDraft('say open \uFFFC please')
+    expect(bridge.getInputSnapshot().occurrences).toMatchObject([{ offset: 9, ref: 'x' }])
+
+    actions.setDraft('say open  please')
+    expect(bridge.getInputSnapshot().occurrences).toEqual([])
+    bridge.dispose()
+  })
+
+  it('routes plain-text and token events only through the selected Session scope', () => {
+    const sessionId = 'dsh-session-selected' as SessionId
+    const otherSessionId = 'dsh-session-other' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const selected = inputScope(sessionId)
+    const other = inputScope(otherSessionId)
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn() })
+    bridge.updateDraft('@x')
+    descriptor!.resolve(selected.binding)
+    descriptor!.resolve(other.binding)
+    const draftRev = bridge.getInputSnapshot().draftRev
+
+    expect(other.emit('slash/input-insert-text', {
+      text: 'wrong ',
+      span: { start: 0, end: 2, draftRev }
+    })).toBeUndefined()
+    expect(selected.emit('slash/input-insert-text', {
+      text: 'file ',
+      span: { start: 0, end: 2, draftRev }
+    })).toBe(true)
+    expect(bridge.getInputSnapshot().draft).toBe('file ')
+
+    expect(selected.emit('slash/input-consume-token', {
+      guard: { kind: 'bare-token', token: 'other' }
+    })).toBeUndefined()
+    expect(selected.emit('slash/input-consume-token', {
+      guard: {
+        kind: 'span',
+        span: { start: 0, end: 4, draftRev: bridge.getInputSnapshot().draftRev }
+      }
+    })).toBe(true)
+    expect(bridge.getInputSnapshot().draft).toBe(' ')
+    bridge.dispose()
   })
 })

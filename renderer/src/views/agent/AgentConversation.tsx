@@ -1741,10 +1741,25 @@ function DshWorkAgentConversation({
     }
   }
 
-  const send = (text?: string, extra?: DispatchExtra) => {
-    const typed = (text ?? input).trim()
+  const send = async (text?: string, extra?: DispatchExtra) => {
+    const composerDraft = text ?? input
     const atts = text == null ? attachments : []
     const comments = text == null ? reviewComments : []
+    let typed = composerDraft.trim()
+    let displayMessage = typed
+    if (text == null && dshClientHost) {
+      try {
+        displayMessage = dshClientHost.conversation.projectDraft(composerDraft).trim()
+        typed = await dshClientHost.conversation.serializeDraft(composerDraft)
+      } catch (error: unknown) {
+        notifications.show({
+          color: 'orange',
+          title: '引用还没有准备好',
+          message: error instanceof Error ? error.message : String(error)
+        })
+        return
+      }
+    }
     if (!typed && !atts.length && !comments.length) return
     if (atts.some(isImageAttachment) && modelRuntime?.supportsImageInput === false) {
       notifications.show({
@@ -1763,10 +1778,11 @@ function DshWorkAgentConversation({
       ...(routedSkillNames.length ? { skills: routedSkillNames, skill: routedSkillNames[0] } : {}),
       ...(selectedSkills.length ? { skillSelections: selectedSkills } : {}),
       attachments: atts,
-      display_message: typed || (comments.length ? '请根据审核意见修改。' : ''),
+      display_message: displayMessage || (comments.length ? '请根据审核意见修改。' : ''),
       ...(comments.length ? { reviewComments: comments } : {})
     }
     setInput('')
+    dshClientHost?.conversation.updateDraft('')
     setAttachments([])
     setReviewComments([])
     if (hasTurnOnlySkill) onClearSelectedSkills?.()
@@ -1780,7 +1796,8 @@ function DshWorkAgentConversation({
           notifications.show({ color: 'gray', message: '当前任务正在启动，内容已加入下一轮' })
         }
         return sendDshPrompt('queue', q, atts, sendExtra).catch((error: any) => {
-          setInput(typed)
+          setInput(composerDraft)
+          dshClientHost?.conversation.updateDraft(composerDraft)
           setAttachments(atts)
           setReviewComments(comments)
           notifications.show({
