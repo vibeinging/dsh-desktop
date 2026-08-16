@@ -44,6 +44,7 @@ describe('dsh-work Client shell contract', () => {
     expect(conversation).toContain('data-dsh-conversation-input-overlay')
     expect(conversation).toContain('conversation.trackInputTrigger')
     expect(conversation).toContain('conversation.arbitrateInputTrigger')
+    expect(conversation).toContain('conversation.applyInputSpace')
     expect(conversation).toContain('conversation.submitOfficialInput')
     expect(conversation).toContain('reserveLeadingSlash: !dshClientHost && slashMatch !== null')
     expect(conversation).toContain('if (slashMatch && !dshClientHost)')

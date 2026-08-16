@@ -42,6 +42,7 @@ function inputScope(sessionId: SessionId) {
     track: vi.fn(),
     arbitrate: vi.fn(() => 'consumed' as const),
     adjudicate,
+    onSpace: vi.fn(() => false),
     dismiss: vi.fn()
   }
   const ctx = {
@@ -698,6 +699,49 @@ describe('DshConversationBridge', () => {
     expect(scope.controller.dismiss).toHaveBeenCalledOnce()
     expect(scope.controller.track).toHaveBeenCalledTimes(tracked)
     expect(listener).toHaveBeenCalled()
+    bridge.dispose()
+  })
+
+  it('lets an official Space claim replace the leading token in the shared product draft', () => {
+    const sessionId = 'dsh-session-space-claim' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const setDraft = vi.fn()
+    const scope = inputScope(sessionId)
+    const claim = { token: '/goal ', hint: '目标内容', submit: vi.fn() }
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft, submit: vi.fn() })
+    descriptor!.resolve(scope.binding)
+    bridge.updateDraft('/goal')
+    const draftRev = bridge.getInputSnapshot().draftRev
+    scope.controller.onSpace.mockImplementationOnce(() => {
+      scope.emit('slash/input-begin-command', {
+        claim,
+        span: { start: 0, end: 5, draftRev }
+      })
+      return true
+    })
+
+    expect(bridge.applyInputSpace()).toBe(true)
+    expect(bridge.getInputSnapshot()).toMatchObject({
+      draft: '/goal ',
+      phase: 'claimed',
+      claim: { token: '/goal ', hint: '目标内容' }
+    })
+    expect(setDraft).toHaveBeenCalledWith('/goal ')
+    expect(scope.controller.track).toHaveBeenLastCalledWith('/goal ', 6, { tier: 'claimed' }, draftRev + 1)
+
+    scope.controller.onSpace.mockReturnValueOnce(false)
+    expect(bridge.applyInputSpace()).toBe(false)
     bridge.dispose()
   })
 })

@@ -345,6 +345,18 @@ export class DshConversationBridge {
     return controller.arbitrate(key, composing)
   }
 
+  /** Let registered slash sources claim a completed leading token on Space. */
+  applyInputSpace() {
+    if (this.#disposed) return false
+    const controller = this.#selectedInputController()
+    if (!controller || !controller.onSpace()) return false
+    const tier = this.#input.phase === 'plain' || this.#input.phase === 'claimed'
+      ? this.#input.phase
+      : 'frozen'
+    controller.track(this.#input.draft, this.#input.draft.length, { tier }, this.#input.draftRev)
+    return true
+  }
+
   /** Execute the selected Session's claimed command instead of sending it as a prompt. */
   submitCommandClaim() {
     if (this.#disposed) return false

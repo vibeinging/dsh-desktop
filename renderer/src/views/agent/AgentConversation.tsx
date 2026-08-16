@@ -2575,6 +2575,7 @@ function DshWorkAgentConversation({
     })
   }, [dshClientHost, onNewConversation, send])
   const onKey = (e: React.KeyboardEvent) => {
+    const composing = e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229
     const officialKey = e.key === 'ArrowUp'
       ? 'up'
       : e.key === 'ArrowDown'
@@ -2587,12 +2588,16 @@ function DshWorkAgentConversation({
     if (officialKey) {
       const outcome = dshClientHost?.conversation.arbitrateInputTrigger(
         officialKey,
-        e.nativeEvent.isComposing
+        composing
       ) || 'pass'
       if (outcome !== 'pass') {
         e.preventDefault()
         return
       }
+    }
+    if (e.key === ' ' && !composing && dshClientHost?.conversation.applyInputSpace()) {
+      e.preventDefault()
+      return
     }
     if (e.key === 'Escape' && (trigger || slash)) {
       e.preventDefault()
