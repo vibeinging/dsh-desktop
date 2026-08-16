@@ -203,6 +203,12 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
 });
 
 test("community plugin manifests report every current DSH migration blocker", () => {
+  assert.throws(() => validateProfileBundleSdk({
+    name: "dsh-files",
+    peerDependencies: {
+      "@deepseek-ai/cordis": "*",
+    },
+  }), { code: "DSH_PROFILE_LEGACY_SDK" });
   assert.deepEqual(inspectProfileBundleManifest({
     name: "dsh-better-sidebar",
     version: "0.9.0",
@@ -680,6 +686,24 @@ test("the Profile catalog is projected from the official Web Profile order", {
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
     assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.9.0");
     assert.equal(catalog.recommended_plugins.some((plugin) => plugin.id === "dsh-web-ui"), true);
+    assert.deepEqual(
+      catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-files"),
+      {
+        id: "dsh-files",
+        name: "DSH Files",
+        description: "File uploads, composer attachment cards, and document reading for PDF, DOCX, XLSX, and text.",
+        description_zh: "提供文件上传、输入框附件卡，以及 PDF、DOCX、XLSX 和文本读取。",
+        repository: "https://github.com/taxueseek/dsh-files",
+        stars: 5,
+        category: "files",
+        source: "github:taxueseek/dsh-files#06ac5e2021344e95be0dabbeffecf7c28639c850",
+        compatibility: "sdk-migration-required",
+        checked_at: "2026-08-16",
+        checked_commit: "06ac5e2021344e95be0dabbeffecf7c28639c850",
+        preflight_blocker: "The package is not published to npm, and its @deepseek-ai/cordis peer range is '*' instead of the reviewed ^4.0.1 release line.",
+        priority: 80,
+      },
+    );
     assert.deepEqual(
       catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-native-memory"),
       {

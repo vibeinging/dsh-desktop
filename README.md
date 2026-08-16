@@ -110,7 +110,7 @@ Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第
 | [DSH Vision Toolkit](https://github.com/Anionex/dsh-vision-toolkit) | 图像问答、OCR、UI 还原、像素差异和 Artifact | 补齐 Tool View Slot 后接入 |
 | [DSH @file](https://github.com/omdsh-dev/dsh-at-file) | 在输入框搜索并引用工作区文件 | 补齐输入浮层 Slot 后接入 |
 | [DSH OpenPencil](https://github.com/ZSeven-W/dsh-openpencil) | OpenPencil 预览和编辑 | 使用社区实现，不重复开发 |
-| [DSH Files](https://github.com/taxueseek/dsh-files) | 文件上传、附件卡和文档读取 | 打通标准附件身份后接入 |
+| [DSH Files](https://github.com/taxueseek/dsh-files) | 文件上传、附件卡和文档读取 | 标准引用桥已接通；仓库尚未发布 npm，固定 commit 的 rc.6 Profile 预检又因 Cordis peer 使用 `*` 而阻塞，等待社区固定 `^4.0.1` 后再安装 |
 | [DSH Find Plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin) | 让 Agent 搜索社区插件 | 已确认是 Host Tool Bundle；当前版本需要迁移到 rc.6 SDK |
 | [DSH Native Memory](https://github.com/highland0971/dsh-native-memory) | 按工作区保存、检索和审批长期记忆 | 已完成 `dsh-native-memory@0.2.0` 源码审查，以及 rc.6 Profile 安装、Host 启动、Session 创建与卸载实测；可从插件中心安装以替代 App 自建记忆 |
 | [DSH Toolkit](https://github.com/omdsh-dev/dsh-toolkit) | 时间、编码、JSON、CSV、差异、统计等确定性工具 | 固定 commit 的 Host 预检已完成；两个 DSH SDK 范围未对齐精确 rc.6 发布线，等待社区迁移 |

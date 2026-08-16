@@ -95,8 +95,11 @@
       "repository": "https://github.com/taxueseek/dsh-files",
       "stars": 5,
       "category": "files",
-      "source": "dsh-files@0.2.0",
-      "compatibility": "attachment-bridge-required",
+      "source": "github:taxueseek/dsh-files#06ac5e2021344e95be0dabbeffecf7c28639c850",
+      "compatibility": "sdk-migration-required",
+      "checked_at": "2026-08-16",
+      "checked_commit": "06ac5e2021344e95be0dabbeffecf7c28639c850",
+      "preflight_blocker": "The package is not published to npm, and its @deepseek-ai/cordis peer range is '*' instead of the reviewed ^4.0.1 release line.",
       "priority": 80
     },
     {
