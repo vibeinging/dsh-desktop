@@ -1245,6 +1245,12 @@
   padding-left: 0;
   contain: layout paint style;
 }
+.dshTurnTail {
+  align-self: stretch;
+  width: 100%;
+  max-width: 760px;
+  min-width: 0;
+}
 .processGroup {
   align-self: stretch;
   width: 100%;

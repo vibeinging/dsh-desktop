@@ -51,7 +51,14 @@ export interface Workspace {
   conversation_count?: number
   unread_count?: number
   data_source_count?: number
-  source_folders?: { id?: string; path: string; name?: string; available?: boolean }[]
+  source_folders?: {
+    id?: string
+    path: string
+    name?: string
+    available?: boolean
+    access_mode?: 'read' | 'write'
+    write_target?: boolean
+  }[]
 }
 
 export interface AgentNavConversation {

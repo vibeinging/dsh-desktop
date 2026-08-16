@@ -44,6 +44,8 @@ describe('turn-scoped assistant projection', () => {
     const next = applyTurnToMessages([], {
       messageId: 'product-message',
       dshMessageId: 'dsh-message',
+      dshTurn: 3,
+      dshClosingSeq: 24,
       threadId: 'thread-1',
       turnId: 'turn-1',
       status: 'completed'
@@ -52,6 +54,8 @@ describe('turn-scoped assistant projection', () => {
     expect(next[0]).toMatchObject({
       id: 'product-message',
       dshMessageId: 'dsh-message',
+      dshTurn: 3,
+      dshClosingSeq: 24,
       turnId: 'turn-1'
     })
   })

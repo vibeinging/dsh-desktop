@@ -35,6 +35,11 @@ function canonicalMetadata(value: unknown): Record<string, unknown> {
   return metadata
 }
 
+function integerValue(value: unknown): number | undefined {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) ? parsed : undefined
+}
+
 export function mergeStreamBlock(previous: AgentBlock, next: AgentBlock): AgentBlock {
   if (next.metadata?.mode !== 'append') return next
   return {
@@ -155,6 +160,10 @@ function toolBlock(payload: any, title: 'running' | 'done' | 'error' | 'rejected
   if (callView !== undefined) metadata.dshCallView = callView
   if (resultView !== undefined) metadata.dshResultView = resultView
   if (resultView || callView) metadata.dshView = resultView || callView
+  const dshCallSeq = integerValue(payload?.dshCallSeq)
+  const dshResultSeq = integerValue(payload?.dshResultSeq)
+  if (dshCallSeq !== undefined) metadata.dshCallSeq = dshCallSeq
+  if (dshResultSeq !== undefined) metadata.dshResultSeq = dshResultSeq
   const resultText = typeof payload?.resultText === 'string' ? payload.resultText : undefined
   if (resultText) metadata.resultText = resultText
   return {
@@ -261,6 +270,8 @@ export function toolBlockFromItem(item: any, status: 'running' | 'done' | 'error
       dshView: item.dshView,
       dshCallView: item.dshCallView,
       dshResultView: item.dshResultView,
+      dshCallSeq: item.dshCallSeq,
+      dshResultSeq: item.dshResultSeq,
       resultText: toolResultFromItem(item)
     },
     status
@@ -271,11 +282,15 @@ function itemBlock(item: any): AgentBlock | null {
   if (!item?.id || item.visibility === 'hidden') return null
   const answerStatus = String(item.metadata?.answer_status || '').trim()
   const dshMessageId = String(item.metadata?.dsh_message_id || '').trim()
+  const dshTurn = integerValue(item.metadata?.dsh_turn)
+  const dshClosingSeq = integerValue(item.metadata?.dsh_closing_seq)
   const itemMetadata = {
     item_type: item.type,
     ...((item.phase === 'commentary' || item.phase === 'final_answer') ? { phase: item.phase } : {}),
     ...(answerStatus ? { answer_status: answerStatus } : {}),
     ...(dshMessageId ? { dsh_message_id: dshMessageId } : {}),
+    ...(dshTurn !== undefined ? { dsh_turn: dshTurn } : {}),
+    ...(dshClosingSeq !== undefined ? { dsh_closing_seq: dshClosingSeq } : {}),
     ...(item.metadata?.result_role
       ? { result_role: item.metadata.result_role }
       : {})
@@ -916,10 +931,14 @@ export function reduceStreamEvent(event: AgentStreamEvent): AgentStreamPatch {
     const dshMessageId = item.type === 'agentMessage'
       ? String(item.metadata?.dsh_message_id || '').trim()
       : ''
+    const dshTurn = item.type === 'agentMessage' ? integerValue(item.metadata?.dsh_turn) : undefined
+    const dshClosingSeq = item.type === 'agentMessage' ? integerValue(item.metadata?.dsh_closing_seq) : undefined
     return {
       target,
       block,
-      turn: dshMessageId ? { ...target, dshMessageId } : undefined,
+      turn: dshMessageId || dshTurn !== undefined || dshClosingSeq !== undefined
+        ? { ...target, ...(dshMessageId ? { dshMessageId } : {}), dshTurn, dshClosingSeq }
+        : undefined,
       removeBlockId: block?.type === 'generative_ui' && block.metadata?.replaces_item_id
         ? String(block.metadata.replaces_item_id)
         : undefined,

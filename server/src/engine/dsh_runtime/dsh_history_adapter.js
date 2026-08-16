@@ -46,7 +46,7 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
   const messages = [];
   const pendingInteractions = [];
   let lastSeq = -1;
-  let currentTurn = null; // { turnId, turnNum, startedAt, items, status, dshMessageId }
+  let currentTurn = null; // { turnId, turnNum, startedAt, items, status, dshMessageId, closingSeq }
   let pendingContextItems = [];
   const projectionValues = projections?.values || {};
   const planTodos = Array.isArray(projectionValues.todos) ? projectionValues.todos : null;
@@ -80,6 +80,8 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
         started_at: currentTurn.startedAt ? new Date(currentTurn.startedAt).toISOString() : null,
         completed_at: currentTurn.completedAt ? new Date(currentTurn.completedAt).toISOString() : null,
         ...(currentTurn.dshMessageId ? { dsh_message_id: currentTurn.dshMessageId } : {}),
+        ...(Number.isInteger(currentTurn.turnNum) ? { dsh_turn: currentTurn.turnNum } : {}),
+        ...(Number.isInteger(currentTurn.closingSeq) ? { dsh_closing_seq: currentTurn.closingSeq } : {}),
         dsh_recovery: true,
         dsh_last_seq: lastSeq,
         ...(planTodos ? { dsh_plan_todos: planTodos } : {}),
@@ -181,6 +183,7 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
         items: pendingContextItems,
         status: "inProgress",
         dshMessageId: null,
+        closingSeq: null,
         explicit: true,
       };
       pendingContextItems = [];
@@ -209,6 +212,7 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
         items: [],
         status: "inProgress",
         dshMessageId: null,
+        closingSeq: null,
         explicit: false,
       };
     }
@@ -233,6 +237,12 @@ function foldEventIntoTurn(turn, event, view, sessionId) {
       const content = event.data?.message?.content;
       const dshMessageId = String(event.data?.message?.id || "").trim();
       if (dshMessageId) turn.dshMessageId = dshMessageId;
+      if (Number.isInteger(Number(event.seq))) turn.closingSeq = Number(event.seq);
+      const metadata = {
+        ...(dshMessageId ? { dsh_message_id: dshMessageId } : {}),
+        ...(Number.isInteger(Number(event.data?.turn)) ? { dsh_turn: Number(event.data.turn) } : {}),
+        ...(Number.isInteger(Number(event.seq)) ? { dsh_closing_seq: Number(event.seq) } : {}),
+      };
       const reasoning = reasoningFromBlocks(content);
       if (reasoning) {
         upsertItem({
@@ -251,7 +261,7 @@ function foldEventIntoTurn(turn, event, view, sessionId) {
           // (matching the persisted item shape from AgentStreamAdapter).
           content: text,
           status: "completed",
-          ...(dshMessageId ? { metadata: { dsh_message_id: dshMessageId } } : {}),
+          ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
         });
       }
       break;

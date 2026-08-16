@@ -27,6 +27,8 @@ export interface AgentGenerativeUiMetadata {
 export interface AgentMessage {
   id?: string
   dshMessageId?: string | null
+  dshTurn?: number | null
+  dshClosingSeq?: number | null
   role: 'user' | 'assistant'
   blocks: AgentBlock[]
   skillSelections?: AgentSkillSelection[]
@@ -162,6 +164,8 @@ export interface AgentTurnDiffPatch extends AgentStreamTarget {
 export interface AgentTurnPatch extends AgentStreamTarget {
   messageId?: string | null
   dshMessageId?: string | null
+  dshTurn?: number | null
+  dshClosingSeq?: number | null
   status?: AgentTurnStatus
   answerStatus?: 'accepted' | 'rejected' | 'missing' | string
   answerItemId?: string | null

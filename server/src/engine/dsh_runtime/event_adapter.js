@@ -60,6 +60,7 @@ export function toolCallItemFromEvent(event, view = null) {
     dshView: view,
     dshCallView: view?.for === "call" ? view : null,
     dshResultView: null,
+    dshCallSeq: Number.isInteger(Number(event?.seq)) ? Number(event.seq) : null,
   };
 }
 
@@ -77,6 +78,8 @@ export function toolResultItemFromEvent(event, view = null, callItem = null) {
     dshView: view,
     dshCallView: callItem?.dshCallView || (callItem?.dshView?.for === "call" ? callItem.dshView : null),
     dshResultView: view?.for === "result" ? view : null,
+    dshCallSeq: callItem?.dshCallSeq ?? null,
+    dshResultSeq: Number.isInteger(Number(event?.seq)) ? Number(event.seq) : null,
   };
 }
 
@@ -265,6 +268,13 @@ export class DshEventAdapter {
     if (event.type === "assistant/message") {
       const text = textFromBlocks(event.data?.message?.content);
       const dshMessageId = String(event.data?.message?.id || "").trim();
+      const dshTurn = Number(event.data?.turn);
+      const dshClosingSeq = Number(event.seq);
+      const metadata = {
+        ...(dshMessageId ? { dsh_message_id: dshMessageId } : {}),
+        ...(Number.isInteger(dshTurn) ? { dsh_turn: dshTurn } : {}),
+        ...(Number.isInteger(dshClosingSeq) ? { dsh_closing_seq: dshClosingSeq } : {}),
+      };
       await this.emit("item/completed", {
         threadId,
         turnId: this.turnId,
@@ -273,7 +283,7 @@ export class DshEventAdapter {
           type: "agentMessage",
           text,
           status: "completed",
-          ...(dshMessageId ? { metadata: { dsh_message_id: dshMessageId } } : {}),
+          ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
         },
       });
       return null;

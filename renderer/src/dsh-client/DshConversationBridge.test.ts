@@ -124,4 +124,24 @@ describe('DshConversationBridge', () => {
     expect(submit).toHaveBeenCalledOnce()
     bridge.dispose()
   })
+
+  it('routes standard conversation file actions through the current product handler', () => {
+    const list = sessionList()
+    const bridge = new DshConversationBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const first = vi.fn()
+    const second = vi.fn()
+    const unbindFirst = bridge.bindOpenFileHandler(first)
+
+    bridge.openFile('report.md')
+    expect(first).toHaveBeenCalledWith('report.md')
+
+    bridge.bindOpenFileHandler(second)
+    unbindFirst()
+    bridge.openFile('result.csv')
+    expect(second).toHaveBeenCalledWith('result.csv')
+
+    bridge.dispose()
+    bridge.openFile('ignored.txt')
+    expect(second).toHaveBeenCalledOnce()
+  })
 })

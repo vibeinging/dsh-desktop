@@ -56,6 +56,8 @@ test("folds a complete turn (user → assistant message → tool → turn/end) i
   assert.equal(result.messages[1].role, "assistant");
   assert.equal(result.messages[1].message_metadata.turn_status, "completed");
   assert.equal(result.messages[1].message_metadata.dsh_message_id, "message-1");
+  assert.equal(result.messages[1].message_metadata.dsh_turn, 1);
+  assert.equal(result.messages[1].message_metadata.dsh_closing_seq, 3);
 });
 
 test("cold history projects DSH image references as authorized attachment blocks", () => {
@@ -228,6 +230,8 @@ test("user and steer messages inside one DSH turn do not split the assistant res
   assert.equal(result.messages.filter((message) => message.role === "assistant").length, 1);
   assert.equal(result.messages[2].message_metadata.turn_status, "completed");
   assert.equal(result.messages[2].message_metadata.dsh_message_id, "message-done");
+  assert.equal(result.messages[2].message_metadata.dsh_turn, 1);
+  assert.equal(result.messages[2].message_metadata.dsh_closing_seq, 5);
   assert.deepEqual(
     result.messages[2].content_items.filter((item) => item.type === "agentMessage").map((item) => item.content),
     ["working", "done"],
@@ -382,6 +386,8 @@ test("tool/result carries dshView and output text", () => {
   assert.ok(resultItem, "tool/result item exists");
   assert.equal(resultItem.dshView.view.card, "search");
   assert.equal(resultItem.dshCallView.view.title, "List");
+  assert.equal(resultItem.dshCallSeq, 3);
+  assert.equal(resultItem.dshResultSeq, 4);
   assert.equal(resultItem.tool, "project_list");
   assert.equal(resultItem.contentItems[0].text, "result text");
 });

@@ -4,6 +4,36 @@ export const CHAT_WS: Workspace = { id: '__chat__', name: '聊天' }
 
 export const basename = (p: string) => p.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || p
 
+function normalizedPortablePath(value: string) {
+  const slashed = value.replace(/\\/g, '/')
+  const drive = /^([a-z]):\//i.exec(slashed)?.[1]
+  const prefix = drive ? `${drive.toUpperCase()}:/` : slashed.startsWith('/') ? '/' : ''
+  if (!prefix) return ''
+  const parts: string[] = []
+  for (const part of slashed.slice(prefix.length).split('/')) {
+    if (!part || part === '.') continue
+    if (part === '..') parts.pop()
+    else parts.push(part)
+  }
+  return `${prefix}${parts.join('/')}`
+}
+
+/** Resolve one plugin file action inside the active workspace root. */
+export function joinWorkspacePath(root: string, value: string) {
+  const rawRoot = String(root || '').trim()
+  const rawPath = String(value || '').trim()
+  if (!rawRoot || !rawPath) return ''
+  const normalizedRoot = normalizedPortablePath(rawRoot)
+  if (!normalizedRoot) return ''
+  const absolute = rawPath.startsWith('/') || /^[a-z]:[\\/]/i.test(rawPath)
+  const candidate = normalizedPortablePath(absolute ? rawPath : `${normalizedRoot}/${rawPath}`)
+  const windows = /^[A-Z]:\//.test(normalizedRoot)
+  const comparedRoot = windows ? normalizedRoot.toLowerCase() : normalizedRoot
+  const comparedCandidate = windows ? candidate.toLowerCase() : candidate
+  if (comparedCandidate !== comparedRoot && !comparedCandidate.startsWith(`${comparedRoot}/`)) return ''
+  return rawRoot.includes('\\') ? candidate.replace(/\//g, '\\') : candidate
+}
+
 // Native folder picker (Electron only, via window.electronAPI.pickFolder -> dialog.showOpenDialog through preload).
 // In browser environment there is no electronAPI, so return null and let callers handle it silently.
 export async function pickFolder(): Promise<string | null> {

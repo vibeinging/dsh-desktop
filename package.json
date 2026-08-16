@@ -56,6 +56,7 @@
     "smoke:office-artifacts-ui": "node scripts/run-with-project-node.mjs node eval/office-artifacts-ui-smoke.mjs",
     "smoke:canvas-workspace-ui": "node scripts/run-with-project-node.mjs node eval/canvas-workspace-ui-smoke.mjs",
     "smoke:message-actions-ui": "node scripts/run-with-project-node.mjs node eval/message-actions-ui-smoke.mjs",
+    "smoke:dsh-deliverables-ui": "node scripts/run-with-project-node.mjs node eval/dsh-deliverables-ui-smoke.mjs",
     "smoke:plan-status-ui": "node scripts/run-with-project-node.mjs node eval/plan-status-ui-smoke.mjs",
     "smoke:global-chat-memory-ui": "node scripts/run-with-project-node.mjs node eval/global-chat-memory-ui-smoke.mjs",
     "smoke:chat-context-ui": "node scripts/run-with-project-node.mjs node eval/chat-context-ui-smoke.mjs",

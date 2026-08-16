@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { authorizePreviewRoot, mergeUniquePathItems } from './folders'
+import { authorizePreviewRoot, joinWorkspacePath, mergeUniquePathItems } from './folders'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -29,5 +29,17 @@ describe('workspace preview root authorization', () => {
 
     await expect(authorizePreviewRoot('/tmp/project-output')).resolves.toBe(true)
     expect(authorize).toHaveBeenCalledWith('/tmp/project-output')
+  })
+})
+
+describe('workspace path projection', () => {
+  it('resolves only DSH paths inside the active root', () => {
+    expect(joinWorkspacePath('/tmp/project', 'reports/result.md')).toBe('/tmp/project/reports/result.md')
+    expect(joinWorkspacePath('/tmp/project', '.')).toBe('/tmp/project')
+    expect(joinWorkspacePath('/tmp/project', '/tmp/project/result.md')).toBe('/tmp/project/result.md')
+    expect(joinWorkspacePath('/tmp/project', '/tmp/other.md')).toBe('')
+    expect(joinWorkspacePath('/tmp/project', '../other.md')).toBe('')
+    expect(joinWorkspacePath('C:\\project', 'reports\\result.md')).toBe('C:\\project\\reports\\result.md')
+    expect(joinWorkspacePath('C:\\project', 'C:\\other\\result.md')).toBe('')
   })
 })

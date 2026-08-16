@@ -20,6 +20,7 @@ import {
 import { assistantCopyText, attachmentFromBlock } from './messageState'
 import type { FileReferenceOpenTarget } from './types'
 import { generativeUiSummaryFromBlock } from '../generative-ui/schema'
+import { collectDshProducedPaths } from '../../../dsh-client/DshTurnTailAdapter'
 import {
   partitionAssistantDisplayBlocks,
   processDetailBlocks,
@@ -278,6 +279,10 @@ export const AssistantTurn = memo(
       ? message.blocks.find((block) => block.id === message.answerItemId)?.metadata?.phase
         || (message.answerStatus === 'accepted' ? 'final_answer' : undefined)
       : undefined
+    const dshProducedPaths = useMemo(
+      () => collectDshProducedPaths(message.blocks),
+      [message.blocks]
+    )
 
     return (
       <div
@@ -374,6 +379,15 @@ export const AssistantTurn = memo(
             webSources={webSources}
           />
         ))}
+        {!isRunning && Number.isInteger(message.dshTurn) && Number.isInteger(message.dshClosingSeq) && (
+          <div
+            className={styles.dshTurnTail}
+            data-dsh-turn-tail
+            data-dsh-turn={message.dshTurn}
+            data-dsh-closing-seq={message.dshClosingSeq}
+            data-dsh-produced-paths={JSON.stringify(dshProducedPaths)}
+          />
+        )}
         {!isRunning && (
           <div className={styles.messageActions} aria-label="助手消息操作">
             <button

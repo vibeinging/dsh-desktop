@@ -36,6 +36,11 @@ function mapSkillSelections(messageMetadata: any): AgentSkillSelection[] {
   })
 }
 
+function metadataInteger(value: unknown): number | undefined {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) ? parsed : undefined
+}
+
 export function parseSseJsonLine(line: string): any | null {
   if (!line.startsWith('data:')) return null
   const payload = line.slice(5).trim()
@@ -153,6 +158,8 @@ export function mapServerMessage(m: any): AgentMessage {
   return {
     id: String(m?.id || messageMetadata.message_id || ''),
     dshMessageId: String(messageMetadata.dsh_message_id || '').trim() || undefined,
+    dshTurn: metadataInteger(messageMetadata.dsh_turn),
+    dshClosingSeq: metadataInteger(messageMetadata.dsh_closing_seq),
     role: m.role === 'user' ? 'user' : 'assistant',
     skillSelections: m.role === 'user' ? mapSkillSelections(messageMetadata) : undefined,
     blocks: workstationBlocks.filter(
@@ -218,6 +225,8 @@ export function mergeServerMessages(messages: AgentMessage[]): AgentMessage[] {
         ...message,
         id: previous.id || message.id,
         dshMessageId: message.dshMessageId ?? previous.dshMessageId,
+        dshTurn: message.dshTurn ?? previous.dshTurn,
+        dshClosingSeq: message.dshClosingSeq ?? previous.dshClosingSeq,
         blocks: foldGenerativeUiBlocks(blocks),
         workstationBlocks: foldGenerativeUiBlocks(workstationBlocks),
         removedBlockIds,

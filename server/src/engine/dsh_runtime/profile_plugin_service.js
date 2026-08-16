@@ -44,6 +44,7 @@ const DSH_WORK_MAPPED_CLIENT_SLOTS = Object.freeze([
   "conversation.input.left",
   "conversation.input.right",
   "conversation.chat.assistant-actions",
+  "conversation.chat.turnTail",
   "details",
 ]);
 const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
@@ -57,7 +58,6 @@ const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
   "conversation.view",
   "conversation.chat.node",
   "conversation.chat.commandview",
-  "conversation.chat.turnTail",
   "conversation.details.tool",
   "conversation.composer",
   "conversation.hero.workspace",

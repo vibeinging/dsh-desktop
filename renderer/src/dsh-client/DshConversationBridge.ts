@@ -65,11 +65,12 @@ export class DshConversationBridge {
   readonly #listeners = new Set<() => void>()
   readonly #unsubscribeSessions: () => void
   readonly #disposeProvider: () => void
-  readonly #stores = new Map<SessionId, SnapshotStore<DshWorkComposerInputSnapshot>>()
+  readonly #stores = new Map<SessionId, BridgeInputStore>()
   readonly #actions = new Map<SessionId, DshWorkInputActions>()
   #desiredSessionId: SessionId | null | undefined
   #input = EMPTY_INPUT
   #handlers: DshWorkInputHandlers | null = null
+  #openFileHandler: ((path: string) => void) | null = null
   #disposed = false
 
   constructor(sessions: DshSessions) {
@@ -100,7 +101,7 @@ export class DshConversationBridge {
     this.#reconcileSession()
   }
 
-  /** Publish the App composer's current draft into the read-only Slot owner share. */
+  /** Publish the App composer's current draft into the standard input snapshot. */
   updateDraft(draft: string) {
     if (this.#disposed || this.#input.draft === draft) return
     this.#input = {
@@ -128,6 +129,19 @@ export class DshConversationBridge {
     }
   }
 
+  /** Bind standard conversation file actions to the product Files workbench. */
+  bindOpenFileHandler(handler: (path: string) => void) {
+    this.#openFileHandler = handler
+    return () => {
+      if (this.#openFileHandler === handler) this.#openFileHandler = null
+    }
+  }
+
+  /** Open a Session-authorized path through the product's current workspace. */
+  openFile = (path: string) => {
+    this.#openFileHandler?.(path)
+  }
+
   /** Return the Session identity the product currently expects the Client to stage. */
   getSessionId() {
     return this.#desiredSessionId
@@ -142,7 +156,7 @@ export class DshConversationBridge {
     return () => this.#listeners.delete(listener)
   }
 
-  /** Release the list listener and all product subscribers. */
+  /** Release the list listener and product handlers. */
   dispose = () => {
     if (this.#disposed) return
     this.#disposed = true
@@ -151,6 +165,8 @@ export class DshConversationBridge {
     this.#listeners.clear()
     this.#stores.clear()
     this.#actions.clear()
+    this.#handlers = null
+    this.#openFileHandler = null
   }
 
   #emit() {

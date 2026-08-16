@@ -1002,19 +1002,21 @@ describe('agent stream reducer', () => {
       mapServerMessage({
         id: 'assistant-a',
         role: 'assistant',
-        message_metadata: { turn_id: 'turn-1', dsh_message_id: 'message-working' },
+        message_metadata: { turn_id: 'turn-1', dsh_message_id: 'message-working', dsh_turn: 3, dsh_closing_seq: 20 },
         content_items: [{ id: 'answer-a', type: 'agentMessage', content: 'working' }]
       }),
       mapServerMessage({
         id: 'assistant-b',
         role: 'assistant',
-        message_metadata: { turn_id: 'turn-1', dsh_message_id: 'message-done' },
+        message_metadata: { turn_id: 'turn-1', dsh_message_id: 'message-done', dsh_turn: 3, dsh_closing_seq: 24 },
         content_items: [{ id: 'answer-b', type: 'agentMessage', content: 'done' }]
       })
     ])
 
     expect(messages).toHaveLength(1)
     expect(messages[0].dshMessageId).toBe('message-done')
+    expect(messages[0].dshTurn).toBe(3)
+    expect(messages[0].dshClosingSeq).toBe(24)
   })
 
   it('projects a live finalized DSH assistant id as a turn patch', () => {
@@ -1027,13 +1029,15 @@ describe('agent stream reducer', () => {
           id: 'answer-1',
           type: 'agentMessage',
           text: 'done',
-          metadata: { dsh_message_id: 'message-1' }
+          metadata: { dsh_message_id: 'message-1', dsh_turn: 3, dsh_closing_seq: 24 }
         }
       }
     })
 
     expect(patch.block?.metadata?.dsh_message_id).toBe('message-1')
     expect(patch.turn?.dshMessageId).toBe('message-1')
+    expect(patch.turn?.dshTurn).toBe(3)
+    expect(patch.turn?.dshClosingSeq).toBe(24)
   })
 
   it('restores the persisted runtime turn diff with the assistant message', () => {
@@ -1169,13 +1173,16 @@ describe('dshView retention in tool blocks', () => {
           arguments: '{"command":"pwd"}',
           contentItems: [{ type: 'inputText', text: '/repo' }],
           dshCallView: { for: 'call', view: { card: 'terminal', title: 'pwd', cwd: '/repo' } },
-          dshResultView: { for: 'result', view: { card: 'terminal', output: '/repo', exitCode: 0 } }
+          dshResultView: { for: 'result', view: { card: 'terminal', output: '/repo', exitCode: 0 } },
+          dshCallSeq: 8,
+          dshResultSeq: 10
         }
       }
     })
     expect(tool.block).toMatchObject({ id: 'tool-combined', type: 'tool', title: 'done' })
     expect(tool.block?.metadata?.dshCallView?.view).toMatchObject({ card: 'terminal', cwd: '/repo' })
     expect(tool.block?.metadata?.dshResultView?.view).toMatchObject({ card: 'terminal', output: '/repo', exitCode: 0 })
+    expect(tool.block?.metadata).toMatchObject({ dshCallSeq: 8, dshResultSeq: 10 })
     expect(tool.block?.metadata?.resultText).toBe('/repo')
   })
 

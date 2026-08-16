@@ -326,6 +326,11 @@ test("DSH event adapter projects text, tools, plans, and lifecycle events", asyn
   ]);
   assert.equal(notifications[2].params.item.text, "你好");
   assert.equal(notifications[2].params.item.metadata.dsh_message_id, "message-2");
+  assert.equal(notifications[2].params.item.metadata.dsh_turn, 2);
+  assert.equal(notifications[2].params.item.metadata.dsh_closing_seq, 3);
+  assert.equal(notifications[3].params.item.dshCallSeq, 4);
+  assert.equal(notifications[4].params.item.dshCallSeq, 4);
+  assert.equal(notifications[4].params.item.dshResultSeq, 5);
   assert.equal(notifications[4].params.item.contentItems[0].text, "/repo");
   assert.equal(dshTurnStatus({ kind: "aborted" }), "interrupted");
   assert.equal(dshTurnStatus({ kind: "error" }), "failed");

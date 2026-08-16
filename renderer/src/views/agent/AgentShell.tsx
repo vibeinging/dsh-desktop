@@ -89,6 +89,7 @@ import {
   CHAT_WS,
   authorizePreviewRoot,
   basename,
+  joinWorkspacePath,
   pickFolder,
   revealInFinder
 } from './folders'
@@ -115,7 +116,8 @@ import {
 import { WorkbenchSlotPanels } from './workbenchSlotRuntime'
 import {
   DSH_WORK_LAYOUT_EVENT,
-  type DshWorkLayoutAction
+  type DshWorkLayoutAction,
+  useDshClientHost
 } from '@/dsh-client/DshClientHost'
 
 // Project settings page reuses the original project settings view; preload after startup to avoid waiting for full bundle on first open.
@@ -198,6 +200,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
   const currentProject = useProjectStore((s) => s.currentProject)
   const setCurrentProject = useProjectStore((s) => s.setCurrentProject)
   const appName = useAppName()
+  const dshClientHost = useDshClientHost()
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]) // Projects
   const [convByWs, setConvByWs] = useState<Record<string, Conv[]>>({})
   const [archivedConvByWs, setArchivedConvByWs] = useState<Record<string, Conv[]>>({})
@@ -1859,7 +1862,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
     setWsCollapsed(false)
   }
 
-  const openFileReference = (target: FileReferenceOpenTarget) => {
+  const openFileReference = useCallback((target: FileReferenceOpenTarget) => {
     openWorkbenchTab('files', { resetWidth: true })
     setFileOpenTarget({
       projectId: activeWs,
@@ -1869,7 +1872,17 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
       name: basename(target.absolutePath),
       nonce: Date.now()
     })
-  }
+  }, [activeId, activeWs, openWorkbenchTab])
+
+  useEffect(() => dshClientHost?.conversation.bindOpenFileHandler((path) => {
+    const workspace = workspaces.find((item) => item.id === activeWs)
+    const folders = workspace?.source_folders || []
+    const root = folders.find((folder) => (
+      folder.available !== false && (folder.write_target === true || folder.access_mode === 'write')
+    ))?.path || folders.find((folder) => folder.available !== false)?.path || ''
+    const absolutePath = joinWorkspacePath(root, path)
+    if (absolutePath) openFileReference({ absolutePath, path })
+  }), [activeWs, dshClientHost?.conversation, openFileReference, workspaces])
 
   const rightTab = workbenchTabs.active
   const workbenchNativeViewActive = showWsInGrid && !wsClosing && !workbenchAddOpen && !standardDetailsOpen

@@ -43,10 +43,12 @@ describe('cold recovery: DSH history → renderer pipeline', () => {
   it('keeps the finalized DSH assistant identity separate from the product message id', () => {
     const mapped = mapServerMessage(dshMessage('assistant', [
       { id: 'a1', type: 'agentMessage', content: 'done', status: 'completed' },
-    ], { turn_id: 'turn-1', dsh_message_id: 'dsh-message-1' }))
+    ], { turn_id: 'turn-1', dsh_message_id: 'dsh-message-1', dsh_turn: 4, dsh_closing_seq: 27 }))
 
     expect(mapped.id).not.toBe('dsh-message-1')
     expect(mapped.dshMessageId).toBe('dsh-message-1')
+    expect(mapped.dshTurn).toBe(4)
+    expect(mapped.dshClosingSeq).toBe(27)
   })
 
   it('maps a DSH-history plan content_item and the renderer can recover plan steps', () => {

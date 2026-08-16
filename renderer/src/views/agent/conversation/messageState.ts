@@ -353,6 +353,8 @@ export function applyTurnToMessages(prev: Msg[], turn: AgentTurnPatch) {
     ...message,
     id: turn.messageId || message.id || turn.turnId || undefined,
     dshMessageId: turn.dshMessageId ?? message.dshMessageId,
+    dshTurn: turn.dshTurn ?? message.dshTurn,
+    dshClosingSeq: turn.dshClosingSeq ?? message.dshClosingSeq,
     threadId: turn.threadId || message.threadId,
     turnId: turn.turnId || message.turnId,
     status: turn.status || message.status,

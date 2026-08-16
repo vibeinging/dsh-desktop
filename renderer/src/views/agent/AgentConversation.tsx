@@ -2519,7 +2519,7 @@ function DshWorkAgentConversation({
     if (!dshClientHost) return
     return dshClientHost.conversation.bindInputHandlers({
       setDraft: (draft) => setInput(draft),
-      submit: () => send()
+      submit: () => void send()
     })
   }, [dshClientHost, send])
   const onKey = (e: React.KeyboardEvent) => {
