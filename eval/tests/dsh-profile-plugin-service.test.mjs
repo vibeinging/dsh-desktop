@@ -698,6 +698,31 @@ test("the Profile catalog is projected from the official Web Profile order", {
         priority: 95,
       },
     );
+    assert.deepEqual(
+      catalog.recommended_plugins.filter((plugin) => ["dsh-toolkit", "distill"].includes(plugin.id)).map((plugin) => ({
+        id: plugin.id,
+        stars: plugin.stars,
+        compatibility: plugin.compatibility,
+        checked_at: plugin.checked_at,
+        checked_commit: plugin.checked_commit,
+        preflight_blocker: plugin.preflight_blocker,
+      })),
+      [{
+        id: "dsh-toolkit",
+        stars: 19,
+        compatibility: "sdk-migration-required",
+        checked_at: "2026-08-16",
+        checked_commit: "5d4628929aa2695cab7b4534670c0ca3c9cd7652",
+        preflight_blocker: "Two DSH SDK dependency ranges do not match the exact 0.1.0-rc.6 release line.",
+      }, {
+        id: "distill",
+        stars: 19,
+        compatibility: "sdk-migration-required",
+        checked_at: "2026-08-16",
+        checked_commit: "d2aaa395adeffe88e429be796c12d829752cbad1",
+        preflight_blocker: "Six DSH SDK dependencies still target the 0.1.0-rc.5 release line.",
+      }],
+    );
     assert.deepEqual(catalog.plugins.at(-1).ui_runtime, {
       kind: "dsh_client",
       client_graph: true,

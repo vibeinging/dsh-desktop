@@ -132,10 +132,13 @@
       "description": "Ten deterministic tools for time, encoding, JSON, calculation, CSV, regex, Markdown, diff, statistics, and schema work.",
       "description_zh": "提供时间、编码、JSON、计算、CSV、正则、Markdown、差异、统计和 Schema 十类确定性工具。",
       "repository": "https://github.com/omdsh-dev/dsh-toolkit",
-      "stars": 16,
+      "stars": 19,
       "category": "tools",
       "source": "github:omdsh-dev/dsh-toolkit#5d4628929aa2695cab7b4534670c0ca3c9cd7652",
-      "compatibility": "host-preflight-required",
+      "compatibility": "sdk-migration-required",
+      "checked_at": "2026-08-16",
+      "checked_commit": "5d4628929aa2695cab7b4534670c0ca3c9cd7652",
+      "preflight_blocker": "Two DSH SDK dependency ranges do not match the exact 0.1.0-rc.6 release line.",
       "priority": 100
     },
     {
@@ -144,10 +147,13 @@
       "description": "Reflect on conversations with a background subagent and distill reusable skills.",
       "description_zh": "使用后台子 Agent 反思会话，并沉淀可复用 Skill。",
       "repository": "https://github.com/LoserFox/distill",
-      "stars": 16,
+      "stars": 19,
       "category": "skills",
       "source": "github:LoserFox/distill#d2aaa395adeffe88e429be796c12d829752cbad1",
-      "compatibility": "host-preflight-required",
+      "compatibility": "sdk-migration-required",
+      "checked_at": "2026-08-16",
+      "checked_commit": "d2aaa395adeffe88e429be796c12d829752cbad1",
+      "preflight_blocker": "Six DSH SDK dependencies still target the 0.1.0-rc.5 release line.",
       "priority": 110
     },
     {
