@@ -3991,6 +3991,10 @@
   position: relative;
   z-index: 120;
 }
+.composerInputOverlay:not([data-active='true']) {
+  visibility: hidden;
+  pointer-events: none;
+}
 .composerInputOverlay:empty {
   display: none;
 }

@@ -37,6 +37,10 @@ describe('dsh-work Client shell contract', () => {
     expect(conversation).toContain('data-dsh-session-header-actions')
     expect(conversation).toContain('data-dsh-session-header-utilities')
     expect(conversation).toContain('data-dsh-conversation-input-overlay')
+    expect(conversation).toContain('conversation.trackInputTrigger')
+    expect(conversation).toContain('conversation.arbitrateInputTrigger')
+    expect(conversation).toContain("reserveLeadingSlash: slashMatch !== null")
+    expect(conversation).toContain("data-active={officialInputMenuActive ? 'true' : undefined}")
     expect(conversation).toContain('data-dsh-conversation-input-dock')
     expect(conversation).toContain('data-dsh-conversation-composer-dock')
     expect(conversation).toContain('data-dsh-conversation-input-left')
@@ -72,8 +76,11 @@ describe('dsh-work Client shell contract', () => {
 
   it('lets rendered overlay children receive pointer input', () => {
     const css = read('./DshClientHost.module.scss')
+    const conversationCss = read('../views/agent/agent.module.scss')
 
     expect(css).toContain('pointer-events: none')
     expect(css).toMatch(/> \* \{\s*pointer-events: auto/)
+    expect(conversationCss).toContain(".composerInputOverlay:not([data-active='true'])")
+    expect(conversationCss).toContain('pointer-events: none')
   })
 })

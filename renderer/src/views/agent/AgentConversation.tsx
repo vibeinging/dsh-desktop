@@ -1,6 +1,6 @@
 // Center column for the Agent conversation stream. M2: real session (create/persist/history load), self-contained minimal rendering.
 import { createPortal } from 'react-dom'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   IconArrowUp,
@@ -146,6 +146,9 @@ import styles from './agent.module.scss'
 
 export type { DataWorkspaceEvent } from './stream/types'
 export type { FileReferenceOpenTarget } from './conversation/types'
+
+const NOOP_SUBSCRIBE = () => () => {}
+const FALSE_SNAPSHOT = () => false
 
 export type ConversationSkillSelection = {
   name: string
@@ -537,6 +540,11 @@ function DshWorkAgentConversation({
     })
   const [messages, setMessages] = useState<Msg[]>([])
   const dshClientHost = useDshClientHost()
+  const officialInputMenuActive = useSyncExternalStore(
+    dshClientHost?.conversation.subscribeInputTrigger || NOOP_SUBSCRIBE,
+    dshClientHost?.conversation.getInputTriggerActive || FALSE_SNAPSHOT,
+    FALSE_SNAPSHOT
+  )
   const appName = useAppName()
   const showAnimeHome = useSkinsStore((state) => {
     const skin = state.getAppliedSkin()
@@ -553,8 +561,19 @@ function DshWorkAgentConversation({
   const taRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    dshClientHost?.conversation.updateDraft(input)
+    const conversation = dshClientHost?.conversation
+    if (!conversation) return
+    conversation.updateDraft(input)
+    const caret = taRef.current?.selectionStart ?? input.length
+    const reserveLeadingSlash = !input.includes('\n') && /^\//.test(input)
+    conversation.trackInputTrigger(input, caret, { reserveLeadingSlash })
   }, [dshClientHost, input])
+
+  useEffect(() => {
+    if (!officialInputMenuActive) return
+    setTrigger(null)
+    setSlash(null)
+  }, [officialInputMenuActive])
 
   useEffect(() => {
     const selectedSkill = selectedSkills[selectedSkills.length - 1]
@@ -2311,6 +2330,9 @@ function DshWorkAgentConversation({
     setInput(val)
     // Slash commands own the first input line. `/skill 质量` filters Skills; other commands may keep text as arguments.
     const slashMatch = !val.includes('\n') ? val.match(/^\/([^\s]*)(?:\s+(.*))?$/) : null
+    dshClientHost?.conversation.trackInputTrigger(val, e.target.selectionStart ?? val.length, {
+      reserveLeadingSlash: slashMatch !== null
+    })
     if (slashMatch) {
       const commandName = String(slashMatch[1] || '')
       const args = String(slashMatch[2] || '')
@@ -2536,6 +2558,25 @@ function DshWorkAgentConversation({
     })
   }, [dshClientHost, send])
   const onKey = (e: React.KeyboardEvent) => {
+    const officialKey = e.key === 'ArrowUp'
+      ? 'up'
+      : e.key === 'ArrowDown'
+        ? 'down'
+        : e.key === 'Enter'
+          ? 'enter'
+          : e.key === 'Escape'
+            ? 'escape'
+            : null
+    if (officialKey) {
+      const outcome = dshClientHost?.conversation.arbitrateInputTrigger(
+        officialKey,
+        e.nativeEvent.isComposing
+      ) || 'pass'
+      if (outcome !== 'pass') {
+        e.preventDefault()
+        return
+      }
+    }
     if (e.key === 'Escape' && (trigger || slash)) {
       e.preventDefault()
       setTrigger(null)
@@ -2750,8 +2791,12 @@ function DshWorkAgentConversation({
         </div>
       )}
       <div className={styles.taWrap}>
-        <div className={styles.composerInputOverlay} data-dsh-conversation-input-overlay />
-        {trigger && (
+        <div
+          className={styles.composerInputOverlay}
+          data-dsh-conversation-input-overlay
+          data-active={officialInputMenuActive ? 'true' : undefined}
+        />
+        {!officialInputMenuActive && trigger && (
           <MentionPicker
             mode={trigger.mode}
             projectId={projectId}
@@ -2762,7 +2807,7 @@ function DshWorkAgentConversation({
             onClose={() => setTrigger(null)}
           />
         )}
-        {slash && (
+        {!officialInputMenuActive && slash && (
           <SlashMenu
             query={slash.query}
             hasSession={messages.length > 0}
@@ -2789,6 +2834,15 @@ function DshWorkAgentConversation({
             : '聊天、处理文件，或安排一个多步任务…'}
           value={input}
           onChange={onInputChange}
+          onSelect={(event) => {
+            const value = event.currentTarget.value
+            const reserveLeadingSlash = !value.includes('\n') && /^\//.test(value)
+            dshClientHost?.conversation.trackInputTrigger(
+              value,
+              event.currentTarget.selectionStart ?? value.length,
+              { reserveLeadingSlash }
+            )
+          }}
           onPaste={onPaste}
           onKeyDown={onKey}
         />

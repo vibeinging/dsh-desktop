@@ -7,6 +7,8 @@ import type {
 import type { OwnerOf } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {
+  ArbitrateKey,
+  ArbitrateOutcome,
   ConsumeTokenRequest,
   InsertReferenceRequest,
   InputTriggerController,
@@ -136,6 +138,7 @@ export class DshConversationBridge {
   readonly #actions = new Map<SessionId, DshWorkInputActions>()
   readonly #inputControllers = new Map<SessionId, InputTriggerController>()
   readonly #scopeDisposers = new Map<SessionId, ScopeDisposer>()
+  readonly #inputTriggerListeners = new Set<() => void>()
   #desiredSessionId: SessionId | null | undefined
   #input = EMPTY_INPUT
   #occurrenceSeq = 0
@@ -171,6 +174,7 @@ export class DshConversationBridge {
     this.#input = { ...EMPTY_INPUT, draftRev: this.#input.draftRev + 1 }
     if (next) this.#storeFor(next).set(this.#input)
     this.#emit()
+    this.#emitInputTrigger()
     this.#reconcileSession()
   }
 
@@ -259,6 +263,46 @@ export class DshConversationBridge {
     return () => this.#listeners.delete(listener)
   }
 
+  /** Feed the product draft and caret into the selected Session's official trigger controller. */
+  trackInputTrigger(draft: string, caret: number, options: { reserveLeadingSlash?: boolean } = {}) {
+    if (this.#disposed) return false
+    if (this.#input.draft !== draft) this.#replaceDraft(draft, false)
+    const controller = this.#selectedInputController()
+    if (!controller) return false
+    if (options.reserveLeadingSlash) {
+      controller.dismiss()
+      return false
+    }
+    const boundedCaret = Math.max(0, Math.min(caret, this.#input.draft.length))
+    const tier = this.#input.phase === 'plain' || this.#input.phase === 'claimed'
+      ? this.#input.phase
+      : 'frozen'
+    controller.track(this.#input.draft, boundedCaret, { tier }, this.#input.draftRev)
+    return this.getInputTriggerActive()
+  }
+
+  /** Let the official menu own navigation only after it has content or an explicit launcher. */
+  arbitrateInputTrigger(key: ArbitrateKey, composing: boolean): ArbitrateOutcome {
+    const controller = this.#selectedInputController()
+    if (!controller || !this.getInputTriggerActive()) return 'pass'
+    return controller.arbitrate(key, composing)
+  }
+
+  /** Report whether the official input menu currently owns product keyboard input. */
+  getInputTriggerActive = () => {
+    const controller = this.#selectedInputController()
+    if (!controller) return false
+    if (controller.launcher.getSnapshot() !== null) return true
+    const menu = controller.menu.getSnapshot()
+    return menu.open && menu.groups.some((group) => group.status === 'ready' && group.items.length > 0)
+  }
+
+  /** Subscribe to official input-menu ownership changes for the selected Session. */
+  subscribeInputTrigger = (listener: () => void) => {
+    this.#inputTriggerListeners.add(listener)
+    return () => this.#inputTriggerListeners.delete(listener)
+  }
+
   /** Release the list listener and product handlers. */
   dispose = () => {
     if (this.#disposed) return
@@ -266,6 +310,7 @@ export class DshConversationBridge {
     this.#disposeProvider()
     this.#unsubscribeSessions()
     this.#listeners.clear()
+    this.#inputTriggerListeners.clear()
     this.#stores.clear()
     this.#actions.clear()
     for (const dispose of this.#scopeDisposers.values()) void dispose()
@@ -277,6 +322,14 @@ export class DshConversationBridge {
 
   #emit() {
     for (const listener of this.#listeners) listener()
+  }
+
+  #emitInputTrigger() {
+    for (const listener of this.#inputTriggerListeners) listener()
+  }
+
+  #selectedInputController() {
+    return this.#desiredSessionId ? this.#inputControllers.get(this.#desiredSessionId) : undefined
   }
 
   #publishInput(next: DshWorkComposerInputSnapshot) {
@@ -355,7 +408,14 @@ export class DshConversationBridge {
     if (this.#inputControllers.has(binding.sessionId)) return
     const controller = binding.ctx.inputTriggers.sessionOf(binding.ctx)
     this.#inputControllers.set(binding.sessionId, controller)
+    if (binding.sessionId === this.#desiredSessionId) this.#emitInputTrigger()
     const disposer = binding.ctx.effect(() => {
+      const offMenu = controller.menu.subscribe(() => {
+        if (binding.sessionId === this.#desiredSessionId) this.#emitInputTrigger()
+      })
+      const offLauncher = controller.launcher.subscribe(() => {
+        if (binding.sessionId === this.#desiredSessionId) this.#emitInputTrigger()
+      })
       const offs = [
         binding.ctx.on('slash/input-insert-reference', (request) =>
           this.#insertReference(binding.sessionId, request) ? true : undefined),
@@ -365,10 +425,13 @@ export class DshConversationBridge {
           this.#insertText(binding.sessionId, request) ? true : undefined)
       ]
       return () => {
+        offMenu()
+        offLauncher()
         for (const off of offs) off()
         if (this.#inputControllers.get(binding.sessionId) === controller) {
           this.#inputControllers.delete(binding.sessionId)
           this.#scopeDisposers.delete(binding.sessionId)
+          if (binding.sessionId === this.#desiredSessionId) this.#emitInputTrigger()
         }
       }
     }, 'dsh-work.input: official reference bridge')

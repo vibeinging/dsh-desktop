@@ -5,12 +5,43 @@ import type {
   SessionId,
   SessionListState
 } from '@deepseek-ai/dsh-client-runtime/client'
+import type { MenuState } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { DshConversationBridge } from './DshConversationBridge'
 
 function inputScope(sessionId: SessionId) {
   const listeners = new Map<string, (request: unknown) => unknown>()
   const serializeReference = vi.fn(async (source: string, ref: string) => `<${source}>${ref}</${source}>`)
-  const controller = { serializeReference }
+  const snapshotStore = <T,>(initial: T) => {
+    let snapshot = initial
+    const storeListeners = new Set<() => void>()
+    return {
+      getSnapshot: () => snapshot,
+      subscribe: (listener: () => void) => {
+        storeListeners.add(listener)
+        return () => storeListeners.delete(listener)
+      },
+      set(next: T) {
+        snapshot = next
+        for (const listener of storeListeners) listener()
+      }
+    }
+  }
+  const menu = snapshotStore<MenuState>({
+    open: false,
+    hit: null,
+    generation: 0,
+    groups: [],
+    highlight: null
+  })
+  const launcher = snapshotStore<string | null>(null)
+  const controller = {
+    serializeReference,
+    menu,
+    launcher,
+    track: vi.fn(),
+    arbitrate: vi.fn(() => 'consumed' as const),
+    dismiss: vi.fn()
+  }
   const ctx = {
     inputTriggers: { sessionOf: vi.fn(() => controller) },
     on: vi.fn((name: string, listener: (request: unknown) => unknown) => {
@@ -307,6 +338,64 @@ describe('DshConversationBridge', () => {
       }
     })).toBe(true)
     expect(bridge.getInputSnapshot().draft).toBe(' ')
+    bridge.dispose()
+  })
+
+  it('lets ready official candidates own keyboard input without replacing the product slash menu', () => {
+    const sessionId = 'dsh-session-trigger' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const listener = vi.fn()
+    const scope = inputScope(sessionId)
+    bridge.syncSession(sessionId)
+    bridge.subscribeInputTrigger(listener)
+    descriptor!.resolve(scope.binding)
+
+    expect(bridge.trackInputTrigger('@re', 99)).toBe(false)
+    expect(scope.controller.track).toHaveBeenCalledWith('@re', 3, { tier: 'plain' }, 2)
+    expect(bridge.arbitrateInputTrigger('down', false)).toBe('pass')
+    expect(scope.controller.arbitrate).not.toHaveBeenCalled()
+
+    scope.controller.menu.set({
+      open: true,
+      hit: {
+        trigger: '@',
+        query: 're',
+        position: 'leading',
+        span: { start: 0, end: 3, draftRev: 2 }
+      },
+      generation: 1,
+      groups: [{ source: 'files', status: 'ready', items: [{ name: 'report.csv' }] }],
+      highlight: { source: 'files', index: 0 }
+    })
+    expect(bridge.getInputTriggerActive()).toBe(true)
+    expect(bridge.arbitrateInputTrigger('down', false)).toBe('consumed')
+    expect(scope.controller.arbitrate).toHaveBeenCalledWith('down', false)
+
+    scope.controller.menu.set({
+      open: false,
+      hit: null,
+      generation: 2,
+      groups: [],
+      highlight: null
+    })
+    scope.controller.launcher.set('files')
+    expect(bridge.getInputTriggerActive()).toBe(true)
+
+    const tracked = scope.controller.track.mock.calls.length
+    expect(bridge.trackInputTrigger('/new', 4, { reserveLeadingSlash: true })).toBe(false)
+    expect(scope.controller.dismiss).toHaveBeenCalledOnce()
+    expect(scope.controller.track).toHaveBeenCalledTimes(tracked)
+    expect(listener).toHaveBeenCalled()
     bridge.dispose()
   })
 })
