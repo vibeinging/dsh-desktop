@@ -1,6 +1,6 @@
 {
-  "name": "@deepseek-ai/dsh-product-bridge",
-  "description": "Session-scoped product context and memory for the current DSH Web profile",
+  "name": "@deepseek-ai/dsh-model-inheritance",
+  "description": "Portable parent-to-sub-Agent model inheritance for DSH Profiles",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -21,16 +21,16 @@
   },
   "dshWork": {
     "portability": {
-      "level": "desktop-adapter",
-      "surfaces": ["dsh-desktop"],
-      "hostRequirements": ["product-host"]
+      "level": "portable",
+      "surfaces": ["official-web", "dsh-desktop"],
+      "hostRequirements": [],
+      "compatibilityTest": "eval/tests/dsh-official-web-plugin-compat.test.mjs"
     }
   },
   "files": [
     "src/index.js",
     "cordis.patch.yml",
-    "README.md",
-    "README.zh.md"
+    "README.md"
   ],
   "license": "BSD-3-Clause",
   "peerDependencies": {

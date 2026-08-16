@@ -38,6 +38,12 @@ const TRUSTED_DSH_PLUGINS = Object.freeze([{
   browser: false,
   portability: "desktop-adapter",
 }, {
+  name: "@deepseek-ai/dsh-model-inheritance",
+  envPath: "DSH_MODEL_INHERITANCE_ROOT",
+  appPackage: "packages/dsh-model-inheritance",
+  browser: false,
+  portability: "portable",
+}, {
   name: "@deepseek-ai/dsh-product-bridge",
   envPath: "DSH_PRODUCT_BRIDGE_ROOT",
   appPackage: "packages/dsh-product-bridge",

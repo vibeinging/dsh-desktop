@@ -133,6 +133,16 @@
         ]
       },
       {
+        "from": "../packages/dsh-model-inheritance",
+        "to": "packages/dsh-model-inheritance",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "README.md",
+          "src/index.js"
+        ]
+      },
+      {
         "from": "../packages/dsh-product-bridge",
         "to": "packages/dsh-product-bridge",
         "filter": [

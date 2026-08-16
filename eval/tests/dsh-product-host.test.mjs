@@ -21,6 +21,11 @@ import {
   inject as productBridgeInject,
 } from "../../packages/dsh-product-bridge/src/index.js";
 import {
+  apply as applyModelInheritance,
+  inject as modelInheritanceInject,
+  modelTarget,
+} from "../../packages/dsh-model-inheritance/src/index.js";
+import {
   apply as applyCanvasTools,
   createCanvasProductTools,
 } from "../../packages/dsh-canvas-tools/src/index.js";
@@ -873,7 +878,7 @@ test("the product bridge no longer owns a Tool registry dependency", () => {
   assert.deepEqual(productBridgeInject, ["agents", "productHost"]);
 });
 
-test("the product bridge keeps context and model hooks in the Agent lifecycle", () => {
+test("the product bridge keeps only context and memory hooks in the Agent lifecycle", () => {
   const handlers = new Map();
   const agentHandlers = new Map();
   const disposed = [];
@@ -904,9 +909,129 @@ test("the product bridge keeps context and model hooks in the Agent lifecycle", 
     },
   };
   handlers.get("agent/created")({ agent });
-  assert.deepEqual(new Set(agentHandlers.keys()), new Set(["agent/request", "agent/pre-step"]));
+  assert.deepEqual(new Set(agentHandlers.keys()), new Set(["agent/pre-step"]));
   handlers.get("agent/disposed")({ agent });
-  assert.deepEqual(new Set(disposed), new Set(["agent/request", "agent/pre-step"]));
+  assert.deepEqual(new Set(disposed), new Set(["agent/pre-step"]));
+  for (const dispose of effects) dispose();
+});
+
+test("the portable model Bundle pins a sub-Agent to its resolved parent target", async () => {
+  assert.deepEqual(modelInheritanceInject, ["agents"]);
+  assert.equal(modelTarget({ provider: "", model: "missing" }), null);
+  assert.deepEqual(modelTarget({
+    provider: "deepseek-official",
+    model: "deepseek-reasoner",
+    maxTokens: 8192,
+    reasoningEffort: "high",
+  }), {
+    provider: "deepseek-official",
+    model: "deepseek-reasoner",
+    maxTokens: 8192,
+    reasoningEffort: "high",
+  });
+
+  const handlers = new Map();
+  const effects = [];
+  const agents = new Map();
+  const ctx = {
+    agents: { get: (sessionId) => agents.get(sessionId) || null },
+    on(name, handler) {
+      handlers.set(name, handler);
+      return () => handlers.delete(name);
+    },
+    effect(factory) {
+      effects.push(factory());
+    },
+  };
+  const createAgent = (sessionId, header = {}) => {
+    const listeners = new Map();
+    const agent = {
+      session: { id: sessionId, header },
+      ctx: {
+        on(name, handler, options = {}) {
+          const entries = listeners.get(name) || [];
+          if (options.prepend) entries.unshift(handler);
+          else entries.push(handler);
+          listeners.set(name, entries);
+          return () => listeners.set(
+            name,
+            (listeners.get(name) || []).filter((entry) => entry !== handler),
+          );
+        },
+      },
+      async waterfall(name, args, next) {
+        const entries = [...(listeners.get(name) || [])];
+        const invoke = async (index) => (
+          index >= entries.length ? next() : entries[index](...args, () => invoke(index + 1))
+        );
+        return invoke(0);
+      },
+      listenerCount(name) {
+        return (listeners.get(name) || []).length;
+      },
+    };
+    agents.set(sessionId, agent);
+    return agent;
+  };
+
+  applyModelInheritance(ctx);
+  const parent = createAgent("parent-session");
+  handlers.get("agent/created")({ agent: parent });
+  const parentTarget = {
+    provider: "deepseek-official",
+    model: "deepseek-reasoner",
+    maxTokens: 8192,
+    reasoningEffort: "high",
+  };
+  assert.deepEqual(await parent.waterfall("agent/request", [{}], async () => parentTarget), parentTarget);
+
+  const child = createAgent("child-session", { origin: "subagent", parentSession: "parent-session" });
+  handlers.get("agent/created")({ agent: child });
+  const assembled = await child.waterfall(
+    "system-prompt/assemble",
+    [{ variables: { session: "child-session" } }, {}],
+    async () => ({ variables: { session: "child-session" } }),
+  );
+  assert.deepEqual(assembled.variables, {
+    session: "child-session",
+    provider: "deepseek-official",
+    model: "deepseek-reasoner",
+  });
+  const childRequest = await child.waterfall("agent/request", [{}], async () => ({
+    provider: "fallback",
+    model: "fallback-model",
+    maxTokens: 1024,
+    reasoningEffort: "low",
+    temperature: 0.2,
+  }));
+  assert.deepEqual(childRequest, {
+    provider: "deepseek-official",
+    model: "deepseek-reasoner",
+    maxTokens: 8192,
+    reasoningEffort: "high",
+    temperature: 0.2,
+  });
+
+  const orphan = createAgent("orphan-session", { origin: "subagent", parentSession: "missing-parent" });
+  handlers.get("agent/created")({ agent: orphan });
+  assert.equal(orphan.listenerCount("system-prompt/assemble"), 0);
+  const orphanRequest = {
+    provider: "fallback",
+    model: "fallback-model",
+    reasoningEffort: "low",
+  };
+  assert.deepEqual(
+    await orphan.waterfall("agent/request", [{}], async () => orphanRequest),
+    orphanRequest,
+  );
+
+  handlers.get("agent/disposed")({ agent: orphan });
+  handlers.get("agent/disposed")({ agent: child });
+  handlers.get("agent/disposed")({ agent: parent });
+  assert.equal(child.listenerCount("agent/request"), 0);
+  assert.equal(child.listenerCount("system-prompt/assemble"), 0);
+  assert.equal(parent.listenerCount("agent/request"), 0);
+  assert.equal(orphan.listenerCount("agent/request"), 0);
   for (const dispose of effects) dispose();
 });
 

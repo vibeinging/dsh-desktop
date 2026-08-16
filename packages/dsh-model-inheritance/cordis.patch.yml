@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-model-inheritance
+      name: '@deepseek-ai/dsh-model-inheritance'

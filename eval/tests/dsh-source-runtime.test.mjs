@@ -870,7 +870,7 @@ test("real current DSH Web Profile serves client slots and its text prompt wire"
       profile.layers.flatMap((layer) => layer.patches),
       profile.patches,
     ]);
-    for (const id of ["dsh-work-product-host-ipc", "dsh-work-project-tools", "dsh-work-canvas-tools", "dsh-work-structured-ui-tools", "product-bridge", "dsh-work-office-tools"]) {
+    for (const id of ["dsh-work-product-host-ipc", "dsh-work-project-tools", "dsh-work-canvas-tools", "dsh-work-structured-ui-tools", "dsh-model-inheritance", "product-bridge", "dsh-work-office-tools"]) {
       assert.equal(profileRows.filter((row) => row.id === id).length, 1, `${id} must mount once through Profile`);
     }
     assert.equal(profileRows.find((row) => row.id === "web-runtime")?.name, "@deepseek-ai/dsh-web-app");
@@ -950,6 +950,7 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-project-tools"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-canvas-tools"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-structured-ui-tools"), true);
+    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-model-inheritance"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-product-bridge"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-workbench-pages"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-theme-pack"), true);
