@@ -256,6 +256,22 @@ try {
     timeout: 15_000,
     label: '官方 Plan 插件关闭当前 Session 的 plan mode',
   })
+  const permissionBefore = await session.evalJs(`return document.querySelector('[data-testid="dsh-permission-picker"]')?.getAttribute('data-dsh-permission-value') || ''`)
+  assert.ok(permissionBefore, 'DSH Session 没有提供 permissions projection')
+  await ui.fill('[data-testid="agent-message-input"]', '/permission')
+  const officialPermissionCommand = '[role="option"][id^="dsh-slash-option-command-"]'
+  await ui.waitFor(officialPermissionCommand, { timeout: 10_000 })
+  assert.match(await session.evalJs(`return document.querySelector(${JSON.stringify(officialPermissionCommand)})?.innerText || ''`), /^permission\b/)
+  await ui.click(officialPermissionCommand)
+  const officialPermissionList = '[role="listbox"][aria-label^="/permission"]'
+  await ui.waitFor(officialPermissionList, { timeout: 10_000 })
+  assert.ok(await session.evalJs(`return document.querySelector(${JSON.stringify(officialPermissionList)})?.querySelectorAll('[role="option"]').length || 0`))
+  await ui.click('[data-testid="agent-message-input"]')
+  await ui.waitUntil(`async () => !document.querySelector(${JSON.stringify(officialPermissionList)})`, {
+    timeout: 10_000,
+    label: '官方 permission decoration 关闭',
+  })
+  assert.equal(await session.evalJs(`return document.querySelector('[data-testid="dsh-permission-picker"]')?.getAttribute('data-dsh-permission-value') || ''`), permissionBefore)
   await ui.fill('[data-testid="agent-message-input"]', '/runs')
   await ui.waitFor('[role="listbox"]', { timeout: 10_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-slash-menu]') === null`), true)
