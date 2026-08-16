@@ -3987,6 +3987,13 @@
 .taWrap {
   position: relative;
 }
+.composerInputOverlay {
+  position: relative;
+  z-index: 120;
+}
+.composerInputOverlay:empty {
+  display: none;
+}
 
 /* Attachment chip. */
 .attachList {

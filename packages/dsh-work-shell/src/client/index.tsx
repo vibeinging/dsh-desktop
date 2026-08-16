@@ -45,6 +45,7 @@ type DshWorkGeneralProps = PropsRuntime<'settings.section'> & PropsRenderSlots<'
 type DshWorkConversationSlot =
   | 'conversation.session.header.actions'
   | 'conversation.session.header.utilities'
+  | 'conversation.input.overlay'
   | 'conversation.input.dock'
   | 'conversation.composer.dock'
   | 'conversation.input.left'
@@ -177,6 +178,7 @@ export function apply(ctx: ClientContext) {
     const [targets, setTargets] = useState<Record<DshWorkConversationSlot, Element | null>>({
       'conversation.session.header.actions': null,
       'conversation.session.header.utilities': null,
+      'conversation.input.overlay': null,
       'conversation.input.dock': null,
       'conversation.composer.dock': null,
       'conversation.input.left': null,
@@ -190,6 +192,7 @@ export function apply(ctx: ClientContext) {
       const selectors: Record<Exclude<DshWorkConversationSlot, 'conversation.chat.assistant-actions' | 'conversation.chat.turnTail'>, string> = {
         'conversation.session.header.actions': '[data-dsh-session-header-actions]',
         'conversation.session.header.utilities': '[data-dsh-session-header-utilities]',
+        'conversation.input.overlay': '[data-dsh-conversation-input-overlay]',
         'conversation.input.dock': '[data-dsh-conversation-input-dock]',
         'conversation.composer.dock': '[data-dsh-conversation-composer-dock]',
         'conversation.input.left': '[data-dsh-conversation-input-left]',
@@ -260,6 +263,10 @@ export function apply(ctx: ClientContext) {
         {targets['conversation.session.header.utilities'] && createPortal(
           renderSlot('conversation.session.header.utilities', {}),
           targets['conversation.session.header.utilities']
+        )}
+        {targets['conversation.input.overlay'] && createPortal(
+          renderSlot('conversation.input.overlay', {}),
+          targets['conversation.input.overlay']
         )}
         {targets['conversation.input.dock'] && createPortal(
           renderSlot('conversation.input.dock', inputZone),
@@ -336,6 +343,7 @@ export function apply(ctx: ClientContext) {
     children: {
       'conversation.session.header.actions': { kind: 'list', scope: 'session' },
       'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
+      'conversation.input.overlay': { kind: 'list', scope: 'session' },
       'conversation.input.dock': { kind: 'list', scope: 'session' },
       'conversation.composer.dock': { kind: 'list', scope: 'session' },
       'conversation.input.left': { kind: 'list', scope: 'session' },

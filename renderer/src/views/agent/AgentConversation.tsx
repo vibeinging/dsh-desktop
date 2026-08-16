@@ -2750,6 +2750,7 @@ function DshWorkAgentConversation({
         </div>
       )}
       <div className={styles.taWrap}>
+        <div className={styles.composerInputOverlay} data-dsh-conversation-input-overlay />
         {trigger && (
           <MentionPicker
             mode={trigger.mode}
