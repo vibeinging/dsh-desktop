@@ -196,7 +196,6 @@ export const AssistantTurn = memo(
     revertingItemIds,
     onRevertChange,
     onSubmitUserInput,
-    onOpenConversation,
     onOpenFileReference,
     onGenerativeUiAction,
     onCopy,
@@ -223,7 +222,6 @@ export const AssistantTurn = memo(
       payload: ReturnType<typeof parseUserInputPayload>,
       answers: Record<string, { answers: string[] }>
     ) => Promise<void>
-    onOpenConversation?: (conversationId: string) => void
     onOpenFileReference?: (target: FileReferenceOpenTarget) => void | Promise<void>
     onGenerativeUiAction: (message: string) => Promise<void>
     onCopy: (text: string) => void
@@ -342,7 +340,6 @@ export const AssistantTurn = memo(
                     reverting={Boolean(revertingItemIds[block.id])}
                     onRevertChange={() => onRevertChange(block)}
                     onSubmitUserInput={onSubmitUserInput}
-                    onOpenConversation={onOpenConversation}
                     onOpenFileReference={onOpenFileReference}
                     canInteractGenerativeUi={canInteractGenerativeUi}
                     onGenerativeUiAction={onGenerativeUiAction}
@@ -372,7 +369,6 @@ export const AssistantTurn = memo(
             reverting={Boolean(revertingItemIds[block.id])}
             onRevertChange={() => onRevertChange(block)}
             onSubmitUserInput={onSubmitUserInput}
-            onOpenConversation={onOpenConversation}
             onOpenFileReference={onOpenFileReference}
             canInteractGenerativeUi={canInteractGenerativeUi}
             onGenerativeUiAction={onGenerativeUiAction}

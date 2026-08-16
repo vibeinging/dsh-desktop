@@ -4453,7 +4453,6 @@ const messages = {
       tabs: {
         basic: '基本信息',
         instructions: '项目指令',
-        chatMemory: '对话记忆',
         openAccess: '开放设置',
         members: '成员管理',
         models: '模型配置',
@@ -4563,27 +4562,6 @@ const messages = {
       reset: '重置',
       updateSuccess: '项目指令已保存',
       updateFailed: '项目指令保存失败'
-    },
-    chatMemory: {
-      title: '项目对话记忆',
-      description: '需要时参考这个项目里的其他普通对话，让新对话可以延续已有背景。',
-      switchLabel: '允许跨对话参考',
-      switchDescription: '只在当前项目内查找相关内容，不读取普通聊天或其他项目。',
-      privacy: '内容只保存在本机。临时聊天、推理过程和工具内部数据不会进入项目记忆。回答使用历史时会列出来源对话。',
-      sourcesTitle: '可参考的对话',
-      sourcesDescription: '排除对话不会删除原对话，只是不再把它用于项目记忆。',
-      available: '个可用',
-      loading: '正在读取项目对话…',
-      empty: '项目里还没有可用于记忆的普通对话',
-      untitled: '新对话',
-      messages: '条消息',
-      archived: '已归档',
-      include: '恢复引用',
-      exclude: '不再引用',
-      enabled: '项目对话记忆已开启',
-      disabled: '项目对话记忆已关闭',
-      loadFailed: '项目对话记忆读取失败',
-      saveFailed: '项目对话记忆更新失败'
     },
     members: {
       title: '成员管理',

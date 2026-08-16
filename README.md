@@ -33,7 +33,7 @@ npm run dev
 | Tool、Skill、MCP 与多 Agent | 使用当前 Profile 中的工具、技能、MCP、Hook、子 Agent 和 Workflow |
 | 项目与对话 | 创建项目、全局或临时对话，置顶、排序、重命名、归档、恢复和删除 |
 | 桌面外壳与设置 | 使用三列工作台、左右栏折叠、全局搜索、缩放快捷键和更新检查，调整语言、网络、通知、终端与隐私选项 |
-| 项目上下文与记忆 | 设置应用指令、项目指令、授权源码目录、写入目标以及全局或项目记忆 |
+| 项目上下文 | 设置应用指令、项目指令、授权源码目录和写入目标；长期记忆由可安装的社区 Bundle 提供 |
 | 输入与引用 | 使用 `@` 引用文件、使用 `#` 引用对话，粘贴图片和大段文本附件 |
 | 编码工作区 | 查看 Diff、逐行评论和编辑、在外部编辑器打开、发起 AI Review，并安全撤销模型产生的文件修改 |
 | Git Worktree | 创建、启用、停用和删除隔离工作目录，让新对话在指定 Worktree 中运行 |
@@ -112,6 +112,7 @@ Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第
 | [DSH OpenPencil](https://github.com/ZSeven-W/dsh-openpencil) | OpenPencil 预览和编辑 | 使用社区实现，不重复开发 |
 | [DSH Files](https://github.com/taxueseek/dsh-files) | 文件上传、附件卡和文档读取 | 打通标准附件身份后接入 |
 | [DSH Find Plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin) | 让 Agent 搜索社区插件 | 已确认是 Host Tool Bundle；当前版本需要迁移到 rc.6 SDK |
+| [DSH Native Memory](https://github.com/highland0971/dsh-native-memory) | 按工作区保存、检索和审批长期记忆 | 已完成 `dsh-native-memory@0.2.0` 源码审查与 rc.6 Profile 实测，可从插件中心安装以替代 App 自建记忆 |
 | [DSH Toolkit](https://github.com/omdsh-dev/dsh-toolkit) | 时间、编码、JSON、CSV、差异、统计等确定性工具 | 完成 Git 固定版本审查后采用，不重复开发基础工具 |
 | [Distill](https://github.com/LoserFox/distill) | 后台反思会话并沉淀 Skill | 验证 Session、subagent 和 Skill 生命周期后接入 |
 | [DSH MCP Bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) | 文件系统、GitHub、Playwright、记忆和远程 HTTP MCP | rc.6 Profile 预检通过；完成网络与进程权限审查后可安装 |
@@ -122,7 +123,7 @@ DSH 插件不等于 UI 插件。Profile Bundle 可以增加或替换 Host 服务
 
 ### App 自身如何插件化
 
-DeepSeek Harness Desktop App 是一个 DSH Profile 发行版和 Electron 插件宿主，不会把窗口、更新、preload 与系统权限伪装成可安装到官方 Web 的普通插件。可复用功能按三种等级拆分：`portable` Bundle 可同时安装到官方 Web 和桌面；`desktop-adapter` Bundle 使用 DSH 生命周期但依赖明确的桌面 Host 合同；`desktop-shell` 只负责窗口、根布局与安全隔离。当前主题包和 `dsh-model-inheritance` 已经是 `portable`；后者只使用官方 Agent 生命周期，让子 Agent 继承父 Agent 已解析的模型目标。`dsh-work-product-host-ipc`、项目工具、Canvas 工具、结构化 UI 工具、工作台页面、产品桥和 Office 工具包属于 `desktop-adapter`，`dsh-work-shell` 属于 `desktop-shell`。父进程传输现在只由 `dsh-work-product-host-ipc` 负责；项目工具、Canvas 工具、结构化 UI 工具和产品桥消费 `productHost`，Office 工具消费更窄的 `officeArtifactHost`，功能 Bundle 不再直接接触 IPC。产品桥已经不再注册 Tool、工作台页面或模型继承，只保留上下文和记忆；`dsh-workbench-pages` 独立贡献 Review、Browser、Files、Artifacts 和 Sites 页面目录。后续这些页面会优先采用社区插件，缺失部分再逐项拆成独立 Bundle。OpenPencil 保持为社区设计插件选择，不与现有版本化 Canvas 重复实现。业务组件不再继续堆入 shell。
+DeepSeek Harness Desktop App 是一个 DSH Profile 发行版和 Electron 插件宿主，不会把窗口、更新、preload 与系统权限伪装成可安装到官方 Web 的普通插件。可复用功能按三种等级拆分：`portable` Bundle 可同时安装到官方 Web 和桌面；`desktop-adapter` Bundle 使用 DSH 生命周期但依赖明确的桌面 Host 合同；`desktop-shell` 只负责窗口、根布局与安全隔离。当前主题包和 `dsh-model-inheritance` 已经是 `portable`；后者只使用官方 Agent 生命周期，让子 Agent 继承父 Agent 已解析的模型目标。`dsh-work-product-host-ipc`、项目工具、Canvas 工具、结构化 UI 工具、工作台页面、产品桥和 Office 工具包属于 `desktop-adapter`，`dsh-work-shell` 属于 `desktop-shell`。父进程传输现在只由 `dsh-work-product-host-ipc` 负责；项目工具、Canvas 工具、结构化 UI 工具和产品桥消费 `productHost`，Office 工具消费更窄的 `officeArtifactHost`，功能 Bundle 不再直接接触 IPC。产品桥已经不再注册 Tool、工作台页面、模型继承或记忆，只保留应用与项目指令上下文；长期记忆改用通过官方 Profile 安装的 `dsh-native-memory` 社区 Bundle。`dsh-workbench-pages` 独立贡献 Review、Browser、Files、Artifacts 和 Sites 页面目录。后续这些页面会优先采用社区插件，缺失部分再逐项拆成独立 Bundle。OpenPencil 保持为社区设计插件选择，不与现有版本化 Canvas 重复实现。业务组件不再继续堆入 shell。
 
 ## 与 DSH 官方 Web 的关系
 

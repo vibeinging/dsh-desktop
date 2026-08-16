@@ -199,21 +199,6 @@ export function planStepFromTodo(todo) {
   };
 }
 
-/** Project one product-memory recall from its logged DSH user/message source. */
-export function dshWorkMemoryItem(sessionId, event) {
-  const source = event?.data?.source;
-  const memory = source?.kind === "plugin" && source?.plugin === "dsh-work-memory"
-    ? source.dshWorkMemory
-    : null;
-  if (!memory || !["global_memory", "project_memory"].includes(memory.type)) return null;
-  return {
-    id: `dsh:${sessionId}:memory:${event?.seq ?? "context"}`,
-    type: memory.type,
-    content: JSON.stringify(memory.content || {}),
-    status: "completed",
-  };
-}
-
 /** Project DSH session events onto the desktop's existing runtime item vocabulary. */
 export class DshEventAdapter {
   constructor({ sessionId, emit }) {
@@ -236,14 +221,6 @@ export class DshEventAdapter {
       return { kind: "turn-start", turnId: this.turnId };
     }
     if (event.type === "user/message") {
-      const item = dshWorkMemoryItem(threadId, event);
-      if (item) {
-        await this.emit("item/completed", {
-          threadId,
-          turnId: this.turnId,
-          item,
-        });
-      }
       return null;
     }
     if (event.type === "assistant/chunk") {

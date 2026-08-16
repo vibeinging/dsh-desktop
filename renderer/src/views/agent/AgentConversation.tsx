@@ -203,7 +203,6 @@ interface Props {
   onRemoveSelectedSkill?: (name: string) => void
   onClearSelectedSkills?: () => void
   onNewConversation?: () => void
-  onOpenConversation?: (conversationId: string) => void
   onOpenFileReference?: (target: FileReferenceOpenTarget) => void | Promise<void>
   requestedBrowserPage?: { prompt: string; attachments: Attachment[]; nonce: number } | null
   onRequestedBrowserPageConsumed?: (nonce: number) => void
@@ -464,8 +463,6 @@ function currentClientCapabilities() {
   const desktop = isDesktop()
   return {
     surface: desktop ? 'desktop' as const : 'browser' as const,
-    projectChatMemory: true,
-    globalChatMemory: true,
     renderMarkdown: true,
     renderChart: true,
     renderGenerativeUi: true,
@@ -519,7 +516,6 @@ function DshWorkAgentConversation({
   onRemoveSelectedSkill,
   onClearSelectedSkills,
   onNewConversation,
-  onOpenConversation,
   onOpenFileReference,
   requestedBrowserPage,
   onRequestedBrowserPageConsumed,
@@ -2999,7 +2995,6 @@ function DshWorkAgentConversation({
                     revertingItemIds={revertingItemIds}
                     onRevertChange={(block) => void revertFileChange(m, block)}
                     onSubmitUserInput={onSubmitUserInput}
-                    onOpenConversation={onOpenConversation}
                     onOpenFileReference={onOpenFileReference}
                     onGenerativeUiAction={sendGenerativeUiAction}
                     onCopy={(text) => void copyMessage(text)}

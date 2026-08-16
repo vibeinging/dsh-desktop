@@ -686,103 +686,6 @@ export const decideAgentCanvasSuggestion = (
   data: { decision }
 })
 
-export interface ProjectChatMemoryConversation {
-  id: string
-  title: string
-  status: string
-  message_count: number
-  updated_at?: string | null
-  excluded: boolean
-}
-
-export interface ProjectChatMemoryState {
-  project_id: string
-  project_name: string
-  enabled: boolean
-  source_conversations: ProjectChatMemoryConversation[]
-  eligible_count: number
-  excluded_count: number
-}
-
-export const getProjectChatMemory = (projectId: string) =>
-  request({ url: `/api/agent/projects/${pe(projectId)}/chat-memory`, method: 'get', ignoreMsg: true })
-
-export const updateProjectChatMemory = (projectId: string, enabled: boolean) =>
-  request({ url: `/api/agent/projects/${pe(projectId)}/chat-memory`, method: 'put', data: { enabled } })
-
-export const excludeProjectChatMemoryConversation = (projectId: string, sessionId: string) =>
-  request({
-    url: `/api/agent/projects/${pe(projectId)}/chat-memory/exclusions/${pe(sessionId)}`,
-    method: 'post',
-    data: {}
-  })
-
-export const includeProjectChatMemoryConversation = (projectId: string, sessionId: string) =>
-  request({
-    url: `/api/agent/projects/${pe(projectId)}/chat-memory/exclusions/${pe(sessionId)}`,
-    method: 'delete'
-  })
-
-export interface GlobalChatMemorySettings {
-  saved_memory_enabled: boolean
-  chat_history_enabled: boolean
-}
-
-export interface GlobalChatMemoryEntry {
-  id: string
-  content: string
-  source_type: 'manual' | string
-  source_session_id?: string | null
-  created_at?: string | null
-  updated_at?: string | null
-}
-
-export interface GlobalChatMemoryConversation {
-  id: string
-  title: string
-  status: string
-  message_count: number
-  updated_at?: string | null
-  excluded: boolean
-}
-
-export interface GlobalChatMemoryAuditItem {
-  id: string
-  action: string
-  target_type: string
-  target_id?: string | null
-  details: Record<string, unknown>
-  created_at?: string | null
-}
-
-export interface GlobalChatMemoryState {
-  settings: GlobalChatMemorySettings
-  entries: GlobalChatMemoryEntry[]
-  source_conversations: GlobalChatMemoryConversation[]
-  audit: GlobalChatMemoryAuditItem[]
-}
-
-export const getGlobalChatMemory = () =>
-  request({ url: '/api/agent/chat-memory', method: 'get', ignoreMsg: true })
-
-export const updateGlobalChatMemory = (settings: Partial<GlobalChatMemorySettings>) =>
-  request({ url: '/api/agent/chat-memory', method: 'put', data: settings })
-
-export const createGlobalChatMemoryEntry = (content: string) =>
-  request({ url: '/api/agent/chat-memory/entries', method: 'post', data: { content } })
-
-export const updateGlobalChatMemoryEntry = (entryId: string, content: string) =>
-  request({ url: `/api/agent/chat-memory/entries/${pe(entryId)}`, method: 'put', data: { content } })
-
-export const deleteGlobalChatMemoryEntry = (entryId: string) =>
-  request({ url: `/api/agent/chat-memory/entries/${pe(entryId)}`, method: 'delete' })
-
-export const excludeGlobalChatMemoryConversation = (sessionId: string) =>
-  request({ url: `/api/agent/chat-memory/exclusions/${pe(sessionId)}`, method: 'post', data: {} })
-
-export const includeGlobalChatMemoryConversation = (sessionId: string) =>
-  request({ url: `/api/agent/chat-memory/exclusions/${pe(sessionId)}`, method: 'delete' })
-
 export interface AgentTraceSpan {
   id: string
   parentId?: string | null
@@ -1449,8 +1352,6 @@ export interface StartAgentTurnParams {
   skills?: string[]
   clientCapabilities?: {
     surface: 'desktop' | 'browser'
-    projectChatMemory: boolean
-    globalChatMemory: boolean
     renderMarkdown: boolean
     renderChart: boolean
     renderGenerativeUi: boolean

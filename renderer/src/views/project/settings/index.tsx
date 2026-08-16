@@ -10,19 +10,17 @@ import { getProjectDetailReq } from '@/api/project'
 
 import BasicInfo from './components/BasicInfo'
 import ProjectInstructions from './components/ProjectInstructions'
-import ProjectChatMemory from './components/ProjectChatMemory'
 
 import styles from './index.module.scss'
 
 const ModelConfig = lazy(() => import('./components/ModelConfig'))
 
-const HOST_TABS = ['basic', 'instructions', 'chat-memory', 'models'] as const
+const HOST_TABS = ['basic', 'instructions', 'models'] as const
 
 // Initial structure for each tab's refresh key
 const initialTabRefreshKeys = (): Record<string, number> => ({
   basic: 0,
   instructions: 0,
-  'chat-memory': 0,
   models: 0
 })
 
@@ -232,10 +230,6 @@ export default function ProjectSettings({
             onUpdated={handleProjectUpdated}
           />
         ) : null
-      case 'chat-memory':
-        return isRendered('chat-memory') ? (
-          <ProjectChatMemory key={tabRefreshKeys['chat-memory']} projectId={pid} />
-        ) : null
       case 'models':
         return isRendered('models') ? (
           <ModelConfig key={tabRefreshKeys.models} projectId={pid} />
@@ -258,7 +252,6 @@ export default function ProjectSettings({
         <>
           {isAllowedTab('basic') && navItem('basic', t('project.settings.tabs.basic'))}
           {isAllowedTab('instructions') && navItem('instructions', t('project.settings.tabs.instructions'))}
-          {isAllowedTab('chat-memory') && navItem('chat-memory', t('project.settings.tabs.chatMemory'))}
         </>
       }
     >

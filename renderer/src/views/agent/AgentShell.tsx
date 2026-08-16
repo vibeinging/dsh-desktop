@@ -183,7 +183,7 @@ const CONVERSATION_WORKSPACE_EVENTS = new Set([
   'conversation_unarchived'
 ])
 // ProjectSettings validates Host-owned tab hashes after it loads the current project.
-const PROJECT_SETTINGS_HASHES = new Set(['basic', 'instructions', 'chat-memory', 'models'])
+const PROJECT_SETTINGS_HASHES = new Set(['basic', 'instructions', 'models'])
 const LEGACY_PROJECT_SETTINGS_HASHES = new Set(['skills', 'mcp', 'agents'])
 const isProjectSettingsHash = (hashTab: string) => PROJECT_SETTINGS_HASHES.has(hashTab)
 const projectResponseWorkspaces = (response: any): Workspace[] => (
@@ -2379,14 +2379,6 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
           onRemoveSelectedSkill={(name) => setComposerSkills((current) => current.filter((skill) => skill.name !== name))}
           onClearSelectedSkills={() => setComposerSkills(persistentComposerSkills)}
           onNewConversation={startNewConversation}
-          onOpenConversation={(conversationId) => {
-            if (!leaveTemporaryConversation()) return
-            markConversationViewedIfNeeded(activeWs, conversationId, { retryFailed: true })
-            setMainView('conversation')
-            setActiveId(conversationId)
-            setConfigWsId(null)
-            setComposerSkills([])
-          }}
           onOpenFileReference={openFileReference}
           requestedBrowserPage={requestedBrowserPage}
           onRequestedBrowserPageConsumed={(nonce) => {

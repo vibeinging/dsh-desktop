@@ -149,7 +149,7 @@ test('project settings contain only Host-owned tabs and no legacy Plugin page ho
   for (const tab of ['database', 'structured', 'unstructured', 'definitions', 'entities', 'examples', 'memory']) {
     assert.doesNotMatch(shell, new RegExp(`PROJECT_SETTINGS_HIDDEN_TABS[\\s\\S]*['\"]${tab}['\"]`));
   }
-  assert.match(settings, /const HOST_TABS = \['basic', 'instructions', 'chat-memory', 'models'\] as const/);
+  assert.match(settings, /const HOST_TABS = \['basic', 'instructions', 'models'\] as const/);
   assert.doesNotMatch(settings, /PluginPageHost|projectPagesForPlacementRecord|pluginPagesRecord|ui_contributions|ask-data/);
   assert.doesNotMatch(shell, /openProjectPlugins|openPluginPage|exitPluginPage/);
   assert.equal(fs.existsSync(registryPath), false);

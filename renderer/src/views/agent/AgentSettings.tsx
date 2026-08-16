@@ -15,7 +15,6 @@ import {
   IconDeviceLaptop,
   IconFolder,
   IconFolderOpen,
-  IconHistory,
   IconListCheck,
   IconPalette,
   IconRocket,
@@ -33,7 +32,6 @@ import { useAgentTheme } from './themeContext'
 import { SettingsShell, SettingsNavGroup, SettingsNavItem, SettingsNavSep } from './SettingsShell'
 import DshOnboarding from './onboarding/DshOnboarding'
 import AppInstructions from './AppInstructions'
-import GlobalChatMemory from './GlobalChatMemory'
 import {
   DshSettingsSection,
   useDshClientHost,
@@ -233,7 +231,6 @@ const GENERAL_GROUP_NAV: NavDef[] = [
 ]
 const MANAGE_NAV: NavDef[] = [
   { key: 'instructions', label: '全局指令', Icon: IconBrain },
-  { key: 'memory', label: '记忆', Icon: IconHistory },
   { key: 'models', label: '模型设置', Icon: IconBox },
   { key: 'plugins', label: '插件', Icon: IconSparkles }
 ]
@@ -681,8 +678,6 @@ export default function AgentSettings({
             </>
           ) : active === 'instructions' ? (
             <AppInstructions />
-          ) : active === 'memory' ? (
-            <GlobalChatMemory />
           ) : active === 'models' ? (
             <>
               <h1 className={styles.pageTitle}>模型设置</h1>

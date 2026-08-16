@@ -7,8 +7,8 @@ const ACTION_BLOCK_TYPES = new Set(['error', 'confirm', 'user_input', 'action', 
 const ACTION_ITEM_TYPES = new Set(['error', 'approval', 'userInput'])
 const STRUCTURED_BLOCK_TYPES = new Set(['table', 'chart', 'image', 'json'])
 const STANDALONE_MEDIA_BLOCK_TYPES = new Set(['image', 'audio'])
-const HIDDEN_BLOCK_TYPES = new Set(['project_memory'])
-const REFERENCE_CARD_BLOCK_TYPES = new Set(['global_memory', 'web_sources'])
+const HIDDEN_BLOCK_TYPES = new Set<string>()
+const REFERENCE_CARD_BLOCK_TYPES = new Set(['web_sources'])
 
 export interface AssistantProcessSummary {
   planSteps: number

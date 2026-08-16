@@ -5,10 +5,8 @@ import * as agentMisc from "../app/chat/agent_misc.js";
 import * as conversationStatusStream from "../app/chat/conversation_status_stream.js";
 import * as canvases from "../app/chat/canvases.js";
 import * as fileSearch from "../app/chat/file_search.js";
-import * as globalMemory from "../app/chat/global_memory.js";
 import * as messageActions from "../app/chat/message_actions.js";
 import * as projectArtifacts from "../app/chat/project_artifacts.js";
-import * as projectMemory from "../app/chat/project_memory.js";
 import * as pluginCatalog from "../app/plugins/catalog.js";
 import * as pluginCatalogStream from "../app/plugins/catalog_stream.js";
 import * as pluginLifecycle from "../app/plugins/lifecycle.js";
@@ -58,13 +56,6 @@ export const chatRoutes = [
   { m: "GET", p: "/api/agent/search/files", fn: fileSearch.searchAgentFiles, auth: true },
   { m: "GET", p: "/api/agent/search/artifacts", fn: projectArtifacts.searchAgentArtifacts, auth: true },
   { m: "GET", p: "/api/agent/search/web-sources", fn: agentMisc.searchAgentWebSources, auth: true },
-  { m: "GET", p: "/api/agent/chat-memory", fn: globalMemory.getGlobalChatMemory, auth: true },
-  { m: "PUT", p: "/api/agent/chat-memory", fn: globalMemory.updateGlobalChatMemory, auth: true },
-  { m: "POST", p: "/api/agent/chat-memory/entries", fn: globalMemory.createGlobalChatMemoryEntry, auth: true },
-  { m: "PUT", p: "/api/agent/chat-memory/entries/:id", fn: globalMemory.updateGlobalChatMemoryEntry, auth: true },
-  { m: "DELETE", p: "/api/agent/chat-memory/entries/:id", fn: globalMemory.deleteGlobalChatMemoryEntry, auth: true },
-  { m: "POST", p: "/api/agent/chat-memory/exclusions/:sid", fn: globalMemory.excludeGlobalChatMemoryConversation, auth: true },
-  { m: "DELETE", p: "/api/agent/chat-memory/exclusions/:sid", fn: globalMemory.includeGlobalChatMemoryConversation, auth: true },
   { m: "GET", p: "/api/agent/sessions/:sid/canvases", fn: canvases.listCanvases, auth: true },
   { m: "POST", p: "/api/agent/sessions/:sid/canvases", fn: canvases.createSessionCanvas, auth: true },
   { m: "GET", p: "/api/agent/sessions/:sid/canvases/:canvasId", fn: canvases.getSessionCanvas, auth: true },
@@ -73,10 +64,6 @@ export const chatRoutes = [
   { m: "POST", p: "/api/agent/sessions/:sid/canvases/:canvasId/restore", fn: canvases.restoreSessionCanvas, auth: true },
   { m: "POST", p: "/api/agent/sessions/:sid/canvases/:canvasId/suggestions", fn: canvases.addSessionCanvasSuggestion, auth: true },
   { m: "POST", p: "/api/agent/sessions/:sid/canvases/:canvasId/suggestions/:suggestionId/decision", fn: canvases.decideSessionCanvasSuggestion, auth: true },
-  { m: "GET", p: "/api/agent/projects/:pid/chat-memory", fn: projectMemory.getProjectChatMemory, auth: true },
-  { m: "PUT", p: "/api/agent/projects/:pid/chat-memory", fn: projectMemory.updateProjectChatMemory, auth: true },
-  { m: "POST", p: "/api/agent/projects/:pid/chat-memory/exclusions/:sid", fn: projectMemory.excludeProjectChatMemorySession, auth: true },
-  { m: "DELETE", p: "/api/agent/projects/:pid/chat-memory/exclusions/:sid", fn: projectMemory.includeProjectChatMemorySession, auth: true },
   { m: "GET", p: "/api/agent/session-status/events", fn: conversationStatusStream.watchAgentSessionStatusEvents, auth: true, stream: true },
   { m: "GET", p: "/api/agent/projects/:pid/sessions", fn: agentMisc.listAgentSessions, auth: true },
   { m: "POST", p: "/api/agent/projects/:pid/sessions/:sid/viewed", fn: agentMisc.markAgentSessionViewed, auth: true },

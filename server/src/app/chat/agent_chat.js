@@ -713,8 +713,6 @@ async function agentChatUnlocked(ctx, input, emit) {
   agentContext.directRuntimeNotifications = true;
   agentContext.deferNativeTerminal = true;
   agentContext.temporary = temporary;
-  agentContext.projectChatMemory = body.clientCapabilities?.projectChatMemory === true;
-  agentContext.globalChatMemory = body.clientCapabilities?.globalChatMemory === true;
   agentContext.generativeUi = body.clientCapabilities?.renderGenerativeUi === true;
   if (!agentContext.automation) agentContext.awaitDecision = (id, scope = {}) => {
       decisionIds.push(id);

@@ -23,7 +23,6 @@ import {
   reasoningFromBlocks,
   planStepFromTodo,
   dshTurnStatus,
-  dshWorkMemoryItem,
 } from "./event_adapter.js";
 
 /**
@@ -47,7 +46,6 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
   const pendingInteractions = [];
   let lastSeq = -1;
   let currentTurn = null; // { turnId, turnNum, startedAt, items, status, dshMessageId, closingSeq }
-  let pendingContextItems = [];
   const projectionValues = projections?.values || {};
   const planTodos = Array.isArray(projectionValues.todos) ? projectionValues.todos : null;
   const title = typeof projectionValues.title === "string" ? projectionValues.title : null;
@@ -104,12 +102,6 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
     // and steer messages after turn/start, so a user row must not close the
     // open assistant Turn; only turn/end or the next turn/start does that.
     if (event.type === "user/message") {
-      const memoryItem = dshWorkMemoryItem(sessionId, event);
-      if (memoryItem) {
-        if (currentTurn) currentTurn.items.push(memoryItem);
-        else pendingContextItems.push(memoryItem);
-        continue;
-      }
       // DSH tags the origin of each message via `source.kind`. Only
       // kind==="user" is a real human-typed message; "plugin" (runtime
       // context snapshots), "skill-catalog" (skill reminders), and other
@@ -180,13 +172,12 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
         turnNum,
         startedAt: Number(event.time || Date.now()),
         completedAt: null,
-        items: pendingContextItems,
+        items: [],
         status: "inProgress",
         dshMessageId: null,
         closingSeq: null,
         explicit: true,
       };
-      pendingContextItems = [];
       continue;
     }
 

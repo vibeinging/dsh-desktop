@@ -17,7 +17,6 @@ import {
 import {
   apply as applyProductBridge,
   createDshWorkInstructionMessage,
-  createDshWorkMemoryMessage,
   inject as productBridgeInject,
 } from "../../packages/dsh-product-bridge/src/index.js";
 import {
@@ -78,6 +77,7 @@ test("the IPC adapter exposes narrow product and Office Host services", async ()
   });
   const signal = new AbortController().signal;
   await services.productHost.projectList({ search: "alpha" }, { sessionId: "dsh-product", signal });
+  await services.productHost.conversationContext({}, { sessionId: "dsh-product", signal });
   await services.productHost.capabilitySnapshot({ sessionId: "dsh-product", signal });
   await services.officeArtifactHost.edit(
     { artifact_id: "artifact-1" },
@@ -87,6 +87,11 @@ test("the IPC adapter exposes narrow product and Office Host services", async ()
     sessionId: "dsh-product",
     method: "projectList",
     payload: { search: "alpha" },
+    signal,
+  }, {
+    sessionId: "dsh-product",
+    method: "conversationContext",
+    payload: {},
     signal,
   }, {
     sessionId: "dsh-product",
@@ -108,7 +113,7 @@ test("the IPC adapter exposes narrow product and Office Host services", async ()
 
 test("feature Bundles fail loudly when their required Host service is absent", () => {
   const missing = { get: () => null };
-  assert.throws(() => applyProductBridge(missing), /requires the productHost conversationMemory method/);
+  assert.throws(() => applyProductBridge(missing), /requires the productHost conversationContext method/);
   assert.throws(() => applyProjectTools(missing), /requires the productHost project methods/);
   assert.throws(() => applyCanvasTools(missing), /requires the productHost Canvas methods/);
   assert.throws(() => applyStructuredUiTools(missing), /requires the productHost uiRender method/);
@@ -268,63 +273,49 @@ test("session dispatcher forwards conversationList with projectId from binding",
   assert.equal(reply.result.value.items[1].archived, true);
 });
 
-test("conversationMemory returns parent-selected global memory without accepting identity from the child", async () => {
-  let captured = null;
-  const previous = overrideServices({
-    loadGlobalChatMemory: async (input) => {
-      captured = input;
-      return {
-        text: "<saved_memories>结论优先</saved_memories>",
-        entries: [{ id: "memory-1", content: "结论优先" }],
-        sources: [{ session_id: "source-1", title: "发布计划", messages: [{ role: "user", text: "周四上线" }] }],
-      };
-    },
-  });
+test("conversationContext returns parent-selected instructions without accepting identity from the child", async () => {
+  const queries = [];
   const db = {
     query() {},
-    queryOne: async () => ({ action_type: "agentic_chat", session_config: "{}" }),
+    queryOne: async (sql, params) => {
+      queries.push({ sql, params });
+      if (sql.includes("FROM sessions")) return { action_type: "agentic_chat", session_config: "{}" };
+      if (sql.includes("FROM app_user_settings")) return { instructions: "先给结论。" };
+      if (sql.includes("FROM projects")) return { instructions: "修改前说明影响。" };
+      return null;
+    },
     transaction() {},
   };
   const dispatcher = createSessionProductHostDispatcher();
   bindSession(dispatcher, {
     db,
-    projectId: "__chat__",
-    appSessionId: "app-memory",
-    userId: "memory-user",
+    projectId: "project-context",
+    appSessionId: "app-context",
+    userId: "context-user",
   });
   try {
     const reply = await dispatcher.handle({
-      id: "memory-request",
+      id: "context-request",
       sessionId: "dsh-s1",
-      method: "conversationMemory",
-      payload: { query: "海王星发布计划", userId: "forged-user" },
+      method: "conversationContext",
+      payload: { userId: "forged-user", projectId: "forged-project" },
     });
     assert.equal(reply.result.ok, true);
-    assert.equal(captured.userId, "memory-user");
-    assert.equal(captured.currentSessionId, "app-memory");
-    assert.equal(reply.result.value.presentation.type, "global_memory");
-    assert.equal(reply.result.value.presentation.content.entries[0].content, "结论优先");
+    assert.match(reply.result.value.instructions.text, /先给结论/);
+    assert.match(reply.result.value.instructions.text, /修改前说明影响/);
+    assert.deepEqual(reply.result.value.instructions.scopes, {
+      application: true,
+      project: true,
+      temporary: false,
+    });
+    assert.deepEqual(queries.find(({ sql }) => sql.includes("FROM sessions"))?.params, [
+      "app-context", "project-context", "context-user",
+    ]);
+    assert.deepEqual(queries.find(({ sql }) => sql.includes("FROM projects"))?.params, ["project-context"]);
+    assert.deepEqual(queries.find(({ sql }) => sql.includes("FROM app_user_settings"))?.params, ["context-user"]);
   } finally {
-    overrideServices(previous);
     await dispatcher.dispose();
   }
-});
-
-test("the product bridge creates one immutable DSH recall message with presentation provenance", () => {
-  const message = createDshWorkMemoryMessage({
-    text: "<saved_memories>结论优先</saved_memories>",
-    presentation: { type: "global_memory", content: { entries: [{ id: "m1", content: "结论优先" }], conversations: [] } },
-  });
-  assert.equal(message.role, "user");
-  assert.deepEqual(message.source, {
-    kind: "plugin",
-    plugin: "dsh-work-memory",
-    form: "recall",
-    dshWorkMemory: { type: "global_memory", content: { entries: [{ id: "m1", content: "结论优先" }], conversations: [] } },
-  });
-  assert.equal(message.content[0].text.includes("saved_memories"), true);
-  assert.equal(Object.isFrozen(message), true);
-  assert.equal(createDshWorkMemoryMessage({ text: "", presentation: null }), null);
 });
 
 test("the product bridge logs parent-owned instructions with explicit scope provenance", () => {
@@ -878,15 +869,26 @@ test("the product bridge no longer owns a Tool registry dependency", () => {
   assert.deepEqual(productBridgeInject, ["agents", "productHost"]);
 });
 
-test("the product bridge keeps only context and memory hooks in the Agent lifecycle", () => {
+test("the product bridge keeps only the context hook in the Agent lifecycle", async () => {
   const handlers = new Map();
   const agentHandlers = new Map();
   const disposed = [];
   const effects = [];
+  const contextCalls = [];
   const ctx = {
     agents: { get: () => null },
     get(name) {
-      return name === "productHost" ? { conversationMemory: async () => ({}) } : null;
+      return name === "productHost" ? {
+        conversationContext: async (request, context) => {
+          contextCalls.push({ request, context });
+          return {
+            instructions: {
+              text: "## Application instructions\n\n先给结论。",
+              scopes: { application: true, project: false, temporary: false },
+            },
+          };
+        },
+      } : null;
     },
     on(name, handler) {
       handlers.set(name, handler);
@@ -910,6 +912,15 @@ test("the product bridge keeps only context and memory hooks in the Agent lifecy
   };
   handlers.get("agent/created")({ agent });
   assert.deepEqual(new Set(agentHandlers.keys()), new Set(["agent/pre-step"]));
+  const signal = new AbortController().signal;
+  const decision = await agentHandlers.get("agent/pre-step")(
+    { signal },
+    async () => ({ kind: "enter", messages: [{ id: "user-message", role: "user", content: [] }] }),
+  );
+  assert.equal(contextCalls.length, 1);
+  assert.deepEqual(contextCalls[0], { request: {}, context: { sessionId: "session-context", signal } });
+  assert.equal(decision.messages.length, 2);
+  assert.equal(decision.messages[1].source.plugin, "dsh-work-context");
   handlers.get("agent/disposed")({ agent });
   assert.deepEqual(new Set(disposed), new Set(["agent/pre-step"]));
   for (const dispose of effects) dispose();

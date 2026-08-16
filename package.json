@@ -58,7 +58,6 @@
     "smoke:message-actions-ui": "node scripts/run-with-project-node.mjs node eval/message-actions-ui-smoke.mjs",
     "smoke:dsh-deliverables-ui": "node scripts/run-with-project-node.mjs node eval/dsh-deliverables-ui-smoke.mjs",
     "smoke:plan-status-ui": "node scripts/run-with-project-node.mjs node eval/plan-status-ui-smoke.mjs",
-    "smoke:global-chat-memory-ui": "node scripts/run-with-project-node.mjs node eval/global-chat-memory-ui-smoke.mjs",
     "smoke:chat-context-ui": "node scripts/run-with-project-node.mjs node eval/chat-context-ui-smoke.mjs",
     "smoke:web-image-ui": "node scripts/run-with-project-node.mjs node eval/web-image-ui-smoke.mjs",
     "smoke:local-site-ui": "node scripts/run-with-project-node.mjs node eval/local-site-ui-smoke.mjs",

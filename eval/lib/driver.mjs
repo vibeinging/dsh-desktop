@@ -9,8 +9,6 @@ const DEFAULT_STREAM_TIMEOUT_MS = 360000;
 const TERMINAL_CONVERSATION_TURN_STATUSES = new Set(['completed', 'failed', 'interrupted']);
 const DEFAULT_CLIENT_CAPABILITIES = Object.freeze({
   surface: 'desktop',
-  projectChatMemory: true,
-  globalChatMemory: true,
   renderMarkdown: true,
   renderChart: true,
   pageDataResult: true,

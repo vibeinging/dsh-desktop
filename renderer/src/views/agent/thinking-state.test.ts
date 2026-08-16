@@ -148,13 +148,13 @@ describe('assistant process partition', () => {
 
   it('places the completed answer before generated media without moving source cards', () => {
     const blocks = [
-      { id: 'memory-1', type: 'global_memory', content: '{}' },
+      { id: 'sources-1', type: 'web_sources', content: '{}' },
       { id: 'image-1', type: 'image', content: 'data:image/png;base64,aW1hZ2U=' },
       { id: 'answer-1', type: 'markdown', content: '图片已生成。', metadata: { answer_status: 'accepted' } }
     ]
 
     const completed = partitionAssistantDisplayBlocks(blocks, true, { status: 'accepted', itemId: 'answer-1' })
-    expect(completed.resultBlocks.map((block) => block.id)).toEqual(['memory-1', 'answer-1', 'image-1'])
+    expect(completed.resultBlocks.map((block) => block.id)).toEqual(['sources-1', 'answer-1', 'image-1'])
   })
 
   it('keeps every structured deliverable outside the process group', () => {
@@ -179,20 +179,15 @@ describe('assistant process partition', () => {
     expect(partitioned.resultBlocks.map((block) => block.id)).toEqual(['file-1'])
   })
 
-  it('hides legacy project-memory blocks while keeping user-facing source cards visible', () => {
+  it('keeps user-facing source cards visible outside the process group', () => {
     const blocks = [
       { id: 'think-1', type: 'thinking', content: '准备回答' },
-      { id: 'project-memory', type: 'project_memory', content: '{}', metadata: { item_type: 'dataResult', phase: 'commentary' } },
-      { id: 'global-memory', type: 'global_memory', content: '{}', metadata: { item_type: 'dataResult', phase: 'commentary' } },
       { id: 'web-sources', type: 'web_sources', content: '{}', metadata: { item_type: 'dataResult', phase: 'commentary' } }
     ]
 
     const partitioned = partitionAssistantBlocks(blocks)
     expect(partitioned.processBlocks.map((block) => block.id)).toEqual(['think-1'])
-    expect(partitioned.resultBlocks.map((block) => block.id)).toEqual([
-      'global-memory',
-      'web-sources'
-    ])
+    expect(partitioned.resultBlocks.map((block) => block.id)).toEqual(['web-sources'])
   })
 
   it('keeps delegated subtasks inside the process group', () => {

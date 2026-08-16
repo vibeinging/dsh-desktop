@@ -8,7 +8,6 @@ import {
   IconDownload,
   IconFile,
   IconFolder,
-  IconHistory,
   IconMovie,
   IconMusic,
   IconPhoto,
@@ -323,36 +322,6 @@ interface WebSource {
   published_at?: string | null
   accessed_at?: string | null
   excerpt?: string
-}
-
-interface ProjectMemorySource {
-  session_id: string
-  title: string
-  updated_at?: string | null
-  snippet?: string
-}
-
-interface GlobalMemoryEntry {
-  id: string
-  content: string
-  updated_at?: string | null
-}
-
-interface GlobalMemoryBlockData {
-  entries: GlobalMemoryEntry[]
-  conversations: ProjectMemorySource[]
-}
-
-function globalMemoryFromBlock(block?: Block | null): GlobalMemoryBlockData {
-  if (!block) return { entries: [], conversations: [] }
-  const parsed = parseJsonObject(block.content)
-  const entries = Array.isArray(parsed?.entries)
-    ? parsed.entries.filter((entry: any) => entry?.id && String(entry?.content || '').trim())
-    : []
-  const conversations = Array.isArray(parsed?.conversations)
-    ? parsed.conversations.filter((source: any) => source?.session_id && source?.title)
-    : []
-  return { entries, conversations }
 }
 
 export function webSourcesFromBlock(block?: Block | null): WebSource[] {
@@ -1305,7 +1274,6 @@ type BlockViewProps = {
     payload: ReturnType<typeof parseUserInputPayload>,
     answers: Record<string, { answers: string[] }>
   ) => Promise<void>
-  onOpenConversation?: (conversationId: string) => void
   onOpenFileReference?: (target: FileReferenceOpenTarget) => void | Promise<void>
   canInteractGenerativeUi: boolean
   onGenerativeUiAction: (message: string) => Promise<void>
@@ -1357,7 +1325,6 @@ export const BlockView = memo(
     reverting,
     onRevertChange,
     onSubmitUserInput,
-    onOpenConversation,
     onOpenFileReference,
     canInteractGenerativeUi,
     onGenerativeUiAction,
@@ -1806,63 +1773,6 @@ export const BlockView = memo(
     }
     if (b.type === 'error') {
       return <div className={styles.blkErr}>{visibleAgentError(b.content)}</div>
-    }
-    if (b.type === 'project_memory') {
-      // Older messages may still contain this block. Keep it silent.
-      return null
-    }
-    if (b.type === 'global_memory') {
-      const memory = globalMemoryFromBlock(b)
-      const count = memory.entries.length + memory.conversations.length
-      if (!count) return null
-      const countLabel = [
-        memory.entries.length ? `${memory.entries.length} 条记忆` : '',
-        memory.conversations.length ? `${memory.conversations.length} 个对话` : '',
-      ].filter(Boolean).join(' · ')
-      return (
-        <details
-          className={styles.projectMemoryCard}
-          data-global-memory
-          title="查看提供给本轮回答的本机记忆"
-        >
-          <summary>
-            <IconHistory size={15} stroke={1.8} />
-            <strong>已提供本机记忆</strong>
-            <span>{countLabel}</span>
-            <IconChevronRight size={13} className={styles.projectMemoryChevron} />
-          </summary>
-          <div className={styles.projectMemorySources}>
-            <p className={styles.projectMemoryDisclosure}>
-              这些内容作为个性化参考提供给模型，回答不一定逐项采用。
-            </p>
-            {memory.entries.map((entry) => (
-              <div
-                key={entry.id}
-                className={`${styles.projectMemorySource} ${styles.globalMemoryEntry}`}
-                data-global-memory-entry
-              >
-                <strong>已保存记忆</strong>
-                <span>{entry.content}</span>
-              </div>
-            ))}
-            {memory.conversations.map((source) => (
-              <button
-                type="button"
-                key={source.session_id}
-                className={styles.projectMemorySource}
-                title={`打开对话：${source.title}`}
-                aria-label={`打开来源对话：${source.title}`}
-                data-global-memory-conversation
-                onClick={() => onOpenConversation?.(source.session_id)}
-                disabled={!onOpenConversation}
-              >
-                <strong>{source.title}</strong>
-                {source.snippet && <span>{source.snippet}</span>}
-              </button>
-            ))}
-          </div>
-        </details>
-      )
     }
     if (b.type === 'web_sources') {
       const sources = webSourcesFromBlock(b)

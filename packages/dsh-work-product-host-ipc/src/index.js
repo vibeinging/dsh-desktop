@@ -149,7 +149,7 @@ export function createProductHostServices(transport) {
   const productHost = Object.freeze({
     projectList: (request, context) => call(transport, "projectList", request, context),
     conversationList: (request, context) => call(transport, "conversationList", request, context),
-    conversationMemory: (request, context) => call(transport, "conversationMemory", request, context),
+    conversationContext: (request, context) => call(transport, "conversationContext", request, context),
     capabilitySnapshot: (context) => call(transport, "capabilitySnapshot", {}, context),
     skillList: (context) => call(transport, "skillList", {}, context),
     skillGet: (request, context) => call(transport, "skillGet", request, context),

@@ -4462,7 +4462,6 @@ const messages = {
       tabs: {
         basic: 'Basic Info',
         instructions: 'Project Instructions',
-        chatMemory: 'Conversation Memory',
         openAccess: 'Open Access',
         members: 'Members',
         models: 'Models',
@@ -4572,27 +4571,6 @@ const messages = {
       reset: 'Reset',
       updateSuccess: 'Project instructions saved',
       updateFailed: 'Failed to save project instructions'
-    },
-    chatMemory: {
-      title: 'Project Conversation Memory',
-      description: 'Refer to other conversations in this project when relevant so new chats can continue existing context.',
-      switchLabel: 'Allow cross-conversation references',
-      switchDescription: 'Searches only this project and never reads regular chats or other projects.',
-      privacy: 'Content stays on this device. Temporary chats, reasoning, and internal tool data are excluded. Answers list any source conversations they use.',
-      sourcesTitle: 'Available conversations',
-      sourcesDescription: 'Excluding a conversation does not delete it. It only removes it from project memory.',
-      available: 'available',
-      loading: 'Loading project conversations…',
-      empty: 'This project has no conversations available for memory yet',
-      untitled: 'New conversation',
-      messages: 'messages',
-      archived: 'Archived',
-      include: 'Restore',
-      exclude: 'Exclude',
-      enabled: 'Project conversation memory enabled',
-      disabled: 'Project conversation memory disabled',
-      loadFailed: 'Failed to load project conversation memory',
-      saveFailed: 'Failed to update project conversation memory'
     },
     members: {
       title: 'Member Management',

@@ -27,7 +27,7 @@ describe('project settings content layout', () => {
   })
 
   it('contains only Host-owned project settings tabs', () => {
-    expect(source).toContain("const HOST_TABS = ['basic', 'instructions', 'chat-memory', 'models'] as const")
+    expect(source).toContain("const HOST_TABS = ['basic', 'instructions', 'models'] as const")
     expect(source).not.toContain('PluginPageHost')
     expect(source).not.toContain('project_plugin_mounts')
   })

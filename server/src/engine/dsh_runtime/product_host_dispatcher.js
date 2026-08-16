@@ -35,14 +35,6 @@ import {
   parseGenerativeUiDocument,
 } from "../agents/generative_ui_schema.js";
 import {
-  loadGlobalChatMemory,
-  summarizeGlobalChatMemory,
-} from "../agents/global_chat_memory.js";
-import {
-  loadProjectChatMemory,
-  summarizeProjectMemorySources,
-} from "../agents/project_chat_memory.js";
-import {
   buildAppInstructionsMarkdown,
   readAppInstructions,
 } from "../../app/agents/app_settings.js";
@@ -65,8 +57,6 @@ export const services = {
   createCanvasSuggestion,
   editCanvas,
   getCanvas,
-  loadGlobalChatMemory,
-  loadProjectChatMemory,
 };
 
 /**
@@ -87,7 +77,7 @@ export function overrideServices(overrides) {
 const HANDLERS = Object.freeze({
   projectList: handleProjectList,
   conversationList: handleConversationList,
-  conversationMemory: handleConversationMemory,
+  conversationContext: handleConversationContext,
   capabilitySnapshot: handleCapabilitySnapshot,
   skillList: handleSkillList,
   skillGet: handleRemovedPluginCapability,
@@ -353,23 +343,21 @@ async function handleConversationList({ db, resolveUserId, resolveProjectId, pay
   };
 }
 
-async function handleConversationMemory({
+async function handleConversationContext({
   db,
   resolveUserId,
   resolveProjectId,
   resolveAppSessionId,
-  payload,
 }) {
   const userId = String(resolveUserId?.() || "").trim();
   const projectId = String(resolveProjectId?.() || "").trim();
   const appSessionId = String(resolveAppSessionId?.() || "").trim();
-  const query = String(payload?.query || "").trim().slice(0, 8_000);
-  if (!(userId && projectId && appSessionId && query)) return { text: "", presentation: null };
+  if (!(userId && projectId && appSessionId)) return { instructions: null };
   const session = await db.queryOne(
     "SELECT action_type,session_config FROM sessions WHERE id=$1 AND project_id=$2 AND created_by=$3 AND deleted_at IS NULL LIMIT 1",
     [appSessionId, projectId, userId],
   ).catch(() => null);
-  if (!session) throw productRejected("conversationMemory 找不到绑定的 DeepSeek Harness Desktop App Session");
+  if (!session) throw productRejected("conversationContext 找不到绑定的 DeepSeek Harness Desktop App Session");
   let sessionConfig = {};
   try {
     sessionConfig = typeof session.session_config === "string"
@@ -394,46 +382,15 @@ async function handleConversationMemory({
       ? "## Temporary conversation\n\n当前是临时对话。这里的内容不会进入普通对话历史，也不能作为其他对话的记忆来源。"
       : "",
   ].filter(Boolean).join("\n\n");
-  const instructions = {
-    text: instructionText,
-    scopes: {
-      application: Boolean(appInstructions),
-      project: Boolean(projectInstructions),
-      temporary,
-    },
-  };
-  if (projectId === "__chat__") {
-    const memory = await services.loadGlobalChatMemory({
-      db,
-      projectId,
-      userId,
-      currentSessionId: appSessionId,
-      query,
-      temporary,
-    });
-    const summary = summarizeGlobalChatMemory(memory);
-    return {
-      text: memory.text || "",
-      instructions,
-      presentation: memory.text
-        ? { type: "global_memory", content: summary }
-        : null,
-    };
-  }
-  if (temporary) return { text: "", instructions, presentation: null };
-  const memory = await services.loadProjectChatMemory({
-    db,
-    projectId,
-    userId,
-    currentSessionId: appSessionId,
-    query,
-  });
   return {
-    text: memory.text || "",
-    instructions,
-    presentation: memory.text
-      ? { type: "project_memory", content: { sources: summarizeProjectMemorySources(memory.sources) } }
-      : null,
+    instructions: {
+      text: instructionText,
+      scopes: {
+        application: Boolean(appInstructions),
+        project: Boolean(projectInstructions),
+        temporary,
+      },
+    },
   };
 }
 

@@ -680,6 +680,24 @@ test("the Profile catalog is projected from the official Web Profile order", {
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
     assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.9.0");
     assert.equal(catalog.recommended_plugins.some((plugin) => plugin.id === "dsh-web-ui"), true);
+    assert.deepEqual(
+      catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-native-memory"),
+      {
+        id: "dsh-native-memory",
+        name: "DSH Native Memory",
+        description: "Per-workspace long-term memory on official DSH storage, Session query, approval, Tool, and system-prompt seams.",
+        description_zh: "基于官方 DSH 存储、Session 查询、审批、Tool 和系统提示词接口的工作区长期记忆。",
+        repository: "https://github.com/highland0971/dsh-native-memory",
+        stars: 0,
+        category: "memory",
+        source: "dsh-native-memory@0.2.0",
+        compatibility: "profile-ready-host-reviewed",
+        reviewed_at: "2026-08-16",
+        reviewed_commit: "9acd2ca676fc58a8c8d7a17e59f2d39fcb4c9b58",
+        package_integrity: "sha512-/GUOdYhZxlk+IiWPzVERWmwBq2zM60pV6nJAHBJIAoeRnsKiJi2a8aqKzxM9ZCaRvNEmUkiJvrpzvCuBTGQ3EQ==",
+        priority: 95,
+      },
+    );
     assert.deepEqual(catalog.plugins.at(-1).ui_runtime, {
       kind: "dsh_client",
       client_graph: true,
