@@ -1761,6 +1761,7 @@ function DshWorkAgentConversation({
   }
 
   const send = async (text?: string, extra?: DispatchExtra) => {
+    if (text == null && dshClientHost?.conversation.submitCommandClaim()) return
     const composerDraft = text ?? input
     const atts = text == null ? attachments : []
     const comments = text == null ? reviewComments : []
@@ -2554,7 +2555,12 @@ function DshWorkAgentConversation({
     if (!dshClientHost) return
     return dshClientHost.conversation.bindInputHandlers({
       setDraft: (draft) => setInput(draft),
-      submit: () => void send()
+      submit: () => void send(),
+      notify: (level, text) => notifications.show({
+        color: level === 'error' ? 'orange' : 'blue',
+        title: level === 'error' ? '命令执行失败' : '命令已完成',
+        message: text
+      })
     })
   }, [dshClientHost, send])
   const onKey = (e: React.KeyboardEvent) => {

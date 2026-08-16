@@ -39,6 +39,7 @@ describe('dsh-work Client shell contract', () => {
     expect(conversation).toContain('data-dsh-conversation-input-overlay')
     expect(conversation).toContain('conversation.trackInputTrigger')
     expect(conversation).toContain('conversation.arbitrateInputTrigger')
+    expect(conversation).toContain('conversation.submitCommandClaim')
     expect(conversation).toContain("reserveLeadingSlash: slashMatch !== null")
     expect(conversation).toContain("data-active={officialInputMenuActive ? 'true' : undefined}")
     expect(conversation).toContain('data-dsh-conversation-input-dock')

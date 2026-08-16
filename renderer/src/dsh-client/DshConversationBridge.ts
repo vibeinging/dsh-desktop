@@ -9,6 +9,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {
   ArbitrateKey,
   ArbitrateOutcome,
+  BeginCommandRequest,
+  CommandClaim,
   ConsumeTokenRequest,
   InsertReferenceRequest,
   InputTriggerController,
@@ -24,6 +26,7 @@ type ScopeDisposer = () => Promise<void>
 export interface DshWorkInputHandlers {
   setDraft: (draft: string) => void
   submit: () => void
+  notify?: (level: 'info' | 'error', text: string) => void
 }
 
 interface DshWorkInputActions {
@@ -53,6 +56,17 @@ interface EditRange {
 interface InsertTextRequest {
   readonly text: string
   readonly span: TokenSpan
+}
+
+interface DshWorkCommandAttempt {
+  readonly seq: number
+  readonly draft: string
+}
+
+interface DshWorkCommandState {
+  readonly claim: CommandClaim
+  readonly actx: ClientContext
+  readonly attempt?: DshWorkCommandAttempt
 }
 
 function diffEdit(previous: string, next: string): EditRange {
@@ -97,6 +111,20 @@ function expandReferences(
   return result + draft.slice(cursor)
 }
 
+function argsAfter(draft: string, token: string) {
+  const trimmed = draft.trimStart()
+  if (trimmed.startsWith(token)) return trimmed.slice(token.length)
+  const base = token.trimEnd()
+  if (!trimmed.startsWith(base)) return ''
+  const rest = trimmed.slice(base.length)
+  return /^\s/.test(rest) ? rest.slice(1) : rest
+}
+
+function releaseClaim(snapshot: DshWorkComposerInputSnapshot): DshWorkComposerInputSnapshot {
+  const { claim: _claim, ...plain } = snapshot
+  return { ...plain, phase: 'plain' }
+}
+
 class BridgeInputStore implements SnapshotStore<DshWorkComposerInputSnapshot> {
   readonly #listeners = new Set<() => void>()
   #snapshot: DshWorkComposerInputSnapshot
@@ -139,9 +167,11 @@ export class DshConversationBridge {
   readonly #inputControllers = new Map<SessionId, InputTriggerController>()
   readonly #scopeDisposers = new Map<SessionId, ScopeDisposer>()
   readonly #inputTriggerListeners = new Set<() => void>()
+  readonly #commandStates = new Map<SessionId, DshWorkCommandState>()
   #desiredSessionId: SessionId | null | undefined
   #input = EMPTY_INPUT
   #occurrenceSeq = 0
+  #commandSeq = 0
   #handlers: DshWorkInputHandlers | null = null
   #openFileHandler: ((path: string) => void) | null = null
   #disposed = false
@@ -170,6 +200,7 @@ export class DshConversationBridge {
       this.#reconcileSession()
       return
     }
+    if (this.#desiredSessionId) this.#commandStates.delete(this.#desiredSessionId)
     this.#desiredSessionId = next
     this.#input = { ...EMPTY_INPUT, draftRev: this.#input.draftRev + 1 }
     if (next) this.#storeFor(next).set(this.#input)
@@ -288,6 +319,34 @@ export class DshConversationBridge {
     return controller.arbitrate(key, composing)
   }
 
+  /** Execute the selected Session's claimed command instead of sending it as a prompt. */
+  submitCommandClaim() {
+    if (this.#disposed) return false
+    if (this.#input.phase === 'submitting') return true
+    if (this.#input.phase !== 'claimed') return false
+    const sessionId = this.#desiredSessionId
+    const state = sessionId ? this.#commandStates.get(sessionId) : undefined
+    if (!sessionId || !state || !this.#input.draft.startsWith(state.claim.token)) return false
+
+    this.#commandSeq += 1
+    const attempt = { seq: this.#commandSeq, draft: this.#input.draft }
+    this.#commandStates.set(sessionId, { ...state, attempt })
+    this.#publishInput({ ...this.#input, phase: 'submitting' })
+    this.#selectedInputController()?.track(this.#input.draft, 0, { tier: 'frozen' }, this.#input.draftRev)
+    Promise.resolve()
+      .then(() => state.claim.submit(argsAfter(attempt.draft, state.claim.token), state.actx))
+      .then(
+        (outcome) => this.#settleCommand(sessionId, attempt, outcome.kind === 'success', outcome.text),
+        (error: unknown) => this.#settleCommand(
+          sessionId,
+          attempt,
+          false,
+          error instanceof Error ? error.message : String(error)
+        )
+      )
+    return true
+  }
+
   /** Report whether the official input menu currently owns product keyboard input. */
   getInputTriggerActive = () => {
     const controller = this.#selectedInputController()
@@ -313,6 +372,7 @@ export class DshConversationBridge {
     this.#inputTriggerListeners.clear()
     this.#stores.clear()
     this.#actions.clear()
+    this.#commandStates.clear()
     for (const dispose of this.#scopeDisposers.values()) void dispose()
     this.#scopeDisposers.clear()
     this.#inputControllers.clear()
@@ -333,9 +393,20 @@ export class DshConversationBridge {
   }
 
   #publishInput(next: DshWorkComposerInputSnapshot) {
-    this.#input = next
+    let normalized = next
+    const sessionId = this.#desiredSessionId
+    if (next.phase === 'claimed') {
+      const state = sessionId ? this.#commandStates.get(sessionId) : undefined
+      if (!state || !next.draft.startsWith(state.claim.token)) {
+        if (sessionId) this.#commandStates.delete(sessionId)
+        normalized = releaseClaim(next)
+      }
+    } else if (next.phase === 'plain' && next.claim !== undefined) {
+      normalized = releaseClaim(next)
+    }
+    this.#input = normalized
     this.#emit()
-    if (this.#desiredSessionId) this.#storeFor(this.#desiredSessionId).set(next)
+    if (sessionId) this.#storeFor(sessionId).set(normalized)
   }
 
   #replaceDraft(draft: string, notifyProduct: boolean) {
@@ -404,6 +475,63 @@ export class DshConversationBridge {
     return true
   }
 
+  #beginCommand(sessionId: SessionId, actx: ClientContext, request: BeginCommandRequest) {
+    if (this.#disposed || this.#desiredSessionId !== sessionId || !this.#spanMatches(request.span)) return false
+    if (this.#input.phase !== 'plain' && this.#input.phase !== 'claimed') return false
+    if (this.#input.draft.slice(0, request.span.start).trim() !== '') return false
+    const draft = request.claim.token + this.#input.draft.slice(request.span.end)
+    const occurrences = reconcileOccurrences(this.#input.occurrences, {
+      start: 0,
+      end: request.span.end,
+      insertedLength: request.claim.token.length
+    })
+    this.#commandStates.set(sessionId, { claim: request.claim, actx })
+    this.#publishInput({
+      ...this.#input,
+      draft,
+      occurrences,
+      draftRev: this.#input.draftRev + 1,
+      phase: 'claimed',
+      claim: {
+        token: request.claim.token,
+        ...(request.claim.hint !== undefined ? { hint: request.claim.hint } : {})
+      }
+    })
+    this.#handlers?.setDraft(draft)
+    return true
+  }
+
+  #settleCommand(sessionId: SessionId, attempt: DshWorkCommandAttempt, success: boolean, text?: string) {
+    const state = this.#commandStates.get(sessionId)
+    if (!state || state.attempt?.seq !== attempt.seq) return
+    if (this.#disposed || this.#desiredSessionId !== sessionId) {
+      this.#commandStates.delete(sessionId)
+      return
+    }
+    if (success) {
+      this.#commandStates.delete(sessionId)
+      this.#publishInput({
+        ...releaseClaim(this.#input),
+        draft: '',
+        occurrences: [],
+        draftRev: this.#input.draftRev + 1
+      })
+      this.#handlers?.setDraft('')
+      if (text) this.#handlers?.notify?.('info', text)
+      return
+    }
+
+    const keepClaim = this.#input.draft === attempt.draft && this.#input.draft.startsWith(state.claim.token)
+    if (keepClaim) {
+      this.#commandStates.set(sessionId, { claim: state.claim, actx: state.actx })
+      this.#publishInput({ ...this.#input, phase: 'claimed' })
+    } else {
+      this.#commandStates.delete(sessionId)
+      this.#publishInput(releaseClaim(this.#input))
+    }
+    this.#handlers?.notify?.('error', text || '命令执行失败')
+  }
+
   #ensureInputScope(binding: SessionBinding) {
     if (this.#inputControllers.has(binding.sessionId)) return
     const controller = binding.ctx.inputTriggers.sessionOf(binding.ctx)
@@ -417,6 +545,8 @@ export class DshConversationBridge {
         if (binding.sessionId === this.#desiredSessionId) this.#emitInputTrigger()
       })
       const offs = [
+        binding.ctx.on('slash/input-begin-command', (request) =>
+          this.#beginCommand(binding.sessionId, binding.ctx, request) ? true : undefined),
         binding.ctx.on('slash/input-insert-reference', (request) =>
           this.#insertReference(binding.sessionId, request) ? true : undefined),
         binding.ctx.on('slash/input-consume-token', (request) =>
@@ -431,6 +561,10 @@ export class DshConversationBridge {
         if (this.#inputControllers.get(binding.sessionId) === controller) {
           this.#inputControllers.delete(binding.sessionId)
           this.#scopeDisposers.delete(binding.sessionId)
+          const releasedClaim = this.#commandStates.delete(binding.sessionId)
+          if (releasedClaim && binding.sessionId === this.#desiredSessionId && !this.#disposed) {
+            this.#publishInput(releaseClaim(this.#input))
+          }
           if (binding.sessionId === this.#desiredSessionId) this.#emitInputTrigger()
         }
       }

@@ -341,6 +341,122 @@ describe('DshConversationBridge', () => {
     bridge.dispose()
   })
 
+  it('keeps official command claims scoped, integrity-watched, and retryable', async () => {
+    const sessionId = 'dsh-session-command' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const setDraft = vi.fn()
+    const notify = vi.fn()
+    const submit = vi.fn()
+      .mockResolvedValueOnce({ kind: 'error', text: '参数无效' })
+      .mockResolvedValueOnce({ kind: 'success', text: '目标已创建' })
+    const claim = { token: '/goal ', hint: '目标内容', submit }
+    const scope = inputScope(sessionId)
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft, submit: vi.fn(), notify })
+    descriptor!.resolve(scope.binding)
+
+    bridge.updateDraft('say /go')
+    expect(scope.emit('slash/input-begin-command', {
+      claim,
+      span: { start: 4, end: 7, draftRev: bridge.getInputSnapshot().draftRev }
+    })).toBeUndefined()
+    bridge.updateDraft('/go')
+    expect(scope.emit('slash/input-begin-command', {
+      claim,
+      span: { start: 0, end: 3, draftRev: bridge.getInputSnapshot().draftRev - 1 }
+    })).toBeUndefined()
+
+    expect(scope.emit('slash/input-begin-command', {
+      claim,
+      span: { start: 0, end: 3, draftRev: bridge.getInputSnapshot().draftRev }
+    })).toBe(true)
+    expect(bridge.getInputSnapshot()).toMatchObject({
+      draft: '/goal ',
+      phase: 'claimed',
+      claim: { token: '/goal ', hint: '目标内容' }
+    })
+    expect(setDraft).toHaveBeenCalledWith('/goal ')
+
+    bridge.updateDraft('/goal write docs')
+    expect(bridge.getInputSnapshot().phase).toBe('claimed')
+    expect(bridge.submitCommandClaim()).toBe(true)
+    expect(bridge.getInputSnapshot().phase).toBe('submitting')
+    await vi.waitFor(() => expect(bridge.getInputSnapshot().phase).toBe('claimed'))
+    expect(submit).toHaveBeenNthCalledWith(1, 'write docs', scope.binding.ctx)
+    expect(notify).toHaveBeenCalledWith('error', '参数无效')
+
+    expect(bridge.submitCommandClaim()).toBe(true)
+    await vi.waitFor(() => expect(bridge.getInputSnapshot().phase).toBe('plain'))
+    expect(submit).toHaveBeenNthCalledWith(2, 'write docs', scope.binding.ctx)
+    expect(bridge.getInputSnapshot().draft).toBe('')
+    expect(setDraft).toHaveBeenLastCalledWith('')
+    expect(notify).toHaveBeenCalledWith('info', '目标已创建')
+
+    bridge.updateDraft('/go')
+    expect(scope.emit('slash/input-begin-command', {
+      claim,
+      span: { start: 0, end: 3, draftRev: bridge.getInputSnapshot().draftRev }
+    })).toBe(true)
+    bridge.updateDraft('/other')
+    expect(bridge.getInputSnapshot()).toMatchObject({ draft: '/other', phase: 'plain' })
+    expect(bridge.getInputSnapshot().claim).toBeUndefined()
+    expect(bridge.submitCommandClaim()).toBe(false)
+    bridge.dispose()
+  })
+
+  it('drops a late command settlement after the product selects another Session', async () => {
+    const sessionId = 'dsh-session-command-old' as SessionId
+    const nextSessionId = 'dsh-session-command-new' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    let settle: ((value: { kind: 'success'; text: string }) => void) | undefined
+    const bridge = new DshConversationBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const notify = vi.fn()
+    const scope = inputScope(sessionId)
+    const claim = {
+      token: '/goal ',
+      submit: vi.fn(() => new Promise<{ kind: 'success'; text: string }>((resolve) => { settle = resolve }))
+    }
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn(), notify })
+    bridge.updateDraft('/go')
+    descriptor!.resolve(scope.binding)
+    scope.emit('slash/input-begin-command', {
+      claim,
+      span: { start: 0, end: 3, draftRev: bridge.getInputSnapshot().draftRev }
+    })
+    expect(bridge.submitCommandClaim()).toBe(true)
+
+    bridge.syncSession(nextSessionId)
+    bridge.updateDraft('new session draft')
+    await vi.waitFor(() => expect(settle).toBeTypeOf('function'))
+    settle!({ kind: 'success', text: 'late result' })
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(bridge.getInputSnapshot()).toMatchObject({ draft: 'new session draft', phase: 'plain' })
+    expect(notify).not.toHaveBeenCalled()
+    bridge.dispose()
+  })
+
   it('lets ready official candidates own keyboard input without replacing the product slash menu', () => {
     const sessionId = 'dsh-session-trigger' as SessionId
     const list = sessionList()
