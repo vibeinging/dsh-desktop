@@ -397,6 +397,13 @@ export const AssistantTurn = memo(
               title={temporary ? '临时对话不能创建分支' : '从这里创建分支'}
               onClick={() => onBranch(message)}
             ><IconGitBranch size={14} stroke={1.7} /></button>
+            {message.dshMessageId && (
+              <span
+                className={styles.dshAssistantActions}
+                data-dsh-assistant-actions
+                data-dsh-assistant-message-id={message.dshMessageId}
+              />
+            )}
           </div>
         )}
       </div>

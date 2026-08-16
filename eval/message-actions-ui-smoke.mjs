@@ -74,6 +74,13 @@ function messageText(row) {
     .join('\n')
 }
 
+function messageMetadata(row) {
+  if (row?.message_metadata && typeof row.message_metadata === 'string') {
+    return JSON.parse(row.message_metadata)
+  }
+  return row?.message_metadata && typeof row.message_metadata === 'object' ? row.message_metadata : {}
+}
+
 let session = null
 let fakeModel = null
 let projectId = ''
@@ -134,6 +141,9 @@ try {
   const originalHistory = await driver.raw.api('GET', `/api/projects/${projectId}/sessions/${original.sid}/messages`)
   assert.equal(originalHistory.status, 200, JSON.stringify(originalHistory.json))
   assert.equal((originalHistory.json?.data?.messages || []).length > 0, true, JSON.stringify(originalHistory.json))
+  const originalAssistant = originalHistory.json.data.messages.find((message) => message.role === 'assistant')
+  const originalDshMessageId = String(messageMetadata(originalAssistant).dsh_message_id || '')
+  assert.equal(originalDshMessageId.length > 0, true, JSON.stringify(originalHistory.json))
   const listedSessions = await driver.raw.api('GET', `/api/agent/projects/${projectId}/sessions`)
   assert.equal(
     (listedSessions.json?.data?.items || []).some((item) => item.id === original.sid),
@@ -167,6 +177,23 @@ try {
     { 'copy-assistant': true, 'edit-user': true, 'retry-assistant': true, 'branch-assistant': true },
     JSON.stringify(originalActionState),
   )
+  const feedbackState = await ui.waitUntil(`async () => {
+    const host = document.querySelector('[data-dsh-assistant-message-id]');
+    const like = host?.querySelector('button[aria-label="好的回答"]');
+    const dislike = host?.querySelector('button[aria-label="有问题的回答"]');
+    if (!host || !like || !dislike) return false;
+    return {
+      messageId: host.getAttribute('data-dsh-assistant-message-id') || '',
+      actionRow: host.closest('[aria-label="助手消息操作"]') !== null
+    };
+  }`, { timeout: 15_000, label: '官方逐消息反馈 Slot 进入现有回复操作栏' })
+  assert.equal(feedbackState.messageId, originalDshMessageId)
+  assert.equal(feedbackState.actionRow, true)
+
+  await ui.click('[data-dsh-assistant-message-id] button[aria-label="好的回答"]')
+  await ui.waitUntil(`async () => Boolean(
+    document.querySelector('[data-dsh-assistant-message-id] button[data-active][aria-label="取消标记"]')
+  )`, { timeout: 10_000, label: '官方逐消息反馈写入 DSH Host' })
 
   await ui.click('[data-message-action="copy-assistant"]')
   const copyState = await ui.waitUntil(`async () => {
@@ -283,7 +310,7 @@ try {
     assert.equal(typeof config.dsh_runtime_session_id, 'string')
   }
 
-  console.log('[message-actions-ui-smoke] PASS 复制 + 编辑分支 + 重试分支 + 完整回答分支 + 原对话不变')
+  console.log('[message-actions-ui-smoke] PASS 官方逐消息反馈 + 复制 + 编辑分支 + 重试分支 + 完整回答分支 + 原对话不变')
 } finally {
   if (session && providerSaved) {
     await apiJson(session, {

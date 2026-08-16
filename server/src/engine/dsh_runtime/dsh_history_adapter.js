@@ -46,7 +46,7 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
   const messages = [];
   const pendingInteractions = [];
   let lastSeq = -1;
-  let currentTurn = null; // { turnId, turnNum, startedAt, items, status }
+  let currentTurn = null; // { turnId, turnNum, startedAt, items, status, dshMessageId }
   let pendingContextItems = [];
   const projectionValues = projections?.values || {};
   const planTodos = Array.isArray(projectionValues.todos) ? projectionValues.todos : null;
@@ -79,6 +79,7 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
         turn_status: status,
         started_at: currentTurn.startedAt ? new Date(currentTurn.startedAt).toISOString() : null,
         completed_at: currentTurn.completedAt ? new Date(currentTurn.completedAt).toISOString() : null,
+        ...(currentTurn.dshMessageId ? { dsh_message_id: currentTurn.dshMessageId } : {}),
         dsh_recovery: true,
         dsh_last_seq: lastSeq,
         ...(planTodos ? { dsh_plan_todos: planTodos } : {}),
@@ -179,6 +180,7 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
         completedAt: null,
         items: pendingContextItems,
         status: "inProgress",
+        dshMessageId: null,
         explicit: true,
       };
       pendingContextItems = [];
@@ -206,6 +208,7 @@ export function dshEventsToMessages({ entries, projections, sessionId, appSessio
         completedAt: null,
         items: [],
         status: "inProgress",
+        dshMessageId: null,
         explicit: false,
       };
     }
@@ -228,6 +231,8 @@ function foldEventIntoTurn(turn, event, view, sessionId) {
   switch (event.type) {
     case "assistant/message": {
       const content = event.data?.message?.content;
+      const dshMessageId = String(event.data?.message?.id || "").trim();
+      if (dshMessageId) turn.dshMessageId = dshMessageId;
       const reasoning = reasoningFromBlocks(content);
       if (reasoning) {
         upsertItem({
@@ -246,6 +251,7 @@ function foldEventIntoTurn(turn, event, view, sessionId) {
           // (matching the persisted item shape from AgentStreamAdapter).
           content: text,
           status: "completed",
+          ...(dshMessageId ? { metadata: { dsh_message_id: dshMessageId } } : {}),
         });
       }
       break;

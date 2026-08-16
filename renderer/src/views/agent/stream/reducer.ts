@@ -270,10 +270,12 @@ export function toolBlockFromItem(item: any, status: 'running' | 'done' | 'error
 function itemBlock(item: any): AgentBlock | null {
   if (!item?.id || item.visibility === 'hidden') return null
   const answerStatus = String(item.metadata?.answer_status || '').trim()
+  const dshMessageId = String(item.metadata?.dsh_message_id || '').trim()
   const itemMetadata = {
     item_type: item.type,
     ...((item.phase === 'commentary' || item.phase === 'final_answer') ? { phase: item.phase } : {}),
     ...(answerStatus ? { answer_status: answerStatus } : {}),
+    ...(dshMessageId ? { dsh_message_id: dshMessageId } : {}),
     ...(item.metadata?.result_role
       ? { result_role: item.metadata.result_role }
       : {})
@@ -911,9 +913,13 @@ export function reduceStreamEvent(event: AgentStreamEvent): AgentStreamPatch {
       ? { ...item, status: started ? 'inProgress' : 'completed', trigger: item.trigger || 'auto' }
       : item
     const block = itemBlock(projectedItem) || undefined
+    const dshMessageId = item.type === 'agentMessage'
+      ? String(item.metadata?.dsh_message_id || '').trim()
+      : ''
     return {
       target,
       block,
+      turn: dshMessageId ? { ...target, dshMessageId } : undefined,
       removeBlockId: block?.type === 'generative_ui' && block.metadata?.replaces_item_id
         ? String(block.metadata.replaces_item_id)
         : undefined,

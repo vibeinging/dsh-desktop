@@ -264,18 +264,18 @@ export class DshEventAdapter {
     }
     if (event.type === "assistant/message") {
       const text = textFromBlocks(event.data?.message?.content);
-      if (text) {
-        await this.emit("item/completed", {
-          threadId,
-          turnId: this.turnId,
-          item: {
-            id: assistantItemId(threadId, event),
-            type: "agentMessage",
-            text,
-            status: "completed",
-          },
-        });
-      }
+      const dshMessageId = String(event.data?.message?.id || "").trim();
+      await this.emit("item/completed", {
+        threadId,
+        turnId: this.turnId,
+        item: {
+          id: assistantItemId(threadId, event),
+          type: "agentMessage",
+          text,
+          status: "completed",
+          ...(dshMessageId ? { metadata: { dsh_message_id: dshMessageId } } : {}),
+        },
+      });
       return null;
     }
     if (event.type === "tool/call") {

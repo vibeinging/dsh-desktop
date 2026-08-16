@@ -46,7 +46,7 @@ test("folds a complete turn (user → assistant message → tool → turn/end) i
         source: { kind: "user", rpcId: "user:request-1" },
       }),
       entry(2, "turn/start", { turn: 1 }),
-      entry(3, "assistant/message", { turn: 1, step: 1, message: { content: [{ type: "text", text: "hi back" }] } }),
+      entry(3, "assistant/message", { turn: 1, step: 1, message: { id: "message-1", content: [{ type: "text", text: "hi back" }] } }),
       entry(4, "turn/end", { turn: 1, reason: { kind: "completed" } }),
     ],
   });
@@ -55,6 +55,7 @@ test("folds a complete turn (user → assistant message → tool → turn/end) i
   assert.equal(result.messages[0].message_metadata.dsh_prompt_rpc_id, "user:request-1");
   assert.equal(result.messages[1].role, "assistant");
   assert.equal(result.messages[1].message_metadata.turn_status, "completed");
+  assert.equal(result.messages[1].message_metadata.dsh_message_id, "message-1");
 });
 
 test("cold history projects DSH image references as authorized attachment blocks", () => {
@@ -216,9 +217,9 @@ test("user and steer messages inside one DSH turn do not split the assistant res
     entries: [
       entry(1, "turn/start", { turn: 1 }),
       entry(2, "user/message", { content: [{ type: "text", text: "initial" }], source: { kind: "user" } }),
-      entry(3, "assistant/message", { turn: 1, step: 1, message: { content: [{ type: "text", text: "working" }] } }),
+      entry(3, "assistant/message", { turn: 1, step: 1, message: { id: "message-working", content: [{ type: "text", text: "working" }] } }),
       entry(4, "user/message", { content: [{ type: "text", text: "steer" }], source: { kind: "user" } }),
-      entry(5, "assistant/message", { turn: 1, step: 2, message: { content: [{ type: "text", text: "done" }] } }),
+      entry(5, "assistant/message", { turn: 1, step: 2, message: { id: "message-done", content: [{ type: "text", text: "done" }] } }),
       entry(6, "turn/end", { turn: 1, reason: { kind: "completed" } }),
     ],
   });
@@ -226,6 +227,7 @@ test("user and steer messages inside one DSH turn do not split the assistant res
   assert.deepEqual(result.messages.map((message) => message.role), ["user", "user", "assistant"]);
   assert.equal(result.messages.filter((message) => message.role === "assistant").length, 1);
   assert.equal(result.messages[2].message_metadata.turn_status, "completed");
+  assert.equal(result.messages[2].message_metadata.dsh_message_id, "message-done");
   assert.deepEqual(
     result.messages[2].content_items.filter((item) => item.type === "agentMessage").map((item) => item.content),
     ["working", "done"],

@@ -997,6 +997,45 @@ describe('agent stream reducer', () => {
     expect(messages[0].blocks.map((block) => block.id)).toEqual(['ask-1', 'answer-1'])
   })
 
+  it('uses the last finalized DSH assistant message id for a merged turn', () => {
+    const messages = mergeServerMessages([
+      mapServerMessage({
+        id: 'assistant-a',
+        role: 'assistant',
+        message_metadata: { turn_id: 'turn-1', dsh_message_id: 'message-working' },
+        content_items: [{ id: 'answer-a', type: 'agentMessage', content: 'working' }]
+      }),
+      mapServerMessage({
+        id: 'assistant-b',
+        role: 'assistant',
+        message_metadata: { turn_id: 'turn-1', dsh_message_id: 'message-done' },
+        content_items: [{ id: 'answer-b', type: 'agentMessage', content: 'done' }]
+      })
+    ])
+
+    expect(messages).toHaveLength(1)
+    expect(messages[0].dshMessageId).toBe('message-done')
+  })
+
+  it('projects a live finalized DSH assistant id as a turn patch', () => {
+    const patch = reduceStreamEvent({
+      type: 'item/completed',
+      thread_id: 'thread-1',
+      turn_id: 'turn-1',
+      payload: {
+        item: {
+          id: 'answer-1',
+          type: 'agentMessage',
+          text: 'done',
+          metadata: { dsh_message_id: 'message-1' }
+        }
+      }
+    })
+
+    expect(patch.block?.metadata?.dsh_message_id).toBe('message-1')
+    expect(patch.turn?.dshMessageId).toBe('message-1')
+  })
+
   it('restores the persisted runtime turn diff with the assistant message', () => {
     const message = mapServerMessage({
       id: 'assistant-diff',

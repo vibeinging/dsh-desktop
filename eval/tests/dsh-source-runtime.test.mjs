@@ -292,7 +292,7 @@ test("DSH event adapter projects text, tools, plans, and lifecycle events", asyn
     type: "assistant/message",
     seq: 3,
     time: 1002,
-    data: { turn: 2, step: 1, message: { content: [{ type: "reasoning", text: "内部推理" }, { type: "text", text: "你好" }] } },
+    data: { turn: 2, step: 1, message: { id: "message-2", content: [{ type: "reasoning", text: "内部推理" }, { type: "text", text: "你好" }] } },
   });
   await adapter.handle({
     type: "tool/call",
@@ -325,6 +325,7 @@ test("DSH event adapter projects text, tools, plans, and lifecycle events", asyn
     "turn/plan/updated",
   ]);
   assert.equal(notifications[2].params.item.text, "你好");
+  assert.equal(notifications[2].params.item.metadata.dsh_message_id, "message-2");
   assert.equal(notifications[4].params.item.contentItems[0].text, "/repo");
   assert.equal(dshTurnStatus({ kind: "aborted" }), "interrupted");
   assert.equal(dshTurnStatus({ kind: "error" }), "failed");

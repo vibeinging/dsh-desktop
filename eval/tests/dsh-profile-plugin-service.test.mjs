@@ -687,6 +687,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         "conversation.composer.dock",
         "conversation.input.left",
         "conversation.input.right",
+        "conversation.chat.assistant-actions",
         "details",
       ],
       host_unmapped_slots: [
@@ -701,7 +702,6 @@ test("the Profile catalog is projected from the official Web Profile order", {
         "conversation.chat.node",
         "conversation.chat.commandview",
         "conversation.chat.turnTail",
-        "conversation.chat.assistant-actions",
         "conversation.details.tool",
         "conversation.composer",
         "conversation.hero.workspace",

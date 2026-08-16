@@ -152,6 +152,7 @@ export function mapServerMessage(m: any): AgentMessage {
   const removedBlockIds = allBlocks.filter(isHiddenNarrative).map((it: AgentBlock) => it.id)
   return {
     id: String(m?.id || messageMetadata.message_id || ''),
+    dshMessageId: String(messageMetadata.dsh_message_id || '').trim() || undefined,
     role: m.role === 'user' ? 'user' : 'assistant',
     skillSelections: m.role === 'user' ? mapSkillSelections(messageMetadata) : undefined,
     blocks: workstationBlocks.filter(
@@ -216,6 +217,7 @@ export function mergeServerMessages(messages: AgentMessage[]): AgentMessage[] {
         ...previous,
         ...message,
         id: previous.id || message.id,
+        dshMessageId: message.dshMessageId ?? previous.dshMessageId,
         blocks: foldGenerativeUiBlocks(blocks),
         workstationBlocks: foldGenerativeUiBlocks(workstationBlocks),
         removedBlockIds,

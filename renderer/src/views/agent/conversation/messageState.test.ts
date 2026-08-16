@@ -40,6 +40,22 @@ describe('turn-scoped assistant projection', () => {
     expect(next[2]).toMatchObject({ turnId: 'turn-review', status: 'inProgress' })
   })
 
+  it('keeps the DSH assistant identity independent from the product message id', () => {
+    const next = applyTurnToMessages([], {
+      messageId: 'product-message',
+      dshMessageId: 'dsh-message',
+      threadId: 'thread-1',
+      turnId: 'turn-1',
+      status: 'completed'
+    })
+
+    expect(next[0]).toMatchObject({
+      id: 'product-message',
+      dshMessageId: 'dsh-message',
+      turnId: 'turn-1'
+    })
+  })
+
   it('does not attach a block for an unknown turn to an older completed assistant', () => {
     const messages: AgentMessage[] = [
       { id: 'assistant-old', role: 'assistant', blocks: [], turnId: 'turn-old', status: 'completed' }

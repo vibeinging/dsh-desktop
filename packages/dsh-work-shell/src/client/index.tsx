@@ -43,7 +43,10 @@ type DshWorkConversationSlot =
   | 'conversation.composer.dock'
   | 'conversation.input.left'
   | 'conversation.input.right'
+  | 'conversation.chat.assistant-actions'
 type DshWorkConversationProps = PropsRuntime<'conversation'> & PropsRenderSlots<DshWorkConversationSlot>
+type DshAssistantActionOwner = Pick<PropsRuntime<'conversation.chat.assistant-actions'>, 'messageId'>
+type DshAssistantActionTarget = DshAssistantActionOwner & { element: Element }
 
 export const inject = ['slots', 'sessions', 'theme', 'locale']
 
@@ -164,10 +167,12 @@ export function apply(ctx: ClientContext) {
       'conversation.input.dock': null,
       'conversation.composer.dock': null,
       'conversation.input.left': null,
-      'conversation.input.right': null
+      'conversation.input.right': null,
+      'conversation.chat.assistant-actions': null
     })
+    const [assistantActionTargets, setAssistantActionTargets] = useState<DshAssistantActionTarget[]>([])
     useLayoutEffect(() => {
-      const selectors: Record<DshWorkConversationSlot, string> = {
+      const selectors: Record<Exclude<DshWorkConversationSlot, 'conversation.chat.assistant-actions'>, string> = {
         'conversation.session.header.actions': '[data-dsh-session-header-actions]',
         'conversation.session.header.utilities': '[data-dsh-session-header-utilities]',
         'conversation.input.dock': '[data-dsh-conversation-input-dock]',
@@ -178,13 +183,28 @@ export function apply(ctx: ClientContext) {
       const syncTarget = () => setTargets((current) => {
         const next = Object.fromEntries(Object.entries(selectors).map(([slot, selector]) => (
           [slot, document.querySelector(selector)]
-        ))) as Record<DshWorkConversationSlot, Element | null>
+        ))) as Record<Exclude<DshWorkConversationSlot, 'conversation.chat.assistant-actions'>, Element | null>
         return Object.keys(selectors).every((slot) => (
           current[slot as DshWorkConversationSlot] === next[slot as DshWorkConversationSlot]
-        )) ? current : next
+        )) ? current : { ...current, ...next }
       })
       syncTarget()
       const observer = new MutationObserver(syncTarget)
+      observer.observe(document.body, { childList: true, subtree: true })
+      return () => observer.disconnect()
+    }, [])
+    useLayoutEffect(() => {
+      const syncTargets = () => setAssistantActionTargets((current) => {
+        const next = Array.from(document.querySelectorAll('[data-dsh-assistant-actions]')).flatMap((element) => {
+          const messageId = String(element.getAttribute('data-dsh-assistant-message-id') || '').trim()
+          return messageId ? [{ element, messageId: messageId as DshAssistantActionOwner['messageId'] }] : []
+        })
+        return next.length === current.length && next.every((target, index) => (
+          target.element === current[index]?.element && target.messageId === current[index]?.messageId
+        )) ? current : next
+      })
+      syncTargets()
+      const observer = new MutationObserver(syncTargets)
       observer.observe(document.body, { childList: true, subtree: true })
       return () => observer.disconnect()
     }, [])
@@ -222,6 +242,11 @@ export function apply(ctx: ClientContext) {
           renderSlot('conversation.input.right', inputZone),
           targets['conversation.input.right']
         )}
+        {assistantActionTargets.map(({ element, messageId }) => createPortal(
+          renderSlot('conversation.chat.assistant-actions', { messageId }),
+          element,
+          String(messageId)
+        ))}
       </>
     )
   }
@@ -263,7 +288,8 @@ export function apply(ctx: ClientContext) {
       'conversation.input.dock': { kind: 'list', scope: 'session' },
       'conversation.composer.dock': { kind: 'list', scope: 'session' },
       'conversation.input.left': { kind: 'list', scope: 'session' },
-      'conversation.input.right': { kind: 'list', scope: 'session' }
+      'conversation.input.right': { kind: 'list', scope: 'session' },
+      'conversation.chat.assistant-actions': { kind: 'list', scope: 'session' }
     }
   }, DshWorkConversation), 'dsh-work conversation adapter')
 
