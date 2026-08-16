@@ -103,7 +103,7 @@ Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第
 
 | 插件 | 社区能力 | 当前采用计划 |
 |---|---|---|
-| [DSH Plugin Market](https://github.com/dsh-market/dsh-market) | 浏览、搜索、安装和更新 DSH 插件 | 首个接入对象，固定 `dshmarket@1.4.0` |
+| [DSH Plugin Market](https://github.com/dsh-market/dsh-market) | 浏览、搜索、安装和更新 DSH 插件 | 已审查并接入 Profile 与 Client 图，固定 `dshmarket@1.9.0` |
 | [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | 任务看板、Git 图谱、实时统计、远程 UI、宠物和皮肤 | 按子包采用，不直接安装全家桶 |
 | [modlens](https://github.com/liustack/modlens) | 为文本模型提供 OCR、布局和图像语义证据 | 完成凭据与数据发送审查后接入 |
 | [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | 文件、编辑器、终端、Git、子 Agent 和第三方 Tab | 等待标准 Slot 或独立运行区，避免与桌面壳冲突 |

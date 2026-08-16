@@ -103,7 +103,7 @@ The project maintains a machine-readable community plugin directory, and the Plu
 
 | Plugin | Community capabilities | Current adoption plan |
 |---|---|---|
-| [DSH Plugin Market](https://github.com/dsh-market/dsh-market) | Browse, search, install, and update DSH plugins | First integration target, pinned to `dshmarket@1.4.0` |
+| [DSH Plugin Market](https://github.com/dsh-market/dsh-market) | Browse, search, install, and update DSH plugins | Reviewed and integrated into the Profile and Client graphs, pinned to `dshmarket@1.9.0` |
 | [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Task board, Git graph, real-time statistics, remote UI, pet, and skins | Adopt by subpackage instead of installing the entire suite |
 | [modlens](https://github.com/liustack/modlens) | Provide OCR, layout, and semantic evidence from images to text models | Integrate after credential and data transmission review |
 | [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | Files, editor, terminal, Git, Sub-Agents, and third-party tabs | Wait for a standard Slot or separate runtime area to avoid conflicts with the desktop shell |

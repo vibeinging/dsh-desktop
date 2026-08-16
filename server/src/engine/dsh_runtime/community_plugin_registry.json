@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-15",
+  "updated_at": "2026-08-16",
   "catalog_source": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin",
   "plugins": [
     {
@@ -11,7 +11,7 @@
       "repository": "https://github.com/dsh-market/dsh-market",
       "stars": 167,
       "category": "market",
-      "source": "dshmarket@1.4.0",
+      "source": "dshmarket@1.9.0",
       "compatibility": "reviewed",
       "priority": 10
     },

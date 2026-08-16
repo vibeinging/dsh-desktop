@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import { dataRoot } from "../../config/paths.js";
 import { resolveDshRuntimeDistribution } from "./source_locator.js";
 import {
+  isReviewedCommunityClient,
   prepareTrustedProfilePlugins,
   trustedDshProfilePluginNames,
 } from "./trusted_client_plugins.js";
@@ -382,6 +383,7 @@ function inspectDshClientManifest(manifest, { clientEntryAvailable = true } = {}
 export function inspectCommunityClientIsolation(manifest) {
   if (manifest?.dsh?.client === undefined) return [];
   const packageName = String(manifest?.name || "候选插件");
+  if (isReviewedCommunityClient({ name: packageName, manifest })) return [];
   return [{
     code: "DSH_PROFILE_CLIENT_ISOLATION_REQUIRED",
     message: `${packageName} 包含 dsh.client 浏览器代码；当前主窗口尚未把社区 UI 与 Electron API 隔离，只能安装 Host 侧 Bundle`,
@@ -402,6 +404,10 @@ export function inspectProfileBundleCompatibility(manifest) {
   const sessionAware = ["dsh-session", "dsh-agent", "dsh-subagent", "dsh-goal", "dsh-plan"]
     .some((fragment) => uses(fragment));
   const client = manifest?.dsh?.client?.platform === "web";
+  const reviewedClient = client && isReviewedCommunityClient({
+    name: String(manifest?.name || ""),
+    manifest,
+  });
   return [
     {
       id: "host",
@@ -427,9 +433,11 @@ export function inspectProfileBundleCompatibility(manifest) {
     },
     {
       id: "client",
-      status: client ? "isolation_required" : "not_detected",
+      status: reviewedClient ? "reviewed" : client ? "isolation_required" : "not_detected",
       label: "Client UI",
-      message: client
+      message: reviewedClient
+        ? "该精确包版本已完成代码审查，可以进入当前 Client 图"
+        : client
         ? "检测到浏览器代码；必须继续检查标准 Slot 和 Renderer 权限"
         : "Host-only Bundle，不需要桌面 Slot",
     },

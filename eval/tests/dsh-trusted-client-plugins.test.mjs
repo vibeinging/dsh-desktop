@@ -36,15 +36,19 @@ async function fixture(root, name = "@deepseek-ai/dsh-product-bridge", { client 
 test("only the audited dsh-market release may enter the product Client graph", () => {
   assert.equal(isReviewedCommunityClient({
     name: "dshmarket",
-    manifest: { version: "1.4.0" },
+    manifest: { version: "1.9.0" },
   }), true);
   assert.equal(isReviewedCommunityClient({
     name: "dshmarket",
-    manifest: { version: "1.4.1" },
+    manifest: { version: "1.9.1" },
   }), false);
   assert.equal(isReviewedCommunityClient({
     name: "another-client",
-    manifest: { version: "1.4.0" },
+    manifest: { version: "1.9.0" },
+  }), false);
+  assert.equal(isReviewedCommunityClient({
+    name: "another-client",
+    manifest: {},
   }), false);
 });
 
@@ -175,7 +179,7 @@ test("trusted DSH plugins are composed by the official Profile bundle list", asy
     await fixture(
       join(profileDir, "node_modules", "dshmarket"),
       "dshmarket",
-      { client: true, version: "1.4.0" },
+      { client: true, version: "1.9.0" },
     );
     await writeFile(join(profileDir, "package.json"), `${JSON.stringify({
       name: "dsh-profile-web",
@@ -185,7 +189,7 @@ test("trusted DSH plugins are composed by the official Profile bundle list", asy
         "@deepseek-ai/dsh-turn-navigator": "file:/retired-turn-navigator",
         "@example/user-bundle": "1.0.0",
         "@example/community-ui": "1.0.0",
-        dshmarket: "1.4.0",
+        dshmarket: "1.9.0",
       },
       dsh: { profile: { bundles: [
         "@deepseek-ai/dsh-base",
@@ -219,7 +223,7 @@ test("trusted DSH plugins are composed by the official Profile bundle list", asy
     assert.deepEqual(stored.dependencies, {
       "@example/user-bundle": "1.0.0",
       "@example/community-ui": "1.0.0",
-      dshmarket: "1.4.0",
+      dshmarket: "1.9.0",
     });
     assert.deepEqual(stored.dsh.profile.bundles, first.bundles);
     assert.equal(first.bundles.includes("dshmarket"), true);

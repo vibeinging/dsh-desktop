@@ -87,7 +87,7 @@ interface ProfileBundlePreflight {
   blockers: Array<{ code: string; message: string }>
   compatibility_checks?: Array<{
     id: 'host' | 'session' | 'capabilities' | 'client'
-    status: 'profile_checked' | 'review_required' | 'isolation_required' | 'not_detected'
+    status: 'profile_checked' | 'reviewed' | 'review_required' | 'isolation_required' | 'not_detected'
     label: string
     message: string
   }>

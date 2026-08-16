@@ -78,7 +78,7 @@ const RETIRED_DSH_PLUGINS = Object.freeze([
 // the exact audited version. Every other user-installed Client stays outside
 // the active graph until the separate no-preload renderer is available.
 const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
-  ["dshmarket", "1.4.0"],
+  ["dshmarket", "1.9.0"],
 ]));
 
 const WEB_PROFILE = "web";
@@ -225,7 +225,8 @@ function readInstalledPlugin(api, packageName, installAnchor, profileDir) {
 
 /** Return whether one installed community Client matches the audited release. */
 export function isReviewedCommunityClient(plugin) {
-  return REVIEWED_COMMUNITY_CLIENTS.get(plugin?.name) === plugin?.manifest?.version;
+  const reviewedVersion = REVIEWED_COMMUNITY_CLIENTS.get(plugin?.name);
+  return reviewedVersion !== undefined && reviewedVersion === plugin?.manifest?.version;
 }
 
 async function loadProfileApi(appBootPath, profileApi) {

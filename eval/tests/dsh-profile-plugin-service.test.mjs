@@ -26,6 +26,31 @@ import {
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_NPM_ROOT = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh");
 
+async function writeReviewedMarketFixture(root) {
+  await mkdir(root, { recursive: true });
+  await writeFile(join(root, "index.js"), "export default function apply() {}\n");
+  await writeFile(join(root, "client.js"), "export default function apply() {}\n");
+  await writeFile(join(root, "cordis.patch.yml"), "- insert:\n    - id: reviewed-market-fixture\n      name: dshmarket\n");
+  await writeFile(join(root, "package.json"), `${JSON.stringify({
+    name: "dshmarket",
+    version: "1.9.0",
+    private: true,
+    type: "module",
+    main: "./index.js",
+    exports: {
+      ".": "./index.js",
+      "./client": "./client.js",
+    },
+    dsh: {
+      bundle: { patch: "./cordis.patch.yml" },
+      client: { platform: "web" },
+    },
+    peerDependencies: {
+      "@deepseek-ai/cordis": "^4.0.1",
+    },
+  }, null, 2)}\n`);
+}
+
 test("Profile Bundle sources must be immutable or explicitly local", () => {
   assert.equal(
     normalizeProfileBundleSource("@example/dsh-report@1.2.3"),
@@ -69,6 +94,16 @@ test("Profile Bundle compatibility separates Host, Session, capabilities, and Cl
     { id: "client", status: "isolation_required" },
   ]);
   assert.equal(inspectProfileBundleCompatibility({ dependencies: {} })[3].message, "Host-only Bundle，不需要桌面 Slot");
+  assert.deepEqual(inspectProfileBundleCompatibility({
+    name: "dshmarket",
+    version: "1.9.0",
+    dsh: { client: { platform: "web" } },
+  })[3], {
+    id: "client",
+    status: "reviewed",
+    label: "Client UI",
+    message: "该精确包版本已完成代码审查，可以进入当前 Client 图",
+  });
 });
 
 test("Profile Bundle patch inspection reports rows and risk names without configuration values", () => {
@@ -242,6 +277,16 @@ test("community dsh.client Bundles stay out of the privileged Electron renderer"
     name: "@example/host-only",
     dsh: { bundle: { patch: "./cordis.patch.yml" } },
   }), []);
+  assert.deepEqual(inspectCommunityClientIsolation({
+    name: "dshmarket",
+    version: "1.9.0",
+    dsh: { client: { platform: "web" } },
+  }), []);
+  assert.equal(inspectCommunityClientIsolation({
+    name: "dshmarket",
+    version: "1.8.0",
+    dsh: { client: { platform: "web" } },
+  })[0].code, "DSH_PROFILE_CLIENT_ISOLATION_REQUIRED");
 });
 
 test("only app-managed Bundles may request dsh-work host components", () => {
@@ -406,6 +451,38 @@ test("a current local Bundle passes the real isolated Profile preflight", {
       },
       blockers: [],
     });
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("the reviewed market release passes the real isolated Client preflight", {
+  timeout: 30_000,
+  skip: existsSync(join(DSH_NPM_ROOT, "package.json"))
+    ? false
+    : `missing app-pinned DSH package: ${DSH_NPM_ROOT}`,
+}, async () => {
+  const home = await mkdtemp(join(tmpdir(), "dsh-work-market-preflight-"));
+  const source = join(home, "reviewed-market");
+  try {
+    await writeReviewedMarketFixture(source);
+    const service = new DshProfilePluginService({
+      env: {
+        ...process.env,
+        DSH_RUNTIME_DISTRIBUTION: "npm",
+        DSH_RUNTIME_HOME: home,
+        DSH_HOME: home,
+        DSH_PROFILE_ALLOW_LOCAL_PLUGINS: "1",
+      },
+      restartRuntime: async () => ({ restarted: false, sessions: [] }),
+    });
+    const result = await service.preflight(source);
+    assert.equal(result.status, "ready");
+    assert.equal(result.installable, true);
+    assert.equal(result.package_name, "dshmarket");
+    assert.equal(result.version, "1.9.0");
+    assert.equal(result.surface, "dsh_web");
+    assert.equal(result.compatibility_checks.at(-1).status, "reviewed");
   } finally {
     await rm(home, { recursive: true, force: true });
   }
@@ -578,9 +655,9 @@ test("the Profile catalog is projected from the official Web Profile order", {
     assert.equal(catalog.plugins.at(-1).id, "@deepseek-ai/dsh-work-shell");
     assert.equal(catalog.plugins.at(-1).managed_by, "app");
     assert.equal(catalog.plugins.at(-1).portability.level, "desktop-shell");
-    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-15");
+    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-16");
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
-    assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.4.0");
+    assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.9.0");
     assert.equal(catalog.recommended_plugins.some((plugin) => plugin.id === "dsh-web-ui"), true);
     assert.deepEqual(catalog.plugins.at(-1).ui_runtime, {
       kind: "dsh_client",
