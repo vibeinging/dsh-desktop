@@ -483,6 +483,18 @@ test("the reviewed market release passes the real isolated Client preflight", {
     assert.equal(result.version, "1.9.0");
     assert.equal(result.surface, "dsh_web");
     assert.equal(result.compatibility_checks.at(-1).status, "reviewed");
+    assert.deepEqual(await service.install(source), {
+      id: "dshmarket",
+      pluginId: "dshmarket",
+      name: "dshmarket",
+      version: "1.9.0",
+      surface: "dsh_web",
+    });
+    assert.deepEqual(await service.uninstall("dshmarket"), {
+      id: "dshmarket",
+      name: "dshmarket",
+      surface: "dsh_web",
+    });
   } finally {
     await rm(home, { recursive: true, force: true });
   }

@@ -20,6 +20,11 @@ export interface PluginCatalogEvent {
   }
 }
 
+/** Return whether a Profile mutation changed the browser Client graph. */
+export function profileBundleMutationNeedsReload(response: unknown) {
+  return (response as { data?: { surface?: unknown } } | null)?.data?.surface === 'dsh_web'
+}
+
 const PLUGIN_CATALOG_EVENT_TYPES = new Set<PluginCatalogEventType>([
   'plugin_catalog.ready',
   'plugin_catalog.changed',

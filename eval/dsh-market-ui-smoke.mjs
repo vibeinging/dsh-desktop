@@ -3,7 +3,6 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { DshProfilePluginService } from '../server/src/engine/dsh_runtime/profile_plugin_service.js'
 import { openSession } from './lib/cdp.mjs'
 import { makeUiDriver } from './lib/ui-driver.mjs'
 
@@ -17,19 +16,6 @@ process.env.DSH_RUNTIME_HOME = runtimeHome
 
 let session = null
 try {
-  const profiles = new DshProfilePluginService({
-    env: {
-      ...process.env,
-      DSH_RUNTIME_DISTRIBUTION: 'npm',
-      DSH_RUNTIME_HOME: runtimeHome,
-      DSH_HOME: runtimeHome
-    },
-    restartRuntime: async () => ({ restarted: false, sessions: [] })
-  })
-  const installed = await profiles.install('dshmarket@1.9.0')
-  assert.equal(installed.id, 'dshmarket')
-  assert.equal(installed.version, '1.9.0')
-
   session = await openSession({ port: 9361 })
   const ui = makeUiDriver(session)
 
@@ -39,6 +25,18 @@ try {
   `)
   await session.cdp('Page.reload', { ignoreCache: true }, { timeoutMs: 10_000 })
   await ui.waitFor('[data-dsh-open-settings]', { timeout: 30_000 })
+  await ui.click('[data-dsh-open-settings]')
+
+  await ui.waitFor('#settings-nav-plugins', { timeout: 15_000 })
+  await ui.click('#settings-nav-plugins')
+  await ui.waitFor('[data-community-plugin-install="dshmarket"]', { timeout: 15_000 })
+  await ui.click('[data-community-plugin-install="dshmarket"]')
+  await ui.waitFor('input[value="dshmarket@1.9.0"]', { timeout: 5_000 })
+  await ui.click('[data-profile-install-check]')
+  await ui.waitFor('[data-profile-preflight="ready"]', { timeout: 30_000 })
+  await ui.click('[data-profile-install-submit]')
+
+  await ui.waitFor('[data-dsh-open-settings]', { timeout: 45_000 })
   await ui.click('[data-dsh-open-settings]')
 
   await ui.waitFor('#dsh-settings-nav-market', { timeout: 30_000 })
@@ -65,7 +63,21 @@ try {
   assert.equal(market.visible, true)
   assert.ok(market.text.length > 0)
 
-  console.log('[dsh-market-ui-smoke] PASS npm固定版本/Profile安装/Client图/settings.section/真实Electron渲染')
+  await ui.click('#settings-nav-plugins')
+  await ui.waitFor('[data-profile-bundle="dshmarket"]', { timeout: 15_000 })
+  await ui.click('[data-profile-bundle-uninstall="dshmarket"]')
+  await ui.waitFor('[data-profile-uninstall-confirm="dshmarket"]', { timeout: 5_000 })
+  await ui.click('[data-profile-uninstall-confirm="dshmarket"]')
+
+  await ui.waitFor('[data-dsh-open-settings]', { timeout: 45_000 })
+  await ui.click('[data-dsh-open-settings]')
+  await ui.waitFor('#settings-nav-plugins', { timeout: 15_000 })
+  assert.equal(await ui.exists('#dsh-settings-nav-market'), false)
+  await ui.click('#settings-nav-plugins')
+  await ui.waitFor('[data-community-plugin-install="dshmarket"]', { timeout: 15_000 })
+  assert.equal(await ui.exists('[data-profile-bundle="dshmarket"]'), false)
+
+  console.log('[dsh-market-ui-smoke] PASS 插件中心预检/安装/Client图刷新/settings.section/卸载/真实Electron渲染')
 } finally {
   try { await session?.close() } catch { /* ignore */ }
   try { rmSync(evalHome, { recursive: true, force: true }) } catch { /* ignore */ }

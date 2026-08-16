@@ -15,6 +15,7 @@ import {
   getPluginDetailReq,
   installProfileBundleReq,
   listPluginCatalogReq,
+  profileBundleMutationNeedsReload,
   preflightProfileBundleReq,
   uninstallProfileBundleReq
 } from '@/api/plugins'
@@ -209,6 +210,10 @@ export default function PluginCenter({
       setInstallOpen(false)
       setInstallSource('')
       setPreflight(null)
+      if (profileBundleMutationNeedsReload(response)) {
+        window.location.reload()
+        return
+      }
       await loadCatalog(true)
     } catch (installError: any) {
       notifications.show({
@@ -266,13 +271,17 @@ export default function PluginCenter({
       title: '卸载 Profile Bundle',
       children: `从 ${profileName} Profile 移除「${bundle.display_name || bundle.name}」？DSH 运行时会重启。`,
       labels: { confirm: '卸载', cancel: '取消' },
-      confirmProps: { color: 'red' },
+      confirmProps: { color: 'red', 'data-profile-uninstall-confirm': bundle.id },
       onConfirm: async () => {
         setBusyId(bundle.id)
         try {
           const response: any = await uninstallProfileBundleReq(bundle.id)
           notifications.show({ color: 'green', message: response?.message || 'Profile Bundle 已卸载' })
           if (detail?.id === bundle.id) setDetail(null)
+          if (profileBundleMutationNeedsReload(response)) {
+            window.location.reload()
+            return
+          }
           await loadCatalog(true)
         } catch (uninstallError: any) {
           notifications.show({ color: 'red', message: uninstallError?.message || '卸载失败' })
@@ -328,7 +337,7 @@ export default function PluginCenter({
           </div>
           <div className={styles.recommendationGrid}>
             {recommendations.map((plugin) => (
-              <article key={plugin.id} className={styles.recommendationCard}>
+              <article key={plugin.id} className={styles.recommendationCard} data-community-plugin={plugin.id}>
                 <div className={styles.recommendationTitle}>
                   <strong>{plugin.name}</strong>
                   <span>{plugin.stars} Star</span>
@@ -340,7 +349,13 @@ export default function PluginCenter({
                 </div>
                 <div className={styles.recommendationActions}>
                   <Button component="a" href={plugin.repository} target="_blank" size="xs" variant="subtle">仓库</Button>
-                  <Button size="xs" variant="light" disabled={!plugin.source} onClick={() => openRecommendedInstall(plugin)}>
+                  <Button
+                    size="xs"
+                    variant="light"
+                    disabled={!plugin.source}
+                    data-community-plugin-install={plugin.id}
+                    onClick={() => openRecommendedInstall(plugin)}
+                  >
                     {plugin.source ? '检查并安装' : '选择子包'}
                   </Button>
                 </div>
@@ -401,6 +416,7 @@ export default function PluginCenter({
                     variant="subtle"
                     loading={busyId === bundle.id}
                     leftSection={<IconTrash size={14} />}
+                    data-profile-bundle-uninstall={bundle.id}
                     onClick={() => uninstall(bundle)}
                   >
                     卸载
@@ -501,6 +517,7 @@ export default function PluginCenter({
               variant="default"
               loading={checking}
               disabled={!installSource.trim() || installing}
+              data-profile-install-check
               onClick={() => void checkCompatibility()}
             >
               检查兼容性
@@ -508,6 +525,7 @@ export default function PluginCenter({
             <Button
               loading={installing}
               disabled={!preflight?.installable || preflight.source !== installSource.trim() || checking}
+              data-profile-install-submit
               onClick={() => void install()}
             >
               安装到当前 Profile

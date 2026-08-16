@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parsePluginCatalogEvent } from './plugins'
+import { parsePluginCatalogEvent, profileBundleMutationNeedsReload } from './plugins'
 
 describe('Plugin catalog event parsing', () => {
   it('normalizes authoritative Server changes', () => {
@@ -37,5 +37,14 @@ describe('Plugin catalog event parsing', () => {
     expect(parsePluginCatalogEvent('data: [DONE]')).toBeNull()
     expect(parsePluginCatalogEvent('data: {bad json')).toBeNull()
     expect(parsePluginCatalogEvent('data: {"type":"unknown"}')).toBeNull()
+  })
+})
+
+describe('Profile Bundle mutation reload policy', () => {
+  it('reloads only when the DSH Client graph changed', () => {
+    expect(profileBundleMutationNeedsReload({ data: { surface: 'dsh_web' } })).toBe(true)
+    expect(profileBundleMutationNeedsReload({ data: { surface: 'dsh_work' } })).toBe(false)
+    expect(profileBundleMutationNeedsReload({ data: { surface: 'host' } })).toBe(false)
+    expect(profileBundleMutationNeedsReload(null)).toBe(false)
   })
 })

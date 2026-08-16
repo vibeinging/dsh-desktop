@@ -407,6 +407,7 @@ export default function AgentSettings({
           {MANAGE_NAV.map(({ key, label, Icon }) => (
             <SettingsNavItem
               key={key}
+              id={`settings-nav-${key}`}
               active={active === key}
               onClick={() => setActive(key)}
               icon={<Icon size={17} stroke={1.7} />}

@@ -1037,7 +1037,13 @@ export class DshProfilePluginService {
       dshHome: state.dshHome,
     });
     await this.restartRuntime();
-    return { id: candidate.packageName, pluginId: candidate.packageName, name: candidate.packageName, version: candidate.version };
+    return {
+      id: candidate.packageName,
+      pluginId: candidate.packageName,
+      name: candidate.packageName,
+      version: candidate.version,
+      surface: candidate.surface,
+    };
   }
 
   async uninstall(packageName) {
@@ -1053,7 +1059,15 @@ export class DshProfilePluginService {
     }
     await this.run(state.resolved, state.dshHome, ["plugin", "--profile", PROFILE_NAME, "remove", packageName]);
     await this.restartRuntime();
-    return { id: packageName, name: plugin.display_name };
+    return {
+      id: packageName,
+      name: plugin.display_name,
+      surface: plugin.ui_runtime?.kind === "dsh_client"
+        ? "dsh_web"
+        : plugin.product_plugin || plugin.profile_theme_count > 0
+          ? "dsh_work"
+          : "host",
+    };
   }
 }
 
