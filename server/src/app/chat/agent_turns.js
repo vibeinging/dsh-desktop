@@ -243,7 +243,9 @@ export async function startAgentTurn(ctx, input, emit) {
           ...(body.effort ? { reasoningEffort: body.effort } : {}),
           ...(body.summary ? { reasoningSummary: body.summary } : {}),
           ...(body.verbosity ? { verbosity: body.verbosity } : {}),
-          collaborationMode: normalizeCollaborationMode(body.collaborationMode),
+          ...(body.collaborationMode == null
+            ? {}
+            : { collaborationMode: normalizeCollaborationMode(body.collaborationMode) }),
           ...(["auto", "required", "off"].includes(body.searchMode) ? { searchMode: body.searchMode } : {}),
         },
       },

@@ -553,7 +553,10 @@ test("DSH turn policy leaves permission ownership in the logged session projecti
       plan: { active: false, pending: true },
     },
   }, { settings: { collaborationMode: "plan" } }), []);
-  assert.throws(() => dshPolicyCommands(null, {}), { code: "DSH_POLICY_PROJECTIONS_MISSING" });
+  assert.deepEqual(dshPolicyCommands(null, { settings: {} }), []);
+  assert.throws(() => dshPolicyCommands(null, {
+    settings: { collaborationMode: "plan" },
+  }), { code: "DSH_POLICY_PROJECTIONS_MISSING" });
 });
 
 test("DSH model resolution preserves the exact provider when model ids overlap", () => {

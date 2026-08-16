@@ -1601,7 +1601,7 @@ function DshWorkAgentConversation({
         summary: dshClientHost ? undefined : modelRuntime?.reasoningSummary,
         verbosity: dshClientHost ? undefined : modelRuntime?.verbosity,
         searchMode,
-        collaborationMode: collaborationModeRef.current,
+        collaborationMode: dshClientHost ? undefined : collaborationModeRef.current,
         clientCapabilities,
         attachments: normalizeAttachmentsForRequest(requestAttachments),
         displayMessage,
@@ -2901,11 +2901,15 @@ function DshWorkAgentConversation({
           onAddAttachments={appendAttachments}
           onInsert={insertAtCursor}
         />
-        <CollaborationModePicker
-          value={collaborationMode}
-          disabled={effectiveBusy || collaborationModeChanging}
-          onChange={(mode) => void changeCollaborationMode(mode)}
-        />
+        {dshClientHost ? (
+          <div className={styles.composerInlineSlot} data-dsh-conversation-input-plan />
+        ) : (
+          <CollaborationModePicker
+            value={collaborationMode}
+            disabled={effectiveBusy || collaborationModeChanging}
+            onChange={(mode) => void changeCollaborationMode(mode)}
+          />
+        )}
         {permissionSelect && (
           <PermissionPicker
             value={permissionSelect}

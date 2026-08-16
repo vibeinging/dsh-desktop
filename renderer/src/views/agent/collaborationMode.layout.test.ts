@@ -10,7 +10,8 @@ describe('Codex collaboration mode UI', () => {
     const picker = read('./CollaborationModePicker.tsx')
 
     expect(conversation).toContain('<CollaborationModePicker')
-    expect(conversation).toContain('collaborationMode: collaborationModeRef.current')
+    expect(conversation).toContain('data-dsh-conversation-input-plan')
+    expect(conversation).toContain('collaborationMode: dshClientHost ? undefined : collaborationModeRef.current')
     expect(conversation).toContain('state?.projections?.plan')
     expect(conversation).toContain('setDshSessionPlanMode(projectId, currentSessionId, next)')
     expect(conversation).not.toContain('persistConversationCollaborationMode')

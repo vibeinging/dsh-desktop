@@ -233,6 +233,29 @@ try {
   await ui.click(officialModelTrigger)
   await ui.waitFor('[data-dsh-conversation-input-model] [role="menu"]', { timeout: 15_000 })
   await ui.press('Escape')
+  const modelRequestCount = fakeModel.requests.length
+  await ui.fill('[data-testid="agent-message-input"]', '/plan')
+  const officialPlanCommand = '[role="option"][id^="dsh-slash-option-command-"]'
+  await ui.waitFor(officialPlanCommand, { timeout: 10_000 })
+  assert.match(await session.evalJs(`return document.querySelector(${JSON.stringify(officialPlanCommand)})?.innerText || ''`), /^plan\b/)
+  await ui.click(officialPlanCommand)
+  await ui.waitFor('[data-dsh-command-hint]', { timeout: 10_000 })
+  await ui.press('Enter')
+  const officialPlanTrigger = '[data-dsh-conversation-input-plan] button'
+  await ui.waitFor(officialPlanTrigger, { timeout: 15_000 })
+  await ui.fill('[data-testid="agent-message-input"]', `保留当前 DSH plan mode-${stamp}`)
+  await ui.press('Enter')
+  const requestDeadline = Date.now() + 15_000
+  while (fakeModel.requests.length <= modelRequestCount && Date.now() < requestDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  assert.ok(fakeModel.requests.length > modelRequestCount, 'plan mode 下的普通消息没有进入 DSH Session')
+  await ui.waitFor(officialPlanTrigger, { timeout: 15_000 })
+  await ui.click(officialPlanTrigger)
+  await ui.waitUntil(`async () => !document.querySelector(${JSON.stringify(officialPlanTrigger)})`, {
+    timeout: 15_000,
+    label: '官方 Plan 插件关闭当前 Session 的 plan mode',
+  })
   await ui.fill('[data-testid="agent-message-input"]', '/runs')
   await ui.waitFor('[role="listbox"]', { timeout: 10_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-slash-menu]') === null`), true)

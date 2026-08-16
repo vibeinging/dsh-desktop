@@ -84,6 +84,7 @@ export function effectiveDshPlanMode(value) {
 
 /** Derive only the DSH commands needed to align one turn's plan mode. */
 export function dshPolicyCommands(projections, agentContext) {
+  if (!Object.hasOwn(agentContext?.settings || {}, "collaborationMode")) return [];
   const values = projections?.values;
   if (!values || typeof values !== "object") {
     const error = new Error("DSH 会话没有提供运行策略投影，不能安全设置 Plan 模式");

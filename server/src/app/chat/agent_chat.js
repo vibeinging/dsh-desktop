@@ -415,9 +415,9 @@ async function agentChatUnlocked(ctx, input, emit) {
   if (!message && !attachments.length && !hasRichInput) throw new ApiError("请输入内容", 400);
 
   const settings = body.settings && typeof body.settings === "object" ? { ...body.settings } : {};
-  settings.collaborationMode = normalizeCollaborationMode(
-    body.collaborationMode ?? settings.collaborationMode,
-  );
+  const requestedCollaborationMode = body.collaborationMode ?? settings.collaborationMode;
+  if (requestedCollaborationMode == null) delete settings.collaborationMode;
+  else settings.collaborationMode = normalizeCollaborationMode(requestedCollaborationMode);
   const turnScope = await validateTurnScope(ctx, {
     projectId,
     sessionId,
@@ -458,7 +458,7 @@ async function agentChatUnlocked(ctx, input, emit) {
       searchMode: ["auto", "required", "off"].includes(settings.searchMode)
         ? settings.searchMode
         : "auto",
-      collaborationMode: settings.collaborationMode,
+      collaborationMode: settings.collaborationMode || null,
       skills: selectedSkills,
       skill_selections: selectedSkills.map((selection) => ({
         selection_key: selection,
