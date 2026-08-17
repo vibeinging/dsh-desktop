@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
@@ -20,6 +20,10 @@ const questionPrompt = `使用官方提问工具让我选择验收结果-${stamp
 const questionText = `官方 Composer Chain 是否已经接管输入区-${stamp}`
 const questionOption = `已经接管-${stamp}`
 const questionAnswer = `question-ui-done-${stamp}`
+const skillName = `desktop-skill-${stamp}`
+const skillPromptTail = `使用官方 Skill 完成验收-${stamp}`
+const skillPrompt = `/${skillName} ${skillPromptTail}`
+const skillAnswer = `skill-ui-done-${stamp}`
 const providerId = 'native-multi-agent-ui-eval'
 const modelId = 'native-multi-agent-ui-model'
 const credentialRef = 'NATIVE_MULTI_AGENT_UI_API_KEY'
@@ -28,6 +32,18 @@ const modelRoute = encodeDshModelRoute(providerId, modelId)
 process.env.DSH_EVAL_ISOLATED = '1'
 process.env.DSH_EVAL_HOME = evalHome
 process.env.DSH_USER_DATA_DIR = path.join(evalHome, 'electron-user-data')
+
+const skillDirectory = path.join(evalHome, '.dsh', 'skills', skillName)
+mkdirSync(skillDirectory, { recursive: true })
+writeFileSync(path.join(skillDirectory, 'SKILL.md'), [
+  '---',
+  `name: ${skillName}`,
+  'description: 验证桌面端使用 DSH 原生 Skill 目录和输入源',
+  '---',
+  '',
+  '按用户要求返回验收结果。',
+  '',
+].join('\n'))
 
 function chatChunk(response, payload) {
   response.write(`data: ${JSON.stringify(payload)}\n\n`)
@@ -93,6 +109,7 @@ function sendText(response, id, value) {
 async function startFakeModel() {
   const requests = []
   const handlerErrors = []
+  let skillRequestHandled = false
   const server = createServer(async (request, response) => {
     try {
       if (request.method !== 'POST' || request.url !== '/v1/chat/completions') {
@@ -111,6 +128,12 @@ async function startFakeModel() {
       })
 
       const serializedMessages = JSON.stringify(body.messages || [])
+      if (!skillRequestHandled && serializedMessages.includes(skillPromptTail)) {
+        skillRequestHandled = true
+        assert.ok(serializedMessages.includes(`/${skillName}`), serializedMessages)
+        sendText(response, 'skill_ui_done', skillAnswer)
+        return
+      }
       if (serializedMessages.includes(questionPrompt)) {
         if (!serializedMessages.includes('call_dsh_question')) {
           const askUserQuestion = toolName(body, 'ask_user_question')
@@ -271,6 +294,31 @@ try {
   await ui.click(officialModelTrigger)
   await ui.waitFor('[data-dsh-conversation-input-model] [role="menu"]', { timeout: 15_000 })
   await ui.press('Escape')
+  const skillCatalog = await driver.raw.api('GET', `/api/agent/projects/__chat__/threads/${result.sid}/dsh-skills`)
+  assert.equal(skillCatalog.status, 200, JSON.stringify(skillCatalog.json))
+  assert.equal(skillCatalog.json?.data?.some((skill) => skill?.name === skillName), true, JSON.stringify(skillCatalog.json))
+  const skillRequestCount = fakeModel.requests.length
+  await ui.fill('[data-testid="agent-message-input"]', `/${skillName}`)
+  const officialSkillCandidate = '[role="option"][id^="dsh-slash-option-skill-"]'
+  await ui.waitFor(officialSkillCandidate, { timeout: 10_000 })
+  assert.equal(await session.evalJs(`return document.querySelector('[data-slash-menu]') === null`), true)
+  assert.match(
+    await session.evalJs(`return document.querySelector(${JSON.stringify(officialSkillCandidate)})?.innerText || ''`),
+    new RegExp(`^${skillName}\\b`)
+  )
+  await ui.click(officialSkillCandidate)
+  await ui.waitUntil(`async () => document.querySelector('[data-testid="agent-message-input"]')?.value === ${JSON.stringify(`/${skillName} `)}`, {
+    timeout: 10_000,
+    label: '官方 Skill 输入源把字面引用写回共享草稿',
+  })
+  await ui.typeText(skillPromptTail)
+  assert.equal(await session.evalJs(`return document.querySelector('[data-testid="agent-message-input"]')?.value || ''`), skillPrompt)
+  await ui.press('Enter')
+  await ui.waitUntil(`async () => document.body.innerText.includes(${JSON.stringify(skillAnswer)})`, {
+    timeout: 15_000,
+    label: '官方 Skill 引用随普通提示进入 DSH Session',
+  })
+  assert.ok(fakeModel.requests.length > skillRequestCount, '官方 Skill 提示没有进入模型请求')
   const modelRequestCount = fakeModel.requests.length
   await ui.fill('[data-testid="agent-message-input"]', '/plan')
   const officialPlanCommand = '[role="option"][id^="dsh-slash-option-command-"]'
@@ -459,7 +507,7 @@ try {
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-trajectory]')?.innerText.includes('subagent') || false`), true)
 
-  console.log('[native-multi-agent-ui-smoke] PASS DSH Agent Preset/子任务/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
+  console.log('[native-multi-agent-ui-smoke] PASS DSH Agent Preset/子任务/Skill/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
 } finally {
   if (session && modelProviderSaved) {
     const driver = makeDriver(session)

@@ -10,8 +10,10 @@ const shellSource = readFileSync(fileURLToPath(new URL('./AgentShell.tsx', impor
 const styleSource = readFileSync(fileURLToPath(new URL('./agent.module.scss', import.meta.url)), 'utf8')
 
 describe('slash menu integration contract', () => {
-  it('loads real workspace skills and supports keyboard selection', () => {
+  it('keeps the workspace Skill picker only as the standalone fallback', () => {
     expect(conversationSource).toContain('getDshSkillsReq(projectId, currentSessionId)')
+    expect(conversationSource).toContain('if (slashMatch && !dshClientHost)')
+    expect(conversationSource).toContain('if (dshClientHost) setSlash(null)')
     expect(conversationSource).toContain("e.key === 'ArrowDown'")
     expect(conversationSource).toContain("e.key === 'ArrowUp'")
     expect(conversationSource).toContain('applySlashSkill')
