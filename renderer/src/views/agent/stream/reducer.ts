@@ -157,6 +157,9 @@ function toolBlock(payload: any, title: 'running' | 'done' | 'error' | 'rejected
     tool_name: name,
     status: title
   }
+  if (payload?.dshToolBlock && typeof payload.dshToolBlock === 'object') {
+    metadata.dshToolBlock = payload.dshToolBlock
+  }
   if (callView !== undefined) metadata.dshCallView = callView
   if (resultView !== undefined) metadata.dshResultView = resultView
   if (resultView || callView) metadata.dshView = resultView || callView
@@ -272,6 +275,7 @@ export function toolBlockFromItem(item: any, status: 'running' | 'done' | 'error
       dshResultView: item.dshResultView,
       dshCallSeq: item.dshCallSeq,
       dshResultSeq: item.dshResultSeq,
+      dshToolBlock: item.dshToolBlock,
       resultText: toolResultFromItem(item)
     },
     status

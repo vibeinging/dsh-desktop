@@ -253,6 +253,16 @@ test("tool/call item id matches the live DshEventAdapter id for the same event",
   // The id must match what toolCallItemId produces (same function DshEventAdapter uses).
   assert.equal(toolItem.id, toolCallItemId(callEvent));
   assert.equal(toolItem.dshView.view.card, "generic");
+  assert.deepEqual(toolItem.dshToolBlock, {
+    callId: "call-1",
+    name: "project_list",
+    argsRaw: "{}",
+    turn: 1,
+    step: 0,
+    time: 0,
+    callView: { card: "generic", title: "List projects" },
+    subCalls: [],
+  });
 });
 
 test("assistant/message item id matches the live DshEventAdapter id", () => {
@@ -390,6 +400,19 @@ test("tool/result carries dshView and output text", () => {
   assert.equal(resultItem.dshResultSeq, 4);
   assert.equal(resultItem.tool, "project_list");
   assert.equal(resultItem.contentItems[0].text, "result text");
+  assert.deepEqual(resultItem.dshToolBlock, {
+    kind: "tool-result",
+    seq: 4,
+    time: 4000,
+    callId: "c1",
+    call: { name: "project_list", argsRaw: "{}" },
+    callTime: 3000,
+    content: [{ type: "text", text: "result text" }],
+    isError: false,
+    callView: { card: "generic", title: "List" },
+    resultView: { card: "search", shape: "paths", paths: ["a.ts"], truncated: false, total: 1 },
+    subCalls: [],
+  });
 });
 
 test("DSH web-search result views restore the same source card used by live chat", async () => {

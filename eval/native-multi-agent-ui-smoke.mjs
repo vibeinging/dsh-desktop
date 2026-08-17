@@ -328,7 +328,9 @@ try {
   await ui.fill('[data-testid="agent-message-input"]', questionPrompt)
   await ui.press('Enter')
   await ui.waitFor('[data-question-key]', { timeout: 15_000 })
+  await ui.waitFor('[data-dsh-standard-tool-call-node] [data-chat-call-id="call_dsh_question"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-question-key]')?.innerText.includes(${JSON.stringify(questionText)}) || false`), true)
+  assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-tool-call-takeover="call_dsh_question"] + [data-dsh-product-tool-call-surface]')?.offsetParent === null`), true)
   assert.equal(await session.evalJs(`return document.querySelector('[data-testid="agent-message-input"]')?.offsetParent === null`), true)
   await ui.click(`[data-question-key] [role="radio"][aria-label=${JSON.stringify(questionOption)}]`)
   await ui.click('[data-question-key] footer > div:last-child button:last-child')
@@ -374,7 +376,7 @@ try {
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-trajectory]')?.innerText.includes('subagent') || false`), true)
 
-  console.log('[native-multi-agent-ui-smoke] PASS DSH 子任务/Goal/提问插件/父级回答/session.history 轨迹')
+  console.log('[native-multi-agent-ui-smoke] PASS DSH 子任务/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
 } finally {
   if (session && modelProviderSaved) {
     const driver = makeDriver(session)

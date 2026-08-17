@@ -76,6 +76,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-client-ui-tool": "0.1.0-rc.6",
     "@types/dagre": "^0.7.52",
     "@types/katex": "^0.16.7",
     "@types/node": "^22.8.6",

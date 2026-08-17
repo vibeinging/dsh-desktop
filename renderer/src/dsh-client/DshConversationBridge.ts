@@ -2,7 +2,8 @@ import type {
   ClientContext,
   SessionBinding,
   SessionId,
-  SnapshotStore
+  SnapshotStore,
+  ToolCallBlock
 } from '@deepseek-ai/dsh-client-runtime/client'
 import type { OwnerOf } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -186,6 +187,8 @@ export class DshConversationBridge {
   readonly #inputContexts = new Map<SessionId, ClientContext>()
   readonly #scopeDisposers = new Map<SessionId, ScopeDisposer>()
   readonly #inputTriggerListeners = new Set<() => void>()
+  readonly #toolCallListeners = new Set<() => void>()
+  readonly #toolCalls = new Map<string, ToolCallBlock>()
   readonly #commandStates = new Map<SessionId, DshWorkCommandState>()
   #desiredSessionId: SessionId | null | undefined
   #input = EMPTY_INPUT
@@ -195,6 +198,7 @@ export class DshConversationBridge {
   #adjudication: DshWorkAdjudicationAttempt | undefined
   #handlers: DshWorkInputHandlers | null = null
   #openFileHandler: ((path: string) => void) | null = null
+  #toolCallSnapshot: ReadonlyMap<string, ToolCallBlock> = new Map()
   #disposed = false
 
   constructor(sessions: DshSessions, inputTriggers: DshInputTriggers) {
@@ -309,6 +313,29 @@ export class DshConversationBridge {
     this.#openFileHandler?.(path)
   }
 
+  /** Publish one product-projected DSH Tool block for the official Client UI seat. */
+  registerToolCall(block: ToolCallBlock) {
+    if (this.#disposed) return () => {}
+    const callId = String(block.callId || '').trim()
+    if (!callId) return () => {}
+    this.#toolCalls.set(callId, block)
+    this.#publishToolCalls()
+    return () => {
+      if (this.#toolCalls.get(callId) !== block) return
+      this.#toolCalls.delete(callId)
+      this.#publishToolCalls()
+    }
+  }
+
+  /** Return the current Tool blocks routed into product message seats. */
+  getToolCallSnapshot = () => this.#toolCallSnapshot
+
+  /** Subscribe to Tool block registration changes. */
+  subscribeToolCalls = (listener: () => void) => {
+    this.#toolCallListeners.add(listener)
+    return () => this.#toolCallListeners.delete(listener)
+  }
+
   /** Return the Session identity the product currently expects the Client to stage. */
   getSessionId() {
     return this.#desiredSessionId
@@ -321,6 +348,11 @@ export class DshConversationBridge {
   subscribeInput = (listener: () => void) => {
     this.#listeners.add(listener)
     return () => this.#listeners.delete(listener)
+  }
+
+  #publishToolCalls() {
+    this.#toolCallSnapshot = new Map(this.#toolCalls)
+    for (const listener of this.#toolCallListeners) listener()
   }
 
   /** Feed the product draft and caret into the selected Session's official trigger controller. */
@@ -450,6 +482,9 @@ export class DshConversationBridge {
     this.#unsubscribeSessions()
     this.#listeners.clear()
     this.#inputTriggerListeners.clear()
+    this.#toolCallListeners.clear()
+    this.#toolCalls.clear()
+    this.#toolCallSnapshot = new Map()
     this.#abortAdjudication()
     this.#stores.clear()
     this.#actions.clear()

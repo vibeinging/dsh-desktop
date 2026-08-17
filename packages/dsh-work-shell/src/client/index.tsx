@@ -1,4 +1,8 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type {
+  ChatConversationViewNode,
+  ClientContext,
+  ToolCallBlock
+} from '@deepseek-ai/dsh-client-runtime/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import {
   type PropsRenderSlots,
@@ -9,6 +13,7 @@ import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { ConsumeTokenRequest, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
+import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { ThemePreference, ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react'
@@ -54,16 +59,32 @@ type DshWorkConversationSlot =
   | 'conversation.input.right'
   | 'conversation.input.plan'
   | 'conversation.input.model'
+  | 'conversation.chat.node'
   | 'conversation.chat.assistant-actions'
   | 'conversation.chat.turnTail'
 type DshWorkConversationProps = PropsRuntime<'conversation'> & PropsRenderSlots<DshWorkConversationSlot>
 type DshAssistantActionOwner = Pick<PropsRuntime<'conversation.chat.assistant-actions'>, 'messageId'>
 type DshAssistantActionTarget = DshAssistantActionOwner & { element: Element }
+type DshToolCallTarget = { element: Element; callId: string }
 type DshTurnTailOwner = OwnerOf<'conversation.chat.turnTail'>
 type DshTurnTailTarget = Pick<DshTurnTailOwner, 'seq'> & {
   element: Element
   turnNumber: number
   produced: DshProducedPath[]
+}
+
+function dshToolChatNode(block: ToolCallBlock): ChatConversationViewNode {
+  const seq = 'kind' in block ? block.seq : 0
+  return {
+    key: `tool-call:${block.callId}`,
+    kind: 'tool-call',
+    id: block.callId,
+    target: 'chat',
+    anchorSeq: seq,
+    location: { kind: 'unresolved' },
+    visibility: 'visible',
+    data: { root: block }
+  }
 }
 
 export const inject = ['slots', 'sessions', 'theme', 'locale', 'inputTriggers']
@@ -222,6 +243,11 @@ export function apply(ctx: ClientContext) {
       conversation.getInputSnapshot,
       conversation.getInputSnapshot
     )
+    const toolCalls = useSyncExternalStore(
+      conversation.subscribeToolCalls,
+      conversation.getToolCallSnapshot,
+      conversation.getToolCallSnapshot
+    )
     const [targets, setTargets] = useState<Record<DshWorkConversationSlot, Element | null>>({
       'conversation.session.header.actions': null,
       'conversation.session.header.utilities': null,
@@ -233,13 +259,15 @@ export function apply(ctx: ClientContext) {
       'conversation.input.right': null,
       'conversation.input.plan': null,
       'conversation.input.model': null,
+      'conversation.chat.node': null,
       'conversation.chat.assistant-actions': null,
       'conversation.chat.turnTail': null
     })
     const [assistantActionTargets, setAssistantActionTargets] = useState<DshAssistantActionTarget[]>([])
+    const [toolCallTargets, setToolCallTargets] = useState<DshToolCallTarget[]>([])
     const [turnTailTargets, setTurnTailTargets] = useState<DshTurnTailTarget[]>([])
     useLayoutEffect(() => {
-      const selectors: Record<Exclude<DshWorkConversationSlot, 'conversation.chat.assistant-actions' | 'conversation.chat.turnTail'>, string> = {
+      const selectors: Record<Exclude<DshWorkConversationSlot, 'conversation.chat.node' | 'conversation.chat.assistant-actions' | 'conversation.chat.turnTail'>, string> = {
         'conversation.session.header.actions': '[data-dsh-session-header-actions]',
         'conversation.session.header.utilities': '[data-dsh-session-header-utilities]',
         'conversation.composer': '[data-dsh-conversation-composer-takeover]',
@@ -254,13 +282,28 @@ export function apply(ctx: ClientContext) {
       const syncTarget = () => setTargets((current) => {
         const next = Object.fromEntries(Object.entries(selectors).map(([slot, selector]) => (
           [slot, document.querySelector(selector)]
-        ))) as Record<Exclude<DshWorkConversationSlot, 'conversation.chat.assistant-actions' | 'conversation.chat.turnTail'>, Element | null>
+        ))) as Record<Exclude<DshWorkConversationSlot, 'conversation.chat.node' | 'conversation.chat.assistant-actions' | 'conversation.chat.turnTail'>, Element | null>
         return Object.keys(selectors).every((slot) => (
           current[slot as DshWorkConversationSlot] === next[slot as DshWorkConversationSlot]
         )) ? current : { ...current, ...next }
       })
       syncTarget()
       const observer = new MutationObserver(syncTarget)
+      observer.observe(document.body, { childList: true, subtree: true })
+      return () => observer.disconnect()
+    }, [])
+    useLayoutEffect(() => {
+      const syncTargets = () => setToolCallTargets((current) => {
+        const next = Array.from(document.querySelectorAll('[data-dsh-tool-call-takeover]')).flatMap((element) => {
+          const callId = String(element.getAttribute('data-dsh-tool-call-takeover') || '').trim()
+          return callId ? [{ element, callId }] : []
+        })
+        return next.length === current.length && next.every((target, index) => (
+          target.element === current[index]?.element && target.callId === current[index]?.callId
+        )) ? current : next
+      })
+      syncTargets()
+      const observer = new MutationObserver(syncTargets)
       observer.observe(document.body, { childList: true, subtree: true })
       return () => observer.disconnect()
     }, [])
@@ -357,6 +400,30 @@ export function apply(ctx: ClientContext) {
           renderSlot('conversation.input.model', { locked: session.removed }),
           targets['conversation.input.model']
         )}
+        {toolCallTargets.map(({ element, callId }) => {
+          const block = toolCalls.get(callId)
+          if (!block) return null
+          const node = dshToolChatNode(block)
+          const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
+          return createPortal(
+            <div data-dsh-standard-tool-call-node>
+              {renderSlot('conversation.chat.node', {
+                node,
+                cwd,
+                openFile: conversation.openFile,
+                inspectCall: () => conversation.runProductCommand(sessionId, 'trace'),
+                forkAt: () => {},
+                loadImage: () => Promise.reject(new Error('工具行不提供消息图片读取')),
+                fileMentions: () => undefined
+              }, {
+                entryKey: 'tool-call',
+                fallback: <span data-dsh-product-tool-call-resident />
+              })}
+            </div>,
+            element,
+            callId
+          )
+        })}
         {assistantActionTargets.map(({ element, messageId }) => createPortal(
           renderSlot('conversation.chat.assistant-actions', { messageId }),
           element,
@@ -427,6 +494,7 @@ export function apply(ctx: ClientContext) {
           'conversation.input.right': { kind: 'list', scope: 'session' },
           'conversation.input.plan': { kind: 'single', scope: 'session' },
           'conversation.input.model': { kind: 'single', scope: 'session' },
+          'conversation.chat.node': { kind: 'keyed', scope: 'session' },
           'conversation.chat.assistant-actions': { kind: 'list', scope: 'session' },
           'conversation.chat.turnTail': { kind: 'chain', scope: 'session' }
         }

@@ -1174,6 +1174,13 @@ describe('dshView retention in tool blocks', () => {
           contentItems: [{ type: 'inputText', text: '/repo' }],
           dshCallView: { for: 'call', view: { card: 'terminal', title: 'pwd', cwd: '/repo' } },
           dshResultView: { for: 'result', view: { card: 'terminal', output: '/repo', exitCode: 0 } },
+          dshToolBlock: {
+            kind: 'tool-result', seq: 10, time: 1010, callId: 'tool-combined',
+            call: { name: 'bash', argsRaw: '{"command":"pwd"}' }, callTime: 1008,
+            content: [{ type: 'text', text: '/repo' }], isError: false,
+            callView: { card: 'terminal', title: 'pwd', cwd: '/repo' },
+            resultView: { card: 'terminal', output: '/repo', exitCode: 0 }, subCalls: []
+          },
           dshCallSeq: 8,
           dshResultSeq: 10
         }
@@ -1183,6 +1190,9 @@ describe('dshView retention in tool blocks', () => {
     expect(tool.block?.metadata?.dshCallView?.view).toMatchObject({ card: 'terminal', cwd: '/repo' })
     expect(tool.block?.metadata?.dshResultView?.view).toMatchObject({ card: 'terminal', output: '/repo', exitCode: 0 })
     expect(tool.block?.metadata).toMatchObject({ dshCallSeq: 8, dshResultSeq: 10 })
+    expect(tool.block?.metadata?.dshToolBlock).toMatchObject({
+      kind: 'tool-result', callId: 'tool-combined', call: { name: 'bash' }, subCalls: []
+    })
     expect(tool.block?.metadata?.resultText).toBe('/repo')
   })
 

@@ -2690,6 +2690,18 @@
   white-space: pre;
 }
 
+.toolCallTakeover:not(:has([data-dsh-standard-tool-call-node])),
+.toolCallTakeover:has([data-dsh-product-tool-call-resident]) {
+  display: none;
+}
+.toolCallTakeover:has([data-dsh-standard-tool-call-node]):not(:has([data-dsh-product-tool-call-resident]))
+  + .toolCallResident {
+  display: none;
+}
+.toolCallResident {
+  display: contents;
+}
+
 .toolCall {
   display: grid;
   align-self: flex-start;

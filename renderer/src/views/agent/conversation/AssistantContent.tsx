@@ -1,4 +1,5 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import type { ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
 import {
   IconAlertTriangle,
   IconBrain,
@@ -59,6 +60,7 @@ import {
 } from './ArtifactActions'
 import type { FileReferenceOpenTarget } from './types'
 import { GenerativeUiBlock } from '../generative-ui/GenerativeUiBlock'
+import { useDshClientHost } from '@/dsh-client/DshClientHost'
 import styles from '../agent.module.scss'
 
 type StructuredField = { key: string; label: string }
@@ -70,6 +72,38 @@ export function visibleAgentError(content: unknown): string {
     return '会话已切换到新的 DSH 运行环境，请重新发送这条消息。'
   }
   return message
+}
+
+function officialToolCallBlock(block: Block): ToolCallBlock | null {
+  const value = block.metadata?.dshToolBlock
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  if (String(value.callId || '') !== block.id || !Array.isArray(value.subCalls)) return null
+  if ('kind' in value) {
+    if (value.kind !== 'tool-result' || !Array.isArray(value.content)) return null
+  } else if (typeof value.name !== 'string' || typeof value.argsRaw !== 'string') {
+    return null
+  }
+  return value as ToolCallBlock
+}
+
+function DshToolCallSurface({ block, children }: { block: Block; children: ReactNode }) {
+  const host = useDshClientHost()
+  const toolCall = useMemo(() => officialToolCallBlock(block), [block])
+  useLayoutEffect(() => {
+    if (!host || !toolCall) return
+    return host.conversation.registerToolCall(toolCall)
+  }, [host, toolCall])
+
+  if (!host || !toolCall) return children
+  return (
+    <>
+      <div
+        className={styles.toolCallTakeover}
+        data-dsh-tool-call-takeover={toolCall.callId}
+      />
+      <div className={styles.toolCallResident} data-dsh-product-tool-call-surface>{children}</div>
+    </>
+  )
 }
 
 export function AttachmentPreview({ attachment, compact = false }: { attachment: Attachment; compact?: boolean }) {
@@ -1658,15 +1692,17 @@ export const BlockView = memo(
       if (card === 'diff' && Array.isArray(diffView?.view?.diffs) && diffView.view.diffs.length > 0) {
         const diffBlock = diffViewToolBlock(b, diffView.view.diffs, b.title || 'done')
         return (
-          <FileChangeCard
-            block={diffBlock}
-            turnRunning={busy}
-            action={workspaceAction}
-            canRevert={canMutateWorkspace}
-            reverting={reverting}
-            onReview={onReviewChanges}
-            onRevert={onRevertChange}
-          />
+          <DshToolCallSurface block={b}>
+            <FileChangeCard
+              block={diffBlock}
+              turnRunning={busy}
+              action={workspaceAction}
+              canRevert={canMutateWorkspace}
+              reverting={reverting}
+              onReview={onReviewChanges}
+              onRevert={onRevertChange}
+            />
+          </DshToolCallSurface>
         )
       }
       // generic / terminal / unknown / no-view: the standard tool row. The
@@ -1677,51 +1713,53 @@ export const BlockView = memo(
       const hasDetails = Boolean(tool.rawArguments || resultBody)
       const detailId = `${b.id}:arguments`
       return (
-        <div
-          className={styles.toolCall}
-          data-agent-block="tool"
-          data-tool-name={b.metadata?.tool_name || undefined}
-          data-state={state}
-        >
-          <div className={styles.blkTool}>
-            <IconTerminal2 size={14} stroke={1.7} className={styles.toolIcon} />
-            <span className={styles.toolName}>{tool.label}</span>
-            {tool.summary && <span className={styles.toolSummary} title={tool.summary}>{tool.summary}</span>}
-            {hasDetails && (
-              <button
-                type="button"
-                className={styles.toolDetailsToggle}
-                aria-expanded={Boolean(expanded)}
-                aria-controls={detailId}
-                onClick={() => onToggleExpand(b.id, Boolean(expanded))}
-              >
-                <IconChevronRight
-                  size={12}
-                  className={expanded ? styles.trChevOpen : styles.trChev}
-                />
-                <span>{expanded ? '收起' : resultBody ? '结果' : '参数'}</span>
-              </button>
-            )}
-            <span className={styles.toolStatus} aria-label={activityStateLabel(state)} title={activityStateLabel(state)}>
-              {state === 'running' ? (
-                <span className={styles.typing} />
-              ) : state === 'error' || state === 'rejected' || state === 'stopped' ? (
-                <IconX size={13} stroke={2.2} />
-              ) : (
-                <IconCheck size={13} stroke={2.2} />
+        <DshToolCallSurface block={b}>
+          <div
+            className={styles.toolCall}
+            data-agent-block="tool"
+            data-tool-name={b.metadata?.tool_name || undefined}
+            data-state={state}
+          >
+            <div className={styles.blkTool}>
+              <IconTerminal2 size={14} stroke={1.7} className={styles.toolIcon} />
+              <span className={styles.toolName}>{tool.label}</span>
+              {tool.summary && <span className={styles.toolSummary} title={tool.summary}>{tool.summary}</span>}
+              {hasDetails && (
+                <button
+                  type="button"
+                  className={styles.toolDetailsToggle}
+                  aria-expanded={Boolean(expanded)}
+                  aria-controls={detailId}
+                  onClick={() => onToggleExpand(b.id, Boolean(expanded))}
+                >
+                  <IconChevronRight
+                    size={12}
+                    className={expanded ? styles.trChevOpen : styles.trChev}
+                  />
+                  <span>{expanded ? '收起' : resultBody ? '结果' : '参数'}</span>
+                </button>
               )}
-              <small>{activityStateLabel(state)}</small>
-            </span>
-          </div>
-          {expanded && hasDetails && (
-            <div id={detailId}>
-              {tool.rawArguments && <pre className={styles.toolArguments}>{tool.rawArguments}</pre>}
-              {resultBody && resultBody.kind === 'code'
-                ? <CodeView code={resultBody.text} max={360} />
-                : resultBody ? <pre className={styles.toolArguments}>{resultBody.text}</pre> : null}
+              <span className={styles.toolStatus} aria-label={activityStateLabel(state)} title={activityStateLabel(state)}>
+                {state === 'running' ? (
+                  <span className={styles.typing} />
+                ) : state === 'error' || state === 'rejected' || state === 'stopped' ? (
+                  <IconX size={13} stroke={2.2} />
+                ) : (
+                  <IconCheck size={13} stroke={2.2} />
+                )}
+                <small>{activityStateLabel(state)}</small>
+              </span>
             </div>
-          )}
-        </div>
+            {expanded && hasDetails && (
+              <div id={detailId}>
+                {tool.rawArguments && <pre className={styles.toolArguments}>{tool.rawArguments}</pre>}
+                {resultBody && resultBody.kind === 'code'
+                  ? <CodeView code={resultBody.text} max={360} />
+                  : resultBody ? <pre className={styles.toolArguments}>{resultBody.text}</pre> : null}
+              </div>
+            )}
+          </div>
+        </DshToolCallSurface>
       )
     }
     if (b.type === 'file_change') {

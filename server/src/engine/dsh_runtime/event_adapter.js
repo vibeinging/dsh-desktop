@@ -51,12 +51,26 @@ export function parseArguments(value) {
 }
 
 export function toolCallItemFromEvent(event, view = null) {
+  const callId = toolCallItemId(event);
+  const name = String(event?.data?.name || "tool");
+  const argsRaw = String(event?.data?.arguments || "");
+  const dshToolBlock = {
+    callId,
+    name,
+    argsRaw,
+    turn: Number(event?.data?.turn || 0),
+    step: Number(event?.data?.step || 0),
+    time: Number(event?.time || 0),
+    callView: view?.for === "call" ? view.view : null,
+    subCalls: [],
+  };
   return {
-    id: toolCallItemId(event),
+    id: callId,
     type: "dynamicToolCall",
-    tool: String(event?.data?.name || "tool"),
+    tool: name,
     arguments: parseArguments(event?.data?.arguments),
     status: "inProgress",
+    dshToolBlock,
     dshView: view,
     dshCallView: view?.for === "call" ? view : null,
     dshResultView: null,
@@ -67,14 +81,32 @@ export function toolCallItemFromEvent(event, view = null) {
 export function toolResultItemFromEvent(event, view = null, callItem = null) {
   const resultBlock = event?.data?.message?.content?.find?.((block) => block?.type === "tool-result");
   const output = textFromBlocks(resultBlock?.content || event?.data?.message?.content);
+  const callId = toolResultItemId(event?.data);
+  const previous = callItem?.dshToolBlock;
+  const dshToolBlock = {
+    kind: "tool-result",
+    seq: Number(event?.seq || 0),
+    time: Number(event?.time || 0),
+    callId,
+    call: previous ? { name: previous.name, argsRaw: previous.argsRaw } : null,
+    callTime: previous?.time ?? null,
+    content: Array.isArray(resultBlock?.content) ? resultBlock.content : [],
+    isError: resultBlock?.isError === true || Boolean(event?.data?.error),
+    ...(event?.data?.error ? { error: event.data.error } : {}),
+    ...(event?.data?.meta !== undefined ? { meta: event.data.meta } : {}),
+    callView: previous?.callView ?? null,
+    resultView: view?.for === "result" ? view.view : null,
+    subCalls: [],
+  };
   return {
-    id: toolResultItemId(event?.data),
+    id: callId,
     type: "dynamicToolCall",
     tool: callItem?.tool || String(view?.view?.title || "tool"),
     arguments: callItem?.arguments,
     status: resultBlock?.isError || event?.data?.error ? "failed" : "completed",
     success: !(resultBlock?.isError || event?.data?.error),
     contentItems: output ? [{ type: "inputText", text: output }] : [],
+    dshToolBlock,
     dshView: view,
     dshCallView: callItem?.dshCallView || (callItem?.dshView?.for === "call" ? callItem.dshView : null),
     dshResultView: view?.for === "result" ? view : null,

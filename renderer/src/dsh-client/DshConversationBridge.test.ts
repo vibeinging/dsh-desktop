@@ -3,7 +3,8 @@ import type {
   ClientContext,
   SessionBinding,
   SessionId,
-  SessionListState
+  SessionListState,
+  ToolCallBlock
 } from '@deepseek-ai/dsh-client-runtime/client'
 import type { MenuState, PickOutcome } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { DshConversationBridge } from './DshConversationBridge'
@@ -263,6 +264,34 @@ describe('DshConversationBridge', () => {
     bridge.dispose()
     bridge.runProductCommand(sessionId, 'runs')
     expect(runCommand).toHaveBeenCalledOnce()
+  })
+
+  it('publishes official Tool blocks without storing a second Tool lifecycle', () => {
+    const list = sessionList()
+    const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const listener = vi.fn()
+    const unsubscribe = bridge.subscribeToolCalls(listener)
+    const block: ToolCallBlock = {
+      callId: 'call-1',
+      name: 'bash',
+      argsRaw: '{"command":"pwd"}',
+      turn: 1,
+      step: 1,
+      time: 1000,
+      callView: null,
+      subCalls: []
+    }
+
+    const unregister = bridge.registerToolCall(block)
+    expect(bridge.getToolCallSnapshot().get('call-1')).toBe(block)
+    expect(listener).toHaveBeenCalledOnce()
+
+    unregister()
+    expect(bridge.getToolCallSnapshot().has('call-1')).toBe(false)
+    expect(listener).toHaveBeenCalledTimes(2)
+
+    unsubscribe()
+    bridge.dispose()
   })
 
   it('applies official reference events to the product draft and serializes through the source codec', async () => {

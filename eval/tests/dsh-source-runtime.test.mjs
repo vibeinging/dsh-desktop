@@ -298,7 +298,7 @@ test("DSH event adapter projects text, tools, plans, and lifecycle events", asyn
     type: "tool/call",
     seq: 4,
     time: 1003,
-    data: { callId: "c1", name: "bash", arguments: '{"command":"pwd"}' },
+    data: { turn: 2, step: 2, callId: "c1", name: "bash", arguments: '{"command":"pwd"}' },
   });
   await adapter.handle({
     type: "tool/result",
@@ -329,9 +329,32 @@ test("DSH event adapter projects text, tools, plans, and lifecycle events", asyn
   assert.equal(notifications[2].params.item.metadata.dsh_turn, 2);
   assert.equal(notifications[2].params.item.metadata.dsh_closing_seq, 3);
   assert.equal(notifications[3].params.item.dshCallSeq, 4);
+  assert.deepEqual(notifications[3].params.item.dshToolBlock, {
+    callId: "c1",
+    name: "bash",
+    argsRaw: '{"command":"pwd"}',
+    turn: 2,
+    step: 2,
+    time: 1003,
+    callView: null,
+    subCalls: [],
+  });
   assert.equal(notifications[4].params.item.dshCallSeq, 4);
   assert.equal(notifications[4].params.item.dshResultSeq, 5);
   assert.equal(notifications[4].params.item.contentItems[0].text, "/repo");
+  assert.deepEqual(notifications[4].params.item.dshToolBlock, {
+    kind: "tool-result",
+    seq: 5,
+    time: 1004,
+    callId: "c1",
+    call: { name: "bash", argsRaw: '{"command":"pwd"}' },
+    callTime: 1003,
+    content: [{ type: "text", text: "/repo" }],
+    isError: false,
+    callView: null,
+    resultView: null,
+    subCalls: [],
+  });
   assert.equal(dshTurnStatus({ kind: "aborted" }), "interrupted");
   assert.equal(dshTurnStatus({ kind: "error" }), "failed");
 });
