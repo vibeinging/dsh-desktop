@@ -129,6 +129,8 @@ DeepSeek Harness Desktop App 是一个 DSH Profile 发行版和 Electron 插件�
 
 `dsh-client-product-attachments` 持有正式 Client 的草稿附件展示：首个 DSH Session 建立前进入桌面壳明确声明的根扩展 `dsh-work.composer.pre-session`，Session 绑定后进入标准 `conversation.input.dock`。它只消费 Session 围栏下的 `dshWorkProductAttachments` 服务，插件看不到本地路径或附件字节。图片轨道直接复用 rc.6 官方 `AttachmentRail` React 组件；官方组件尚未支持的文件、目录、音视频和文档选区由桌面适配层显示。官方 Web 的 `ui-conversation` 仍在自己的私有控制器中保存浏览器 `File` 与临时图片 id，而桌面 App 通过受信任 Host 接纳本地路径，所以本 Bundle 明确是 `desktop-adapter`，不会把两套草稿身份伪装成同一个协议。
 
+正式 Client 的会话权限完全使用 rc.6 官方 `dsh-client-ui-permission-presets`：当前 Session 通过官方 `/permission` 弹出选择器修改，新会话默认值通过官方设置行修改，Full access 风险确认也由该插件负责。App 已删除自己的 `PermissionPicker`，产品桥不再订阅或复制 `permissions` projection。
+
 正式 Client 中的 Skill 目录与选择也由 Profile 中的官方 `@deepseek-ai/dsh-client-ui-skill` 持有。它按当前 Session 调用 `skill.list`，把 `skill` 来源注册进 `inputTriggers`，并把 `/<name> ` 引用写回同一份草稿；App 自有 Skill 菜单只保留给没有 DSH Client Host 的独立开发页。
 
 文件与会话引用同样进入官方 InputTrigger 菜单。文件候选来自当前项目已授权的目录，选择后写入 `@<path> `；会话候选写入 `#<title> `。rc.6 的公开触发字符只有 `/` 和 `@`，所以两类候选暂时共用 `@` 菜单，不能把独立 `#` 菜单伪装成官方能力；没有 DSH Client Host 的独立开发页继续保留旧选择器。

@@ -436,8 +436,7 @@ try {
     timeout: 15_000,
     label: '官方 Plan 插件关闭当前 Session 的 plan mode',
   })
-  const permissionBefore = await session.evalJs(`return document.querySelector('[data-testid="dsh-permission-picker"]')?.getAttribute('data-dsh-permission-value') || ''`)
-  assert.ok(permissionBefore, 'DSH Session 没有提供 permissions projection')
+  assert.equal(await session.evalJs(`return document.querySelector('[data-testid="dsh-permission-picker"]') === null`), true)
   await ui.fill('[data-testid="agent-message-input"]', '/permission')
   const officialPermissionCommand = '[role="option"][id^="dsh-slash-option-command-"]'
   await ui.waitFor(officialPermissionCommand, { timeout: 10_000 })
@@ -451,7 +450,7 @@ try {
     timeout: 10_000,
     label: '官方 permission decoration 关闭',
   })
-  assert.equal(await session.evalJs(`return document.querySelector('[data-testid="dsh-permission-picker"]')?.getAttribute('data-dsh-permission-value') || ''`), permissionBefore)
+  assert.equal(await session.evalJs(`return document.querySelector('[data-testid="dsh-permission-picker"]') === null`), true)
   const goalObjective = `验证官方 Goal UI 插件-${stamp}`
   await ui.fill('[data-testid="agent-message-input"]', '/goal')
   const officialGoalCommand = '[role="option"][id^="dsh-slash-option-command-"]'

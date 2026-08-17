@@ -1074,6 +1074,7 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-search-mode\/client\.js\?rev=/);
     assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-workspaces\/client\.js\?rev=/);
     assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-attachments\/client\.js\?rev=/);
+    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-ui-permission-presets\/client\.js\?rev=/);
     assert.match(html, /const preference = "dark"/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-product-client\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-turn-navigator\/client\.js\?rev=/);

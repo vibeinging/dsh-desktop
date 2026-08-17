@@ -1567,13 +1567,6 @@ export const watchDshSessionProtocol = (projectId: string, threadId: string, sig
   signal
 })
 
-export const setDshSessionPermission = (projectId: string, threadId: string, preset: string) => request({
-  url: `/api/agent/projects/${pe(projectId)}/threads/${pe(threadId)}/dsh-permission`,
-  method: 'post',
-  data: { preset },
-  ignoreMsg: true
-})
-
 export const setDshSessionPlanMode = (
   projectId: string,
   threadId: string,

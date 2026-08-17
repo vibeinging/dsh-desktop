@@ -39,14 +39,12 @@ import {
   startAgentReview,
   stopAgentRun,
   setDshSessionPlanMode,
-  setDshSessionPermission,
   updateDshSessionQueueItem,
   watchDshSessionProtocol
 } from '@/api/agent'
 import type {
   AgentMessageBranchMode,
   AgentNativePendingInteraction,
-  DshPermissionSelect,
   DshQueueItem,
   DshSessionProtocolState
 } from '@/api/agent'
@@ -59,7 +57,6 @@ import type { Artifact, PlanStep, SkillTrace, ToolCall } from '@/layout/workstat
 import type { Workspace } from './AgentNav'
 import WorkspacePicker from './WorkspacePicker'
 import ComposerActions, { type Attachment } from './ComposerActions'
-import PermissionPicker from './PermissionPicker'
 import CollaborationModePicker from './CollaborationModePicker'
 import {
   collaborationModeFromDshPlan,
@@ -949,12 +946,6 @@ function DshWorkAgentConversation({
     })
   }, [latestTurnDiff, turnDiffs, workspaceDiff])
 
-  // Permission options and the active value come only from DSH's per-session
-  // `permissions` projection. A conversation without that capability renders
-  // no permission control instead of inventing an App-side fallback.
-  const [permissionSelect, setPermissionSelect] = useState<DshPermissionSelect | null>(null)
-  const [permissionChanging, setPermissionChanging] = useState(false)
-
   // DSH's per-session `plan` projection is the durable authority. A blank
   // conversation keeps only an in-memory choice until its first DSH Session exists.
   const [collaborationMode, setCollaborationModeState] = useState<CollaborationMode>('default')
@@ -985,24 +976,8 @@ function DshWorkAgentConversation({
       : []
     setQueueState(next)
   }
-  const applyDshPermissionSnapshot = (state: DshProjectedSessionState | null | undefined) => {
-    const projection = state?.projections?.permissions
-    if (!projection || typeof projection !== 'object') {
-      setPermissionSelect(null)
-      return
-    }
-    const raw = projection as Partial<DshPermissionSelect>
-    const currentValue = String(raw.currentValue || '').trim()
-    const options = (Array.isArray(raw.options) ? raw.options : []).map((option) => ({
-      value: String(option?.value || '').trim(),
-      name: String(option?.name || option?.value || '').trim(),
-      ...(String(option?.description || '').trim() ? { description: String(option?.description).trim() } : {})
-    })).filter((option) => option.value && option.name)
-    setPermissionSelect(currentValue && options.length ? { currentValue, options } : null)
-  }
   const applyDshProjectedSessionState = (state: DshProjectedSessionState | null | undefined) => {
     applyDshQueueSnapshot(state)
-    applyDshPermissionSnapshot(state)
     applyDshPlanSnapshot(state)
   }
   const applyStandaloneDshSessionState = (state: DshSessionProtocolState | null | undefined) => {
@@ -1054,8 +1029,6 @@ function DshWorkAgentConversation({
 
   useEffect(() => {
     setQueueState([])
-    setPermissionSelect(null)
-    setPermissionChanging(false)
     adoptCollaborationMode('default')
     setCollaborationModeChanging(false)
     setQEditing(null)
@@ -3084,31 +3057,6 @@ function DshWorkAgentConversation({
             value={collaborationMode}
             disabled={effectiveBusy || collaborationModeChanging}
             onChange={(mode) => void changeCollaborationMode(mode)}
-          />
-        )}
-        {permissionSelect && (
-          <PermissionPicker
-            value={permissionSelect}
-            disabled={effectiveBusy || permissionChanging}
-            onChange={async (preset) => {
-              const currentSessionId = sessionIdRef.current
-              if (!currentSessionId || permissionChanging) return
-              setPermissionChanging(true)
-              try {
-                const response: any = await setDshSessionPermission(projectId, currentSessionId, preset)
-                if (sessionIdRef.current === currentSessionId) {
-                  applyStandaloneDshSessionState(response?.data as DshSessionProtocolState)
-                }
-              } catch (error: any) {
-                notifications.show({
-                  color: 'orange',
-                  title: '未能更新 DSH 会话权限',
-                  message: error?.message || '请检查当前 Profile 后重试。'
-                })
-              } finally {
-                setPermissionChanging(false)
-              }
-            }}
           />
         )}
         <div className={styles.composerInlineSlot} data-dsh-conversation-input-left />

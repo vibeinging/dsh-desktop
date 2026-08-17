@@ -189,7 +189,7 @@ describe('DshConversationBridge', () => {
     bridge.dispose()
   })
 
-  it('projects queue and projections from the selected official Client Session', () => {
+  it('projects queue and Plan from the selected official Client Session', () => {
     const sessionId = 'dsh-session-authoritative-state' as SessionId
     const list = sessionList()
     const queue = [{
@@ -206,8 +206,7 @@ describe('DshConversationBridge', () => {
       running: false
     } as unknown as ConversationSnapshot)
     const plan = observableStore<unknown>({ active: true })
-    const permissions = observableStore<unknown>({ currentValue: 'workspace-write', options: [] })
-    const projectionStores = { plan, permissions }
+    const projectionStores = { plan }
     const binding = {
       sessionId,
       session: {
@@ -234,25 +233,21 @@ describe('DshConversationBridge', () => {
       queue,
       running: false,
       projections: {
-        plan: { active: true },
-        permissions: { currentValue: 'workspace-write', options: [] }
+        plan: { active: true }
       }
     })
 
     const nextQueue: ConversationSnapshot['queue'] = [{ ...queue[0], text: 'later', preview: 'later' }]
     conversation.set({ ...conversation.getSnapshot(), queue: nextQueue, running: true })
     plan.set({ active: false })
-    permissions.set({ currentValue: 'read-only', options: [] })
     expect(bridge.getSessionStateSnapshot()).toMatchObject({ queue: nextQueue, running: true })
     expect(bridge.getSessionStateSnapshot()?.projections.plan).toEqual({ active: false })
-    expect(bridge.getSessionStateSnapshot()?.projections.permissions).toEqual({ currentValue: 'read-only', options: [] })
-    expect(listener).toHaveBeenCalledTimes(4)
+    expect(listener).toHaveBeenCalledTimes(3)
 
     bridge.syncSession(null)
     expect(bridge.getSessionStateSnapshot()).toBeUndefined()
     expect(conversation.listenerCount()).toBe(0)
     expect(plan.listenerCount()).toBe(0)
-    expect(permissions.listenerCount()).toBe(0)
     bridge.dispose()
   })
 

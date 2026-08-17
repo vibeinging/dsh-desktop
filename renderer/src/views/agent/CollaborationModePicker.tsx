@@ -32,10 +32,10 @@ export default function CollaborationModePicker({
 
   const ActiveIcon = active.Icon
   return (
-    <div className={styles.permPick} ref={ref} data-collaboration-mode={value}>
+    <div className={styles.modePick} ref={ref} data-collaboration-mode={value}>
       <button
         type="button"
-        className={styles.permBtn}
+        className={styles.modeBtn}
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
         title="工作模式"
@@ -47,15 +47,15 @@ export default function CollaborationModePicker({
       </button>
 
       {open && (
-        <div className={styles.permPanel} role="menu" aria-label="工作模式">
-          <div className={styles.permHd}>选择本轮工作方式</div>
+        <div className={styles.modePanel} role="menu" aria-label="工作模式">
+          <div className={styles.modeHeading}>选择本轮工作方式</div>
           {MODES.map((mode) => {
             const Icon = mode.Icon
             return (
               <button
                 key={mode.value}
                 type="button"
-                className={styles.permItem}
+                className={styles.modeItem}
                 role="menuitemradio"
                 aria-checked={mode.value === value}
                 onClick={() => {
@@ -63,16 +63,16 @@ export default function CollaborationModePicker({
                   setOpen(false)
                 }}
               >
-                <Icon size={17} stroke={1.6} className={styles.permItemIcon} />
-                <span className={styles.permItemBody}>
-                  <span className={styles.permItemLabel}>{mode.label}</span>
-                  <span className={styles.permItemDesc}>{mode.desc}</span>
+                <Icon size={17} stroke={1.6} className={styles.modeItemIcon} />
+                <span className={styles.modeItemBody}>
+                  <span className={styles.modeItemLabel}>{mode.label}</span>
+                  <span className={styles.modeItemDescription}>{mode.desc}</span>
                 </span>
-                {mode.value === value && <IconCheck size={15} stroke={2} className={styles.permCheck} />}
+                {mode.value === value && <IconCheck size={15} stroke={2} className={styles.modeCheck} />}
               </button>
             )
           })}
-          <div className={styles.permNote}>计划模式不会修改文件、数据、配置或其他内容。</div>
+          <div className={styles.modeNote}>计划模式不会修改文件、数据、配置或其他内容。</div>
         </div>
       )}
     </div>

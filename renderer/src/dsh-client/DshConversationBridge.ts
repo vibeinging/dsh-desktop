@@ -71,7 +71,6 @@ export interface DshWorkSessionState {
   readonly running: boolean
   readonly projections: Readonly<{
     plan: unknown
-    permissions: unknown
   }>
 }
 
@@ -719,7 +718,6 @@ export class DshConversationBridge {
       && previous?.queue === next?.queue
       && previous?.running === next?.running
       && previous?.projections.plan === next?.projections.plan
-      && previous?.projections.permissions === next?.projections.permissions
     ) return
     this.#sessionStateSnapshot = next
     for (const listener of this.#sessionStateListeners) listener()
@@ -954,20 +952,17 @@ export class DshConversationBridge {
       return
     }
     const plan = binding.session.projections.faceOf('plan')
-    const permissions = binding.session.projections.faceOf('permissions')
-    const publish = () => this.#readSessionState(binding, plan.getSnapshot(), permissions.getSnapshot())
+    const publish = () => this.#readSessionState(binding, plan.getSnapshot())
     this.#sessionStateUnsubscribes = [
       binding.session.subscribe(publish),
-      plan.subscribe(publish),
-      permissions.subscribe(publish)
+      plan.subscribe(publish)
     ]
     publish()
   }
 
   #readSessionState(
     binding: SessionBinding | undefined,
-    plan = binding?.session.projections.faceOf('plan').getSnapshot(),
-    permissions = binding?.session.projections.faceOf('permissions').getSnapshot()
+    plan = binding?.session.projections.faceOf('plan').getSnapshot()
   ) {
     if (!binding || binding !== this.#sessionStateBinding) return
     const snapshot = binding.session.getSnapshot()
@@ -975,7 +970,7 @@ export class DshConversationBridge {
       sessionId: binding.sessionId,
       queue: snapshot.queue,
       running: snapshot.running,
-      projections: Object.freeze({ plan, permissions })
+      projections: Object.freeze({ plan })
     }))
   }
 
