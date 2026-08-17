@@ -255,10 +255,24 @@ try {
   })
   writeFileSync(screenshotPath, Buffer.from(shot.data, 'base64'))
 
+  await ui.click('[data-agent-nav="plugins"]')
+  await ui.waitFor('[data-community-plugin-install="dsh-web-ui"]', { timeout: 20_000 })
+  const navigationProof = await session.evalJs(`
+    return {
+      taskBoardActive: document.documentElement.hasAttribute('data-dsh-taskboard-active'),
+      taskBoardEntryActive: document.querySelector('[data-dsh-taskboard-entry]')?.getAttribute('data-active') || null,
+      pluginDirectoryVisible: Boolean(document.querySelector('[data-community-plugin-install="dsh-web-ui"]')),
+    };
+  `)
+  assert.equal(navigationProof.taskBoardActive, false)
+  assert.equal(navigationProof.taskBoardEntryActive, null)
+  assert.equal(navigationProof.pluginDirectoryVisible, true)
+
   console.log(JSON.stringify({
     source: '@linxin666/dsh-web-ui-all@0.1.20 installed through the rc.7 Profile service in real isolated Electron',
     screenshot: screenshotPath,
     proof,
+    navigationProof,
   }, null, 2))
 } finally {
   try { await session?.close() } catch { /* ignore */ }

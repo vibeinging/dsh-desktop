@@ -218,6 +218,10 @@ test('the product shell exposes stable DSH community Client pane hooks', () => {
   assert.doesNotMatch(shell, /navHandleColumn|workspaceHandleColumn/);
   assert.match(shell, /data-side="nav"[\s\S]{0,180}?style=\{\{ left:/);
   assert.match(shell, /data-side="workspace"[\s\S]{0,180}?style=\{\{ right:/);
+  assert.match(shell, /const COMMUNITY_CENTER_ENTRY_SELECTORS = \[[\s\S]*data-dsh-taskboard-entry[\s\S]*data-dsh-ssh-entry/);
+  assert.match(shell, /function closeActiveCommunityCenterPanel\(\)[\s\S]{0,220}?\.click\(\)/);
+  assert.match(shell, /const openSettings[\s\S]{0,220}?closeActiveCommunityCenterPanel\(\)/);
+  assert.match(shell, /const openPluginDirectory[\s\S]{0,220}?closeActiveCommunityCenterPanel\(\)/);
   assert.match(readAppFile('renderer', 'src', 'views', 'agent', 'agent.module.scss'), /\.center > :global\(\[data-dsh-taskboard-view\]\)[\s\S]{0,180}?position:\s*absolute/);
   assert.match(clientShell, /The replacement attributes retain the[\s\S]{0,180}?outer frame's layout/);
   assert.match(clientShell, /guardProductPaneOwnership\(document\)/);

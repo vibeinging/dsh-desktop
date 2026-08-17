@@ -12,6 +12,8 @@ DeepSeek Harness Desktop App 已经可以通过 DSH rc.7 的 Web Profile 安装�
 
 产品根布局从五个 CSS 网格轨道收敛为 DSH Web 使用的三轨 `sidebar | conversation | details` 合同，并提供 `data-dsh-frame`、`data-pane="sidebar"`、`data-pane="conversation"` 和 `data-pane="details"`。社区 AionUI 在这三轨之后增加自己的 preview 与 explorer 轨道，任务看板和 SSH 则使用产品导航及中间区，不再依赖私有类名猜测。
 
+社区任务看板和 SSH 使用自己的入口维护中间区打开状态。产品切换到设置或插件中心前会点击当前激活的社区入口完成正式关闭，让社区控制器、HTML 状态和产品路由保持一致；不会只移除可见样式而留下错误的插件状态。
+
 ## 权限边界
 
 聚合包包含读取本地仓库和图片、运行 Git 与 SSH、远程 Web、SSH、模型服务和电源保持进程等主机侧能力。它不是普通配色插件。插件中心在安装对话中明确显示本地文件、进程和网络三类权限，且只允许审查过的 `0.1.20` 聚合包与 13 个同版本依赖进入当前 Renderer。其他第三方 Client 仍保持隔离。
@@ -21,7 +23,7 @@ DeepSeek Harness Desktop App 已经可以通过 DSH rc.7 的 Web Profile 安装�
 - `node --test eval/tests/agent-shell-layout.test.mjs eval/tests/dsh-profile-plugin-service.test.mjs eval/tests/dsh-trusted-client-plugins.test.mjs`：38 个聚焦测试通过。
 - `npm run typecheck`：通过。
 - `npm run build:desktop-assets`：通过，正式 Client Bundle 已重建。
-- `npm run smoke:dsh-web-ui`：在隔离数据目录启动真实 Electron，通过插件中心 API 完成 rc.7 Profile 预检、安装和页面重载；任务看板与 SSH 入口存在，任务看板在产品 `conversation` 中间区内显示 5 列，没有把外部 `data-pane` 带到产品框架之外。
+- `npm run smoke:dsh-web-ui`：在隔离数据目录启动真实 Electron，通过插件中心 API 完成 rc.7 Profile 预检、安装和页面重载；任务看板与 SSH 入口存在，任务看板在产品 `conversation` 中间区内显示 5 列，没有把外部 `data-pane` 带到产品框架之外；从任务看板进入产品插件中心后，社区入口与 HTML 激活状态都已关闭。
 - README 截图：`docs/images/readme/dsh-web-ui-task-board.png`，由同一真实 Electron 冒烟脚本直接保存。
 
 ## 当前边界

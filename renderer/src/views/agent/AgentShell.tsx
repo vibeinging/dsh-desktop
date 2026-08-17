@@ -174,6 +174,16 @@ const AUTO_ARCHIVE_BLOCKED_RUN_STATUS = new Set([
 ])
 const EDGE_EXPAND_THRESHOLD = 64
 const WORKSPACE_MIN_WIDTH = 300
+const COMMUNITY_CENTER_ENTRY_SELECTORS = [
+  '[data-dsh-taskboard-entry][data-active="true"]',
+  '[data-dsh-ssh-entry][data-active="true"]'
+] as const
+
+function closeActiveCommunityCenterPanel() {
+  for (const selector of COMMUNITY_CENTER_ENTRY_SELECTORS) {
+    document.querySelector<HTMLButtonElement>(selector)?.click()
+  }
+}
 
 const CONVERSATION_WORKSPACE_EVENTS = new Set([
   'conversation_created',
@@ -637,6 +647,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
 
   const openSettings = useCallback((initialActive = 'general') => {
     if (!leaveTemporaryConversation()) return
+    closeActiveCommunityCenterPanel()
     setSettingsInitialActive(initialActive)
     setShowSettings(true)
   }, [leaveTemporaryConversation])
@@ -650,6 +661,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
 
   const openPluginDirectory = useCallback(() => {
     if (!leaveTemporaryConversation()) return
+    closeActiveCommunityCenterPanel()
     setShowSettings(false)
     setShowSearch(false)
     setConfigWsId(null)
