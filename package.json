@@ -51,6 +51,7 @@
     "smoke:browser-workspace-ui": "node scripts/run-with-project-node.mjs node eval/browser-workspace-ui-smoke.mjs",
     "smoke:workbench-tabs-ui": "node scripts/run-with-project-node.mjs node eval/workbench-tabs-ui-smoke.mjs",
     "smoke:dsh-market-ui": "node scripts/run-with-project-node.mjs node eval/dsh-market-ui-smoke.mjs",
+    "smoke:dsh-web-ui": "node scripts/run-with-project-node.mjs node eval/readme-dsh-web-ui-media-capture.mjs",
     "smoke:dsh-native-memory": "node scripts/run-with-project-node.mjs node eval/dsh-native-memory-smoke.mjs",
     "smoke:project-files-search-ui": "node scripts/run-with-project-node.mjs node eval/project-files-search-ui-smoke.mjs",
     "smoke:project-artifacts-ui": "node scripts/run-with-project-node.mjs node eval/project-artifacts-ui-smoke.mjs",

@@ -1,5 +1,5 @@
 // Agent shell: left = chats/projects, center = the active task, right = results/browser/files/artifacts/sites.
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import {
   IconArchive,
@@ -1636,12 +1636,8 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
   const showWsInGrid = hasWorkbenchContext && (!wsCollapsed || wsClosing)
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
   const navColumn = navCollapsed ? '0px' : `${navWidth}px`
-  const navHandleColumn = navCollapsed ? '8px' : '5px'
   const workspaceColumn = showWsInGrid ? (workspaceWidth == null ? '40%' : `${workspaceWidth}px`) : '0px'
-  const workspaceHandleColumn = showWsInGrid ? '5px' : '0px'
-  const gridTemplateColumns = mountWorkbench
-    ? `${navColumn} ${navHandleColumn} minmax(360px, 1fr) ${workspaceHandleColumn} ${workspaceColumn}`
-    : `${navColumn} ${navHandleColumn} minmax(360px, 1fr)`
+  const gridTemplateColumns = `${navColumn} minmax(360px, 1fr) ${workspaceColumn}`
   const shellStyle = {
     gridTemplateColumns,
     '--dsh-nav-width': `${navWidth}px`,
@@ -2139,6 +2135,8 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
       ref={shellRef}
       className={`${styles.shell} ${showWsInGrid ? '' : styles.shellHome} ${navCollapsed ? styles.shellNavCollapsed : ''}`}
       style={shellStyle}
+      data-dsh-frame
+      data-sidebar-collapsed={navCollapsed ? 'true' : undefined}
       data-window-full-screen={windowFullScreen ? 'true' : 'false'}
       onPointerLeave={() => {
         if (navCollapsed) setNavPeeking(false)
@@ -2278,6 +2276,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
       )}
       <aside
         className={styles.rail}
+        data-pane="sidebar"
         data-collapsed={navCollapsed ? 'true' : undefined}
         data-peeking={navCollapsed && navPeeking ? 'true' : undefined}
       >
@@ -2330,12 +2329,13 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
         className={styles.resizeHandle}
         data-side="nav"
         data-collapsed={navCollapsed ? 'true' : undefined}
+        style={{ left: navCollapsed ? '0px' : `${navWidth}px` }}
         role="separator"
         aria-orientation="vertical"
         aria-label="调整左侧导航宽度"
         onPointerDown={(event) => startResize('nav', event)}
       />
-      <main className={styles.center}>
+      <main className={styles.center} data-pane="conversation">
         {routeContent ? routeContent : mainView === 'plugins' ? (
           <PluginCenter
             surface="directory"
@@ -2431,6 +2431,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
               className={styles.resizeHandle}
               data-side="workspace"
               data-inert={wsClosing ? 'true' : undefined}
+              style={{ right: workspaceColumn }}
               role="separator"
               aria-orientation="vertical"
               aria-label="调整工作台宽度"
@@ -2439,6 +2440,7 @@ export default function AgentShell({ routeContent = null }: { routeContent?: Rea
           )}
           <aside
             className={styles.aside}
+            data-pane="details"
             data-closing={wsClosing ? 'true' : undefined}
             data-collapsed={workbenchHidden ? 'true' : undefined}
             aria-hidden={workbenchHidden}

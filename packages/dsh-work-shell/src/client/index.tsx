@@ -147,8 +147,92 @@ class DshWorkLayoutAdapter implements ILayout {
   }
 }
 
+const OFFICIAL_FRAME_PANES = ['sidebar', 'conversation', 'details'] as const
+type OfficialFramePane = (typeof OFFICIAL_FRAME_PANES)[number]
+
+const OFFICIAL_FRAME_CLASS_PART: Record<OfficialFramePane, string> = {
+  sidebar: 'sidebarCol',
+  conversation: 'centerCol',
+  details: 'detailsCol'
+}
+
+const OUTER_FRAME_COMPAT_CSS = `
+[data-dsh-work-outer-pane='sidebar'] {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--dsw-specific-sidebar-fill);
+  border-right: 1px solid var(--dsw-alias-border-l1);
+}
+[data-dsh-work-outer-pane='conversation'] {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+[data-dsh-work-outer-pane='details'] {
+  min-width: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--dsw-alias-border-l2);
+}
+[data-details-collapsed] > [data-dsh-work-outer-pane='details'] {
+  border-left: none;
+}
+`
+
+/**
+ * Keep DOM-selecting community clients on the product frame instead of the
+ * official AppFrame that hosts it. The replacement attributes retain the
+ * outer frame's layout while removing the class substrings those clients use
+ * as their rc.6 fallback selectors.
+ */
+function guardProductPaneOwnership(documentRoot: Document): () => void {
+  const changed = new Map<HTMLElement, { pane: OfficialFramePane; classTokens: string[] }>()
+  const style = documentRoot.createElement('style')
+  style.dataset.dshWorkOuterPaneCompat = ''
+  style.textContent = OUTER_FRAME_COMPAT_CSS
+  documentRoot.head.append(style)
+
+  const neutralizeOfficialFrame = () => {
+    for (const sidebar of documentRoot.querySelectorAll<HTMLElement>('[class*="sidebarCol"]')) {
+      const parent = sidebar.parentElement
+      if (!parent || sidebar.closest('[data-dsh-frame]')) continue
+      const children = Array.from(parent.children).filter((child): child is HTMLElement => child instanceof HTMLElement)
+      const panes = Object.fromEntries(OFFICIAL_FRAME_PANES.map((pane) => [
+        pane,
+        children.find((child) => Array.from(child.classList).some((token) => token.includes(OFFICIAL_FRAME_CLASS_PART[pane])))
+      ])) as Record<OfficialFramePane, HTMLElement | undefined>
+      if (OFFICIAL_FRAME_PANES.some((pane) => !panes[pane])) continue
+
+      for (const pane of OFFICIAL_FRAME_PANES) {
+        const element = panes[pane]
+        if (!element || changed.has(element)) continue
+        const classTokens = Array.from(element.classList).filter((token) => token.includes(OFFICIAL_FRAME_CLASS_PART[pane]))
+        if (!classTokens.length) continue
+        changed.set(element, { pane, classTokens })
+        element.dataset.dshWorkOuterPane = pane
+        element.removeAttribute('data-pane')
+        for (const token of classTokens) element.classList.remove(token)
+      }
+    }
+  }
+
+  neutralizeOfficialFrame()
+  const observer = new MutationObserver(neutralizeOfficialFrame)
+  observer.observe(documentRoot.body, { childList: true, subtree: true })
+  return () => {
+    observer.disconnect()
+    style.remove()
+    for (const [element, state] of changed) {
+      if (!element.isConnected) continue
+      delete element.dataset.dshWorkOuterPane
+      for (const token of state.classTokens) element.classList.add(token)
+    }
+  }
+}
+
 /** Register the dsh-work product shell into the shared DSH root Slot. */
 export function apply(ctx: ClientContext) {
+  ctx.effect(() => guardProductPaneOwnership(document), 'dsh-work product pane ownership')
   const layout = new DshWorkLayoutAdapter()
   const conversation = new DshConversationBridge(ctx.sessions, ctx.inputTriggers)
   const runtime: DshClientRuntimeBridge = {

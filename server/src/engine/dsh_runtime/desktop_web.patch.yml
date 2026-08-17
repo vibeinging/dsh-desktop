@@ -13,6 +13,13 @@
     surfaceContext: false
     trustedHosts: []
 
+# dsh-web-ui's aggregate compatibility shim targets the outer official
+# AppFrame by CSS-module class name. This desktop shell exposes explicit
+# data-pane hooks inside its product frame, so loading that shim would make
+# DOM-based community panels mount into the wrong, outer columns.
+- id: web-ui-compat
+  disabled: true
+
 # Match the App's already enforced image admission limits. DSH still validates
 # image bytes and stores only durable content-addressed references in history.
 - id: attachment-local

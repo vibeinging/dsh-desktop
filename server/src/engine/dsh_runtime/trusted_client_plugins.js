@@ -8,6 +8,7 @@ import {
   rmSync,
   symlinkSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -113,8 +114,37 @@ const RETIRED_DSH_PLUGINS = Object.freeze([
 // Reviewed community Client Plugins may run in the product renderer only at
 // the exact audited version. Every other user-installed Client stays outside
 // the active graph until the separate no-preload renderer is available.
+const DSH_WEB_UI_DEPENDENCIES = Object.freeze({
+  "@linxin666/dsh-client-ui-community-plugins": "0.1.20",
+  "@linxin666/dsh-client-ui-aionui-panel": "0.1.20",
+  "@linxin666/dsh-client-ui-task-board": "0.1.20",
+  "@linxin666/dsh-client-ui-git-graph": "0.1.20",
+  "@linxin666/dsh-pet": "0.1.20",
+  "@linxin666/dsh-remote-web-ui": "0.1.20",
+  "@linxin666/dsh-live-stats": "0.1.20",
+  "@linxin666/dsh-ssh": "0.1.20",
+  "@linxin666/dsh-tool-describe-image": "0.1.20",
+  "@linxin666/dsh-liangshen": "0.1.20",
+  "@linxin666/dsh-client-ui-web-ui-settings": "0.1.20",
+  "@linxin666/dsh-skins": "0.1.20",
+  "@linxin666/dsh-client-ui-skin-center": "0.1.20",
+});
+
 const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
-  ["dshmarket", "1.9.0"],
+  ["dshmarket", Object.freeze({ version: "1.9.0" })],
+  ["@linxin666/dsh-web-ui-all", Object.freeze({
+    version: "0.1.20",
+    bundlePatch: "./cordis.patch.yml",
+    dependencies: DSH_WEB_UI_DEPENDENCIES,
+    review: Object.freeze({
+      session: "任务看板会读取 Session 与 Workspace，并可从看板启动 Agent 任务",
+      capabilities: Object.freeze([
+        "读取本地仓库与图片",
+        "启动 Git、SSH 与电源保持进程",
+        "访问 SSH、远程 Web 和模型服务网络",
+      ]),
+    }),
+  })],
 ]));
 
 const WEB_PROFILE = "web";
@@ -259,10 +289,71 @@ function readInstalledPlugin(api, packageName, installAnchor, profileDir) {
   return Object.freeze({ name: packageName, root, manifest });
 }
 
-/** Return whether one installed community Client matches the audited release. */
+function readReviewedDependency(plugin, name, version) {
+  const packageRequire = createRequire(join(plugin.root, "package.json"));
+  const manifestPath = realpathSync(packageRequire.resolve(`${name}/package.json`));
+  const root = dirname(manifestPath);
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  if (manifest?.name !== name || manifest?.version !== version) {
+    throw new Error(`已审查社区 Bundle 依赖不匹配：期望 ${name}@${version}`);
+  }
+  return root;
+}
+
+function removeResolverLink(link) {
+  const stat = lstatSync(link, { throwIfNoEntry: false });
+  if (stat?.isSymbolicLink()) rmSync(link);
+}
+
+function prepareReviewedCommunityResolverLinks(profileDir, reviewed, directDependencies) {
+  const active = new Map();
+  for (const plugin of reviewed) {
+    const policy = REVIEWED_COMMUNITY_CLIENTS.get(plugin.name);
+    for (const [name, version] of Object.entries(policy?.dependencies || {})) {
+      const previous = active.get(name);
+      if (previous && previous.version !== version) {
+        throw new Error(`已审查社区 Bundle 的 Profile 依赖版本冲突：${name}`);
+      }
+      active.set(name, { plugin, version });
+    }
+  }
+  const managedNames = new Set([...REVIEWED_COMMUNITY_CLIENTS.values()]
+    .flatMap((policy) => Object.keys(policy.dependencies || {})));
+  for (const name of managedNames) {
+    const link = join(profileDir, "node_modules", ...name.split("/"));
+    const dependency = active.get(name);
+    if (dependency) {
+      ensureLink(link, readReviewedDependency(dependency.plugin, name, dependency.version));
+    } else if (directDependencies[name] === undefined) {
+      removeResolverLink(link);
+    }
+  }
+}
+
+function sameDependencyManifest(actual, expected) {
+  if (!actual || typeof actual !== "object" || Array.isArray(actual)) return false;
+  const actualEntries = Object.entries(actual).sort(([left], [right]) => left.localeCompare(right));
+  const expectedEntries = Object.entries(expected).sort(([left], [right]) => left.localeCompare(right));
+  return actualEntries.length === expectedEntries.length
+    && actualEntries.every(([name, version], index) => (
+      name === expectedEntries[index][0] && version === expectedEntries[index][1]
+    ));
+}
+
+/** Return whether one installed community Client matches the audited release and dependency graph. */
 export function isReviewedCommunityClient(plugin) {
-  const reviewedVersion = REVIEWED_COMMUNITY_CLIENTS.get(plugin?.name);
-  return reviewedVersion !== undefined && reviewedVersion === plugin?.manifest?.version;
+  const policy = REVIEWED_COMMUNITY_CLIENTS.get(plugin?.name);
+  if (!policy || policy.version !== plugin?.manifest?.version) return false;
+  if (policy.bundlePatch !== undefined && plugin?.manifest?.dsh?.bundle?.patch !== policy.bundlePatch) return false;
+  if (policy.dependencies !== undefined
+    && !sameDependencyManifest(plugin?.manifest?.dependencies, policy.dependencies)) return false;
+  return true;
+}
+
+/** Return the audited capability projection for one exact reviewed Client release. */
+export function reviewedCommunityClientReview(plugin) {
+  if (!isReviewedCommunityClient(plugin)) return null;
+  return REVIEWED_COMMUNITY_CLIENTS.get(plugin?.name)?.review || null;
 }
 
 async function loadProfileApi(appBootPath, profileApi) {
@@ -274,7 +365,8 @@ async function loadProfileApi(appBootPath, profileApi) {
 /**
  * Mount the app-reviewed DSH bundles through the official Profile manifest.
  * The flat resolver links expose package roots; `dsh.profile.bundles` owns
- * composition order. Missing optional packages are removed from the fixed
+ * composition order. App bundles establish the product frame before reviewed
+ * user extensions run. Missing optional packages are removed from the fixed
  * allowlist slice. User-installed browser bundles remain installed but are
  * removed from the active graph until the desktop renderer isolates them.
  */
@@ -322,10 +414,16 @@ export async function prepareTrustedProfilePlugins({
   const reviewed = userPlugins
     .filter((plugin) => plugin.manifest?.dsh?.client !== undefined)
     .filter(isReviewedCommunityClient);
+  prepareReviewedCommunityResolverLinks(profileDir, reviewed, dependencies);
   const quarantinedNames = new Set(quarantined.map((plugin) => plugin.name));
+  const templateNames = new Set(template);
+  const userBundles = currentBundles.filter((name) => (
+    !templateNames.has(name) && !managedNames.has(name) && !quarantinedNames.has(name)
+  ));
   const bundles = [
-    ...currentBundles.filter((name) => !managedNames.has(name) && !quarantinedNames.has(name)),
+    ...template,
     ...plugins.map((plugin) => plugin.name),
+    ...userBundles,
   ];
   const changed = !sameBundles(currentBundles, bundles)
     || Object.keys(dependencies).length !== Object.keys(currentDependencies).length;

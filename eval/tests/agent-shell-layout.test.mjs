@@ -204,6 +204,29 @@ test('the app has one current shell and no legacy Chat compatibility routes', ()
   assert.doesNotMatch(modelRoutes, /\/api\/llm_model\/active|listActiveModels/);
 });
 
+test('the product shell exposes stable DSH community Client pane hooks', () => {
+  const shell = readAppFile('renderer', 'src', 'views', 'agent', 'AgentShell.tsx');
+  const clientShell = readAppFile('packages', 'dsh-work-shell', 'src', 'client', 'index.tsx');
+  const desktopPatch = readAppFile('server', 'src', 'engine', 'dsh_runtime', 'desktop_web.patch.yml');
+
+  assert.match(shell, /data-dsh-frame/);
+  assert.match(shell, /data-sidebar-collapsed=\{navCollapsed \? 'true' : undefined\}/);
+  assert.match(shell, /className=\{styles\.rail\}[\s\S]{0,120}?data-pane="sidebar"/);
+  assert.match(shell, /className=\{styles\.center\} data-pane="conversation"/);
+  assert.match(shell, /className=\{styles\.aside\}[\s\S]{0,120}?data-pane="details"/);
+  assert.match(shell, /const gridTemplateColumns = `\$\{navColumn\} minmax\(360px, 1fr\) \$\{workspaceColumn\}`/);
+  assert.doesNotMatch(shell, /navHandleColumn|workspaceHandleColumn/);
+  assert.match(shell, /data-side="nav"[\s\S]{0,180}?style=\{\{ left:/);
+  assert.match(shell, /data-side="workspace"[\s\S]{0,180}?style=\{\{ right:/);
+  assert.match(readAppFile('renderer', 'src', 'views', 'agent', 'agent.module.scss'), /\.center > :global\(\[data-dsh-taskboard-view\]\)[\s\S]{0,180}?position:\s*absolute/);
+  assert.match(clientShell, /The replacement attributes retain the[\s\S]{0,180}?outer frame's layout/);
+  assert.match(clientShell, /guardProductPaneOwnership\(document\)/);
+  assert.match(clientShell, /data-dsh-work-outer-pane/);
+  assert.match(clientShell, /token\.includes\(OFFICIAL_FRAME_CLASS_PART\[pane\]\)/);
+  assert.match(clientShell, /element\.removeAttribute\('data-pane'\)/);
+  assert.match(desktopPatch, /- id: web-ui-compat\s+disabled: true/);
+});
+
 test('AI host events separate creation from explicit project and conversation navigation', () => {
   const shell = readAppFile('renderer', 'src', 'views', 'agent', 'AgentShell.tsx');
   const eventHandler = shell.slice(

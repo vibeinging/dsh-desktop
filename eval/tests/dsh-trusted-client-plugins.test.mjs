@@ -8,6 +8,7 @@ import {
   isReviewedCommunityClient,
   prepareTrustedClientPlugins,
   prepareTrustedProfilePlugins,
+  reviewedCommunityClientReview,
 } from "../../server/src/engine/dsh_runtime/trusted_client_plugins.js";
 
 async function fixture(root, name = "@deepseek-ai/dsh-product-bridge", { client = false, version = "1.0.0" } = {}) {
@@ -33,7 +34,23 @@ async function fixture(root, name = "@deepseek-ai/dsh-product-bridge", { client 
   }, null, 2)}\n`);
 }
 
-test("only the audited dsh-market release may enter the product Client graph", () => {
+const DSH_WEB_UI_DEPENDENCIES = {
+  "@linxin666/dsh-client-ui-community-plugins": "0.1.20",
+  "@linxin666/dsh-client-ui-aionui-panel": "0.1.20",
+  "@linxin666/dsh-client-ui-task-board": "0.1.20",
+  "@linxin666/dsh-client-ui-git-graph": "0.1.20",
+  "@linxin666/dsh-pet": "0.1.20",
+  "@linxin666/dsh-remote-web-ui": "0.1.20",
+  "@linxin666/dsh-live-stats": "0.1.20",
+  "@linxin666/dsh-ssh": "0.1.20",
+  "@linxin666/dsh-tool-describe-image": "0.1.20",
+  "@linxin666/dsh-liangshen": "0.1.20",
+  "@linxin666/dsh-client-ui-web-ui-settings": "0.1.20",
+  "@linxin666/dsh-skins": "0.1.20",
+  "@linxin666/dsh-client-ui-skin-center": "0.1.20",
+};
+
+test("only audited community Client releases may enter the product Client graph", () => {
   assert.equal(isReviewedCommunityClient({
     name: "dshmarket",
     manifest: { version: "1.9.0" },
@@ -50,6 +67,118 @@ test("only the audited dsh-market release may enter the product Client graph", (
     name: "another-client",
     manifest: {},
   }), false);
+  assert.equal(isReviewedCommunityClient({
+    name: "@linxin666/dsh-web-ui-all",
+    manifest: {
+      version: "0.1.20",
+      dependencies: DSH_WEB_UI_DEPENDENCIES,
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
+  }), true);
+  assert.equal(isReviewedCommunityClient({
+    name: "@linxin666/dsh-web-ui-all",
+    manifest: {
+      version: "0.1.20",
+      dependencies: { ...DSH_WEB_UI_DEPENDENCIES, "@linxin666/dsh-ssh": "0.1.21" },
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
+  }), false);
+  assert.equal(isReviewedCommunityClient({
+    name: "@linxin666/dsh-web-ui-all",
+    manifest: {
+      version: "0.1.20",
+      dependencies: DSH_WEB_UI_DEPENDENCIES,
+      dsh: { bundle: { patch: "./other.patch.yml" } },
+    },
+  }), false);
+  assert.deepEqual(reviewedCommunityClientReview({
+    name: "@linxin666/dsh-web-ui-all",
+    manifest: {
+      version: "0.1.20",
+      dependencies: DSH_WEB_UI_DEPENDENCIES,
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
+  }), {
+    session: "任务看板会读取 Session 与 Workspace，并可从看板启动 Agent 任务",
+    capabilities: [
+      "读取本地仓库与图片",
+      "启动 Git、SSH 与电源保持进程",
+      "访问 SSH、远程 Web 和模型服务网络",
+    ],
+  });
+});
+
+test("reviewed aggregate dependencies are exposed to and removed from the Profile resolver", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-reviewed-aggregate-"));
+  const home = join(root, "home");
+  const profileDir = join(home, "profiles", "web");
+  const aggregateRoot = join(root, "aggregate");
+  try {
+    await mkdir(join(aggregateRoot, "node_modules"), { recursive: true });
+    await writeFile(join(aggregateRoot, "package.json"), `${JSON.stringify({
+      name: "@linxin666/dsh-web-ui-all",
+      version: "0.1.20",
+      dependencies: DSH_WEB_UI_DEPENDENCIES,
+      dsh: {
+        bundle: { patch: "./cordis.patch.yml" },
+        client: { platform: "web" },
+      },
+    }, null, 2)}\n`);
+    await writeFile(join(aggregateRoot, "cordis.patch.yml"), "- insert: []\n");
+    for (const [name, version] of Object.entries(DSH_WEB_UI_DEPENDENCIES)) {
+      const dependencyRoot = join(aggregateRoot, "node_modules", ...name.split("/"));
+      await mkdir(dependencyRoot, { recursive: true });
+      await writeFile(join(dependencyRoot, "package.json"), `${JSON.stringify({ name, version })}\n`);
+    }
+    await mkdir(join(profileDir, "node_modules", "@linxin666"), { recursive: true });
+    await symlink(aggregateRoot, join(profileDir, "node_modules", "@linxin666", "dsh-web-ui-all"), "junction");
+    await writeFile(join(profileDir, "package.json"), `${JSON.stringify({
+      name: "dsh-profile-web",
+      private: true,
+      dependencies: { "@linxin666/dsh-web-ui-all": "0.1.20" },
+      dsh: { profile: { bundles: [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "@linxin666/dsh-web-ui-all",
+      ] } },
+    }, null, 2)}\n`);
+
+    const api = profileApi();
+    const first = await prepareTrustedProfilePlugins({
+      profileApi: api,
+      installAnchor: join(root, "anchor.js"),
+      appRoot: join(root, "app"),
+      env: { DSH_HOME: home },
+      runtimeRoot: join(root, "runtime"),
+      dshHome: home,
+    });
+    assert.deepEqual(first.reviewed.map((plugin) => plugin.name), ["@linxin666/dsh-web-ui-all"]);
+    for (const name of Object.keys(DSH_WEB_UI_DEPENDENCIES)) {
+      const link = join(profileDir, "node_modules", ...name.split("/"));
+      assert.equal((await lstat(link)).isSymbolicLink(), true, name);
+      assert.equal(await realpath(link), await realpath(join(aggregateRoot, "node_modules", ...name.split("/"))), name);
+    }
+
+    await writeFile(join(profileDir, "package.json"), `${JSON.stringify({
+      name: "dsh-profile-web",
+      private: true,
+      dependencies: {},
+      dsh: { profile: { bundles: ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app"] } },
+    }, null, 2)}\n`);
+    await prepareTrustedProfilePlugins({
+      profileApi: api,
+      installAnchor: join(root, "anchor.js"),
+      appRoot: join(root, "app"),
+      env: { DSH_HOME: home },
+      runtimeRoot: join(root, "runtime"),
+      dshHome: home,
+    });
+    for (const name of Object.keys(DSH_WEB_UI_DEPENDENCIES)) {
+      assert.equal(existsSync(join(profileDir, "node_modules", ...name.split("/"))), false, name);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 function profileApi() {
@@ -214,9 +343,9 @@ test("trusted DSH plugins are composed by the official Profile bundle list", asy
     assert.deepEqual(first.bundles, [
       "@deepseek-ai/dsh-base",
       "@deepseek-ai/dsh-web-app",
+      "@deepseek-ai/dsh-product-bridge",
       "@example/user-bundle",
       "dshmarket",
-      "@deepseek-ai/dsh-product-bridge",
     ]);
     assert.deepEqual(first.quarantined.map((plugin) => plugin.name), ["@example/community-ui"]);
     const stored = JSON.parse(await readFile(join(profileDir, "package.json"), "utf8"));

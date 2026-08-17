@@ -5,7 +5,7 @@
 .shell {
   position: relative;
   display: grid;
-  grid-template-columns: 248px 5px 1fr 5px 40%;
+  grid-template-columns: 248px minmax(360px, 1fr) 40%;
   gap: 0;
   /* Fill .dsh-zoom content area: width and height are 100%.
      Zoom compensation is done by .dsh-zoom itself, so outer padding stays controlled by .dsh-root and does not scale with page zoom. */
@@ -24,7 +24,7 @@
   transition: none;
 }
 .shellHome {
-  grid-template-columns: 248px 5px 1fr;
+  grid-template-columns: 248px minmax(360px, 1fr) 0;
 }
 .shellNavCollapsed {
   --dsh-nav-width: 248px;
@@ -117,8 +117,13 @@
   align-items: center;
 }
 .resizeHandle {
-  position: relative;
-  min-width: 5px;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 36;
+  width: 8px;
+  min-width: 8px;
+  margin-left: -4px;
   cursor: col-resize;
   background: transparent;
   touch-action: none;
@@ -173,6 +178,8 @@
 
 /* ── Left rail: navigation (transparent = underlying lavender background visible) ── */
 .rail {
+  grid-column: 1;
+  grid-row: 1;
   position: relative;
   box-sizing: border-box;
   background: transparent;
@@ -737,6 +744,8 @@
 
 /* ── Center column: conversation stream (white rounded card) ── */
 .center {
+  grid-column: 2;
+  grid-row: 1;
   position: relative;
   background:
     linear-gradient(
@@ -786,6 +795,12 @@
 .center > * {
   position: relative;
   z-index: 1;
+}
+.center > :global([data-dsh-taskboard-view]),
+.center > :global([data-dsh-ssh-view]) {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
 }
 
 .conversationHeader {
@@ -4507,7 +4522,8 @@
 
 /* ── Right rail: workbench (white rounded card) ── */
 .aside {
-  grid-column: 5;
+  grid-column: 3;
+  grid-row: 1;
   background: var(--dsh-surface);
   border-radius: var(--dsh-r-card);
   min-height: 0;
@@ -4532,7 +4548,9 @@
   transform: translateX(calc(100% + 12px));
 }
 .resizeHandle[data-side='workspace'] {
-  grid-column: 4;
+  left: auto;
+  margin-right: -4px;
+  margin-left: 0;
 }
 .workspaceEdgeResize {
   position: absolute;

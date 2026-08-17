@@ -11,6 +11,7 @@ import { resolveDshRuntimeDistribution } from "./source_locator.js";
 import {
   isReviewedCommunityClient,
   prepareTrustedProfilePlugins,
+  reviewedCommunityClientReview,
   trustedDshProfilePluginNames,
 } from "./trusted_client_plugins.js";
 import {
@@ -403,15 +404,21 @@ export function inspectCommunityClientIsolation(manifest) {
 export function inspectProfileBundleCompatibility(manifest) {
   const dependencies = Object.keys({ ...manifest?.dependencies, ...manifest?.peerDependencies });
   const uses = (fragment) => dependencies.some((name) => name.includes(fragment));
-  const capabilities = [
+  const reviewedCommunity = reviewedCommunityClientReview({
+    name: String(manifest?.name || ""),
+    manifest,
+  });
+  const capabilities = [...new Set([
     uses("dsh-tools") ? "Tool" : null,
     uses("dsh-skill") ? "Skill" : null,
     uses("dsh-mcp") ? "MCP" : null,
     uses("dsh-workflow") ? "Workflow" : null,
     uses("dsh-llm") ? "Model Provider" : null,
-  ].filter(Boolean);
-  const sessionAware = ["dsh-session", "dsh-agent", "dsh-subagent", "dsh-goal", "dsh-plan"]
-    .some((fragment) => uses(fragment));
+    ...(reviewedCommunity?.capabilities || []),
+  ].filter(Boolean))];
+  const sessionAware = Boolean(reviewedCommunity?.session)
+    || ["dsh-session", "dsh-agent", "dsh-subagent", "dsh-goal", "dsh-plan"]
+      .some((fragment) => uses(fragment));
   const client = manifest?.dsh?.client?.platform === "web";
   const reviewedClient = client && isReviewedCommunityClient({
     name: String(manifest?.name || ""),
@@ -426,17 +433,23 @@ export function inspectProfileBundleCompatibility(manifest) {
     },
     {
       id: "session",
-      status: sessionAware ? "review_required" : "not_detected",
+      status: reviewedCommunity?.session ? "reviewed" : sessionAware ? "review_required" : "not_detected",
       label: "Session 生命周期",
-      message: sessionAware
+      message: reviewedCommunity?.session
+        ? reviewedCommunity.session
+        : sessionAware
         ? "检测到 Session 或 Agent SDK；还需验证 scope、日志和卸载清理"
         : "清单未检测到 Session 或 Agent SDK 依赖",
     },
     {
       id: "capabilities",
-      status: capabilities.length > 0 ? "review_required" : "not_detected",
+      status: reviewedCommunity?.capabilities?.length
+        ? "reviewed"
+        : capabilities.length > 0 ? "review_required" : "not_detected",
       label: "Tool、Skill 与 MCP",
-      message: capabilities.length > 0
+      message: reviewedCommunity?.capabilities?.length
+        ? `已审查的聚合依赖包含：${reviewedCommunity.capabilities.join("、")}`
+        : capabilities.length > 0
         ? `检测到 ${capabilities.join("、")}；还需验证 schema、审批、凭据和运行权限`
         : "清单未检测到 Tool、Skill、MCP、Workflow 或模型 Provider SDK",
     },

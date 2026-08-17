@@ -81,6 +81,8 @@ interface RecommendedPlugin {
   category: string
   source: string | null
   compatibility: string
+  permissions?: string[]
+  review_note_zh?: string
 }
 
 interface ProfileBundlePreflight {
@@ -163,6 +165,7 @@ export default function PluginCenter({
   const [error, setError] = useState('')
   const [installOpen, setInstallOpen] = useState(false)
   const [installSource, setInstallSource] = useState('')
+  const [installRecommendation, setInstallRecommendation] = useState<RecommendedPlugin | null>(null)
   const [preflight, setPreflight] = useState<ProfileBundlePreflight | null>(null)
   const [checking, setChecking] = useState(false)
   const [installing, setInstalling] = useState(false)
@@ -214,6 +217,7 @@ export default function PluginCenter({
       })
       setInstallOpen(false)
       setInstallSource('')
+      setInstallRecommendation(null)
       setPreflight(null)
       if (profileBundleMutationNeedsReload(response)) {
         window.location.reload()
@@ -234,6 +238,7 @@ export default function PluginCenter({
   const openRecommendedInstall = (plugin: RecommendedPlugin) => {
     if (!plugin.source) return
     setInstallSource(plugin.source)
+    setInstallRecommendation(plugin)
     setPreflight(null)
     setInstallOpen(true)
   }
@@ -315,7 +320,10 @@ export default function PluginCenter({
           <Button variant="default" leftSection={<IconRefresh size={15} />} loading={refreshing} onClick={() => void loadCatalog(true)}>
             刷新
           </Button>
-          <Button leftSection={<IconPlus size={15} />} onClick={() => setInstallOpen(true)}>
+          <Button leftSection={<IconPlus size={15} />} onClick={() => {
+            setInstallRecommendation(null)
+            setInstallOpen(true)
+          }}>
             安装 Bundle
           </Button>
         </div>
@@ -443,6 +451,7 @@ export default function PluginCenter({
         onClose={() => {
           if (installing || checking) return
           setInstallOpen(false)
+          setInstallRecommendation(null)
           setPreflight(null)
         }}
         title="安装 DSH Profile Bundle"
@@ -452,12 +461,25 @@ export default function PluginCenter({
           <Alert color="blue" icon={<IconInfoCircle size={16} />}>
             社区插件会先在隔离的候选 Profile 中检查。只接受固定 npm 版本或 GitHub 仓库的完整 commit，不接受 latest 和分支名。
           </Alert>
+          {installRecommendation?.permissions?.length ? (
+            <Alert color="yellow" icon={<IconInfoCircle size={16} />} title="这个 Bundle 包含主机侧高权限能力">
+              <div data-community-plugin-permissions>
+                <span>{installRecommendation.review_note_zh}</span>
+                <ul>
+                  {installRecommendation.permissions.map((permission) => <li key={permission}>{permission}</li>)}
+                </ul>
+              </div>
+            </Alert>
+          ) : null}
           <TextInput
             label="固定来源"
             placeholder="github:owner/repository#40位commit"
             value={installSource}
             onChange={(event) => {
               setInstallSource(event.currentTarget.value)
+              if (event.currentTarget.value.trim() !== installRecommendation?.source) {
+                setInstallRecommendation(null)
+              }
               setPreflight(null)
             }}
             disabled={installing || checking}

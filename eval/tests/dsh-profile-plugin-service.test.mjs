@@ -104,6 +104,36 @@ test("Profile Bundle compatibility separates Host, Session, capabilities, and Cl
     label: "Client UI",
     message: "该精确包版本已完成代码审查，可以进入当前 Client 图",
   });
+  const reviewedWebUi = inspectProfileBundleCompatibility({
+    name: "@linxin666/dsh-web-ui-all",
+    version: "0.1.20",
+    dependencies: {
+      "@linxin666/dsh-client-ui-community-plugins": "0.1.20",
+      "@linxin666/dsh-client-ui-aionui-panel": "0.1.20",
+      "@linxin666/dsh-client-ui-task-board": "0.1.20",
+      "@linxin666/dsh-client-ui-git-graph": "0.1.20",
+      "@linxin666/dsh-pet": "0.1.20",
+      "@linxin666/dsh-remote-web-ui": "0.1.20",
+      "@linxin666/dsh-live-stats": "0.1.20",
+      "@linxin666/dsh-ssh": "0.1.20",
+      "@linxin666/dsh-tool-describe-image": "0.1.20",
+      "@linxin666/dsh-liangshen": "0.1.20",
+      "@linxin666/dsh-client-ui-web-ui-settings": "0.1.20",
+      "@linxin666/dsh-skins": "0.1.20",
+      "@linxin666/dsh-client-ui-skin-center": "0.1.20",
+    },
+    dsh: {
+      bundle: { patch: "./cordis.patch.yml" },
+      client: { platform: "web" },
+    },
+  });
+  assert.deepEqual(reviewedWebUi.map(({ id, status }) => ({ id, status })), [
+    { id: "host", status: "profile_checked" },
+    { id: "session", status: "reviewed" },
+    { id: "capabilities", status: "reviewed" },
+    { id: "client", status: "reviewed" },
+  ]);
+  assert.match(reviewedWebUi[2].message, /Git、SSH 与电源保持进程/);
 });
 
 test("Profile Bundle patch inspection reports rows and risk names without configuration values", () => {
@@ -764,10 +794,29 @@ test("the Profile catalog is projected from the official Web Profile order", {
     assert.equal(catalog.plugins.at(-1).id, "@deepseek-ai/dsh-work-shell");
     assert.equal(catalog.plugins.at(-1).managed_by, "app");
     assert.equal(catalog.plugins.at(-1).portability.level, "desktop-shell");
-    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-16");
+    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-17");
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
     assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.9.0");
-    assert.equal(catalog.recommended_plugins.some((plugin) => plugin.id === "dsh-web-ui"), true);
+    assert.deepEqual(
+      catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-web-ui"),
+      {
+        id: "dsh-web-ui",
+        name: "DSH Web UI",
+        description: "Reviewed aggregate Bundle with task board, Git graph, live statistics, remote UI, SSH, pets, and skins.",
+        description_zh: "已审查的聚合 Bundle，包含任务看板、Git 图谱、实时统计、远程 UI、SSH、宠物和皮肤。",
+        repository: "https://github.com/zhu1090093659/dsh-web-ui",
+        stars: 2278,
+        category: "collection",
+        source: "@linxin666/dsh-web-ui-all@0.1.20",
+        compatibility: "reviewed-client-high-capability",
+        reviewed_at: "2026-08-17",
+        reviewed_commit: "92655dbefeaf08cb60429f4b487c33137889a3f7",
+        package_integrity: "sha512-mPMXmPfO0rc/3hmv8Aw71UOJqTDVW2T3VWuN6dIgiMpDlRQp9O0BCaLh13j6LjH0WB9fAS+9DmUVix8sLLwNLA==",
+        permissions: ["读取本地仓库与图片", "启动 Git、SSH 与电源保持进程", "访问 SSH、远程 Web 和模型服务网络"],
+        review_note_zh: "全家桶含主机侧高权限能力。只允许精确的 0.1.20 包和 13 个同版本依赖进入 Client 图；安装前请确认这些权限符合你的环境。",
+        priority: 20,
+      },
+    );
     assert.deepEqual(
       catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-files"),
       {
