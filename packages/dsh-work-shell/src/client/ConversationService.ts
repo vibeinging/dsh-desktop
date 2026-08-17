@@ -8,7 +8,7 @@ type DshWorkSessions = Pick<ClientContext['sessions'], 'scopeOf' | 'binding'>
 export class DshWorkConversationService extends Service implements IConversation {
   readonly input: IConversation['input']
   readonly blocks: IConversation['blocks']
-  readonly #sessions: DshWorkSessions
+  private readonly sessions: DshWorkSessions
 
   constructor(ctx: Context, config: {
     input: IConversation['input']
@@ -18,11 +18,11 @@ export class DshWorkConversationService extends Service implements IConversation
     super(ctx, 'conversation')
     this.input = config.input
     this.blocks = config.blocks
-    this.#sessions = config.sessions
+    this.sessions = config.sessions
   }
 
   async send(text: string) {
-    const result = await this.#session('send').prompt([{ type: 'text', text }], 'queue')
+    const result = await this.session('send').prompt([{ type: 'text', text }], 'queue')
     if (!result.ok) throw new Error(`conversation.send failed: ${result.error.code}: ${result.error.message}`)
   }
 
@@ -30,7 +30,7 @@ export class DshWorkConversationService extends Service implements IConversation
     itemId: Parameters<IConversation['updateQueue']>[0],
     action: Parameters<IConversation['updateQueue']>[1]
   ) {
-    const result = await this.#session('updateQueue').updateQueue(itemId, action)
+    const result = await this.session('updateQueue').updateQueue(itemId, action)
     if (result.ok) return
     if (
       action.kind === 'steer'
@@ -40,20 +40,20 @@ export class DshWorkConversationService extends Service implements IConversation
   }
 
   async cancel() {
-    const result = await this.#session('cancel').cancel()
+    const result = await this.session('cancel').cancel()
     if (!result.ok) throw new Error(`conversation.cancel failed: ${result.error.code}: ${result.error.message}`)
   }
 
   async loadOlder() {
-    await this.#session('loadOlder').loadOlder()
+    await this.session('loadOlder').loadOlder()
   }
 
-  #session(operation: string) {
-    const sessionId = this.#sessions.scopeOf(this.ctx)
+  private session(operation: string) {
+    const sessionId = this.sessions.scopeOf(this.ctx)
     if (!sessionId) {
       throw new Error(`conversation.${operation} requires a session scope`)
     }
-    const binding = this.#sessions.binding(sessionId)
+    const binding = this.sessions.binding(sessionId)
     if (!binding) {
       throw new Error(`conversation.${operation}: session "${sessionId}" resolved no binding`)
     }

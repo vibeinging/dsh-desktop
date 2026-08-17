@@ -373,7 +373,7 @@ test("Profile Bundle preflight rejects mutable sources without touching DSH", as
 });
 
 test("the app-owned Profile Bundles use the current public SDK names", () => {
-  for (const packageDir of ["dsh-work-product-host-ipc", "dsh-project-tools", "dsh-canvas-tools", "dsh-structured-ui-tools", "dsh-model-inheritance", "dsh-product-bridge", "dsh-office-tools", "dsh-workbench-pages", "dsh-theme-pack", "dsh-work-shell"]) {
+  for (const packageDir of ["dsh-work-product-host-ipc", "dsh-project-tools", "dsh-canvas-tools", "dsh-structured-ui-tools", "dsh-model-inheritance", "dsh-product-bridge", "dsh-office-tools", "dsh-workbench-pages", "dsh-theme-pack", "dsh-client-product-commands", "dsh-work-shell"]) {
     const manifest = JSON.parse(readFileSync(join(APP_ROOT, "packages", packageDir, "package.json"), "utf8"));
     assert.doesNotThrow(() => validateProfileBundleSdk(manifest));
     assert.equal(manifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");
@@ -679,6 +679,16 @@ test("the Profile catalog is projected from the official Web Profile order", {
       manifest_id: "anime-blue",
       package_name: "@deepseek-ai/dsh-theme-pack",
     }]);
+    const productCommands = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-client-product-commands");
+    assert.equal(productCommands.runtime_kind, "profile_bundle");
+    assert.equal(productCommands.managed_by, "app");
+    assert.equal(productCommands.ui_runtime.kind, "dsh_client");
+    assert.deepEqual(productCommands.portability, {
+      level: "desktop-adapter",
+      surfaces: ["dsh-desktop"],
+      host_requirements: ["dsh-work-product-actions"],
+      compatibility_test: null,
+    });
     assert.equal(catalog.plugins.at(-1).id, "@deepseek-ai/dsh-work-shell");
     assert.equal(catalog.plugins.at(-1).managed_by, "app");
     assert.equal(catalog.plugins.at(-1).portability.level, "desktop-shell");

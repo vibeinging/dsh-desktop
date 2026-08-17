@@ -12,7 +12,6 @@ import {
 import type { ILayout } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type { ConsumeTokenRequest, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { ThemePreference, ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -36,6 +35,7 @@ import { createDshThemePresenter } from '../../../../renderer/src/theme/dshRunti
 import { WORKBENCH_SLOT } from '../../../../renderer/src/views/agent/workbenchContributions'
 import '../../../../renderer/src/views/agent/workbenchSlotRuntime'
 import { DshWorkConversationService } from './ConversationService'
+import { DshWorkProductActionsService } from './ProductActionsService'
 import { registerToolConversationLocale } from './ToolConversationLocale'
 import styles from './DshWorkSettings.module.css'
 
@@ -118,11 +118,6 @@ function rawToolResult(block: ToolCallBlock) {
 export const inject = ['slots', 'sessions', 'theme', 'locale', 'inputTriggers']
 
 const APP_MAPPED_GENERAL_ITEMS = new Set(['appearance', 'composer-enter', 'language', 'permission'])
-const DSH_WORK_COMMANDS = [
-  { name: 'new', description: '新建空白对话' },
-  { name: 'runs', description: '打开当前对话的 DSH 运行记录' },
-  { name: 'trace', description: '查看当前对话的 DSH 事件、耗时和 Token' }
-] as const
 const TOOL_DETAILS_COPY = {
   zh: { title: '工具详情', close: '关闭工具详情', input: '输入', output: '输出', running: '工具仍在运行' },
   en: { title: 'Tool details', close: 'Close tool details', input: 'Input', output: 'Output', running: 'Tool is still running' }
@@ -150,44 +145,6 @@ class DshWorkLayoutAdapter implements ILayout {
 export function apply(ctx: ClientContext) {
   const layout = new DshWorkLayoutAdapter()
   const conversation = new DshConversationBridge(ctx.sessions, ctx.inputTriggers)
-  const consumeProductCommand = (
-    sessionId: Parameters<typeof conversation.runProductCommand>[0],
-    name: string,
-    guard: ConsumeTokenRequest['guard']
-  ) => {
-    const actx = ctx.sessions.scope(sessionId)
-    if (!actx || actx.bail(actx, 'slash/input-consume-token', { guard }) !== true) return false
-    queueMicrotask(() => conversation.runProductCommand(sessionId, name))
-    return true
-  }
-  const productCommandSource: InputTriggerSource = {
-    trigger: '/',
-    name: 'dsh-work',
-    order: -10,
-    candidates: (_session, request) => Promise.resolve(
-      request.position === 'leading'
-        ? DSH_WORK_COMMANDS
-          .filter((command) => command.name.startsWith(request.query.toLowerCase()))
-          .map((command) => ({ name: command.name, description: command.description }))
-        : []
-    ),
-    onPick: ({ candidate, session, span }) => {
-      if (!DSH_WORK_COMMANDS.some((command) => command.name === candidate.name)) return undefined
-      return consumeProductCommand(session.sessionId, candidate.name, { kind: 'span', span })
-        ? 'handled'
-        : undefined
-    },
-    matchEnter: async (session, line, signal) => {
-      if (signal.aborted) throw signal.reason instanceof Error ? signal.reason : new Error('DSH command adjudication aborted')
-      const trimmed = line.trim()
-      const command = DSH_WORK_COMMANDS.find((candidate) => trimmed === `/${candidate.name}`)
-      if (!command) return undefined
-      if (!consumeProductCommand(session.sessionId, command.name, { kind: 'bare-token', token: trimmed })) {
-        throw new Error(`DSH Session could not consume /${command.name}`)
-      }
-      return 'handled'
-    }
-  }
   const runtime: DshClientRuntimeBridge = {
     conversation,
     locale: {
@@ -578,10 +535,6 @@ export function apply(ctx: ClientContext) {
 
   ctx.effect(() => conversation.dispose, 'dsh-work conversation bridge')
   ctx.effect(
-    () => ctx.inputTriggers.registerSource(productCommandSource),
-    'dsh-work product command source'
-  )
-  ctx.effect(
     () => registerToolConversationLocale(ctx.locale),
     'dsh-work shell Tool conversation dictionaries'
   )
@@ -663,6 +616,7 @@ export function apply(ctx: ClientContext) {
     blocks: conversation.blocks,
     sessions: ctx.sessions
   })
+  new DshWorkProductActionsService(ctx, conversation)
 
   ctx.effect(() => {
     const presenter = createDshThemePresenter(document)

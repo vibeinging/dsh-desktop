@@ -142,6 +142,7 @@ import { useSkinsStore } from '@/store/skins'
 import { ANIME_PROFILE_SKIN_ID } from '@/theme/skins/builtin'
 import HomeWelcome from './HomeWelcome'
 import { useDshClientHost } from '@/dsh-client/DshClientHost'
+import type { DshWorkInputHandlers } from '@/dsh-client/DshConversationBridge'
 import styles from './agent.module.scss'
 
 export type { DataWorkspaceEvent } from './stream/types'
@@ -2611,25 +2612,34 @@ function DshWorkAgentConversation({
       notifications.show({ color: 'orange', title: '立即补充失败', message: error?.message || '当前任务可能已经结束。' })
     }
   }
+  const dshInputHandlers: DshWorkInputHandlers = {
+    setDraft: (draft) => setInput(draft),
+    submit: () => void send(),
+    submitDefault: () => void send(undefined, undefined, true),
+    notify: (level, text) => notifications.show({
+      color: level === 'error' ? 'orange' : 'blue',
+      title: level === 'error' ? '命令执行失败' : '命令已完成',
+      message: text
+    }),
+    runCommand: (name) => {
+      if (name === 'new') onNewConversation?.()
+      else if (name === 'runs' || name === 'trace') {
+        eventBus.emit(EVENT_TYPES.OPEN_AGENT_REVIEW, { view: name === 'trace' ? 'trace' : 'runs', runId: null })
+      }
+    }
+  }
+  const dshInputHandlersRef = useRef(dshInputHandlers)
+  dshInputHandlersRef.current = dshInputHandlers
   useEffect(() => {
     if (!dshClientHost) return
     return dshClientHost.conversation.bindInputHandlers({
-      setDraft: (draft) => setInput(draft),
-      submit: () => void send(),
-      submitDefault: () => void send(undefined, undefined, true),
-      notify: (level, text) => notifications.show({
-        color: level === 'error' ? 'orange' : 'blue',
-        title: level === 'error' ? '命令执行失败' : '命令已完成',
-        message: text
-      }),
-      runCommand: (name) => {
-        if (name === 'new') onNewConversation?.()
-        else if (name === 'runs' || name === 'trace') {
-          eventBus.emit(EVENT_TYPES.OPEN_AGENT_REVIEW, { view: name === 'trace' ? 'trace' : 'runs', runId: null })
-        }
-      }
+      setDraft: (draft) => dshInputHandlersRef.current.setDraft(draft),
+      submit: () => dshInputHandlersRef.current.submit(),
+      submitDefault: () => dshInputHandlersRef.current.submitDefault?.(),
+      notify: (level, text) => dshInputHandlersRef.current.notify?.(level, text),
+      runCommand: (name) => dshInputHandlersRef.current.runCommand?.(name)
     })
-  }, [dshClientHost, onNewConversation, send])
+  }, [dshClientHost])
   const onKey = (e: React.KeyboardEvent) => {
     const composing = e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229
     const officialKey = e.key === 'ArrowUp'

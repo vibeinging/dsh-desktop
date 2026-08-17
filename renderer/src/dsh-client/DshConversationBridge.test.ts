@@ -383,13 +383,13 @@ describe('DshConversationBridge', () => {
     bridge.bindInputHandlers({ setDraft: vi.fn(), submit: vi.fn(), runCommand })
     bridge.syncSession(sessionId)
 
-    bridge.runProductCommand(otherSessionId, 'trace')
+    expect(bridge.runProductCommand(otherSessionId, 'trace')).toBe(false)
     expect(runCommand).not.toHaveBeenCalled()
-    bridge.runProductCommand(sessionId, 'trace')
+    expect(bridge.runProductCommand(sessionId, 'trace')).toBe(true)
     expect(runCommand).toHaveBeenCalledWith('trace')
 
     bridge.dispose()
-    bridge.runProductCommand(sessionId, 'runs')
+    expect(bridge.runProductCommand(sessionId, 'runs')).toBe(false)
     expect(runCommand).toHaveBeenCalledOnce()
   })
 

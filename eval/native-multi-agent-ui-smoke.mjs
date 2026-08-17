@@ -440,8 +440,21 @@ try {
   const productCommand = '[role="option"][id^="dsh-slash-option-dsh-work-"]'
   await ui.waitFor(productCommand, { timeout: 10_000 })
   assert.match(await session.evalJs(`return document.querySelector(${JSON.stringify(productCommand)})?.innerText || ''`), /^runs\b/)
+  assert.equal(await session.evalJs(`return document.querySelector(${JSON.stringify(productCommand)})?.getAttribute('aria-selected') || ''`), 'true')
   await ui.click(productCommand)
-  await ui.waitFor('[data-dsh-trajectory][data-dsh-trajectory-source="session.history"]', { timeout: 15_000 })
+  try {
+    await ui.waitFor('[data-dsh-trajectory][data-dsh-trajectory-source="session.history"]', { timeout: 15_000 })
+  } catch (error) {
+    const diagnostics = await session.evalJs(`return {
+      input: document.querySelector('[data-testid="agent-message-input"]')?.value || '',
+      optionVisible: Boolean(document.querySelector(${JSON.stringify(productCommand)})?.offsetParent),
+      listboxVisible: Boolean(document.querySelector('[role="listbox"]')?.offsetParent),
+      reviewTab: document.querySelector('[data-workbench-tab="review"]')?.getAttribute('aria-selected') || '',
+      workbenchText: document.querySelector('[data-workbench-panel="review"]')?.innerText.slice(0, 500) || '',
+      bodyText: document.body.innerText.slice(-1000)
+    }`)
+    throw new Error(`${error.message}; product command diagnostics=${JSON.stringify(diagnostics)}`)
+  }
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/call"]', { timeout: 15_000 })
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-trajectory]')?.innerText.includes('subagent') || false`), true)

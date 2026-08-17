@@ -402,8 +402,10 @@ export class DshConversationBridge {
 
   /** Run one App-owned command contributed through the official input-trigger registry. */
   runProductCommand(sessionId: SessionId, name: string) {
-    if (this.#disposed || this.#desiredSessionId !== sessionId) return
-    this.#handlers?.runCommand?.(name)
+    const handler = this.#handlers?.runCommand
+    if (this.#disposed || this.#desiredSessionId !== sessionId || !handler) return false
+    handler(name)
+    return true
   }
 
   /** Bind standard conversation file actions to the product Files workbench. */
