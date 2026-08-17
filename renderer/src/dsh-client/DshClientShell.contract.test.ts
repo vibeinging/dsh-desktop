@@ -11,6 +11,7 @@ describe('dsh-work Client shell contract', () => {
     const settings = read('../views/agent/AgentSettings.tsx')
 
     expect(shell).toContain('new DshConversationBridge(ctx.sessions, ctx.inputTriggers)')
+    expect(shell).toContain('registerToolConversationLocale(ctx.locale)')
     expect(shell).toContain("}, 'dsh-work shell slot tree')")
     expect(shell.indexOf("name: 'root'")).toBeLessThan(shell.indexOf("name: 'sidebar'"))
     expect(shell.indexOf("name: 'root'")).toBeLessThan(shell.indexOf("name: 'conversation'"))

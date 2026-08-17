@@ -36,6 +36,7 @@ import { createDshThemePresenter } from '../../../../renderer/src/theme/dshRunti
 import { WORKBENCH_SLOT } from '../../../../renderer/src/views/agent/workbenchContributions'
 import '../../../../renderer/src/views/agent/workbenchSlotRuntime'
 import { DshWorkConversationService } from './ConversationService'
+import { registerToolConversationLocale } from './ToolConversationLocale'
 import styles from './DshWorkSettings.module.css'
 
 const STANDARD_ROOT_SLOTS = [
@@ -579,6 +580,10 @@ export function apply(ctx: ClientContext) {
   ctx.effect(
     () => ctx.inputTriggers.registerSource(productCommandSource),
     'dsh-work product command source'
+  )
+  ctx.effect(
+    () => registerToolConversationLocale(ctx.locale),
+    'dsh-work shell Tool conversation dictionaries'
   )
   ctx.effect(() => ctx.reflect.provide('layout', layout), 'dsh-work shell layout adapter')
 

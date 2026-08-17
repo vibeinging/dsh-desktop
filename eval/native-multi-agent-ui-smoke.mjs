@@ -335,6 +335,9 @@ try {
   await ui.press('Enter')
   await ui.waitFor('[data-question-key]', { timeout: 15_000 })
   await ui.waitFor('[data-dsh-standard-tool-call-node] [data-chat-call-id="call_dsh_question"]', { timeout: 15_000 })
+  const questionToolText = await session.evalJs(`return document.querySelector('[data-chat-call-id="call_dsh_question"]')?.innerText || ''`)
+  assert.match(questionToolText, /提问/)
+  assert.doesNotMatch(questionToolText, /ask\.(?:rowTitle|waiting)|row\.running/)
   assert.equal(await session.evalJs(`return document.querySelector('[data-question-key]')?.innerText.includes(${JSON.stringify(questionText)}) || false`), true)
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-tool-call-takeover="call_dsh_question"] + [data-dsh-product-tool-call-surface]')?.offsetParent === null`), true)
   assert.equal(await session.evalJs(`return document.querySelector('[data-testid="agent-message-input"]')?.offsetParent === null`), true)
@@ -377,6 +380,7 @@ try {
   assert.equal(toolDetailsState?.ready, true, JSON.stringify(toolDetailsState))
   assert.equal(await session.evalJs(`return !document.querySelector('[data-dsh-standard-tool-details] [data-dsh-product-tool-details-fallback]')`), true)
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-standard-tool-details-output]')?.innerText.trim().length > 0`), true)
+  assert.equal(await session.evalJs(`return !document.querySelector('[data-dsh-standard-tool-details-output]')?.innerText.includes('details.running')`), true)
   const closedToolDetails = await session.evalJs(`
     const button = document.querySelector('[data-dsh-standard-tool-details-close]');
     button?.click();
