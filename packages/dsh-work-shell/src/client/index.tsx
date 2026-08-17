@@ -36,6 +36,7 @@ import { WORKBENCH_SLOT } from '../../../../renderer/src/views/agent/workbenchCo
 import '../../../../renderer/src/views/agent/workbenchSlotRuntime'
 import { DshWorkConversationService } from './ConversationService'
 import { DshWorkProductActionsService } from './ProductActionsService'
+import { DshWorkProductReferencesService } from './ProductReferencesService'
 import { registerToolConversationLocale } from './ToolConversationLocale'
 import styles from './DshWorkSettings.module.css'
 
@@ -617,6 +618,7 @@ export function apply(ctx: ClientContext) {
     sessions: ctx.sessions
   })
   new DshWorkProductActionsService(ctx, conversation)
+  new DshWorkProductReferencesService(ctx, conversation)
 
   ctx.effect(() => {
     const presenter = createDshThemePresenter(document)

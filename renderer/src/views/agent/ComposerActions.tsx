@@ -44,16 +44,22 @@ interface Props {
   sessionId?: string | null
   conversations?: { id: string; title: string }[]
   disabled?: boolean
+  /** Route product references through the Profile-owned InputTrigger sources. */
+  officialReferences?: boolean
   onAddAttachments: (files: Attachment[]) => void
   /** Insert text at cursor when an @ mention or # conversation item is chosen. */
   onInsert: (text: string) => void
 }
 
-type Action = 'attach' | PickMode
-const MENU: { action: Action; icon: typeof IconPlus; label: string }[] = [
+type Action = 'attach' | 'reference' | PickMode
+const STANDALONE_MENU: { action: Action; icon: typeof IconPlus; label: string }[] = [
   { action: 'attach', icon: IconPaperclip, label: '添加文件 / 文件夹' },
   { action: 'file', icon: IconFile, label: '引用项目文件' },
   { action: 'conv', icon: IconHash, label: '插入 # 会话' }
+]
+const DSH_CLIENT_MENU: { action: Action; icon: typeof IconPlus; label: string }[] = [
+  { action: 'attach', icon: IconPaperclip, label: '添加文件 / 文件夹' },
+  { action: 'reference', icon: IconHash, label: '引用项目文件 / 会话' }
 ]
 
 export default function ComposerActions({
@@ -61,6 +67,7 @@ export default function ComposerActions({
   sessionId,
   conversations = [],
   disabled,
+  officialReferences = false,
   onAddAttachments,
   onInsert
 }: Props) {
@@ -85,8 +92,8 @@ export default function ComposerActions({
   const addAttachment = async () => {
     closeAll()
     if (!isDesktop()) {
-      // No native picker in browser mode, so fall back to @ file chooser.
-      setPicker('file')
+      if (officialReferences) onInsert('@')
+      else setPicker('file')
       return
     }
     const picked = await pickFilesOrFolders()
@@ -97,6 +104,7 @@ export default function ComposerActions({
   const onMenu = (action: Action) => {
     setMenuOpen(false)
     if (action === 'attach') addAttachment()
+    else if (action === 'reference') onInsert('@')
     else setPicker(action)
   }
 
@@ -123,7 +131,7 @@ export default function ComposerActions({
 
       {menuOpen && (
         <div className={styles.caMenu}>
-          {MENU.map((m) => {
+          {(officialReferences ? DSH_CLIENT_MENU : STANDALONE_MENU).map((m) => {
             const Icon = m.icon
             return (
               <button key={m.action} type="button" className={styles.caMenuItem} onClick={() => onMenu(m.action)}>

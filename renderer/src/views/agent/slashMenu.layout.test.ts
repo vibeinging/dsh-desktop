@@ -13,7 +13,9 @@ describe('slash menu integration contract', () => {
   it('keeps the workspace Skill picker only as the standalone fallback', () => {
     expect(conversationSource).toContain('getDshSkillsReq(projectId, currentSessionId)')
     expect(conversationSource).toContain('if (slashMatch && !dshClientHost)')
-    expect(conversationSource).toContain('if (dshClientHost) setSlash(null)')
+    expect(conversationSource).toContain('if (!dshClientHost) return')
+    expect(conversationSource).toContain('setSlash(null)')
+    expect(conversationSource).toContain('setTrigger(null)')
     expect(conversationSource).toContain("e.key === 'ArrowDown'")
     expect(conversationSource).toContain("e.key === 'ArrowUp'")
     expect(conversationSource).toContain('applySlashSkill')

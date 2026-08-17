@@ -3,6 +3,7 @@ import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 import { describe, expect, it, vi } from 'vitest'
 import { DshWorkConversationService } from '../../../packages/dsh-work-shell/src/client/ConversationService'
 import { DshWorkProductActionsService } from '../../../packages/dsh-work-shell/src/client/ProductActionsService'
+import { DshWorkProductReferencesService } from '../../../packages/dsh-work-shell/src/client/ProductReferencesService'
 
 describe('dsh-work Client services', () => {
   it('keeps product actions reachable through a caller plugin Context proxy', () => {
@@ -32,5 +33,18 @@ describe('dsh-work Client services', () => {
 
     await caller.conversation.send('hello')
     expect(prompt).toHaveBeenCalledWith([{ type: 'text', text: 'hello' }], 'queue')
+  })
+
+  it('keeps product reference catalogs reachable through a caller plugin Context proxy', async () => {
+    const root = new Context()
+    const listProductReferences = vi.fn(async () => [{ name: 'project/report.md', text: '@/work/report.md ' }])
+    new DshWorkProductReferencesService(root, { listProductReferences })
+
+    const caller = root.extend()
+    const sessionId = 'session-product-references' as SessionId
+    await expect(caller.dshWorkProductReferences.list(sessionId, 'file', 'report')).resolves.toEqual([
+      { name: 'project/report.md', text: '@/work/report.md ' }
+    ])
+    expect(listProductReferences).toHaveBeenCalledWith(sessionId, 'file', 'report')
   })
 })

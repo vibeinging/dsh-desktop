@@ -393,6 +393,25 @@ describe('DshConversationBridge', () => {
     expect(runCommand).toHaveBeenCalledOnce()
   })
 
+  it('fences product reference catalogs by the selected DSH Session', async () => {
+    const sessionId = 'dsh-session-product-references' as SessionId
+    const otherSessionId = 'dsh-session-other-references' as SessionId
+    const list = sessionList()
+    const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const catalog = vi.fn(async () => [{ name: 'project/report.md', text: '@/work/report.md ' }])
+    bridge.bindProductReferenceHandlers({ list: catalog })
+    bridge.syncSession(sessionId)
+
+    await expect(bridge.listProductReferences(sessionId, 'file', 'report')).resolves.toEqual([
+      { name: 'project/report.md', text: '@/work/report.md ' }
+    ])
+    expect(catalog).toHaveBeenCalledWith('file', 'report')
+    await expect(bridge.listProductReferences(otherSessionId, 'file', '')).rejects.toThrow('当前 DSH Session')
+
+    bridge.dispose()
+    await expect(bridge.listProductReferences(sessionId, 'conversation', '')).rejects.toThrow('当前 DSH Session')
+  })
+
   it('publishes official Tool blocks without storing a second Tool lifecycle', () => {
     const list = sessionList()
     const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })

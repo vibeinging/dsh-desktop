@@ -212,9 +212,14 @@ async function startFakeModel() {
 let session = null
 let fakeModel = null
 let modelProviderSaved = false
+const rendererErrors = []
 try {
   fakeModel = await startFakeModel()
   session = await openSession({ port: 9368 })
+  session.onEvent('Runtime.consoleAPICalled', (event) => {
+    const message = (event.args || []).map((arg) => arg.value ?? arg.description).filter(Boolean).join(' ')
+    if (event?.type === 'error') rendererErrors.push(message)
+  })
   const driver = makeDriver(session)
   const ui = makeUiDriver(session)
   await driver.login()
@@ -294,6 +299,34 @@ try {
   await ui.click(officialModelTrigger)
   await ui.waitFor('[data-dsh-conversation-input-model] [role="menu"]', { timeout: 15_000 })
   await ui.press('Escape')
+  await ui.fill('[data-testid="agent-message-input"]', '@DSH')
+  const officialConversationReference = '[role="option"][id^="dsh-slash-option-dsh-work-conversations-"]'
+  try {
+    await ui.waitFor(officialConversationReference, { timeout: 10_000 })
+  } catch (error) {
+    const referenceDiagnostics = await session.evalJs(`return {
+      input: document.querySelector('[data-testid="agent-message-input"]')?.value || '',
+      options: [...document.querySelectorAll('[role="option"]')].map((node) => ({ id: node.id, text: node.innerText })),
+      listboxes: [...document.querySelectorAll('[role="listbox"]')].map((node) => node.innerText),
+      conversationTitles: [...document.querySelectorAll('[data-agent-conv-id]')].map((node) => node.innerText),
+      bootHasProductReferences: JSON.stringify(window.__DSH_BOOT__ || {}).includes('dsh-client-product-references'),
+      productReferenceResources: performance.getEntriesByType('resource').map((entry) => entry.name).filter((name) => name.includes('product-references')),
+      productReferenceScripts: [...document.scripts].map((node) => node.src).filter((src) => src.includes('product-references')),
+      bodyText: document.body.innerText.slice(-1200)
+    }`)
+    throw new Error(`${error.message}; product reference diagnostics=${JSON.stringify({ referenceDiagnostics, rendererErrors })}`)
+  }
+  assert.equal(await session.evalJs(`return document.querySelector('[data-mention-picker]') === null`), true)
+  assert.match(
+    await session.evalJs(`return document.querySelector(${JSON.stringify(officialConversationReference)})?.innerText || ''`),
+    new RegExp(`^DSH 协作验收 ${stamp}\\b`)
+  )
+  await ui.click(officialConversationReference)
+  await ui.waitUntil(`async () => document.querySelector('[data-testid="agent-message-input"]')?.value === ${JSON.stringify(`#${conversationTitle} `)}`, {
+    timeout: 10_000,
+    label: '产品会话引用通过官方 InputTrigger 写回共享草稿',
+  })
+  await ui.fill('[data-testid="agent-message-input"]', '')
   const skillCatalog = await driver.raw.api('GET', `/api/agent/projects/__chat__/threads/${result.sid}/dsh-skills`)
   assert.equal(skillCatalog.status, 200, JSON.stringify(skillCatalog.json))
   assert.equal(skillCatalog.json?.data?.some((skill) => skill?.name === skillName), true, JSON.stringify(skillCatalog.json))
@@ -507,7 +540,7 @@ try {
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-trajectory]')?.innerText.includes('subagent') || false`), true)
 
-  console.log('[native-multi-agent-ui-smoke] PASS DSH Agent Preset/子任务/Skill/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
+  console.log('[native-multi-agent-ui-smoke] PASS DSH Agent Preset/子任务/产品引用/Skill/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
 } finally {
   if (session && modelProviderSaved) {
     const driver = makeDriver(session)

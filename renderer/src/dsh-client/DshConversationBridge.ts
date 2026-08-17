@@ -19,6 +19,11 @@ import type {
   PickOutcome,
   TokenSpan
 } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
+import type {
+  DshWorkProductReference,
+  DshWorkProductReferenceHandlers,
+  DshWorkProductReferenceKind
+} from './ProductReferences'
 
 type ComposerDockOwner = OwnerOf<'conversation.composer.dock'>
 export type DshWorkComposerInputSnapshot = ComposerDockOwner['input']
@@ -284,6 +289,7 @@ export class DshConversationBridge {
   #adjudicationSeq = 0
   #adjudication: DshWorkAdjudicationAttempt | undefined
   #handlers: DshWorkInputHandlers | null = null
+  #productReferenceHandlers: DshWorkProductReferenceHandlers | null = null
   #openFileHandler: ((path: string) => void) | null = null
   #composerBlockSnapshot: DshComposerBlock
   #composerBlockUnsubscribe: (() => void) | undefined
@@ -398,6 +404,27 @@ export class DshConversationBridge {
     return () => {
       if (this.#handlers === handlers) this.#handlers = null
     }
+  }
+
+  /** Bind the active product workspace catalogs behind the standard input sources. */
+  bindProductReferenceHandlers(handlers: DshWorkProductReferenceHandlers) {
+    this.#productReferenceHandlers = handlers
+    return () => {
+      if (this.#productReferenceHandlers === handlers) this.#productReferenceHandlers = null
+    }
+  }
+
+  /** List product references only for the currently selected DSH Session. */
+  async listProductReferences(
+    sessionId: SessionId,
+    kind: DshWorkProductReferenceKind,
+    query: string
+  ): Promise<readonly DshWorkProductReference[]> {
+    const handlers = this.#productReferenceHandlers
+    if (this.#disposed || this.#desiredSessionId !== sessionId || !handlers) {
+      throw new Error('当前 DSH Session 还没有可用的产品引用目录')
+    }
+    return handlers.list(kind, query)
   }
 
   /** Run one App-owned command contributed through the official input-trigger registry. */
@@ -680,6 +707,7 @@ export class DshConversationBridge {
     this.#inputControllers.clear()
     this.#inputContexts.clear()
     this.#handlers = null
+    this.#productReferenceHandlers = null
     this.#openFileHandler = null
   }
 

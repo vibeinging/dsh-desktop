@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-client-product-references
+      name: '@deepseek-ai/dsh-client-product-references'

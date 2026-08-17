@@ -27,6 +27,7 @@ import {
   getAgentCurrentWorkspaceDiff,
   getDshSessionProtocolState,
   getAgentMessages,
+  listAgentFiles,
   interruptAgentTurn,
   resolveAgentPendingAction,
   resolveAgentApproval,
@@ -143,6 +144,12 @@ import { ANIME_PROFILE_SKIN_ID } from '@/theme/skins/builtin'
 import HomeWelcome from './HomeWelcome'
 import { useDshClientHost } from '@/dsh-client/DshClientHost'
 import type { DshWorkInputHandlers } from '@/dsh-client/DshConversationBridge'
+import {
+  filterProductReferences,
+  productConversationReferences,
+  productFileReferences,
+  type DshWorkProductReferenceHandlers
+} from '@/dsh-client/ProductReferences'
 import styles from './agent.module.scss'
 
 export type { DataWorkspaceEvent } from './stream/types'
@@ -612,7 +619,10 @@ function DshWorkAgentConversation({
   }, [officialInputMenuActive])
 
   useEffect(() => {
-    if (dshClientHost) setSlash(null)
+    if (dshClientHost) {
+      setSlash(null)
+      setTrigger(null)
+    }
   }, [dshClientHost])
 
   useEffect(() => {
@@ -2281,6 +2291,7 @@ function DshWorkAgentConversation({
         const pos = at + snippet.length
         el.focus()
         el.setSelectionRange(pos, pos)
+        dshClientHost?.conversation.trackInputTrigger(el.value, pos, { reserveLeadingSlash: false })
       }
     })
   }
@@ -2386,7 +2397,7 @@ function DshWorkAgentConversation({
     }
   }
 
-  // Update the shared draft, retaining local slash detection only for standalone development.
+  // Update the shared draft, retaining local trigger detection only for standalone development.
   const onInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setInput(val)
@@ -2404,6 +2415,10 @@ function DshWorkAgentConversation({
       return
     }
     if (slash) setSlash(null)
+    if (dshClientHost) {
+      if (trigger) setTrigger(null)
+      return
+    }
     const caret = e.target.selectionStart ?? val.length
     // Scan left from cursor; there must be no whitespace/newline between cursor and trigger character.
     let i = caret - 1
@@ -2630,6 +2645,17 @@ function DshWorkAgentConversation({
   }
   const dshInputHandlersRef = useRef(dshInputHandlers)
   dshInputHandlersRef.current = dshInputHandlers
+  const productReferenceHandlers: DshWorkProductReferenceHandlers = {
+    list: async (kind, query) => {
+      if (kind === 'conversation') {
+        return filterProductReferences(productConversationReferences(conversations), query)
+      }
+      const response: any = await listAgentFiles(projectId, sessionIdRef.current)
+      return filterProductReferences(productFileReferences(response?.data?.roots || []), query)
+    }
+  }
+  const productReferenceHandlersRef = useRef(productReferenceHandlers)
+  productReferenceHandlersRef.current = productReferenceHandlers
   useEffect(() => {
     if (!dshClientHost) return
     return dshClientHost.conversation.bindInputHandlers({
@@ -2638,6 +2664,12 @@ function DshWorkAgentConversation({
       submitDefault: () => dshInputHandlersRef.current.submitDefault?.(),
       notify: (level, text) => dshInputHandlersRef.current.notify?.(level, text),
       runCommand: (name) => dshInputHandlersRef.current.runCommand?.(name)
+    })
+  }, [dshClientHost])
+  useEffect(() => {
+    if (!dshClientHost) return
+    return dshClientHost.conversation.bindProductReferenceHandlers({
+      list: (kind, query) => productReferenceHandlersRef.current.list(kind, query)
     })
   }, [dshClientHost])
   const onKey = (e: React.KeyboardEvent) => {
@@ -2953,6 +2985,7 @@ function DshWorkAgentConversation({
           sessionId={sessionId}
           conversations={conversations}
           disabled={effectiveBusy || Boolean(officialComposerBlock)}
+          officialReferences={Boolean(dshClientHost)}
           onAddAttachments={appendAttachments}
           onInsert={insertAtCursor}
         />

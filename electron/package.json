@@ -197,6 +197,17 @@
         ]
       },
       {
+        "from": "../packages/dsh-client-product-references",
+        "to": "packages/dsh-client-product-references",
+        "filter": [
+          "package.json",
+          "cordis.patch.yml",
+          "README.md",
+          "src/index.js",
+          "lib/client.js"
+        ]
+      },
+      {
         "from": "../packages/dsh-work-shell",
         "to": "packages/dsh-work-shell",
         "filter": [
