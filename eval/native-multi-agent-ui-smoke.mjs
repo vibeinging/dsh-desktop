@@ -272,6 +272,26 @@ try {
     label: '官方 permission decoration 关闭',
   })
   assert.equal(await session.evalJs(`return document.querySelector('[data-testid="dsh-permission-picker"]')?.getAttribute('data-dsh-permission-value') || ''`), permissionBefore)
+  const goalObjective = `验证官方 Goal UI 插件-${stamp}`
+  await ui.fill('[data-testid="agent-message-input"]', '/goal')
+  const officialGoalCommand = '[role="option"][id^="dsh-slash-option-command-"]'
+  await ui.waitFor(officialGoalCommand, { timeout: 10_000 })
+  assert.match(await session.evalJs(`return document.querySelector(${JSON.stringify(officialGoalCommand)})?.innerText || ''`), /^goal\b/)
+  await ui.click(officialGoalCommand)
+  await ui.waitFor('[data-dsh-command-hint]', { timeout: 10_000 })
+  await ui.click('[data-testid="agent-message-input"]')
+  await ui.press('End')
+  await ui.typeText(goalObjective)
+  await ui.press('Enter')
+  await ui.waitFor('[data-goal-bar]', { timeout: 15_000 })
+  assert.equal(await session.evalJs(`return document.querySelector('[data-goal-bar]')?.innerText.includes(${JSON.stringify(goalObjective)}) || false`), true)
+  await ui.click('[data-goal-bar] button[aria-label="暂停目标"]')
+  await ui.waitFor('[data-goal-bar] button[aria-label="恢复目标"]', { timeout: 15_000 })
+  await ui.click('[data-goal-bar] button[aria-label="清除目标"]')
+  await ui.waitUntil(`async () => !document.querySelector('[data-goal-bar]')`, {
+    timeout: 15_000,
+    label: '官方 Goal 插件清除当前 Session 目标',
+  })
   await ui.fill('[data-testid="agent-message-input"]', '/runs')
   await ui.waitFor('[role="listbox"]', { timeout: 10_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-slash-menu]') === null`), true)
