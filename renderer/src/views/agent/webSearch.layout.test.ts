@@ -10,8 +10,10 @@ const styles = readFileSync(fileURLToPath(new URL('./agent.module.scss', import.
 
 describe('chat web search surface', () => {
   it('provides per-turn auto, required and off modes', () => {
-    expect(source).toContain("type SearchMode = 'auto' | 'required' | 'off'")
+    expect(source).toContain('type SearchMode = DshWorkProductSearchMode')
     expect(source).toContain('data-search-mode={searchMode}')
+    expect(source).toContain('{!dshClientHost && (')
+    expect(source).toContain('data-dsh-conversation-input-left')
     expect(source).toContain('searchMode,')
     expect(styles).toContain(".searchModeButton[data-search-mode='required']")
   })

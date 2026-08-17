@@ -955,6 +955,7 @@ test("real current DSH Web Profile serves client slots and its text prompt wire"
     assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-workbench-pages"), true);
     assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-client-product-commands"), true);
     assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-client-product-references"), true);
+    assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-client-product-search-mode"), true);
     const profileRows = profileApi.composeEntries([
       profile.layers.flatMap((layer) => layer.patches),
       profile.patches,
@@ -966,6 +967,7 @@ test("real current DSH Web Profile serves client slots and its text prompt wire"
     assert.equal(profileRows.find((row) => row.id === "dsh-work-shell")?.name, "@deepseek-ai/dsh-work-shell");
     assert.equal(profileRows.find((row) => row.id === "dsh-client-product-commands")?.name, "@deepseek-ai/dsh-client-product-commands");
     assert.equal(profileRows.find((row) => row.id === "dsh-client-product-references")?.name, "@deepseek-ai/dsh-client-product-references");
+    assert.equal(profileRows.find((row) => row.id === "dsh-client-product-search-mode")?.name, "@deepseek-ai/dsh-client-product-search-mode");
     assert.equal(profileRows.some((row) => row.id === "product-client"), false);
     assert.equal(profileRows.some((row) => row.id === "turn-navigator"), false);
     const surface = await client.waitForClientSurface();
@@ -1047,6 +1049,7 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-theme-pack"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-client-product-commands"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-client-product-references"), true);
+    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-client-product-search-mode"), true);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-product-client"), false);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-turn-navigator"), false);
     const described = await client.request("host.describe", {});
@@ -1061,6 +1064,7 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     assert.match(html, /\/plugins\/@deepseek-ai\/dsh-theme-pack\/client\.js\?rev=/);
     assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-commands\/client\.js\?rev=/);
     assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-references\/client\.js\?rev=/);
+    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-search-mode\/client\.js\?rev=/);
     assert.match(html, /const preference = "dark"/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-product-client\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-turn-navigator\/client\.js\?rev=/);

@@ -10,7 +10,7 @@
     "dev": "node ../scripts/run-with-project-node.mjs exec vite --mode serve-dev",
     "build": "npm run build:app && npm run build:dsh-client",
     "build:app": "node ../scripts/run-with-project-node.mjs exec vite build --mode desktop",
-    "build:dsh-client": "node ../scripts/run-with-project-node.mjs exec vite build --config vite.dsh-client.config.ts --mode desktop && node ../scripts/run-with-project-node.mjs exec vite build --config vite.dsh-theme-pack.config.ts --mode desktop && node ../scripts/run-with-project-node.mjs exec vite build --config vite.dsh-product-commands.config.ts --mode desktop && node ../scripts/run-with-project-node.mjs exec vite build --config vite.dsh-product-references.config.ts --mode desktop",
+    "build:dsh-client": "node ../scripts/run-with-project-node.mjs exec vite build --config vite.dsh-client.config.ts --mode desktop && node ../scripts/run-with-project-node.mjs exec vite build --config vite.dsh-theme-pack.config.ts --mode desktop && node ../scripts/run-with-project-node.mjs exec vite build --config vite.dsh-product-commands.config.ts --mode desktop && node ../scripts/run-with-project-node.mjs exec vite build --config vite.dsh-product-references.config.ts --mode desktop && node ../scripts/run-with-project-node.mjs exec vite build --config vite.dsh-product-search-mode.config.ts --mode desktop",
     "build:desktop": "npm run build:app && npm run build:dsh-client",
     "preview": "node ../scripts/run-with-project-node.mjs exec vite preview",
     "typecheck": "node ../scripts/run-with-project-node.mjs exec tsc --noEmit",

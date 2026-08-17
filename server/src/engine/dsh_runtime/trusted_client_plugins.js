@@ -80,6 +80,12 @@ const TRUSTED_DSH_PLUGINS = Object.freeze([{
   browser: true,
   portability: "desktop-adapter",
 }, {
+  name: "@deepseek-ai/dsh-client-product-search-mode",
+  envPath: "DSH_CLIENT_PRODUCT_SEARCH_MODE_ROOT",
+  appPackage: "packages/dsh-client-product-search-mode",
+  browser: true,
+  portability: "desktop-adapter",
+}, {
   name: "@deepseek-ai/dsh-work-shell",
   envPath: "DSH_WORK_SHELL_ROOT",
   appPackage: "packages/dsh-work-shell",

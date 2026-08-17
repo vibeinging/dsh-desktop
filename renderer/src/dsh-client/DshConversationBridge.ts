@@ -24,6 +24,10 @@ import type {
   DshWorkProductReferenceHandlers,
   DshWorkProductReferenceKind
 } from './ProductReferences'
+import {
+  nextProductSearchMode,
+  type DshWorkProductSearchMode
+} from './ProductSearchMode'
 
 type ComposerDockOwner = OwnerOf<'conversation.composer.dock'>
 export type DshWorkComposerInputSnapshot = ComposerDockOwner['input']
@@ -290,6 +294,9 @@ export class DshConversationBridge {
   #adjudication: DshWorkAdjudicationAttempt | undefined
   #handlers: DshWorkInputHandlers | null = null
   #productReferenceHandlers: DshWorkProductReferenceHandlers | null = null
+  #productSearchMode: DshWorkProductSearchMode = 'auto'
+  #productSearchModeHandler: ((mode: DshWorkProductSearchMode) => void) | null = null
+  readonly #productSearchModeListeners = new Set<() => void>()
   #openFileHandler: ((path: string) => void) | null = null
   #composerBlockSnapshot: DshComposerBlock
   #composerBlockUnsubscribe: (() => void) | undefined
@@ -425,6 +432,41 @@ export class DshConversationBridge {
       throw new Error('当前 DSH Session 还没有可用的产品引用目录')
     }
     return handlers.list(kind, query)
+  }
+
+  /** Bind the product turn-policy state behind a removable standard Slot control. */
+  bindProductSearchModeHandler(handler: (mode: DshWorkProductSearchMode) => void) {
+    this.#productSearchModeHandler = handler
+    return () => {
+      if (this.#productSearchModeHandler === handler) this.#productSearchModeHandler = null
+    }
+  }
+
+  /** Project the current product turn-policy mode into the Client service. */
+  updateProductSearchMode(mode: DshWorkProductSearchMode) {
+    if (this.#productSearchMode === mode) return
+    this.#productSearchMode = mode
+    for (const listener of this.#productSearchModeListeners) listener()
+  }
+
+  /** Read the product turn-policy mode for the currently selected DSH Session. */
+  getProductSearchModeSnapshot(sessionId: SessionId) {
+    return this.#desiredSessionId === sessionId ? this.#productSearchMode : 'auto'
+  }
+
+  /** Subscribe to product turn-policy changes while the requested Session remains selected. */
+  subscribeProductSearchMode(sessionId: SessionId, listener: () => void) {
+    if (this.#disposed || this.#desiredSessionId !== sessionId) return () => {}
+    this.#productSearchModeListeners.add(listener)
+    return () => this.#productSearchModeListeners.delete(listener)
+  }
+
+  /** Advance the current product turn-policy mode through its explicit cycle. */
+  cycleProductSearchMode(sessionId: SessionId) {
+    const handler = this.#productSearchModeHandler
+    if (this.#disposed || this.#desiredSessionId !== sessionId || !handler) return false
+    handler(nextProductSearchMode(this.#productSearchMode))
+    return true
   }
 
   /** Run one App-owned command contributed through the official input-trigger registry. */
@@ -708,6 +750,8 @@ export class DshConversationBridge {
     this.#inputContexts.clear()
     this.#handlers = null
     this.#productReferenceHandlers = null
+    this.#productSearchModeHandler = null
+    this.#productSearchModeListeners.clear()
     this.#openFileHandler = null
   }
 

@@ -327,6 +327,15 @@ try {
     label: '产品会话引用通过官方 InputTrigger 写回共享草稿',
   })
   await ui.fill('[data-testid="agent-message-input"]', '')
+  const officialSearchMode = '[data-dsh-product-search-mode]'
+  await ui.waitFor(`${officialSearchMode}[data-search-mode="auto"]`, { timeout: 10_000 })
+  assert.equal(await session.evalJs(`return document.querySelectorAll('[data-search-mode]').length`), 1)
+  await ui.click(officialSearchMode)
+  await ui.waitFor(`${officialSearchMode}[data-search-mode="required"]`, { timeout: 10_000 })
+  await ui.click(officialSearchMode)
+  await ui.waitFor(`${officialSearchMode}[data-search-mode="off"]`, { timeout: 10_000 })
+  await ui.click(officialSearchMode)
+  await ui.waitFor(`${officialSearchMode}[data-search-mode="auto"]`, { timeout: 10_000 })
   const skillCatalog = await driver.raw.api('GET', `/api/agent/projects/__chat__/threads/${result.sid}/dsh-skills`)
   assert.equal(skillCatalog.status, 200, JSON.stringify(skillCatalog.json))
   assert.equal(skillCatalog.json?.data?.some((skill) => skill?.name === skillName), true, JSON.stringify(skillCatalog.json))
@@ -540,7 +549,7 @@ try {
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-trajectory]')?.innerText.includes('subagent') || false`), true)
 
-  console.log('[native-multi-agent-ui-smoke] PASS DSH Agent Preset/子任务/产品引用/Skill/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
+  console.log('[native-multi-agent-ui-smoke] PASS DSH Agent Preset/子任务/产品引用/联网模式/Skill/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
 } finally {
   if (session && modelProviderSaved) {
     const driver = makeDriver(session)

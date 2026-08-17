@@ -150,6 +150,7 @@ import {
   productFileReferences,
   type DshWorkProductReferenceHandlers
 } from '@/dsh-client/ProductReferences'
+import type { DshWorkProductSearchMode } from '@/dsh-client/ProductSearchMode'
 import styles from './agent.module.scss'
 
 export type { DataWorkspaceEvent } from './stream/types'
@@ -240,7 +241,7 @@ interface DshProjectedSessionState {
   }[]
   readonly projections?: Readonly<Record<string, unknown>>
 }
-type SearchMode = 'auto' | 'required' | 'off'
+type SearchMode = DshWorkProductSearchMode
 const IMAGE_TEMPLATE_GALLERY_KIND = 'imagegen'
 const IMAGE_GENERATION_TOOL = 'image_gen'
 
@@ -687,6 +688,16 @@ function DshWorkAgentConversation({
 
   useEffect(() => {
     if (dshClientHost) setModelRuntime(null)
+  }, [dshClientHost])
+
+  useEffect(() => {
+    if (!dshClientHost) return
+    dshClientHost.conversation.updateProductSearchMode(searchMode)
+  }, [dshClientHost, searchMode])
+
+  useEffect(() => {
+    if (!dshClientHost) return
+    return dshClientHost.conversation.bindProductSearchModeHandler(setSearchMode)
   }, [dshClientHost])
 
   // Resolve the project write target so diff files can be opened in external editors.
@@ -3024,21 +3035,23 @@ function DshWorkAgentConversation({
           />
         )}
         <div className={styles.composerInlineSlot} data-dsh-conversation-input-left />
-        <button
-          type="button"
-          className={styles.searchModeButton}
-          data-search-mode={searchMode}
-          disabled={effectiveBusy || Boolean(officialComposerBlock)}
-          title={searchMode === 'auto'
-            ? '联网：自动判断。点击改为本轮必须联网'
-            : searchMode === 'required'
-              ? '联网：本轮必须搜索并引用来源。点击关闭'
-              : '联网：已关闭。点击恢复自动判断'}
-          onClick={() => setSearchMode((current) => current === 'auto' ? 'required' : current === 'required' ? 'off' : 'auto')}
-        >
-          <IconWorldSearch size={15} stroke={1.8} />
-          <span>{searchMode === 'auto' ? '联网自动' : searchMode === 'required' ? '联网' : '不联网'}</span>
-        </button>
+        {!dshClientHost && (
+          <button
+            type="button"
+            className={styles.searchModeButton}
+            data-search-mode={searchMode}
+            disabled={effectiveBusy || Boolean(officialComposerBlock)}
+            title={searchMode === 'auto'
+              ? '联网：自动判断。点击改为本轮必须联网'
+              : searchMode === 'required'
+                ? '联网：本轮必须搜索并引用来源。点击关闭'
+                : '联网：已关闭。点击恢复自动判断'}
+            onClick={() => setSearchMode((current) => current === 'auto' ? 'required' : current === 'required' ? 'off' : 'auto')}
+          >
+            <IconWorldSearch size={15} stroke={1.8} />
+            <span>{searchMode === 'auto' ? '联网自动' : searchMode === 'required' ? '联网' : '不联网'}</span>
+          </button>
+        )}
         <div className={styles.spacer} />
         {dshClientHost ? (
           <div className={styles.composerInlineSlot} data-dsh-conversation-input-model />

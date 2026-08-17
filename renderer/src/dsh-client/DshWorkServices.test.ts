@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { DshWorkConversationService } from '../../../packages/dsh-work-shell/src/client/ConversationService'
 import { DshWorkProductActionsService } from '../../../packages/dsh-work-shell/src/client/ProductActionsService'
 import { DshWorkProductReferencesService } from '../../../packages/dsh-work-shell/src/client/ProductReferencesService'
+import { DshWorkProductSearchModeService } from '../../../packages/dsh-work-shell/src/client/ProductSearchModeService'
 
 describe('dsh-work Client services', () => {
   it('keeps product actions reachable through a caller plugin Context proxy', () => {
@@ -46,5 +47,26 @@ describe('dsh-work Client services', () => {
       { name: 'project/report.md', text: '@/work/report.md ' }
     ])
     expect(listProductReferences).toHaveBeenCalledWith(sessionId, 'file', 'report')
+  })
+
+  it('keeps the product search-mode projection reachable through a caller plugin Context proxy', () => {
+    const root = new Context()
+    const subscribeProductSearchMode = vi.fn(() => vi.fn())
+    const cycleProductSearchMode = vi.fn(() => true)
+    const getProductSearchModeSnapshot = vi.fn(() => 'required' as const)
+    new DshWorkProductSearchModeService(root, {
+      subscribeProductSearchMode,
+      cycleProductSearchMode,
+      getProductSearchModeSnapshot
+    })
+
+    const caller = root.extend()
+    const sessionId = 'session-product-search-mode' as SessionId
+    expect(caller.dshWorkProductSearchMode.getSnapshot(sessionId)).toBe('required')
+    expect(caller.dshWorkProductSearchMode.cycle(sessionId)).toBe(true)
+    const listener = vi.fn()
+    const off = caller.dshWorkProductSearchMode.subscribe(sessionId, listener)
+    expect(subscribeProductSearchMode).toHaveBeenCalledWith(sessionId, listener)
+    off()
   })
 })

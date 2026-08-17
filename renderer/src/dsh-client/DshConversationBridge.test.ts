@@ -412,6 +412,29 @@ describe('DshConversationBridge', () => {
     await expect(bridge.listProductReferences(sessionId, 'conversation', '')).rejects.toThrow('当前 DSH Session')
   })
 
+  it('projects and cycles product search mode only for the selected DSH Session', () => {
+    const sessionId = 'dsh-session-search-mode' as SessionId
+    const otherSessionId = 'dsh-session-other-search-mode' as SessionId
+    const bridge = createBridge({ list: sessionList(), open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const setMode = vi.fn()
+    bridge.bindProductSearchModeHandler(setMode)
+    bridge.syncSession(sessionId)
+    const listener = vi.fn()
+    const unsubscribe = bridge.subscribeProductSearchMode(sessionId, listener)
+
+    bridge.updateProductSearchMode('required')
+    expect(listener).toHaveBeenCalledOnce()
+    expect(bridge.getProductSearchModeSnapshot(sessionId)).toBe('required')
+    expect(bridge.getProductSearchModeSnapshot(otherSessionId)).toBe('auto')
+    expect(bridge.cycleProductSearchMode(sessionId)).toBe(true)
+    expect(setMode).toHaveBeenCalledWith('off')
+    expect(bridge.cycleProductSearchMode(otherSessionId)).toBe(false)
+
+    unsubscribe()
+    bridge.dispose()
+    expect(bridge.cycleProductSearchMode(sessionId)).toBe(false)
+  })
+
   it('publishes official Tool blocks without storing a second Tool lifecycle', () => {
     const list = sessionList()
     const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
