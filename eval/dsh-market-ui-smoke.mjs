@@ -65,7 +65,27 @@ try {
 
   await ui.click('#settings-nav-plugins')
   await ui.waitFor('[data-profile-bundle="dshmarket"]', { timeout: 15_000 })
+  await ui.click('[data-profile-bundle-detail="dshmarket"]')
+  await ui.waitFor('[data-dsh-client-partial-slots]', { timeout: 15_000 })
+  const clientSurface = await session.evalJs(`
+    const detail = document.querySelector('[data-dsh-client-surface-status]');
+    return detail?.textContent?.replace(/\\s+/g, ' ').trim() || '';
+  `)
+  assert.match(clientSurface, /conversation\.composer/)
+  assert.match(clientSurface, /conversation\.hero\.agentPreset/)
+  assert.match(clientSurface, /conversation\.chat\.node/)
+  assert.match(clientSurface, /tool-call/)
+  assert.match(clientSurface, /conversation\.view/)
+  await ui.press('Escape')
+  await ui.waitUntil(
+    () => !document.querySelector('[data-dsh-client-partial-slots]'),
+    { timeout: 5_000, label: 'Bundle 详情弹窗关闭' }
+  )
   await ui.click('[data-profile-bundle-uninstall="dshmarket"]')
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  if (!await ui.exists('[data-profile-uninstall-confirm="dshmarket"]')) {
+    await ui.click('[data-profile-bundle-uninstall="dshmarket"]')
+  }
   await ui.waitFor('[data-profile-uninstall-confirm="dshmarket"]', { timeout: 5_000 })
   await ui.click('[data-profile-uninstall-confirm="dshmarket"]')
 
@@ -77,7 +97,7 @@ try {
   await ui.waitFor('[data-community-plugin-install="dshmarket"]', { timeout: 15_000 })
   assert.equal(await ui.exists('[data-profile-bundle="dshmarket"]'), false)
 
-  console.log('[dsh-market-ui-smoke] PASS 插件中心预检/安装/Client图刷新/settings.section/卸载/真实Electron渲染')
+  console.log('[dsh-market-ui-smoke] PASS 插件中心预检/安装/Client图刷新/Slot能力分组/settings.section/卸载/真实Electron渲染')
 } finally {
   try { await session?.close() } catch { /* ignore */ }
   try { rmSync(evalHome, { recursive: true, force: true }) } catch { /* ignore */ }

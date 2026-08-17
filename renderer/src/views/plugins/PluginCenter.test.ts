@@ -23,6 +23,8 @@ describe('DSH Profile Bundle community plugin flow', () => {
     expect(source).toContain("detail.ui_runtime.isolation === 'quarantined'")
     expect(source).toContain('data-profile-bundle-blocked')
     expect(source).toContain('主窗口已支持')
+    expect(source).toContain('主窗口部分支持')
+    expect(source).toContain('data-dsh-client-partial-slots')
     expect(source).toContain('不代表这个插件实际注册了这些位置')
     expect(source).not.toContain('adopted_slots')
     expect(source).not.toContain('dsh-work 尚未承载该图')

@@ -39,14 +39,25 @@ const DSH_WORK_MAPPED_CLIENT_SLOTS = Object.freeze([
   "sidebar.footer.action",
   "conversation.session.header.actions",
   "conversation.session.header.utilities",
+  "conversation.composer",
+  "conversation.input.overlay",
   "conversation.input.dock",
   "conversation.composer.dock",
   "conversation.input.left",
   "conversation.input.right",
+  "conversation.input.plan",
+  "conversation.input.model",
+  "conversation.hero.agentPreset",
   "conversation.chat.assistant-actions",
   "conversation.chat.turnTail",
+  "tool.call.toolview",
   "details",
 ]);
+const DSH_WORK_PARTIAL_CLIENT_SLOTS = Object.freeze([Object.freeze({
+  slot: "conversation.chat.node",
+  supported_keys: Object.freeze(["tool-call"]),
+  note: "当前只分派官方 ToolCallBlock；其他 Chat Node 仍等待统一的消息排序与选择状态",
+})]);
 const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
   "root",
   "sidebar",
@@ -56,15 +67,10 @@ const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
   "conversation.session",
   "conversation.session.header",
   "conversation.view",
-  "conversation.chat.node",
   "conversation.chat.commandview",
   "conversation.details.tool",
-  "conversation.composer",
   "conversation.hero.workspace",
-  "conversation.hero.agentPreset",
   "conversation.composer.bar",
-  "conversation.input.plan",
-  "conversation.input.model",
   "settings.trigger",
   "settings.header",
   "settings.action",
@@ -258,6 +264,9 @@ function bundleView({
       ...(dshClient && !enabled ? { declares_client: true, isolation: "quarantined" } : {}),
       host_supported_slots: dshClient && enabled
         ? DSH_WORK_MAPPED_CLIENT_SLOTS
+        : [],
+      host_partial_slots: dshClient && enabled
+        ? DSH_WORK_PARTIAL_CLIENT_SLOTS
         : [],
       host_unmapped_slots: dshClient ? DSH_WORK_UNMAPPED_CLIENT_SLOTS : [],
     },

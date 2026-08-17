@@ -50,6 +50,11 @@ interface ProfileBundle {
     client_graph?: boolean
     isolation?: 'trusted' | 'quarantined' | 'not_required'
     host_supported_slots?: string[]
+    host_partial_slots?: Array<{
+      slot: string
+      supported_keys?: string[]
+      note: string
+    }>
     host_unmapped_slots?: string[]
   }
   capabilities?: string[]
@@ -407,7 +412,12 @@ export default function PluginCenter({
               </div>
             </div>
             <div className={styles.itemActions}>
-              <Button size="xs" variant="subtle" onClick={() => void openDetail(bundle)}>详情</Button>
+              <Button
+                size="xs"
+                variant="subtle"
+                data-profile-bundle-detail={bundle.id}
+                onClick={() => void openDetail(bundle)}
+              >详情</Button>
               {bundle.can_uninstall && (
                 <Tooltip label="从当前 Profile 卸载">
                   <Button
@@ -568,6 +578,20 @@ export default function PluginCenter({
                   <>
                     <p>已进入当前主窗口的 DSH Client 图。</p>
                     <p>主窗口已支持：{detail.ui_runtime.host_supported_slots?.join('、') || '无'}</p>
+                    {Array.isArray(detail.ui_runtime.host_partial_slots) && detail.ui_runtime.host_partial_slots.length > 0 && (
+                      <div data-dsh-client-partial-slots>
+                        <p>主窗口部分支持：</p>
+                        <ul>
+                          {detail.ui_runtime.host_partial_slots.map((item) => (
+                            <li key={item.slot}>
+                              <strong>{item.slot}</strong>
+                              {item.supported_keys?.length ? `（已接 ${item.supported_keys.join('、')}）` : ''}
+                              ：{item.note}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                     <p>主窗口尚未映射：{detail.ui_runtime.host_unmapped_slots?.join('、') || '无'}</p>
                     <p>这里说明宿主能力，不代表这个插件实际注册了这些位置。</p>
                   </>
