@@ -101,6 +101,20 @@ Host Bundles that provide Tools, Skills, MCP servers, or Hooks can enter the DSH
 
 ![DSH Web Profile Bundle list](docs/images/readme/dsh-profile-bundles.png)
 
+### dsh-web-ui, Verified
+
+The Plugin Center can install the exact `@linxin666/dsh-web-ui-all@0.1.20` release. Installation, load order, and removal remain owned by the DSH rc.7 Web Profile; this project does not copy the community plugin's code. The product shell uses the DSH Web three-track `data-dsh-frame` contract and stable `data-pane` locations so the task board, SSH, and AionUI file panel can share the main window. The aggregate and its 13 dependencies enter the current Renderer only when their names, versions, and dependency graph exactly match the reviewed record.
+
+This aggregate can read local repositories and images, start processes such as Git and SSH, and access remote Web, SSH, and model services. The Plugin Center shows these high-permission scopes before preflight so users can decide whether they fit the environment. Developers can use the same official Profile command:
+
+```bash
+dsh plugin --profile web add -w @linxin666/dsh-web-ui-all@0.1.20 --save-exact
+```
+
+The image below comes from real Electron with an isolated data directory. After the Plugin Center completed the rc.7 Profile preflight and installation, the community task board occupied the product's center pane while the task-board and SSH entries appeared in the left navigation. It is neither a composited image nor a standalone browser page.
+
+![dsh-web-ui community task board installed in DeepSeek Harness Desktop App](docs/images/readme/dsh-web-ui-task-board.png)
+
 ### Community Plugin Directory
 
 The project maintains a machine-readable community plugin directory, and the Plugin Center reads the same data directly. The directory records repositories, version sources, Star snapshots, compatibility status, and adoption priority. Stars indicate community interest only; installation must still pass the Profile preflight and desktop compatibility tests.
@@ -108,7 +122,7 @@ The project maintains a machine-readable community plugin directory, and the Plu
 | Plugin | Community capabilities | Current adoption plan |
 |---|---|---|
 | [DSH Plugin Market](https://github.com/dsh-market/dsh-market) | Browse, search, install, and update DSH plugins | Reviewed and integrated into the Profile and Client graphs, pinned to `dshmarket@1.9.0` |
-| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Task board, Git graph, real-time statistics, remote UI, pet, and skins | Adopt by subpackage instead of installing the entire suite |
+| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Task board, Git graph, real-time statistics, remote UI, SSH, pet, and skins | Reviewed and connected at `@linxin666/dsh-web-ui-all@0.1.20`; rc.7 Profile installation, Host/Client boot, and real Electron task-board and SSH tests pass, with local-file, process, and network permission warnings shown before installation |
 | [modlens](https://github.com/liustack/modlens) | Provide OCR, layout, and semantic evidence from images to text models | Integrate after credential and data transmission review |
 | [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | Files, editor, terminal, Git, Sub-Agents, and third-party tabs | Wait for a standard Slot or separate runtime area to avoid conflicts with the desktop shell |
 | [DSH Vision Toolkit](https://github.com/Anionex/dsh-vision-toolkit) | Image Q&A, OCR, UI reconstruction, pixel differences, and Artifacts | Integrate after the Tool View Slot is available |
@@ -147,9 +161,9 @@ Product capabilities needed by the model enter through the bound Session and DSH
 
 ## Current boundaries
 
-- There is no five-column task board, standalone scheduling page, Git graph, stage/unstage panel, or standalone terminal page.
+- The base Profile does not include a five-column task board, Git graph, or SSH. Installing the reviewed `dsh-web-ui` adds the five-column task board, Git graph, and SSH entry; a standalone scheduling page, complete stage/unstage workflow, and standalone terminal page still lack product acceptance.
 - Local Sites support preview and single-file export but not deployment. Public sharing currently has a read-only viewer only.
-- There is no mobile remote control, QR pairing, public tunnel, SSH, SFTP, or port forwarding.
+- The base Profile does not include mobile remote control, QR pairing, public tunnels, SSH, SFTP, or port forwarding. `dsh-web-ui` contains some of these high-permission capabilities, but those paths have not completed product-level security acceptance and are not enabled by default.
 - Sub-Agents can run and appear in conversations and trajectories, but there is no complete standalone management page yet.
 
 ## Data and security

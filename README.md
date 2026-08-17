@@ -101,6 +101,20 @@ Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第
 
 ![DSH Web Profile Bundle 列表](docs/images/readme/dsh-profile-bundles.png)
 
+### dsh-web-ui 实测
+
+插件中心可以安装精确固定的 `@linxin666/dsh-web-ui-all@0.1.20`。安装、加载顺序和卸载仍由 DSH rc.7 的 Web Profile 管理，本项目没有复制社区插件代码。产品壳使用 DSH Web 的三轨 `data-dsh-frame` 与稳定的 `data-pane` 位置，让任务看板、SSH 和 AionUI 文件面板可以进入同一个主窗口；聚合包及其 13 个依赖只有在包名、版本和依赖图都与审查记录完全一致时才会进入当前 Renderer。
+
+这个聚合包会读取本地仓库与图片、启动 Git 和 SSH 等进程，并访问远程 Web、SSH 和模型服务。插件中心会在预检前显示这些高权限范围，用户确认适合自己的环境后再安装。开发者也可以使用同一条官方 Profile 命令：
+
+```bash
+dsh plugin --profile web add -w @linxin666/dsh-web-ui-all@0.1.20 --save-exact
+```
+
+下图来自隔离数据目录中的真实 Electron：插件中心完成 rc.7 Profile 预检和安装后，社区任务看板占用产品中间区，左侧同时出现任务看板与 SSH 入口。截图没有拼接，也不是独立浏览器页面。
+
+![dsh-web-ui 社区任务看板安装到 DeepSeek Harness Desktop App](docs/images/readme/dsh-web-ui-task-board.png)
+
 ### 社区插件目录
 
 项目维护一份机器可读的社区插件目录，插件中心直接读取同一份数据。目录记录仓库、版本来源、Star 快照、兼容状态和采用优先级；Star 只表示社区关注度，安装仍必须通过 Profile 预检和桌面兼容测试。
@@ -108,7 +122,7 @@ Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第
 | 插件 | 社区能力 | 当前采用计划 |
 |---|---|---|
 | [DSH Plugin Market](https://github.com/dsh-market/dsh-market) | 浏览、搜索、安装和更新 DSH 插件 | 已审查并接入 Profile 与 Client 图，固定 `dshmarket@1.9.0` |
-| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | 任务看板、Git 图谱、实时统计、远程 UI、宠物和皮肤 | 按子包采用，不直接安装全家桶 |
+| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | 任务看板、Git 图谱、实时统计、远程 UI、SSH、宠物和皮肤 | 已审查并接通 `@linxin666/dsh-web-ui-all@0.1.20`；rc.7 Profile 安装、Host/Client 启动、任务看板与 SSH 的真实 Electron 实测通过，安装前显示本地文件、进程与网络权限提示 |
 | [modlens](https://github.com/liustack/modlens) | 为文本模型提供 OCR、布局和图像语义证据 | 完成凭据与数据发送审查后接入 |
 | [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | 文件、编辑器、终端、Git、子 Agent 和第三方 Tab | 等待标准 Slot 或独立运行区，避免与桌面壳冲突 |
 | [DSH Vision Toolkit](https://github.com/Anionex/dsh-vision-toolkit) | 图像问答、OCR、UI 还原、像素差异和 Artifact | 补齐 Tool View Slot 后接入 |
@@ -147,9 +161,9 @@ DeepSeek Harness Desktop App 不是 DSH Web 的 iframe，也没有复制一套 A
 
 ## 当前边界
 
-- 当前没有五列任务看板、独立定时任务页面、Git 图谱、stage/unstage 面板或独立终端页。
+- 基础 Profile 不内置五列任务看板、Git 图谱或 SSH；安装经审查的 `dsh-web-ui` 后已经可以使用五列任务看板、Git 图谱和 SSH 入口，独立定时任务页、完整 stage/unstage 工作流和独立终端页仍未完成产品验收。
 - 本地 Site 只提供预览和单文件导出，没有部署服务；公开分享目前只有只读查看。
-- 当前没有移动端远程控制、二维码配对、公网隧道、SSH、SFTP 或端口转发。
+- 基础 Profile 不内置移动端远程控制、二维码配对、公网隧道、SSH、SFTP 或端口转发；`dsh-web-ui` 包含其中部分高权限能力，但这些路径还没有完成产品级安全验收，也不会默认启用。
 - 子 Agent 可以执行并出现在对话与轨迹中，但还没有完整的独立管理页。
 
 ## 数据与安全
