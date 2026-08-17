@@ -730,7 +730,10 @@ function DshWorkAgentConversation({
     window.requestAnimationFrame(() => taRef.current?.focus())
   }, [onRequestedArtifactReferenceConsumed, requestedArtifactReference])
   const [revertingItemIds, setRevertingItemIds] = useState<Record<string, boolean>>({})
-  const clientCapabilities = useMemo(() => currentClientCapabilities(), [])
+  const clientCapabilities = useMemo(() => ({
+    ...currentClientCapabilities(),
+    dshClientInteractions: Boolean(dshClientHost)
+  }), [dshClientHost])
   const latestTurnDiff = useMemo(
     () => Object.values(turnDiffs).sort((a, b) => b.updatedAt - a.updatedAt)[0] || null,
     [turnDiffs]
@@ -2659,15 +2662,17 @@ function DshWorkAgentConversation({
 
   const composer = (
     <>
-      <div className={styles.composerInputDock} data-dsh-conversation-input-dock />
-      <div
-      className={styles.composer}
-      data-drop-active={dropActive ? 'true' : undefined}
-      onDragEnter={onComposerDragEnter}
-      onDragOver={onComposerDragOver}
-      onDragLeave={onComposerDragLeave}
-      onDrop={onComposerDrop}
-    >
+      <div className={styles.composerTakeover} data-dsh-conversation-composer-takeover />
+      <div className={styles.composerResident}>
+        <div className={styles.composerInputDock} data-dsh-conversation-input-dock />
+        <div
+          className={styles.composer}
+          data-drop-active={dropActive ? 'true' : undefined}
+          onDragEnter={onComposerDragEnter}
+          onDragOver={onComposerDragOver}
+          onDragLeave={onComposerDragLeave}
+          onDrop={onComposerDrop}
+        >
       {dropActive && (
         <div className={styles.composerDropOverlay} aria-hidden="true">
           <span className={styles.composerDropIcons}>
@@ -2978,6 +2983,7 @@ function DshWorkAgentConversation({
         </button>
       </div>
       <div className={styles.composerPluginDock} data-dsh-conversation-composer-dock />
+        </div>
       </div>
     </>
   )

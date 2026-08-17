@@ -16,6 +16,10 @@ const parentPrompt = `委派一个子任务并等待它完成-${stamp}`
 const childPrompt = `只返回子任务完成口令 child-ui-${stamp}`
 const childAnswer = `child-ui-done-${stamp}`
 const parentAnswer = `parent-ui-done-${stamp}`
+const questionPrompt = `使用官方提问工具让我选择验收结果-${stamp}`
+const questionText = `官方 Composer Chain 是否已经接管输入区-${stamp}`
+const questionOption = `已经接管-${stamp}`
+const questionAnswer = `question-ui-done-${stamp}`
 const providerId = 'native-multi-agent-ui-eval'
 const modelId = 'native-multi-agent-ui-model'
 const credentialRef = 'NATIVE_MULTI_AGENT_UI_API_KEY'
@@ -107,6 +111,34 @@ async function startFakeModel() {
       })
 
       const serializedMessages = JSON.stringify(body.messages || [])
+      if (serializedMessages.includes(questionPrompt)) {
+        if (!serializedMessages.includes('call_dsh_question')) {
+          const askUserQuestion = toolName(body, 'ask_user_question')
+          assert.ok(askUserQuestion, `DSH ask_user_question tool is unavailable: ${JSON.stringify(body.tools || [])}`)
+          sendToolCall(response, {
+            id: 'call_dsh_question',
+            name: askUserQuestion,
+            arguments: {
+              questions: [{
+                id: 'composer-chain',
+                header: '官方 UI 插件验收',
+                question: questionText,
+                options: [
+                  { label: questionOption, description: '由 ui-question 插件提交结构化答案。' },
+                  { label: `尚未接管-${stamp}`, description: '产品输入框仍在占用当前位置。' },
+                ],
+              }],
+            },
+          })
+          return
+        }
+        const toolOutput = (body.messages || []).find((message) => (
+          message?.role === 'tool' && message?.tool_call_id === 'call_dsh_question'
+        ))
+        assert.ok(messageText(toolOutput?.content).includes(questionOption), JSON.stringify(toolOutput || null))
+        sendText(response, 'question_ui_done', questionAnswer)
+        return
+      }
       if (serializedMessages.includes(childPrompt) && !serializedMessages.includes(parentPrompt)) {
         sendText(response, 'child_ui_done', childAnswer)
         return
@@ -292,6 +324,44 @@ try {
     timeout: 15_000,
     label: '官方 Goal 插件清除当前 Session 目标',
   })
+  const questionRequestCount = fakeModel.requests.length
+  await ui.fill('[data-testid="agent-message-input"]', questionPrompt)
+  await ui.press('Enter')
+  await ui.waitFor('[data-question-key]', { timeout: 15_000 })
+  assert.equal(await session.evalJs(`return document.querySelector('[data-question-key]')?.innerText.includes(${JSON.stringify(questionText)}) || false`), true)
+  assert.equal(await session.evalJs(`return document.querySelector('[data-testid="agent-message-input"]')?.offsetParent === null`), true)
+  await ui.click(`[data-question-key] [role="radio"][aria-label=${JSON.stringify(questionOption)}]`)
+  await ui.click('[data-question-key] footer > div:last-child button:last-child')
+  await ui.waitUntil(`async () => !document.querySelector('[data-question-key]')`, {
+    timeout: 15_000,
+    label: '官方 ui-question Composer Chain 提交并退出接管',
+  })
+  const questionAnswerDeadline = Date.now() + 15_000
+  while (fakeModel.requests.length < questionRequestCount + 2
+    && fakeModel.handlerErrors.length === 0
+    && Date.now() < questionAnswerDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  assert.deepEqual(fakeModel.handlerErrors, [])
+  assert.ok(fakeModel.requests.length >= questionRequestCount + 2, JSON.stringify(
+    fakeModel.requests.slice(questionRequestCount).map((request) => request.messages || [])
+  ))
+  let questionTrajectory = null
+  const questionHistoryDeadline = Date.now() + 15_000
+  while (Date.now() < questionHistoryDeadline) {
+    questionTrajectory = await driver.raw.api('GET', `/api/agent/projects/__chat__/threads/${result.sid}/dsh-trajectory`)
+    if (JSON.stringify(questionTrajectory.json?.data?.events || []).includes(questionAnswer)) break
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  assert.ok(
+    JSON.stringify(questionTrajectory?.json?.data?.events || []).includes(questionAnswer),
+    JSON.stringify(questionTrajectory?.json || null)
+  )
+  await ui.waitUntil(`async () => document.body.innerText.includes(${JSON.stringify(questionAnswer)})`, {
+    timeout: 15_000,
+    label: '提问工具答案返回 DSH Agent 并完成最终回答',
+  })
+  assert.equal(await session.evalJs(`return document.querySelector('[data-testid="agent-message-input"]')?.offsetParent !== null`), true)
   await ui.fill('[data-testid="agent-message-input"]', '/runs')
   await ui.waitFor('[role="listbox"]', { timeout: 10_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-slash-menu]') === null`), true)
@@ -304,7 +374,7 @@ try {
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-trajectory]')?.innerText.includes('subagent') || false`), true)
 
-  console.log('[native-multi-agent-ui-smoke] PASS DSH 子任务委派/等待/父级回答/session.history 轨迹')
+  console.log('[native-multi-agent-ui-smoke] PASS DSH 子任务/Goal/提问插件/父级回答/session.history 轨迹')
 } finally {
   if (session && modelProviderSaved) {
     const driver = makeDriver(session)

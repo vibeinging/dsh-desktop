@@ -3426,6 +3426,21 @@
   padding: 0 clamp(14px, 2vw, 24px) clamp(14px, 2vw, 22px);
   background: linear-gradient(180deg, transparent, var(--dsh-surface) 34%);
 }
+.composerTakeover {
+  width: min(860px, 100%);
+  margin: 0 auto;
+}
+.composerTakeover:not(:has([data-dsh-standard-conversation-composer-chain])),
+.composerTakeover:has([data-dsh-product-composer-resident]) {
+  display: none;
+}
+.composerTakeover:has([data-dsh-standard-conversation-composer-chain]):not(:has([data-dsh-product-composer-resident]))
+  + .composerResident {
+  display: none;
+}
+.composerResident {
+  display: contents;
+}
 .composerInputDock {
   width: min(860px, 100%);
   margin: 0 auto 8px;

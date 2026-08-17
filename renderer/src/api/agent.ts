@@ -1360,6 +1360,7 @@ export interface StartAgentTurnParams {
     reviewWorkspaceDiff: boolean
     mutateWorkspace: boolean
     downloadArtifact: boolean
+    dshClientInteractions: boolean
   }
   reviewComments?: Array<{
     id: string

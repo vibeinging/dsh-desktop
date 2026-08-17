@@ -212,6 +212,11 @@ export class DshWorkspaceRuntime {
   }
 
   async #handleQuestion(frame, agentContext) {
+    // The formal DSH Client receives this same requested frame and answers it
+    // through the official PendingWait Remote. Registering the legacy App
+    // request as a second consumer would leave this queue waiting after the
+    // official answer has already settled the DSH question.
+    if (agentContext?.clientOwnsDshInteractions === true) return;
     const questions = Array.isArray(frame.payload?.questions) ? frame.payload.questions : [];
     const response = typeof agentContext?.requestUserInput === "function"
       ? await agentContext.requestUserInput({

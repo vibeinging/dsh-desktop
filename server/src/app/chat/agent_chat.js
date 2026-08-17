@@ -711,6 +711,7 @@ async function agentChatUnlocked(ctx, input, emit) {
   agentContext.skillDecisions = selectedSkills.map((skill_name) => ({ skill_name, runtime: "native", reason: "user_selected" }));
   agentContext.skillDecision = agentContext.skillDecisions[0] || null;
   agentContext.directRuntimeNotifications = true;
+  agentContext.clientOwnsDshInteractions = body.clientCapabilities?.dshClientInteractions === true;
   agentContext.deferNativeTerminal = true;
   agentContext.temporary = temporary;
   agentContext.generativeUi = body.clientCapabilities?.renderGenerativeUi === true;

@@ -652,6 +652,67 @@ test("DSH workspace runtime persists a binding and completes on ApiProxy idle", 
   assert.equal(client.calls.at(-1).method, "session.cancel");
 });
 
+test("DSH workspace runtime leaves questions to the formal Client interaction owner", async () => {
+  const client = new FakeDshClient();
+  const originalRequest = client.request.bind(client);
+  client.request = async (method, payload) => {
+    if (method !== "session.prompt") return originalRequest(method, payload);
+    client.calls.push({ method, payload });
+    queueMicrotask(() => {
+      client.emit("mux", {
+        rpcId: "event-start",
+        payload: { sessionId: "dsh-session-1", type: "session/event", event: { type: "turn/start", seq: 0, time: 1000, data: { turn: 1 } } },
+      });
+      client.emit("host", { payload: { sessionId: "dsh-session-1", type: "host/session-status", running: true } });
+      client.emit("mux", {
+        rpcId: "question-1",
+        payload: {
+          sessionId: "dsh-session-1",
+          type: "question/requested",
+          questions: [{ id: "continue", question: "继续吗？" }],
+        },
+      });
+      client.emit("mux", {
+        rpcId: "event-answer",
+        payload: {
+          sessionId: "dsh-session-1",
+          type: "session/event",
+          event: { type: "assistant/message", seq: 1, time: 1001, data: { turn: 1, step: 1, message: { content: [{ type: "text", text: "已继续" }] } } },
+        },
+      });
+      client.emit("mux", {
+        rpcId: "event-end",
+        payload: { sessionId: "dsh-session-1", type: "session/event", event: { type: "turn/end", seq: 2, time: 1002, data: { turn: 1, reason: { kind: "completed" } } } },
+      });
+      client.emit("host", { payload: { sessionId: "dsh-session-1", type: "host/session-status", running: false } });
+    });
+    return { accepted: true };
+  };
+  const notifications = [];
+  let legacyRequests = 0;
+  const runtime = new DshWorkspaceRuntime({ client });
+  const result = await runtime.execute({
+    cwd: "/repo",
+    streamCallback: async () => {},
+    agentContext: {
+      session_id: "app-session",
+      db: { queryOne: async () => ({ session_config: "{}" }), query: async () => {} },
+      directRuntimeNotifications: true,
+      clientOwnsDshInteractions: true,
+      input_data: { turn_input: [{ type: "text", text: "继续" }] },
+      requestUserInput: async () => {
+        legacyRequests += 1;
+        return { answers: {} };
+      },
+      onRuntimeNotification: (method, params) => notifications.push({ method, params }),
+    },
+  });
+
+  assert.equal(legacyRequests, 0);
+  assert.equal(result.status, "completed");
+  assert.deepEqual(notifications.map((entry) => entry.method), ["turn/started", "item/completed", "turn/completed"]);
+});
+
 test("DSH workspace runtime sends validated images through the rc.2 prompt contract", async (t) => {
   const dir = await mkdtemp(join(tmpdir(), "dsh-workspace-image-"));
   t.after(() => rm(dir, { recursive: true, force: true }));

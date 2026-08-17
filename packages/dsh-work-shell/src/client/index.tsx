@@ -46,6 +46,7 @@ type DshWorkGeneralProps = PropsRuntime<'settings.section'> & PropsRenderSlots<'
 type DshWorkConversationSlot =
   | 'conversation.session.header.actions'
   | 'conversation.session.header.utilities'
+  | 'conversation.composer'
   | 'conversation.input.overlay'
   | 'conversation.input.dock'
   | 'conversation.composer.dock'
@@ -224,6 +225,7 @@ export function apply(ctx: ClientContext) {
     const [targets, setTargets] = useState<Record<DshWorkConversationSlot, Element | null>>({
       'conversation.session.header.actions': null,
       'conversation.session.header.utilities': null,
+      'conversation.composer': null,
       'conversation.input.overlay': null,
       'conversation.input.dock': null,
       'conversation.composer.dock': null,
@@ -240,6 +242,7 @@ export function apply(ctx: ClientContext) {
       const selectors: Record<Exclude<DshWorkConversationSlot, 'conversation.chat.assistant-actions' | 'conversation.chat.turnTail'>, string> = {
         'conversation.session.header.actions': '[data-dsh-session-header-actions]',
         'conversation.session.header.utilities': '[data-dsh-session-header-utilities]',
+        'conversation.composer': '[data-dsh-conversation-composer-takeover]',
         'conversation.input.overlay': '[data-dsh-conversation-input-overlay]',
         'conversation.input.dock': '[data-dsh-conversation-input-dock]',
         'conversation.composer.dock': '[data-dsh-conversation-composer-dock]',
@@ -313,6 +316,16 @@ export function apply(ctx: ClientContext) {
         {targets['conversation.session.header.utilities'] && createPortal(
           renderSlot('conversation.session.header.utilities', {}),
           targets['conversation.session.header.utilities']
+        )}
+        {targets['conversation.composer'] && createPortal(
+          <div data-dsh-standard-conversation-composer-chain>
+            {renderSlotChain(
+              'conversation.composer',
+              { interactions: session.pending, session },
+              { fallback: <span data-dsh-product-composer-resident /> }
+            )}
+          </div>,
+          targets['conversation.composer']
         )}
         {targets['conversation.input.overlay'] && createPortal(
           renderSlot('conversation.input.overlay', {}),
@@ -406,6 +419,7 @@ export function apply(ctx: ClientContext) {
         children: {
           'conversation.session.header.actions': { kind: 'list', scope: 'session' },
           'conversation.session.header.utilities': { kind: 'list', scope: 'session' },
+          'conversation.composer': { kind: 'chain', scope: 'session' },
           'conversation.input.overlay': { kind: 'list', scope: 'session' },
           'conversation.input.dock': { kind: 'list', scope: 'session' },
           'conversation.composer.dock': { kind: 'list', scope: 'session' },
