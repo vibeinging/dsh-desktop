@@ -1,5 +1,6 @@
 import type {
   ClientContext,
+  ConversationSnapshot,
   SessionBinding,
   SessionId,
   SnapshotStore,
@@ -21,7 +22,9 @@ import type {
 
 type ComposerDockOwner = OwnerOf<'conversation.composer.dock'>
 export type DshWorkComposerInputSnapshot = ComposerDockOwner['input']
-type DshSessions = Pick<ClientContext['sessions'], 'list' | 'open' | 'clear' | 'provide'>
+type DshSessions = Pick<ClientContext['sessions'], 'list' | 'open' | 'clear' | 'provide'> & {
+  binding?: ClientContext['sessions']['binding']
+}
 type DshInputTriggers = Pick<ClientContext['inputTriggers'], 'sessionOf'>
 type DshWorkOccurrence = DshWorkComposerInputSnapshot['occurrences'][number]
 type ScopeDisposer = () => Promise<void>
@@ -40,6 +43,17 @@ export interface DshWorkInputHandlers {
 export interface DshWorkToolSelection {
   readonly sessionId: SessionId
   readonly callId: string
+}
+
+/** Official Client state projected into product chrome without another fold. */
+export interface DshWorkSessionState {
+  readonly sessionId: SessionId
+  readonly queue: ConversationSnapshot['queue']
+  readonly running: boolean
+  readonly projections: Readonly<{
+    plan: unknown
+    permissions: unknown
+  }>
 }
 
 interface DshWorkInputActions {
@@ -260,6 +274,7 @@ export class DshConversationBridge {
   readonly #composerBlockListeners = new Set<() => void>()
   readonly #toolCallListeners = new Set<() => void>()
   readonly #toolSelectionListeners = new Set<() => void>()
+  readonly #sessionStateListeners = new Set<() => void>()
   readonly #toolCalls = new Map<string, ToolCallBlock>()
   readonly #commandStates = new Map<SessionId, DshWorkCommandState>()
   #desiredSessionId: SessionId | null | undefined
@@ -274,6 +289,9 @@ export class DshConversationBridge {
   #composerBlockUnsubscribe: (() => void) | undefined
   #toolCallSnapshot: ReadonlyMap<string, ToolCallBlock> = new Map()
   #toolSelectionSnapshot: DshWorkToolSelection | undefined
+  #sessionStateSnapshot: DshWorkSessionState | undefined
+  #sessionStateBinding: SessionBinding | undefined
+  #sessionStateUnsubscribes: Array<() => void> = []
   #disposed = false
 
   /** Official session-scoped input facade exposed through ConversationController. */
@@ -285,7 +303,10 @@ export class DshConversationBridge {
   constructor(sessions: DshSessions, inputTriggers: DshInputTriggers) {
     this.#sessions = sessions
     this.#inputTriggers = inputTriggers
-    this.#unsubscribeSessions = sessions.list.subscribe(() => this.#reconcileSession())
+    this.#unsubscribeSessions = sessions.list.subscribe(() => {
+      this.#reconcileSession()
+      this.#watchSessionState()
+    })
     this.#disposeProvider = sessions.provide({
       hooks: ['input'],
       props: ['inputActions'],
@@ -305,6 +326,7 @@ export class DshConversationBridge {
     const next = sessionId ? sessionId as SessionId : null
     if (this.#desiredSessionId === next) {
       this.#reconcileSession()
+      this.#watchSessionState()
       return
     }
     this.#abortAdjudication()
@@ -312,6 +334,7 @@ export class DshConversationBridge {
     this.clearToolSelection()
     this.#desiredSessionId = next
     this.#watchComposerBlock(next)
+    this.#watchSessionState()
     this.#input = { ...EMPTY_INPUT, draftRev: this.#input.draftRev + 1 }
     if (next) this.#storeFor(next).set(this.#input)
     this.#emit()
@@ -457,6 +480,15 @@ export class DshConversationBridge {
     return this.#desiredSessionId
   }
 
+  /** Return queue and projection values from the selected official Client Session. */
+  getSessionStateSnapshot = () => this.#sessionStateSnapshot
+
+  /** Subscribe to selected official Client Session state changes. */
+  subscribeSessionState = (listener: () => void) => {
+    this.#sessionStateListeners.add(listener)
+    return () => this.#sessionStateListeners.delete(listener)
+  }
+
   /** Return the stable input snapshot consumed by useSyncExternalStore. */
   getInputSnapshot = () => this.#input
 
@@ -482,6 +514,19 @@ export class DshConversationBridge {
 
   #publishToolSelection() {
     for (const listener of this.#toolSelectionListeners) listener()
+  }
+
+  #publishSessionState(next: DshWorkSessionState | undefined) {
+    const previous = this.#sessionStateSnapshot
+    if (
+      previous?.sessionId === next?.sessionId
+      && previous?.queue === next?.queue
+      && previous?.running === next?.running
+      && previous?.projections.plan === next?.projections.plan
+      && previous?.projections.permissions === next?.projections.permissions
+    ) return
+    this.#sessionStateSnapshot = next
+    for (const listener of this.#sessionStateListeners) listener()
   }
 
   /** Feed the product draft and caret into the selected Session's official trigger controller. */
@@ -614,9 +659,12 @@ export class DshConversationBridge {
     this.#composerBlockListeners.clear()
     this.#toolCallListeners.clear()
     this.#toolSelectionListeners.clear()
+    this.#sessionStateListeners.clear()
     this.#toolCalls.clear()
     this.#toolCallSnapshot = new Map()
     this.#toolSelectionSnapshot = undefined
+    this.#clearSessionStateWatch()
+    this.#sessionStateSnapshot = undefined
     this.#abortAdjudication()
     this.#stores.clear()
     this.#actions.clear()
@@ -679,6 +727,52 @@ export class DshConversationBridge {
     }
     publish()
     if (store) this.#composerBlockUnsubscribe = store.subscribe(publish)
+  }
+
+  #watchSessionState() {
+    const sessionId = this.#desiredSessionId
+    const binding = sessionId && this.#sessions.binding
+      ? this.#sessions.binding(sessionId)
+      : undefined
+    if (binding === this.#sessionStateBinding) {
+      this.#readSessionState(binding)
+      return
+    }
+    this.#clearSessionStateWatch()
+    this.#sessionStateBinding = binding
+    if (!binding) {
+      this.#publishSessionState(undefined)
+      return
+    }
+    const plan = binding.session.projections.faceOf('plan')
+    const permissions = binding.session.projections.faceOf('permissions')
+    const publish = () => this.#readSessionState(binding, plan.getSnapshot(), permissions.getSnapshot())
+    this.#sessionStateUnsubscribes = [
+      binding.session.subscribe(publish),
+      plan.subscribe(publish),
+      permissions.subscribe(publish)
+    ]
+    publish()
+  }
+
+  #readSessionState(
+    binding: SessionBinding | undefined,
+    plan = binding?.session.projections.faceOf('plan').getSnapshot(),
+    permissions = binding?.session.projections.faceOf('permissions').getSnapshot()
+  ) {
+    if (!binding || binding !== this.#sessionStateBinding) return
+    const snapshot = binding.session.getSnapshot()
+    this.#publishSessionState(Object.freeze({
+      sessionId: binding.sessionId,
+      queue: snapshot.queue,
+      running: snapshot.running,
+      projections: Object.freeze({ plan, permissions })
+    }))
+  }
+
+  #clearSessionStateWatch() {
+    for (const unsubscribe of this.#sessionStateUnsubscribes.splice(0)) unsubscribe()
+    this.#sessionStateBinding = undefined
   }
 
   #publishInput(next: DshWorkComposerInputSnapshot) {

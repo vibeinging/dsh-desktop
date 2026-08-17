@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type {
   ClientContext,
+  ConversationSnapshot,
   SessionBinding,
   SessionId,
   SessionListState,
@@ -8,6 +9,23 @@ import type {
 } from '@deepseek-ai/dsh-client-runtime/client'
 import type { MenuState, PickOutcome } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { DshConversationBridge } from './DshConversationBridge'
+
+function observableStore<T>(initial: T) {
+  let snapshot = initial
+  const listeners = new Set<() => void>()
+  return {
+    getSnapshot: () => snapshot,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    listenerCount: () => listeners.size,
+    set(next: T) {
+      snapshot = next
+      for (const listener of listeners) listener()
+    }
+  }
+}
 
 function inputScope(sessionId: SessionId) {
   const listeners = new Map<string, (request: unknown) => unknown>()
@@ -168,6 +186,73 @@ describe('DshConversationBridge', () => {
     expect(clear).toHaveBeenCalledTimes(1)
     expect(bridge.getInputSnapshot().draft).toBe('')
 
+    bridge.dispose()
+  })
+
+  it('projects queue and projections from the selected official Client Session', () => {
+    const sessionId = 'dsh-session-authoritative-state' as SessionId
+    const list = sessionList()
+    const queue = [{
+      id: 'message-1',
+      messageId: 'message-1',
+      placement: 'queued' as const,
+      content: [{ type: 'text' as const, text: 'next' }],
+      text: 'next',
+      preview: 'next'
+    }] as unknown as ConversationSnapshot['queue']
+    const conversation = observableStore({
+      sessionId,
+      queue,
+      running: false
+    } as unknown as ConversationSnapshot)
+    const plan = observableStore<unknown>({ active: true })
+    const permissions = observableStore<unknown>({ currentValue: 'workspace-write', options: [] })
+    const projectionStores = { plan, permissions }
+    const binding = {
+      sessionId,
+      session: {
+        ...conversation,
+        projections: {
+          faceOf: (key: string) => projectionStores[key as keyof typeof projectionStores]
+            || observableStore<unknown>(undefined)
+        }
+      }
+    } as unknown as SessionBinding
+    const bridge = createBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn(() => vi.fn()),
+      binding: (id) => id === sessionId ? binding : undefined
+    })
+    const listener = vi.fn()
+    bridge.subscribeSessionState(listener)
+
+    bridge.syncSession(sessionId)
+    expect(bridge.getSessionStateSnapshot()).toEqual({
+      sessionId,
+      queue,
+      running: false,
+      projections: {
+        plan: { active: true },
+        permissions: { currentValue: 'workspace-write', options: [] }
+      }
+    })
+
+    const nextQueue: ConversationSnapshot['queue'] = [{ ...queue[0], text: 'later', preview: 'later' }]
+    conversation.set({ ...conversation.getSnapshot(), queue: nextQueue, running: true })
+    plan.set({ active: false })
+    permissions.set({ currentValue: 'read-only', options: [] })
+    expect(bridge.getSessionStateSnapshot()).toMatchObject({ queue: nextQueue, running: true })
+    expect(bridge.getSessionStateSnapshot()?.projections.plan).toEqual({ active: false })
+    expect(bridge.getSessionStateSnapshot()?.projections.permissions).toEqual({ currentValue: 'read-only', options: [] })
+    expect(listener).toHaveBeenCalledTimes(4)
+
+    bridge.syncSession(null)
+    expect(bridge.getSessionStateSnapshot()).toBeUndefined()
+    expect(conversation.listenerCount()).toBe(0)
+    expect(plan.listenerCount()).toBe(0)
+    expect(permissions.listenerCount()).toBe(0)
     bridge.dispose()
   })
 

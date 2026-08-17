@@ -151,6 +151,7 @@ const NOOP_SUBSCRIBE = () => () => {}
 const FALSE_SNAPSHOT = () => false
 const NULL_INPUT_SNAPSHOT = () => null
 const NULL_COMPOSER_BLOCK_SNAPSHOT = () => undefined
+const NULL_SESSION_STATE_SNAPSHOT = () => undefined
 
 export type ConversationSkillSelection = {
   name: string
@@ -221,6 +222,16 @@ interface Props {
 
 type DispatchExtra = Record<string, unknown>
 type QueueItem = DshQueueItem
+interface DshProjectedSessionState {
+  readonly queue?: readonly {
+    readonly id: unknown
+    readonly placement: DshQueueItem['placement']
+    readonly content: readonly unknown[]
+    readonly text: string | null
+    readonly preview: string
+  }[]
+  readonly projections?: Readonly<Record<string, unknown>>
+}
 type SearchMode = 'auto' | 'required' | 'off'
 const IMAGE_TEMPLATE_GALLERY_KIND = 'imagegen'
 const IMAGE_GENERATION_TOOL = 'image_gen'
@@ -557,6 +568,11 @@ function DshWorkAgentConversation({
     dshClientHost?.conversation.getComposerBlockSnapshot || NULL_COMPOSER_BLOCK_SNAPSHOT,
     NULL_COMPOSER_BLOCK_SNAPSHOT
   )
+  const officialSessionState = useSyncExternalStore(
+    dshClientHost?.conversation.subscribeSessionState || NOOP_SUBSCRIBE,
+    dshClientHost?.conversation.getSessionStateSnapshot || NULL_SESSION_STATE_SNAPSHOT,
+    NULL_SESSION_STATE_SNAPSHOT
+  )
   const officialClaim = officialInputSnapshot?.claim
   const officialClaimHint = officialClaim
     && (officialInputSnapshot.phase === 'claimed' || officialInputSnapshot.phase === 'submitting')
@@ -853,21 +869,27 @@ function DshWorkAgentConversation({
     collaborationModeRef.current = mode
   }
 
-  const applyDshPlanSnapshot = (state: DshSessionProtocolState | null | undefined) => {
+  const applyDshPlanSnapshot = (state: DshProjectedSessionState | null | undefined) => {
     const next = collaborationModeFromDshPlan(state?.projections?.plan)
     if (next) adoptCollaborationMode(next)
   }
 
-  // DSH owns the complete per-session queue. The renderer only projects the
-  // latest session/queue snapshot received from the backend mux stream.
+  // The official Client Session owns the complete per-session queue. The
+  // standalone renderer keeps the App protocol snapshot only as a fallback.
   const [queue, setQueueState] = useState<QueueItem[]>([])
-  const applyDshQueueSnapshot = (state: DshSessionProtocolState | null | undefined) => {
-    const next = Array.isArray(state?.queue)
-      ? state.queue.filter((item) => item.placement === 'queued')
+  const applyDshQueueSnapshot = (state: DshProjectedSessionState | null | undefined) => {
+    const next = state?.queue
+      ? state.queue.filter((item) => item.placement === 'queued').map((item) => ({
+          id: String(item.id),
+          placement: item.placement,
+          content: item.content.map((block) => ({ ...(block as object) })) as DshQueueItem['content'],
+          text: typeof item.text === 'string' ? item.text : null,
+          preview: String(item.preview || '')
+        }))
       : []
     setQueueState(next)
   }
-  const applyDshPermissionSnapshot = (state: DshSessionProtocolState | null | undefined) => {
+  const applyDshPermissionSnapshot = (state: DshProjectedSessionState | null | undefined) => {
     const projection = state?.projections?.permissions
     if (!projection || typeof projection !== 'object') {
       setPermissionSelect(null)
@@ -882,6 +904,23 @@ function DshWorkAgentConversation({
     })).filter((option) => option.value && option.name)
     setPermissionSelect(currentValue && options.length ? { currentValue, options } : null)
   }
+  const applyDshProjectedSessionState = (state: DshProjectedSessionState | null | undefined) => {
+    applyDshQueueSnapshot(state)
+    applyDshPermissionSnapshot(state)
+    applyDshPlanSnapshot(state)
+  }
+  const applyStandaloneDshSessionState = (state: DshSessionProtocolState | null | undefined) => {
+    if (dshClientHost) return
+    applyDshProjectedSessionState(state)
+  }
+
+  useEffect(() => {
+    if (!dshClientHost) return
+    applyDshProjectedSessionState(officialSessionState)
+    // The selected official Session snapshot is the sole formal-host authority.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dshClientHost, officialSessionState])
+
   const changeCollaborationMode = async (mode: CollaborationMode) => {
     const next = normalizeCollaborationMode(mode)
     const currentSessionId = sessionIdRef.current
@@ -894,16 +933,13 @@ function DshWorkAgentConversation({
     try {
       const response: any = await setDshSessionPlanMode(projectId, currentSessionId, next)
       if (sessionIdRef.current === currentSessionId) {
-        const state = response?.data as DshSessionProtocolState
-        applyDshQueueSnapshot(state)
-        applyDshPermissionSnapshot(state)
-        applyDshPlanSnapshot(state)
+        applyStandaloneDshSessionState(response?.data as DshSessionProtocolState)
       }
     } catch (error: any) {
       try {
         const response: any = await getDshSessionProtocolState(projectId, currentSessionId)
         if (sessionIdRef.current === currentSessionId) {
-          applyDshPlanSnapshot(response?.data as DshSessionProtocolState)
+          applyStandaloneDshSessionState(response?.data as DshSessionProtocolState)
         }
       } catch {
         // The visible mode stays on the last confirmed DSH projection.
@@ -1407,9 +1443,7 @@ function DshWorkAgentConversation({
     const dshConversation = dshClientHost?.conversation
     if (temporary || !selectedId) {
       dshConversation?.syncSession(null)
-      applyDshQueueSnapshot(null)
-      applyDshPermissionSnapshot(null)
-      applyDshPlanSnapshot(null)
+      applyStandaloneDshSessionState(null)
       return
     }
     dshConversation?.syncSession(null)
@@ -1429,9 +1463,7 @@ function DshWorkAgentConversation({
           const state = response?.data as DshSessionProtocolState
           dshConversation?.syncSession(state.dshSessionId)
           dshConversation?.updateDraft(input)
-          applyDshQueueSnapshot(state)
-          applyDshPermissionSnapshot(state)
-          applyDshPlanSnapshot(state)
+          applyStandaloneDshSessionState(state)
         }
         return true
       } catch {
@@ -1454,15 +1486,13 @@ function DshWorkAgentConversation({
             if (event.type === 'dsh/session-state') {
               const state = event.payload?.state as DshSessionProtocolState
               dshConversation?.syncSession(state.dshSessionId)
-              applyDshQueueSnapshot(state)
-              applyDshPermissionSnapshot(state)
-              applyDshPlanSnapshot(state)
+              applyStandaloneDshSessionState(state)
               return
             }
             // A locally-started Turn already receives the same Runtime items
-            // through startAgentTurn. The session listener remains the owner
-            // of state/queue snapshots, while content has exactly one live
-            // source so deltas are not appended twice.
+            // through startAgentTurn. In the formal Client host this listener
+            // only supplies product content that has not moved to official Chat;
+            // queue and projections come from ConversationSnapshot and faces.
             if (localContentStreamSessionRef.current === selectedId) return
             applyStreamPatch(reduceStreamEvent(event), selectedId)
           })
@@ -1907,9 +1937,8 @@ function DshWorkAgentConversation({
       newlyCreatedSessionIdRef.current = nextSessionId
       setSessionId(nextSessionId)
       sessionIdRef.current = nextSessionId
-      applyDshQueueSnapshot(null)
-      applyDshPermissionSnapshot(null)
-      applyDshPlanSnapshot(null)
+      dshClientHost?.conversation.syncSession(null)
+      applyStandaloneDshSessionState(null)
       applyPersistedMessages(nextSessionId, mapped)
       setWorkspaceDiff(null)
       setReviewTurnId(null)
@@ -2937,10 +2966,7 @@ function DshWorkAgentConversation({
               try {
                 const response: any = await setDshSessionPermission(projectId, currentSessionId, preset)
                 if (sessionIdRef.current === currentSessionId) {
-                  const state = response?.data as DshSessionProtocolState
-                  applyDshQueueSnapshot(state)
-                  applyDshPermissionSnapshot(state)
-                  applyDshPlanSnapshot(state)
+                  applyStandaloneDshSessionState(response?.data as DshSessionProtocolState)
                 }
               } catch (error: any) {
                 notifications.show({
