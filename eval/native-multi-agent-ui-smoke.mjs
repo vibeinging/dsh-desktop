@@ -223,6 +223,12 @@ try {
   assert.equal(configuredModel.status, 200, JSON.stringify(configuredModel.json))
   modelProviderSaved = true
 
+  const officialAgentPreset = '[data-dsh-conversation-hero-agent-preset] button[aria-haspopup="menu"]'
+  await ui.waitFor(officialAgentPreset, { timeout: 15_000 })
+  await ui.click(officialAgentPreset)
+  await ui.waitFor('[role="menu"]', { timeout: 15_000 })
+  await ui.press('Escape')
+
   const result = await driver.askAgent('__chat__', parentPrompt, {
     title: conversationTitle,
     model: modelRoute,
@@ -376,7 +382,7 @@ try {
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-trajectory]')?.innerText.includes('subagent') || false`), true)
 
-  console.log('[native-multi-agent-ui-smoke] PASS DSH 子任务/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
+  console.log('[native-multi-agent-ui-smoke] PASS DSH Agent Preset/子任务/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
 } finally {
   if (session && modelProviderSaved) {
     const driver = makeDriver(session)

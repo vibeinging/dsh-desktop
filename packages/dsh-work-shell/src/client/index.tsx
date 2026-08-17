@@ -35,6 +35,7 @@ import {
 import { createDshThemePresenter } from '../../../../renderer/src/theme/dshRuntimeTheme'
 import { WORKBENCH_SLOT } from '../../../../renderer/src/views/agent/workbenchContributions'
 import '../../../../renderer/src/views/agent/workbenchSlotRuntime'
+import { DshWorkConversationService } from './ConversationService'
 import styles from './DshWorkSettings.module.css'
 
 const STANDARD_ROOT_SLOTS = [
@@ -59,6 +60,7 @@ type DshWorkConversationSlot =
   | 'conversation.input.right'
   | 'conversation.input.plan'
   | 'conversation.input.model'
+  | 'conversation.hero.agentPreset'
   | 'conversation.chat.node'
   | 'conversation.chat.assistant-actions'
   | 'conversation.chat.turnTail'
@@ -259,6 +261,7 @@ export function apply(ctx: ClientContext) {
       'conversation.input.right': null,
       'conversation.input.plan': null,
       'conversation.input.model': null,
+      'conversation.hero.agentPreset': null,
       'conversation.chat.node': null,
       'conversation.chat.assistant-actions': null,
       'conversation.chat.turnTail': null
@@ -277,7 +280,8 @@ export function apply(ctx: ClientContext) {
         'conversation.input.left': '[data-dsh-conversation-input-left]',
         'conversation.input.right': '[data-dsh-conversation-input-right]',
         'conversation.input.plan': '[data-dsh-conversation-input-plan]',
-        'conversation.input.model': '[data-dsh-conversation-input-model]'
+        'conversation.input.model': '[data-dsh-conversation-input-model]',
+        'conversation.hero.agentPreset': '[data-dsh-conversation-hero-agent-preset]'
       }
       const syncTarget = () => setTargets((current) => {
         const next = Object.fromEntries(Object.entries(selectors).map(([slot, selector]) => (
@@ -347,11 +351,16 @@ export function apply(ctx: ClientContext) {
     useLayoutEffect(() => {
       if (session) conversation.updateQueue(session.queue)
     }, [session?.queue])
-    if (!host || !sessionId || !session) return null
-    if (host.conversation.getSessionId() !== sessionId) return null
+    const heroAgentPreset = targets['conversation.hero.agentPreset'] && createPortal(
+      renderSlot('conversation.hero.agentPreset', {}),
+      targets['conversation.hero.agentPreset']
+    )
+    if (!host || !sessionId || !session) return heroAgentPreset
+    if (host.conversation.getSessionId() !== sessionId) return heroAgentPreset
     const inputZone = { session, input }
     return (
       <>
+        {heroAgentPreset}
         {targets['conversation.session.header.actions'] && createPortal(
           renderSlot('conversation.session.header.actions', {}),
           targets['conversation.session.header.actions']
@@ -494,6 +503,7 @@ export function apply(ctx: ClientContext) {
           'conversation.input.right': { kind: 'list', scope: 'session' },
           'conversation.input.plan': { kind: 'single', scope: 'session' },
           'conversation.input.model': { kind: 'single', scope: 'session' },
+          'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
           'conversation.chat.node': { kind: 'keyed', scope: 'session' },
           'conversation.chat.assistant-actions': { kind: 'list', scope: 'session' },
           'conversation.chat.turnTail': { kind: 'chain', scope: 'session' }
@@ -515,6 +525,12 @@ export function apply(ctx: ClientContext) {
       for (const dispose of disposers.reverse()) dispose()
     }
   }, 'dsh-work shell slot tree')
+
+  new DshWorkConversationService(ctx, {
+    input: conversation.input,
+    blocks: conversation.blocks,
+    sessions: ctx.sessions
+  })
 
   ctx.effect(() => {
     const presenter = createDshThemePresenter(document)

@@ -227,6 +227,48 @@ describe('DshConversationBridge', () => {
     bridge.dispose()
   })
 
+  it('backs the official conversation service with the same Session input and blocker state', () => {
+    const sessionId = 'dsh-session-official-conversation' as SessionId
+    const list = sessionList()
+    let descriptor: Parameters<ClientContext['sessions']['provide']>[0] | undefined
+    const bridge = createBridge({
+      list,
+      open: vi.fn(),
+      clear: vi.fn(),
+      provide: vi.fn((value) => {
+        descriptor = value
+        return vi.fn()
+      })
+    })
+    const setDraft = vi.fn()
+    const submit = vi.fn()
+    const notify = vi.fn()
+    const scope = inputScope(sessionId)
+    bridge.syncSession(sessionId)
+    bridge.bindInputHandlers({ setDraft, submit, notify })
+    descriptor!.resolve(scope.binding)
+
+    const input = bridge.input.for(scope.ctx as unknown as ClientContext)
+    input.setDraft('official draft')
+    input.submit()
+    input.notify('info', 'official notice')
+
+    expect(input.state.getSnapshot().draft).toBe('official draft')
+    expect(setDraft).toHaveBeenCalledWith('official draft')
+    expect(submit).toHaveBeenCalledOnce()
+    expect(notify).toHaveBeenCalledWith('info', 'official notice')
+
+    const blocker = vi.fn()
+    bridge.subscribeComposerBlock(blocker)
+    bridge.blocks.set(sessionId, { reason: '请先选择可用模型' })
+    expect(bridge.getComposerBlockSnapshot()).toEqual({ reason: '请先选择可用模型' })
+    expect(blocker).toHaveBeenCalledOnce()
+    bridge.blocks.set(sessionId, undefined)
+    expect(bridge.getComposerBlockSnapshot()).toBeUndefined()
+
+    bridge.dispose()
+  })
+
   it('routes standard conversation file actions through the current product handler', () => {
     const list = sessionList()
     const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })

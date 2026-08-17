@@ -6,7 +6,7 @@ import type {
   ToolCallBlock
 } from '@deepseek-ai/dsh-client-runtime/client'
 import type { OwnerOf } from '@deepseek-ai/dsh-client-ui-slots'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { IConversation } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {
   ArbitrateKey,
   ArbitrateOutcome,
@@ -25,6 +25,9 @@ type DshSessions = Pick<ClientContext['sessions'], 'list' | 'open' | 'clear' | '
 type DshInputTriggers = Pick<ClientContext['inputTriggers'], 'sessionOf'>
 type DshWorkOccurrence = DshWorkComposerInputSnapshot['occurrences'][number]
 type ScopeDisposer = () => Promise<void>
+type DshOfficialInput = ReturnType<IConversation['input']['for']>
+type DshComposerBlocks = IConversation['blocks']
+type DshComposerBlock = ReturnType<ReturnType<DshComposerBlocks['storeFor']>['getSnapshot']>
 
 export interface DshWorkInputHandlers {
   setDraft: (draft: string) => void
@@ -171,6 +174,66 @@ class BridgeInputStore implements SnapshotStore<DshWorkComposerInputSnapshot> {
   }
 }
 
+class BridgeSnapshotStore<T> implements SnapshotStore<T> {
+  readonly #listeners = new Set<() => void>()
+  #snapshot: T
+
+  constructor(snapshot: T) {
+    this.#snapshot = snapshot
+  }
+
+  getSnapshot = () => this.#snapshot
+
+  subscribe = (listener: () => void) => {
+    this.#listeners.add(listener)
+    return () => this.#listeners.delete(listener)
+  }
+
+  set(next: T) {
+    if (next === this.#snapshot) return
+    this.#snapshot = next
+    for (const listener of this.#listeners) listener()
+  }
+
+  update(mutator: (draft: T) => void) {
+    const current = this.#snapshot
+    const draft = Array.isArray(current)
+      ? [...current]
+      : current && typeof current === 'object'
+        ? { ...current }
+        : current
+    mutator(draft as T)
+    this.set(draft as T)
+  }
+}
+
+class DshWorkComposerBlocks implements DshComposerBlocks {
+  readonly #stores = new Map<SessionId, BridgeSnapshotStore<DshComposerBlock>>()
+
+  set(sessionId: SessionId, block: DshComposerBlock) {
+    const store = this.#mutableStoreFor(sessionId)
+    if (store.getSnapshot()?.reason === block?.reason) return
+    store.set(block)
+  }
+
+  storeFor(sessionId: SessionId) {
+    return this.#mutableStoreFor(sessionId)
+  }
+
+  forget(sessionId: SessionId) {
+    this.#stores.delete(sessionId)
+  }
+
+  #mutableStoreFor(sessionId: SessionId) {
+    let store = this.#stores.get(sessionId)
+    if (!store) {
+      store = new BridgeSnapshotStore<DshComposerBlock>(undefined)
+      this.#stores.set(sessionId, store)
+    }
+    return store
+  }
+}
+
 /**
  * Keep the product-selected App conversation bound to the matching DSH Client
  * Session without creating another session or queue store.
@@ -183,10 +246,13 @@ export class DshConversationBridge {
   readonly #disposeProvider: () => void
   readonly #stores = new Map<SessionId, BridgeInputStore>()
   readonly #actions = new Map<SessionId, DshWorkInputActions>()
+  readonly #inputFacades = new Map<SessionId, DshOfficialInput>()
   readonly #inputControllers = new Map<SessionId, InputTriggerController>()
   readonly #inputContexts = new Map<SessionId, ClientContext>()
+  readonly #sessionIdsByContext = new WeakMap<ClientContext, SessionId>()
   readonly #scopeDisposers = new Map<SessionId, ScopeDisposer>()
   readonly #inputTriggerListeners = new Set<() => void>()
+  readonly #composerBlockListeners = new Set<() => void>()
   readonly #toolCallListeners = new Set<() => void>()
   readonly #toolCalls = new Map<string, ToolCallBlock>()
   readonly #commandStates = new Map<SessionId, DshWorkCommandState>()
@@ -198,8 +264,16 @@ export class DshConversationBridge {
   #adjudication: DshWorkAdjudicationAttempt | undefined
   #handlers: DshWorkInputHandlers | null = null
   #openFileHandler: ((path: string) => void) | null = null
+  #composerBlockSnapshot: DshComposerBlock
+  #composerBlockUnsubscribe: (() => void) | undefined
   #toolCallSnapshot: ReadonlyMap<string, ToolCallBlock> = new Map()
   #disposed = false
+
+  /** Official session-scoped input facade exposed through ConversationController. */
+  readonly input: IConversation['input'] = { for: (actx) => this.#inputFor(actx) }
+
+  /** Official composer-block registry consumed by the product textarea. */
+  readonly blocks: IConversation['blocks'] = new DshWorkComposerBlocks()
 
   constructor(sessions: DshSessions, inputTriggers: DshInputTriggers) {
     this.#sessions = sessions
@@ -229,6 +303,7 @@ export class DshConversationBridge {
     this.#abortAdjudication()
     if (this.#desiredSessionId) this.#commandStates.delete(this.#desiredSessionId)
     this.#desiredSessionId = next
+    this.#watchComposerBlock(next)
     this.#input = { ...EMPTY_INPUT, draftRev: this.#input.draftRev + 1 }
     if (next) this.#storeFor(next).set(this.#input)
     this.#emit()
@@ -348,6 +423,15 @@ export class DshConversationBridge {
   subscribeInput = (listener: () => void) => {
     this.#listeners.add(listener)
     return () => this.#listeners.delete(listener)
+  }
+
+  /** Return the official reason that currently makes the product composer inert. */
+  getComposerBlockSnapshot = () => this.#composerBlockSnapshot
+
+  /** Subscribe to the selected Session's official composer blocker. */
+  subscribeComposerBlock = (listener: () => void) => {
+    this.#composerBlockListeners.add(listener)
+    return () => this.#composerBlockListeners.delete(listener)
   }
 
   #publishToolCalls() {
@@ -482,12 +566,17 @@ export class DshConversationBridge {
     this.#unsubscribeSessions()
     this.#listeners.clear()
     this.#inputTriggerListeners.clear()
+    this.#composerBlockListeners.clear()
     this.#toolCallListeners.clear()
     this.#toolCalls.clear()
     this.#toolCallSnapshot = new Map()
     this.#abortAdjudication()
     this.#stores.clear()
     this.#actions.clear()
+    this.#inputFacades.clear()
+    this.#composerBlockUnsubscribe?.()
+    this.#composerBlockUnsubscribe = undefined
+    this.#composerBlockSnapshot = undefined
     this.#commandStates.clear()
     for (const dispose of this.#scopeDisposers.values()) void dispose()
     this.#scopeDisposers.clear()
@@ -507,6 +596,42 @@ export class DshConversationBridge {
 
   #selectedInputController() {
     return this.#desiredSessionId ? this.#inputControllers.get(this.#desiredSessionId) : undefined
+  }
+
+  #inputFor(actx: ClientContext): DshOfficialInput {
+    const sessionId = this.#sessionIdsByContext.get(actx)
+    if (!sessionId) throw new Error('conversation.input.for 需要 DSH Session 作用域')
+    let input = this.#inputFacades.get(sessionId)
+    if (input) return input
+    input = {
+      state: this.#storeFor(sessionId),
+      setDraft: (draft) => this.#actionsFor(sessionId).setDraft(draft),
+      addImages: (ids) => this.#actionsFor(sessionId).addImages(ids),
+      removeImage: (id) => this.#actionsFor(sessionId).removeImage(id),
+      pruneImages: (ids) => this.#actionsFor(sessionId).pruneImages(ids),
+      submit: () => this.#actionsFor(sessionId).submit(),
+      notify: (level, text) => {
+        if (this.#desiredSessionId === sessionId) this.#handlers?.notify?.(level, text)
+      },
+      beginCommand: (claim, span) => this.#beginCommand(sessionId, actx, { claim, span }),
+      insertReference: (reference, span) => this.#insertReference(sessionId, { reference, span })
+    }
+    this.#inputFacades.set(sessionId, input)
+    return input
+  }
+
+  #watchComposerBlock(sessionId: SessionId | null) {
+    this.#composerBlockUnsubscribe?.()
+    this.#composerBlockUnsubscribe = undefined
+    const store = sessionId ? this.blocks.storeFor(sessionId) : undefined
+    const publish = () => {
+      const next = store?.getSnapshot()
+      if (next === this.#composerBlockSnapshot) return
+      this.#composerBlockSnapshot = next
+      for (const listener of this.#composerBlockListeners) listener()
+    }
+    publish()
+    if (store) this.#composerBlockUnsubscribe = store.subscribe(publish)
   }
 
   #publishInput(next: DshWorkComposerInputSnapshot) {
@@ -699,6 +824,7 @@ export class DshConversationBridge {
     const controller = this.#inputTriggers.sessionOf(binding.ctx)
     this.#inputControllers.set(binding.sessionId, controller)
     this.#inputContexts.set(binding.sessionId, binding.ctx)
+    this.#sessionIdsByContext.set(binding.ctx, binding.sessionId)
     if (binding.sessionId === this.#desiredSessionId) this.#emitInputTrigger()
     const disposer = binding.ctx.effect(() => {
       const offMenu = controller.menu.subscribe(() => {
@@ -730,6 +856,7 @@ export class DshConversationBridge {
           }
           this.#inputControllers.delete(binding.sessionId)
           this.#inputContexts.delete(binding.sessionId)
+          this.#inputFacades.delete(binding.sessionId)
           this.#scopeDisposers.delete(binding.sessionId)
           const releasedClaim = this.#commandStates.delete(binding.sessionId)
           if (releasedClaim && binding.sessionId === this.#desiredSessionId && !this.#disposed) {

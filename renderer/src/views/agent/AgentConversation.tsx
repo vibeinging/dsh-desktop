@@ -150,6 +150,7 @@ export type { FileReferenceOpenTarget } from './conversation/types'
 const NOOP_SUBSCRIBE = () => () => {}
 const FALSE_SNAPSHOT = () => false
 const NULL_INPUT_SNAPSHOT = () => null
+const NULL_COMPOSER_BLOCK_SNAPSHOT = () => undefined
 
 export type ConversationSkillSelection = {
   name: string
@@ -550,6 +551,11 @@ function DshWorkAgentConversation({
     dshClientHost?.conversation.subscribeInput || NOOP_SUBSCRIBE,
     dshClientHost?.conversation.getInputSnapshot || NULL_INPUT_SNAPSHOT,
     NULL_INPUT_SNAPSHOT
+  )
+  const officialComposerBlock = useSyncExternalStore(
+    dshClientHost?.conversation.subscribeComposerBlock || NOOP_SUBSCRIBE,
+    dshClientHost?.conversation.getComposerBlockSnapshot || NULL_COMPOSER_BLOCK_SNAPSHOT,
+    NULL_COMPOSER_BLOCK_SNAPSHOT
   )
   const officialClaim = officialInputSnapshot?.claim
   const officialClaimHint = officialClaim
@@ -2668,10 +2674,11 @@ function DshWorkAgentConversation({
         <div
           className={styles.composer}
           data-drop-active={dropActive ? 'true' : undefined}
-          onDragEnter={onComposerDragEnter}
-          onDragOver={onComposerDragOver}
-          onDragLeave={onComposerDragLeave}
-          onDrop={onComposerDrop}
+          data-composer-blocked={officialComposerBlock ? 'true' : undefined}
+          onDragEnter={officialComposerBlock ? undefined : onComposerDragEnter}
+          onDragOver={officialComposerBlock ? undefined : onComposerDragOver}
+          onDragLeave={officialComposerBlock ? undefined : onComposerDragLeave}
+          onDrop={officialComposerBlock ? undefined : onComposerDrop}
         >
       {dropActive && (
         <div className={styles.composerDropOverlay} aria-hidden="true">
@@ -2682,15 +2689,18 @@ function DshWorkAgentConversation({
           <span>松开以添加文件或文件夹</span>
         </div>
       )}
-      {messages.length === 0 && workspaces.length > 0 && onSelectWorkspace && (
+      {messages.length === 0 && (
         <div className={styles.composerTop}>
-          <WorkspacePicker
-            workspaces={workspaces}
-            activeWs={projectId}
-            onSelect={onSelectWorkspace}
-            onOpenFolder={onOpenFolder || (() => {})}
-            onCreateProject={onCreateProject}
-          />
+          {workspaces.length > 0 && onSelectWorkspace && (
+            <WorkspacePicker
+              workspaces={workspaces}
+              activeWs={projectId}
+              onSelect={onSelectWorkspace}
+              onOpenFolder={onOpenFolder || (() => {})}
+              onCreateProject={onCreateProject}
+            />
+          )}
+          <div className={styles.heroAgentPresetSlot} data-dsh-conversation-hero-agent-preset />
         </div>
       )}
       {queue.length > 0 && (
@@ -2872,11 +2882,12 @@ function DshWorkAgentConversation({
           ref={taRef}
           className={styles.ta}
           rows={1}
-          placeholder={effectiveBusy
+          placeholder={officialComposerBlock?.reason || (effectiveBusy
             ? interactionMode === 'steer'
               ? '继续输入，内容会补充到当前任务…'
               : '继续输入，内容会加入下一轮…'
-            : '聊天、处理文件，或安排一个多步任务…'}
+            : '聊天、处理文件，或安排一个多步任务…')}
+          disabled={Boolean(officialComposerBlock)}
           value={input}
           onChange={onInputChange}
           onSelect={(event) => {
@@ -2902,7 +2913,7 @@ function DshWorkAgentConversation({
           projectId={projectId}
           sessionId={sessionId}
           conversations={conversations}
-          disabled={effectiveBusy}
+          disabled={effectiveBusy || Boolean(officialComposerBlock)}
           onAddAttachments={appendAttachments}
           onInsert={insertAtCursor}
         />
@@ -2948,7 +2959,7 @@ function DshWorkAgentConversation({
           type="button"
           className={styles.searchModeButton}
           data-search-mode={searchMode}
-          disabled={effectiveBusy}
+          disabled={effectiveBusy || Boolean(officialComposerBlock)}
           title={searchMode === 'auto'
             ? '联网：自动判断。点击改为本轮必须联网'
             : searchMode === 'required'
@@ -2976,7 +2987,7 @@ function DshWorkAgentConversation({
           data-testid="agent-send-button"
           className={styles.sendBtn}
           onClick={() => (effectiveBusy ? stop() : send())}
-          disabled={!effectiveBusy && !input.trim() && attachments.length === 0 && reviewComments.length === 0}
+          disabled={Boolean(officialComposerBlock) || (!effectiveBusy && !input.trim() && attachments.length === 0 && reviewComments.length === 0)}
           title={effectiveBusy ? '停止当前任务' : '发送'}
         >
           {effectiveBusy ? <IconPlayerStopFilled size={15} /> : <IconArrowUp size={17} stroke={2} />}
