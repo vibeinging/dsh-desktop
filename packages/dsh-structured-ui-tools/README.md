@@ -4,4 +4,4 @@ This private Profile Bundle owns the `ui_render` tool and follows the public DSH
 
 The parent Host validates the complete structured document against a bounded component schema before storing it. Buttons and forms submit a visible next user message; the document cannot run hidden JavaScript or request arbitrary desktop capabilities.
 
-The Bundle is currently a `desktop-adapter` because the published rc.6 SDK does not provide ProductHost. It can become `portable` when an official or community Host provider implements the same narrow `uiRender` method without changing the Tool Bundle.
+The Bundle is currently a `desktop-adapter` because the published rc.7 SDK does not provide ProductHost. It can become `portable` when an official or community Host provider implements the same narrow `uiRender` method without changing the Tool Bundle.

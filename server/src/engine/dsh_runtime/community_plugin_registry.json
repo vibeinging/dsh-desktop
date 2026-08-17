@@ -141,7 +141,7 @@
       "compatibility": "sdk-migration-required",
       "checked_at": "2026-08-16",
       "checked_commit": "5d4628929aa2695cab7b4534670c0ca3c9cd7652",
-      "preflight_blocker": "Two DSH SDK dependency ranges do not match the exact 0.1.0-rc.6 release line.",
+      "preflight_blocker": "Two DSH SDK dependency ranges do not match the exact 0.1.0-rc.7 release line.",
       "priority": 100
     },
     {

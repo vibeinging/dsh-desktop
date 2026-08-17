@@ -77,7 +77,7 @@ const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
   "settings.close",
   "settings.onboarding",
 ]);
-const CURRENT_DSH_SDK_VERSION = "0.1.0-rc.6";
+const CURRENT_DSH_SDK_VERSION = "0.1.0-rc.7";
 const CURRENT_CORDIS_VERSION = "4.0.1";
 const COMMUNITY_PLUGIN_REGISTRY = readJson(new URL("./community_plugin_registry.json", import.meta.url));
 const EXACT_REGISTRY_SPEC = /^(?<name>(?:@[a-z0-9._~-]+\/)?[a-z0-9._~-]+)@(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/;

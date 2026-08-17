@@ -64,7 +64,7 @@ const en = Object.freeze({
   'terminal.expandRest': '… {n} more lines'
 })
 
-/** Register the rc.6 Tool subset whose original dictionary lives in the disabled page shell. */
+/** Register the rc.7 Tool subset whose original dictionary lives in the disabled page shell. */
 export function registerToolConversationLocale(locale: ToolLocaleRegistry) {
   const disposeZh = locale.register(TOOL_CONVERSATION_NAMESPACE, 'zh', zh)
   try {

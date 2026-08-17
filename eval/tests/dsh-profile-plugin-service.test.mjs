@@ -83,9 +83,9 @@ test("Profile Bundle compatibility separates Host, Session, capabilities, and Cl
     name: "@example/mixed-plugin",
     dsh: { client: { platform: "web" } },
     peerDependencies: {
-      "@deepseek-ai/dsh-agent": "^0.1.0-rc.6",
-      "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
-      "@deepseek-ai/dsh-mcp-client": "^0.1.0-rc.6",
+      "@deepseek-ai/dsh-agent": "^0.1.0-rc.7",
+      "@deepseek-ai/dsh-tools": "^0.1.0-rc.7",
+      "@deepseek-ai/dsh-mcp-client": "^0.1.0-rc.7",
     },
   }).map(({ id, status }) => ({ id, status })), [
     { id: "host", status: "profile_checked" },
@@ -181,14 +181,14 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
     name: "@example/current",
     peerDependencies: {
       "@deepseek-ai/cordis": "^4.0.1",
-      "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
+      "@deepseek-ai/dsh-tools": "^0.1.0-rc.7",
     },
   }));
   assert.doesNotThrow(() => validateProfileBundleSdk({
     name: "@example/current-with-optional-legacy-peer",
     peerDependencies: {
       "@deepseek-ai/cordis": "^4.0.1",
-      "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
+      "@deepseek-ai/dsh-tools": "^0.1.0-rc.7",
       cordis: "^4.0.0-rc.7",
     },
     peerDependenciesMeta: { cordis: { optional: true } },
@@ -228,7 +228,7 @@ test("community plugin manifests report every current DSH migration blocker", ()
     },
     {
       code: "DSH_PROFILE_LEGACY_SDK",
-      message: "dsh-better-sidebar 有 1 个 DSH SDK 包不属于当前 0.1.0-rc.6 发布线",
+      message: "dsh-better-sidebar 有 1 个 DSH SDK 包不属于当前 0.1.0-rc.7 发布线",
     },
   ]);
   assert.deepEqual(inspectProfileBundleManifest({
@@ -255,7 +255,7 @@ test("current DSH browser plugins declare one verifiable client bundle", () => {
     exports: { "./client": { default: "./lib/client.js" } },
     peerDependencies: {
       "@deepseek-ai/cordis": "^4.0.1",
-      "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.6",
+      "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.7",
     },
   }), []);
   assert.deepEqual(inspectProfileBundleManifest({
@@ -787,7 +787,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         compatibility: "sdk-migration-required",
         checked_at: "2026-08-16",
         checked_commit: "5d4628929aa2695cab7b4534670c0ca3c9cd7652",
-        preflight_blocker: "Two DSH SDK dependency ranges do not match the exact 0.1.0-rc.6 release line.",
+        preflight_blocker: "Two DSH SDK dependency ranges do not match the exact 0.1.0-rc.7 release line.",
       }, {
         id: "distill",
         stars: 19,

@@ -14,7 +14,7 @@ DeepSeek Harness Desktop App 是建立在 DeepSeek Harness（DSH）之上的本�
 
 ## 快速开始
 
-本地开发要求 Node.js 24 或更高版本。当前项目使用 DSH `0.1.0-rc.6`。
+本地开发要求 Node.js 24 或更高版本。当前项目使用 DSH `0.1.0-rc.7`。
 
 ```bash
 npm install
@@ -23,6 +23,10 @@ npm run dev
 ```
 
 切换 Node.js 大版本、CPU 架构或操作系统后，运行 `npm run setup` 重新准备依赖。
+
+### DSH rc.7 适配状态
+
+App 运行时直接使用的 `@deepseek-ai/*` SDK 全部显式固定到 `0.1.0-rc.7`，插件包的开发与 peer 兼容范围则统一从 `^0.1.0-rc.7` 起步，不依赖部分细包仍未同步的 `latest` 标签。rc.7 没有改变本项目使用的公开 Slot、Host Service 或 Client Session 类型；Code Mode 现在会把子工具返回的图片内容保留到后续模型上下文，官方 Conversation 页面也补充了 Safari 输入框软换行修复。可选 Codex／Claude 子 Agent 行改用一次性后台模式，但本项目 Profile 没有启用这些可选行。产品主对话仍停用完整官方 Conversation 页面，因此不会把该页面内部的 Safari 样式误报为桌面输入框已经采用。
 
 ## 主要功能
 
@@ -108,12 +112,12 @@ Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第
 | [modlens](https://github.com/liustack/modlens) | 为文本模型提供 OCR、布局和图像语义证据 | 完成凭据与数据发送审查后接入 |
 | [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | 文件、编辑器、终端、Git、子 Agent 和第三方 Tab | 等待标准 Slot 或独立运行区，避免与桌面壳冲突 |
 | [DSH Vision Toolkit](https://github.com/Anionex/dsh-vision-toolkit) | 图像问答、OCR、UI 还原、像素差异和 Artifact | 补齐 Tool View Slot 后接入 |
-| [DSH @file](https://github.com/omdsh-dev/dsh-at-file) | 在输入框搜索并引用工作区文件 | 官方 `inputTriggers` 与输入浮层已接通；先用独立产品引用 Bundle 对齐 App 授权目录，再等待社区包固定 rc.6 后试装 |
+| [DSH @file](https://github.com/omdsh-dev/dsh-at-file) | 在输入框搜索并引用工作区文件 | 官方 `inputTriggers` 与输入浮层已接通；先用独立产品引用 Bundle 对齐 App 授权目录，再等待社区包固定 rc.7 后试装 |
 | [DSH OpenPencil](https://github.com/ZSeven-W/dsh-openpencil) | OpenPencil 预览和编辑 | 使用社区实现，不重复开发 |
 | [DSH Files](https://github.com/taxueseek/dsh-files) | 文件上传、附件卡和文档读取 | 标准引用桥已接通；仓库尚未发布 npm，固定 commit 的 rc.6 Profile 预检又因 Cordis peer 使用 `*` 而阻塞，等待社区固定 `^4.0.1` 后再安装 |
-| [DSH Find Plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin) | 让 Agent 搜索社区插件 | 已确认是 Host Tool Bundle；当前版本需要迁移到 rc.6 SDK |
+| [DSH Find Plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin) | 让 Agent 搜索社区插件 | 已确认是 Host Tool Bundle；当前版本需要迁移到 rc.7 SDK |
 | [DSH Native Memory](https://github.com/highland0971/dsh-native-memory) | 按工作区保存、检索和审批长期记忆 | 已完成 `dsh-native-memory@0.2.0` 源码审查，以及 rc.6 Profile 安装、Host 启动、Session 创建与卸载实测；可从插件中心安装以替代 App 自建记忆 |
-| [DSH Toolkit](https://github.com/omdsh-dev/dsh-toolkit) | 时间、编码、JSON、CSV、差异、统计等确定性工具 | 固定 commit 的 Host 预检已完成；两个 DSH SDK 范围未对齐精确 rc.6 发布线，等待社区迁移 |
+| [DSH Toolkit](https://github.com/omdsh-dev/dsh-toolkit) | 时间、编码、JSON、CSV、差异、统计等确定性工具 | 固定 commit 的 Host 预检已完成；两个 DSH SDK 范围未对齐精确 rc.7 发布线，等待社区迁移 |
 | [Distill](https://github.com/LoserFox/distill) | 后台反思会话并沉淀 Skill | 固定 commit 的 Host 预检已完成；六个 DSH SDK 依赖仍在 rc.5，等待社区迁移后再审生命周期 |
 | [DSH MCP Bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) | 文件系统、GitHub、Playwright、记忆和远程 HTTP MCP | rc.6 Profile 预检通过；完成网络与进程权限审查后可安装 |
 
@@ -123,17 +127,17 @@ DSH 插件不等于 UI 插件。Profile Bundle 可以增加或替换 Host 服务
 
 ### App 自身如何插件化
 
-DeepSeek Harness Desktop App 是一个 DSH Profile 发行版和 Electron 插件宿主，不会把窗口、更新、preload 与系统权限伪装成可安装到官方 Web 的普通插件。可复用功能按三种等级拆分：`portable` Bundle 可同时安装到官方 Web 和桌面；`desktop-adapter` Bundle 使用 DSH 生命周期但依赖明确的桌面 Host 合同；`desktop-shell` 只负责窗口、根布局与安全隔离。当前主题包和 `dsh-model-inheritance` 已经是 `portable`；后者只使用官方 Agent 生命周期，让子 Agent 继承父 Agent 已解析的模型目标。`dsh-work-product-host-ipc`、`dsh-client-product-commands`、`dsh-client-product-references`、`dsh-client-product-search-mode`、`dsh-client-product-attachments`、项目工具、Canvas 工具、结构化 UI 工具、工作台页面、产品桥和 Office 工具包属于 `desktop-adapter`，`dsh-work-shell` 属于 `desktop-shell`。父进程传输现在只由 `dsh-work-product-host-ipc` 负责；项目工具、Canvas 工具、结构化 UI 工具和产品桥消费 `productHost`，Office 工具消费更窄的 `officeArtifactHost`，功能 Bundle 不再直接接触 IPC。`dsh-client-product-commands` 独立持有 `/new`、`/runs` 和 `/trace` 的官方输入来源、双语目录与 Session token 消费，产品壳只提供窄的 `dshWorkProductActions` 服务，因此这些桌面动作可以通过 Profile 独立安装、停用或替换。`dsh-client-product-references` 通过同一个官方 `inputTriggers` 注册文件和会话来源，只消费产品壳发布的 Session 限定 `dshWorkProductReferences` 目录；正式 Client 不再启动 App 本地 `@`／`#` 扫描器。`dsh-client-product-search-mode` 通过标准 `conversation.input.left` 席位提供联网策略按钮，只消费产品壳发布的 `dshWorkProductSearchMode` 服务；正式 Client 只渲染这一份按钮，独立开发模式保留本地后备。联网策略随下一轮提示进入 App 协议，并非官方 Session 投影，因此该 Bundle 明确属于 `desktop-adapter`。产品桥已经不再注册 Tool、工作台页面、模型继承或记忆，只保留应用与项目指令上下文；长期记忆改用通过官方 Profile 安装的 `dsh-native-memory` 社区 Bundle。官方 Tool UI 插件已经通过 `conversation.chat.node` 进入产品对话面，社区 Client 插件可以继续在嵌套的 `tool.call.toolview` 席位替换单个工具视图；没有插件接管时才显示产品内置的工具卡片。点击工具行的 Inspect 后，产品右栏只保留 Session 与 call 选择，具体 terminal、read、search、web、diff 和普通结果仍由官方或社区 `conversation.details.tool` 插件渲染。rc.6 的独立 Tool 插件仍读取由官方 Conversation 页面壳注册的一小组文案；由于产品必须停用重复页面壳，`dsh-work-shell` 只通过同一个 Locale 服务补齐 Tool 实际使用的中英文键，并随插件生命周期回收，不复制 Conversation 状态或其余页面文案。产品壳也按官方 `IConversation` 合同发布 `conversation` 服务并直接调用 DSH Session，Agent Preset 插件因此可以在 `conversation.hero.agentPreset` 席位显示并为下一条 Session 暂存选择。正式 Client 中，产品队列和紧凑的 Plan／权限读数直接订阅同一 Client Session 的 `ConversationSnapshot.queue` 与 `session.projections.faceOf(...)`；App 协议流只解析产品会话到 DSH Session 的绑定，并继续传递尚未迁入官方 Chat 的消息内容，不再作为第二份状态权威。插件中心从同一份宿主能力清单区分“完整支持”“部分支持”和“尚未映射”；`conversation.chat.node` 当前只承诺 `tool-call`，不会把其余消息节点误报为可用。`dsh-workbench-pages` 独立贡献 Review、Browser、Files、Artifacts 和 Sites 页面目录。后续这些页面会优先采用社区插件，缺失部分再逐项拆成独立 Bundle。OpenPencil 保持为社区设计插件选择，不与现有版本化 Canvas 重复实现。业务组件不再继续堆入 shell。
+DeepSeek Harness Desktop App 是一个 DSH Profile 发行版和 Electron 插件宿主，不会把窗口、更新、preload 与系统权限伪装成可安装到官方 Web 的普通插件。可复用功能按三种等级拆分：`portable` Bundle 可同时安装到官方 Web 和桌面；`desktop-adapter` Bundle 使用 DSH 生命周期但依赖明确的桌面 Host 合同；`desktop-shell` 只负责窗口、根布局与安全隔离。当前主题包和 `dsh-model-inheritance` 已经是 `portable`；后者只使用官方 Agent 生命周期，让子 Agent 继承父 Agent 已解析的模型目标。`dsh-work-product-host-ipc`、`dsh-client-product-commands`、`dsh-client-product-references`、`dsh-client-product-search-mode`、`dsh-client-product-attachments`、项目工具、Canvas 工具、结构化 UI 工具、工作台页面、产品桥和 Office 工具包属于 `desktop-adapter`，`dsh-work-shell` 属于 `desktop-shell`。父进程传输现在只由 `dsh-work-product-host-ipc` 负责；项目工具、Canvas 工具、结构化 UI 工具和产品桥消费 `productHost`，Office 工具消费更窄的 `officeArtifactHost`，功能 Bundle 不再直接接触 IPC。`dsh-client-product-commands` 独立持有 `/new`、`/runs` 和 `/trace` 的官方输入来源、双语目录与 Session token 消费，产品壳只提供窄的 `dshWorkProductActions` 服务，因此这些桌面动作可以通过 Profile 独立安装、停用或替换。`dsh-client-product-references` 通过同一个官方 `inputTriggers` 注册文件和会话来源，只消费产品壳发布的 Session 限定 `dshWorkProductReferences` 目录；正式 Client 不再启动 App 本地 `@`／`#` 扫描器。`dsh-client-product-search-mode` 通过标准 `conversation.input.left` 席位提供联网策略按钮，只消费产品壳发布的 `dshWorkProductSearchMode` 服务；正式 Client 只渲染这一份按钮，独立开发模式保留本地后备。联网策略随下一轮提示进入 App 协议，并非官方 Session 投影，因此该 Bundle 明确属于 `desktop-adapter`。产品桥已经不再注册 Tool、工作台页面、模型继承或记忆，只保留应用与项目指令上下文；长期记忆改用通过官方 Profile 安装的 `dsh-native-memory` 社区 Bundle。官方 Tool UI 插件已经通过 `conversation.chat.node` 进入产品对话面，社区 Client 插件可以继续在嵌套的 `tool.call.toolview` 席位替换单个工具视图；没有插件接管时才显示产品内置的工具卡片。点击工具行的 Inspect 后，产品右栏只保留 Session 与 call 选择，具体 terminal、read、search、web、diff 和普通结果仍由官方或社区 `conversation.details.tool` 插件渲染。rc.7 的独立 Tool 插件仍读取由官方 Conversation 页面壳注册的一小组文案；由于产品必须停用重复页面壳，`dsh-work-shell` 只通过同一个 Locale 服务补齐 Tool 实际使用的中英文键，并随插件生命周期回收，不复制 Conversation 状态或其余页面文案。产品壳也按官方 `IConversation` 合同发布 `conversation` 服务并直接调用 DSH Session，Agent Preset 插件因此可以在 `conversation.hero.agentPreset` 席位显示并为下一条 Session 暂存选择。正式 Client 中，产品队列直接订阅同一 Client Session 的 `ConversationSnapshot.queue`；Plan 与权限界面由各自官方 Client 插件直接读取 Session projection。App 协议流只解析产品会话到 DSH Session 的绑定，并继续传递尚未迁入官方 Chat 的消息内容，不再作为第二份状态权威。插件中心从同一份宿主能力清单区分“完整支持”“部分支持”和“尚未映射”；`conversation.chat.node` 当前只承诺 `tool-call`，不会把其余消息节点误报为可用。`dsh-workbench-pages` 独立贡献 Review、Browser、Files、Artifacts 和 Sites 页面目录。后续这些页面会优先采用社区插件，缺失部分再逐项拆成独立 Bundle。OpenPencil 保持为社区设计插件选择，不与现有版本化 Canvas 重复实现。业务组件不再继续堆入 shell。
 
 `dsh-client-product-workspaces` 通过 Profile 停用默认 `ui-workspace` 提供者，再占用标准单席位 `conversation.hero.workspace`；它只消费产品壳发布的 `dshWorkProductWorkspaces` 可观察服务，正式 Client 不再渲染页面内的旧项目选择器。项目目录、文件夹导入与创建仍来自桌面产品状态，所以这个 Bundle 是 `desktop-adapter`；要换成官方或社区实现，应在 Profile 中替换整个 Bundle，不能在单席位上叠加第二个注册。
 
-`dsh-client-product-attachments` 持有正式 Client 的草稿附件展示：首个 DSH Session 建立前进入桌面壳明确声明的根扩展 `dsh-work.composer.pre-session`，Session 绑定后进入标准 `conversation.input.dock`。它只消费 Session 围栏下的 `dshWorkProductAttachments` 服务，插件看不到本地路径或附件字节。图片轨道直接复用 rc.6 官方 `AttachmentRail` React 组件；官方组件尚未支持的文件、目录、音视频和文档选区由桌面适配层显示。官方 Web 的 `ui-conversation` 仍在自己的私有控制器中保存浏览器 `File` 与临时图片 id，而桌面 App 通过受信任 Host 接纳本地路径，所以本 Bundle 明确是 `desktop-adapter`，不会把两套草稿身份伪装成同一个协议。
+`dsh-client-product-attachments` 持有正式 Client 的草稿附件展示：首个 DSH Session 建立前进入桌面壳明确声明的根扩展 `dsh-work.composer.pre-session`，Session 绑定后进入标准 `conversation.input.dock`。它只消费 Session 围栏下的 `dshWorkProductAttachments` 服务，插件看不到本地路径或附件字节。图片轨道直接复用 rc.7 官方 `AttachmentRail` React 组件；官方组件尚未支持的文件、目录、音视频和文档选区由桌面适配层显示。官方 Web 的 `ui-conversation` 仍在自己的私有控制器中保存浏览器 `File` 与临时图片 id，而桌面 App 通过受信任 Host 接纳本地路径，所以本 Bundle 明确是 `desktop-adapter`，不会把两套草稿身份伪装成同一个协议。
 
-正式 Client 的会话权限完全使用 rc.6 官方 `dsh-client-ui-permission-presets`：当前 Session 通过官方 `/permission` 弹出选择器修改，新会话默认值通过官方设置行修改，Full access 风险确认也由该插件负责。App 已删除自己的 `PermissionPicker`，产品桥不再订阅或复制 `permissions` projection。
+正式 Client 的会话权限完全使用 rc.7 官方 `dsh-client-ui-permission-presets`：当前 Session 通过官方 `/permission` 弹出选择器修改，新会话默认值通过官方设置行修改，Full access 风险确认也由该插件负责。App 已删除自己的 `PermissionPicker`，产品桥不再订阅或复制 `permissions` projection。
 
 正式 Client 中的 Skill 目录与选择也由 Profile 中的官方 `@deepseek-ai/dsh-client-ui-skill` 持有。它按当前 Session 调用 `skill.list`，把 `skill` 来源注册进 `inputTriggers`，并把 `/<name> ` 引用写回同一份草稿；App 自有 Skill 菜单只保留给没有 DSH Client Host 的独立开发页。
 
-文件与会话引用同样进入官方 InputTrigger 菜单。文件候选来自当前项目已授权的目录，选择后写入 `@<path> `；会话候选写入 `#<title> `。rc.6 的公开触发字符只有 `/` 和 `@`，所以两类候选暂时共用 `@` 菜单，不能把独立 `#` 菜单伪装成官方能力；没有 DSH Client Host 的独立开发页继续保留旧选择器。
+文件与会话引用同样进入官方 InputTrigger 菜单。文件候选来自当前项目已授权的目录，选择后写入 `@<path> `；会话候选写入 `#<title> `。rc.7 的公开触发字符只有 `/` 和 `@`，所以两类候选暂时共用 `@` 菜单，不能把独立 `#` 菜单伪装成官方能力；没有 DSH Client Host 的独立开发页继续保留旧选择器。
 
 ## 与 DSH 官方 Web 的关系
 

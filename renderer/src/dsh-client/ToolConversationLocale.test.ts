@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { registerToolConversationLocale } from '../../../packages/dsh-work-shell/src/client/ToolConversationLocale'
 
 describe('Tool conversation locale adapter', () => {
-  it('owns matching rc.6 Tool dictionaries and releases them in reverse order', () => {
+  it('owns matching rc.7 Tool dictionaries and releases them in reverse order', () => {
     const disposeZh = vi.fn()
     const disposeEn = vi.fn()
     const registrations: Array<{ namespace: string; locale: string; dictionary: Record<string, string> }> = []
