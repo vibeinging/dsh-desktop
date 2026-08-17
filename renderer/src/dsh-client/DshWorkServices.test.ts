@@ -6,6 +6,7 @@ import { DshWorkProductActionsService } from '../../../packages/dsh-work-shell/s
 import { DshWorkProductReferencesService } from '../../../packages/dsh-work-shell/src/client/ProductReferencesService'
 import { DshWorkProductSearchModeService } from '../../../packages/dsh-work-shell/src/client/ProductSearchModeService'
 import { DshWorkProductWorkspacesService } from '../../../packages/dsh-work-shell/src/client/ProductWorkspacesService'
+import { DshWorkProductAttachmentsService } from '../../../packages/dsh-work-shell/src/client/ProductAttachmentsService'
 
 describe('dsh-work Client services', () => {
   it('keeps product actions reachable through a caller plugin Context proxy', () => {
@@ -96,5 +97,23 @@ describe('dsh-work Client services', () => {
     expect(service.select('__chat__')).toBe(true)
     expect(service.openFolder()).toBe(true)
     await expect(service.createProject('分析')).resolves.toBe(true)
+  })
+
+  it('keeps product attachment reads and removal scoped to the selected Session', () => {
+    const root = new Context()
+    const sessionId = 'session-product-attachments' as SessionId
+    const snapshot = { items: [{ id: 'attachment-1', name: 'chart.png', kind: 'image' as const }], hasImages: true }
+    const subscribeProductAttachments = vi.fn(() => vi.fn())
+    const removeProductAttachment = vi.fn(() => true)
+    new DshWorkProductAttachmentsService(root, {
+      getProductAttachmentSnapshot: () => snapshot,
+      subscribeProductAttachments,
+      removeProductAttachment
+    })
+
+    const service = root.extend().dshWorkProductAttachments
+    expect(service.getSnapshot(sessionId)).toBe(snapshot)
+    expect(service.remove(sessionId, 'attachment-1')).toBe(true)
+    expect(removeProductAttachment).toHaveBeenCalledWith(sessionId, 'attachment-1')
   })
 })

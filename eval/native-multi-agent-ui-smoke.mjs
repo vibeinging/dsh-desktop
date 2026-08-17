@@ -278,6 +278,37 @@ try {
   await ui.waitFor('[role="menu"]', { timeout: 15_000 })
   await ui.press('Escape')
 
+  await session.evalJs(`
+    const input = document.querySelector('[data-testid="agent-message-input"]')
+    const transfer = new DataTransfer()
+    transfer.setData('text/plain', 'attachment-plugin-smoke '.repeat(240))
+    input.dispatchEvent(new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: transfer
+    }))
+  `)
+  try {
+    await ui.waitFor('[data-dsh-product-attachments]', { timeout: 15_000 })
+  } catch (error) {
+    const attachmentDiagnostics = await session.evalJs(`return {
+      bootHasProductAttachments: JSON.stringify(window.__DSH_BOOT__ || {}).includes('dsh-client-product-attachments'),
+      productAttachmentResources: performance.getEntriesByType('resource').map((entry) => entry.name).filter((name) => name.includes('product-attachments')),
+      inputValue: document.querySelector('[data-testid="agent-message-input"]')?.value || '',
+      localAttachments: [...document.querySelectorAll('[data-attachment-path]')].map((node) => node.getAttribute('data-attachment-name')),
+      bodyText: document.body.innerText.slice(-1200)
+    }`)
+    throw new Error(`${error.message}; attachment diagnostics=${JSON.stringify({ attachmentDiagnostics, rendererErrors })}`)
+  }
+  assert.equal(await session.evalJs(`return document.querySelector('[data-attachment-path]') === null`), true)
+  assert.equal(await session.evalJs(`return JSON.stringify(window.__DSH_BOOT__ || {}).includes('dsh-client-product-attachments')`), true)
+  await ui.click('[data-dsh-product-attachment-file] button')
+  await ui.waitUntil(`async () => document.querySelector('[data-dsh-product-attachments]') === null`, {
+    timeout: 10_000,
+    label: '附件插件移除草稿附件并回收标准 Slot',
+  })
+  await ui.fill('[data-testid="agent-message-input"]', '')
+
   const result = await driver.askAgent('__chat__', parentPrompt, {
     title: conversationTitle,
     model: modelRoute,
@@ -570,7 +601,7 @@ try {
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-trajectory]')?.innerText.includes('subagent') || false`), true)
 
-  console.log('[native-multi-agent-ui-smoke] PASS DSH Workspace/Agent Preset/子任务/产品引用/联网模式/Skill/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
+  console.log('[native-multi-agent-ui-smoke] PASS DSH Workspace/附件/Agent Preset/子任务/产品引用/联网模式/Skill/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
 } finally {
   if (session && modelProviderSaved) {
     const driver = makeDriver(session)

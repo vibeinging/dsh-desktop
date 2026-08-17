@@ -468,6 +468,34 @@ describe('DshConversationBridge', () => {
     await expect(bridge.createProductWorkspace('项目')).resolves.toBe(false)
   })
 
+  it('publishes draft attachments only to the selected DSH Session', () => {
+    const sessionId = 'dsh-session-attachments' as SessionId
+    const otherSessionId = 'dsh-session-other-attachments' as SessionId
+    const bridge = createBridge({ list: sessionList(), open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const remove = vi.fn(() => true)
+    bridge.bindProductAttachmentHandlers({ remove })
+    bridge.syncSession(sessionId)
+    const listener = vi.fn()
+    const unsubscribe = bridge.subscribeProductAttachments(sessionId, listener)
+    const snapshot = {
+      items: [{ id: 'attachment-1', name: 'chart.png', kind: 'image' as const, previewUrl: 'dsh-file://local/chart' }],
+      hasImages: true
+    }
+
+    bridge.updateProductAttachments(snapshot)
+    expect(listener).toHaveBeenCalledOnce()
+    expect(bridge.getProductAttachmentSnapshot(sessionId)).toBe(snapshot)
+    expect(bridge.getProductAttachmentSnapshot(otherSessionId).items).toHaveLength(0)
+    expect(bridge.removeProductAttachment(sessionId, 'attachment-1')).toBe(true)
+    expect(remove).toHaveBeenCalledWith('attachment-1')
+    expect(bridge.removeProductAttachment(sessionId, 'missing')).toBe(false)
+    expect(bridge.removeProductAttachment(otherSessionId, 'attachment-1')).toBe(false)
+
+    unsubscribe()
+    bridge.dispose()
+    expect(bridge.removeProductAttachment(sessionId, 'attachment-1')).toBe(false)
+  })
+
   it('publishes official Tool blocks without storing a second Tool lifecycle', () => {
     const list = sessionList()
     const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })

@@ -33,6 +33,11 @@ import {
   type DshWorkProductWorkspaceHandlers,
   type DshWorkProductWorkspaceSnapshot
 } from './ProductWorkspaces'
+import {
+  EMPTY_PRODUCT_ATTACHMENTS,
+  type DshWorkProductAttachmentHandlers,
+  type DshWorkProductAttachmentSnapshot
+} from './ProductAttachments'
 
 type ComposerDockOwner = OwnerOf<'conversation.composer.dock'>
 export type DshWorkComposerInputSnapshot = ComposerDockOwner['input']
@@ -305,6 +310,9 @@ export class DshConversationBridge {
   #productWorkspaceSnapshot = EMPTY_PRODUCT_WORKSPACES
   #productWorkspaceHandlers: DshWorkProductWorkspaceHandlers | null = null
   readonly #productWorkspaceListeners = new Set<() => void>()
+  #productAttachmentSnapshot = EMPTY_PRODUCT_ATTACHMENTS
+  #productAttachmentHandlers: DshWorkProductAttachmentHandlers | null = null
+  readonly #productAttachmentListeners = new Set<() => void>()
   #openFileHandler: ((path: string) => void) | null = null
   #composerBlockSnapshot: DshComposerBlock
   #composerBlockUnsubscribe: (() => void) | undefined
@@ -354,6 +362,7 @@ export class DshConversationBridge {
     if (this.#desiredSessionId) this.#commandStates.delete(this.#desiredSessionId)
     this.clearToolSelection()
     this.#desiredSessionId = next
+    this.#emitProductAttachments()
     this.#watchComposerBlock(next)
     this.#watchSessionState()
     this.#input = { ...EMPTY_INPUT, draftRev: this.#input.draftRev + 1 }
@@ -534,6 +543,55 @@ export class DshConversationBridge {
       return Promise.resolve(false)
     }
     return handlers.createProject(normalized)
+  }
+
+  /** Bind App draft removal behind the removable attachment presentation Bundle. */
+  bindProductAttachmentHandlers(handlers: DshWorkProductAttachmentHandlers) {
+    this.#productAttachmentHandlers = handlers
+    return () => {
+      if (this.#productAttachmentHandlers === handlers) this.#productAttachmentHandlers = null
+    }
+  }
+
+  /** Publish display-safe App draft attachments to the selected DSH Session. */
+  updateProductAttachments(snapshot: DshWorkProductAttachmentSnapshot) {
+    const current = this.#productAttachmentSnapshot
+    if (
+      current.hasImages === snapshot.hasImages
+      && current.items.length === snapshot.items.length
+      && current.items.every((item, index) => {
+        const next = snapshot.items[index]
+        return item.id === next?.id
+          && item.name === next.name
+          && item.kind === next.kind
+          && item.previewUrl === next.previewUrl
+          && item.selectionLabel === next.selectionLabel
+      })
+    ) return
+    this.#productAttachmentSnapshot = snapshot
+    this.#emitProductAttachments()
+  }
+
+  /** Read draft attachments only through their owning selected Session. */
+  getProductAttachmentSnapshot(sessionId: SessionId | null) {
+    return this.#desiredSessionId === sessionId
+      ? this.#productAttachmentSnapshot
+      : EMPTY_PRODUCT_ATTACHMENTS
+  }
+
+  /** Subscribe to the selected Session's product attachment projection. */
+  subscribeProductAttachments(sessionId: SessionId | null, listener: () => void) {
+    if (this.#disposed || this.#desiredSessionId !== sessionId) return () => {}
+    this.#productAttachmentListeners.add(listener)
+    return () => this.#productAttachmentListeners.delete(listener)
+  }
+
+  /** Remove one opaque draft attachment from the selected product composer. */
+  removeProductAttachment(sessionId: SessionId | null, id: string) {
+    const handler = this.#productAttachmentHandlers
+    if (this.#disposed || this.#desiredSessionId !== sessionId || !handler) return false
+    if (!this.#productAttachmentSnapshot.items.some((item) => item.id === id)) return false
+    return handler.remove(id)
   }
 
   /** Run one App-owned command contributed through the official input-trigger registry. */
@@ -822,6 +880,9 @@ export class DshConversationBridge {
     this.#productWorkspaceHandlers = null
     this.#productWorkspaceListeners.clear()
     this.#productWorkspaceSnapshot = EMPTY_PRODUCT_WORKSPACES
+    this.#productAttachmentHandlers = null
+    this.#productAttachmentListeners.clear()
+    this.#productAttachmentSnapshot = EMPTY_PRODUCT_ATTACHMENTS
     this.#openFileHandler = null
   }
 
@@ -831,6 +892,10 @@ export class DshConversationBridge {
 
   #emitInputTrigger() {
     for (const listener of this.#inputTriggerListeners) listener()
+  }
+
+  #emitProductAttachments() {
+    for (const listener of this.#productAttachmentListeners) listener()
   }
 
   #selectedInputController() {

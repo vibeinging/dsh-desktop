@@ -39,6 +39,7 @@ import { DshWorkProductActionsService } from './ProductActionsService'
 import { DshWorkProductReferencesService } from './ProductReferencesService'
 import { DshWorkProductSearchModeService } from './ProductSearchModeService'
 import { DshWorkProductWorkspacesService } from './ProductWorkspacesService'
+import { DshWorkProductAttachmentsService } from './ProductAttachmentsService'
 import { registerToolConversationLocale } from './ToolConversationLocale'
 import styles from './DshWorkSettings.module.css'
 
@@ -49,7 +50,8 @@ const STANDARD_ROOT_SLOTS = [
   'settings.section',
   'shell.overlay'
 ] as const
-type DshWorkRootSlot = typeof WORKBENCH_SLOT | (typeof STANDARD_ROOT_SLOTS)[number]
+const PRE_SESSION_ATTACHMENTS_SLOT = 'dsh-work.composer.pre-session' as const
+type DshWorkRootSlot = typeof WORKBENCH_SLOT | typeof PRE_SESSION_ATTACHMENTS_SLOT | (typeof STANDARD_ROOT_SLOTS)[number]
 type DshWorkRootProps = PropsRuntime<'root'> & PropsRenderSlots<DshWorkRootSlot>
 type DshWorkSidebarProps = PropsRuntime<'sidebar'> & PropsRenderSlots<'sidebar.footer.action'>
 type DshWorkGeneralProps = PropsRuntime<'settings.section'> & PropsRenderSlots<'settings.general.item'>
@@ -167,11 +169,26 @@ export function apply(ctx: ClientContext) {
     return (
       <DshClientHostProvider slots={ctx.slots} renderSlot={renderSlot} runtime={runtime}>
         <DshWorkApp />
+        <DshWorkPreSessionAttachments renderSlot={renderSlot} />
         {renderSlot('sidebar', { collapsed: false, width: 263 }, { only: 'dsh-work-sidebar' })}
         {renderSlot('conversation', {}, { only: 'dsh-work-conversation' })}
         <DshWorkDetails renderSlot={renderSlot} />
       </DshClientHostProvider>
     )
+  }
+
+  function DshWorkPreSessionAttachments({ renderSlot }: Pick<DshWorkRootProps, 'renderSlot'>) {
+    const [target, setTarget] = useState<Element | null>(null)
+    useLayoutEffect(() => {
+      const syncTarget = () => setTarget(document.querySelector('[data-dsh-work-pre-session-attachments]'))
+      syncTarget()
+      const observer = new MutationObserver(syncTarget)
+      observer.observe(document.body, { childList: true, subtree: true })
+      return () => observer.disconnect()
+    }, [])
+    return target
+      ? createPortal(renderSlot(PRE_SESSION_ATTACHMENTS_SLOT, {}), target)
+      : null
   }
 
   function DshWorkDetails({ renderSlot }: Pick<DshWorkRootProps, 'renderSlot'>) {
@@ -559,6 +576,7 @@ export function apply(ctx: ClientContext) {
         priority: -100,
         children: {
           [WORKBENCH_SLOT]: { kind: 'list', scope: 'root' },
+          [PRE_SESSION_ATTACHMENTS_SLOT]: { kind: 'list', scope: 'root' },
           'sidebar': { kind: 'single', scope: 'root' },
           'conversation': { kind: 'single', scope: 'session-maybe' },
           'details': { kind: 'single', scope: 'session' },
@@ -632,6 +650,7 @@ export function apply(ctx: ClientContext) {
   new DshWorkProductReferencesService(ctx, conversation)
   new DshWorkProductSearchModeService(ctx, conversation)
   new DshWorkProductWorkspacesService(ctx, conversation)
+  new DshWorkProductAttachmentsService(ctx, conversation)
 
   ctx.effect(() => {
     const presenter = createDshThemePresenter(document)

@@ -152,6 +152,7 @@ import {
 } from '@/dsh-client/ProductReferences'
 import type { DshWorkProductSearchMode } from '@/dsh-client/ProductSearchMode'
 import type { DshWorkProductWorkspaceHandlers } from '@/dsh-client/ProductWorkspaces'
+import { productAttachmentId, productAttachmentSnapshot } from '@/dsh-client/ProductAttachments'
 import styles from './agent.module.scss'
 
 export type { DataWorkspaceEvent } from './stream/types'
@@ -600,6 +601,10 @@ function DshWorkAgentConversation({
     : loadConversationDraft(projectId, selectedId))
   const [input, setInput] = useState(initialDraft.input)
   const [attachments, setAttachments] = useState<Attachment[]>(initialDraft.attachments)
+  const productAttachments = useMemo(
+    () => productAttachmentSnapshot(attachments, artifactSelectionBadgeLabel),
+    [attachments]
+  )
   const [searchMode, setSearchMode] = useState<SearchMode>(initialDraft.searchMode)
   const [dropActive, setDropActive] = useState(false)
   const dropDepthRef = useRef(0)
@@ -746,6 +751,28 @@ function DshWorkAgentConversation({
       canCreateProject: Boolean(onCreateProject)
     })
   }, [dshClientHost, onCreateProject, onOpenFolder, projectId, workspaces])
+
+  useEffect(() => {
+    if (!dshClientHost) return
+    dshClientHost.conversation.updateProductAttachments(productAttachments)
+  }, [dshClientHost, productAttachments])
+
+  useEffect(() => {
+    if (!dshClientHost) return
+    return dshClientHost.conversation.bindProductAttachmentHandlers({
+      remove: (id) => {
+        let removed = false
+        setAttachments((current) => current.filter((attachment) => {
+          if (!removed && productAttachmentId(attachment) === id) {
+            removed = true
+            return false
+          }
+          return true
+        }))
+        return removed
+      }
+    })
+  }, [dshClientHost])
 
   // Resolve the project write target so diff files can be opened in external editors.
   useEffect(() => {
@@ -2867,7 +2894,8 @@ function DshWorkAgentConversation({
           ))}
         </div>
       )}
-      {attachments.length > 0 && (
+      {dshClientHost && <div data-dsh-work-pre-session-attachments />}
+      {attachments.length > 0 && !dshClientHost && (
         <>
           <div className={styles.attachList}>
             {attachments.map((a, i) => {
