@@ -73,6 +73,7 @@ try {
   `)
   assert.match(clientSurface, /conversation\.composer/)
   assert.match(clientSurface, /conversation\.hero\.agentPreset/)
+  assert.match(clientSurface, /conversation\.details\.tool/)
   assert.match(clientSurface, /conversation\.chat\.node/)
   assert.match(clientSurface, /tool-call/)
   assert.match(clientSurface, /conversation\.view/)

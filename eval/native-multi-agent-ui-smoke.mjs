@@ -338,8 +338,68 @@ try {
   assert.equal(await session.evalJs(`return document.querySelector('[data-question-key]')?.innerText.includes(${JSON.stringify(questionText)}) || false`), true)
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-tool-call-takeover="call_dsh_question"] + [data-dsh-product-tool-call-surface]')?.offsetParent === null`), true)
   assert.equal(await session.evalJs(`return document.querySelector('[data-testid="agent-message-input"]')?.offsetParent === null`), true)
+  const questionToolRow = '[data-dsh-standard-tool-call-node] [data-chat-call-id="call_dsh_question"]'
+  await ui.click(`${questionToolRow} [data-disclosure-row]`)
+  await ui.waitUntil(`async () => Array.from(document.querySelector(${JSON.stringify(questionToolRow)})?.querySelectorAll('button') || []).some((candidate) => candidate.textContent?.trim() === 'Inspect')`, {
+    timeout: 10_000,
+    label: '官方工具行展开后显示 Inspect',
+  })
+  const inspectedQuestionCall = await session.evalJs(`
+    const row = document.querySelector(${JSON.stringify(questionToolRow)});
+    const button = Array.from(row?.querySelectorAll('button') || []).find((candidate) => candidate.textContent?.trim() === 'Inspect');
+    button?.click();
+    return {
+      clicked: Boolean(button),
+      buttons: Array.from(row?.querySelectorAll('button') || []).map((candidate) => candidate.textContent?.trim() || ''),
+    };
+  `)
+  assert.equal(inspectedQuestionCall.clicked, true, JSON.stringify(inspectedQuestionCall))
+  const toolDetailsDeadline = Date.now() + 15_000
+  let toolDetailsState = null
+  while (Date.now() < toolDetailsDeadline) {
+    toolDetailsState = await session.evalJs(`
+      const frame = document.querySelector('[data-dsh-standard-details]');
+      const panel = document.querySelector('[data-dsh-standard-tool-details]');
+      return {
+        ready: Boolean(frame && !frame.hidden && panel?.getAttribute('data-call-id') === 'call_dsh_question'),
+        frameExists: Boolean(frame),
+        frameHidden: frame?.hidden ?? null,
+        content: frame?.textContent?.trim() || '',
+        html: (frame?.innerHTML || '').slice(0, 2000),
+        panelCallId: panel?.getAttribute('data-call-id') || '',
+        detailsSlots: document.querySelectorAll('[data-slot="details"]').length,
+        toolRowExists: Boolean(document.querySelector('[data-chat-call-id="call_dsh_question"]')),
+      };
+    `)
+    if (toolDetailsState.ready) break
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  assert.equal(toolDetailsState?.ready, true, JSON.stringify(toolDetailsState))
+  assert.equal(await session.evalJs(`return !document.querySelector('[data-dsh-standard-tool-details] [data-dsh-product-tool-details-fallback]')`), true)
+  assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-standard-tool-details-output]')?.innerText.trim().length > 0`), true)
+  const closedToolDetails = await session.evalJs(`
+    const button = document.querySelector('[data-dsh-standard-tool-details-close]');
+    button?.click();
+    return Boolean(button);
+  `)
+  assert.equal(closedToolDetails, true)
+  await ui.waitUntil(`async () => document.querySelector('[data-dsh-standard-details]')?.hidden === true`, {
+    timeout: 10_000,
+    label: '官方工具详情关闭并恢复产品工作台',
+  })
   await ui.click(`[data-question-key] [role="radio"][aria-label=${JSON.stringify(questionOption)}]`)
-  await ui.click('[data-question-key] footer > div:last-child button:last-child')
+  await ui.waitUntil(`async () => document.querySelector('[data-question-key] [role="radio"][aria-label=${JSON.stringify(questionOption)}]')?.getAttribute('aria-checked') === 'true'`, {
+    timeout: 10_000,
+    label: '官方 ui-question 选项状态落下',
+  })
+  const submittedQuestion = await session.evalJs(`
+    const buttons = Array.from(document.querySelectorAll('[data-question-key] footer button')).filter((button) => button.offsetParent !== null);
+    const submit = buttons.at(-1);
+    submit?.click();
+    return { clicked: Boolean(submit), disabled: submit?.disabled || false, labels: buttons.map((button) => button.textContent?.trim() || '') };
+  `)
+  assert.equal(submittedQuestion.clicked, true, JSON.stringify(submittedQuestion))
+  assert.equal(submittedQuestion.disabled, false, JSON.stringify(submittedQuestion))
   await ui.waitUntil(`async () => !document.querySelector('[data-question-key]')`, {
     timeout: 15_000,
     label: '官方 ui-question Composer Chain 提交并退出接管',

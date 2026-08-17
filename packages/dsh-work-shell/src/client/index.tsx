@@ -16,7 +16,7 @@ import type { ConsumeTokenRequest, InputTriggerSource } from '@deepseek-ai/dsh-c
 import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
 import type { ThemePreference, ThemeSnapshot } from '@deepseek-ai/dsh-client-ui-theme/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import DshWorkApp from '../../../../renderer/src/DshWorkApp'
 import {
@@ -49,6 +49,7 @@ type DshWorkRootSlot = typeof WORKBENCH_SLOT | (typeof STANDARD_ROOT_SLOTS)[numb
 type DshWorkRootProps = PropsRuntime<'root'> & PropsRenderSlots<DshWorkRootSlot>
 type DshWorkSidebarProps = PropsRuntime<'sidebar'> & PropsRenderSlots<'sidebar.footer.action'>
 type DshWorkGeneralProps = PropsRuntime<'settings.section'> & PropsRenderSlots<'settings.general.item'>
+type DshWorkToolDetailsProps = PropsRuntime<'details'> & PropsRenderSlots<'conversation.details.tool'>
 type DshWorkConversationSlot =
   | 'conversation.session.header.actions'
   | 'conversation.session.header.utilities'
@@ -89,6 +90,30 @@ function dshToolChatNode(block: ToolCallBlock): ChatConversationViewNode {
   }
 }
 
+function toolCallName(block: ToolCallBlock) {
+  return 'kind' in block ? block.call?.name || block.callId : block.name
+}
+
+function toolCallArgs(block: ToolCallBlock) {
+  const raw = 'kind' in block ? block.call?.argsRaw : block.argsRaw
+  if (raw === undefined) return null
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2)
+  } catch {
+    return raw
+  }
+}
+
+function rawToolResult(block: ToolCallBlock) {
+  if (!('kind' in block)) return ''
+  const parts = block.content.map((item) => {
+    if (item.type === 'text') return item.text
+    return JSON.stringify(item, null, 2) ?? String(item)
+  })
+  if (parts.length === 0 && block.error) parts.push(`${block.error.name}: ${block.error.code}`)
+  return parts.join('\n')
+}
+
 export const inject = ['slots', 'sessions', 'theme', 'locale', 'inputTriggers']
 
 const APP_MAPPED_GENERAL_ITEMS = new Set(['appearance', 'composer-enter', 'language', 'permission'])
@@ -97,6 +122,10 @@ const DSH_WORK_COMMANDS = [
   { name: 'runs', description: '打开当前对话的 DSH 运行记录' },
   { name: 'trace', description: '查看当前对话的 DSH 事件、耗时和 Token' }
 ] as const
+const TOOL_DETAILS_COPY = {
+  zh: { title: '工具详情', close: '关闭工具详情', input: '输入', output: '输出', running: '工具仍在运行' },
+  en: { title: 'Tool details', close: 'Close tool details', input: 'Input', output: 'Output', running: 'Tool is still running' }
+} as const
 
 class DshWorkLayoutAdapter implements ILayout {
   #dispatch(action: DshWorkLayoutAction) {
@@ -234,6 +263,94 @@ export function apply(ctx: ClientContext) {
       <section className={styles.generalRows} data-dsh-work-general-plugin-settings>
         {ids.map((id) => <div key={id}>{renderSlot('settings.general.item', {}, { only: id })}</div>)}
       </section>
+    )
+  }
+
+  function DshWorkToolDetails({ sessionId, renderSlot }: DshWorkToolDetailsProps) {
+    const hadSelection = useRef(false)
+    const locale = useSyncExternalStore(
+      (listener) => ctx.locale.subscribe(listener),
+      () => ctx.locale.getSnapshot(),
+      () => ctx.locale.getSnapshot()
+    )
+    const copy = locale.active === 'zh' ? TOOL_DETAILS_COPY.zh : TOOL_DETAILS_COPY.en
+    const selection = useSyncExternalStore(
+      conversation.subscribeToolSelection,
+      conversation.getToolSelectionSnapshot,
+      conversation.getToolSelectionSnapshot
+    )
+    const toolCalls = useSyncExternalStore(
+      conversation.subscribeToolCalls,
+      conversation.getToolCallSnapshot,
+      conversation.getToolCallSnapshot
+    )
+    const sessions = useSyncExternalStore(
+      (listener) => ctx.sessions.list.subscribe(listener),
+      () => ctx.sessions.list.getSnapshot(),
+      () => ctx.sessions.list.getSnapshot()
+    )
+    const block = selection ? toolCalls.get(selection.callId) : undefined
+    const selected = selection !== undefined
+    const close = () => {
+      conversation.clearToolSelection(selection?.sessionId ?? sessionId)
+      layout.closeDetails()
+    }
+    useLayoutEffect(() => {
+      if (selected) {
+        hadSelection.current = true
+        return
+      }
+      if (hadSelection.current) {
+        hadSelection.current = false
+        layout.closeDetails()
+      }
+    }, [selected])
+    if (!block) return null
+    const args = toolCallArgs(block)
+    const cwd = sessions.byId[selection.sessionId]?.cwd
+    return (
+      <aside className={styles.toolDetails} data-dsh-standard-tool-details data-call-id={block.callId}>
+        <header className={styles.toolDetailsHeader}>
+          <strong className={styles.toolDetailsTitle}>{toolCallName(block) || copy.title}</strong>
+          <button
+            type="button"
+            className={styles.toolDetailsClose}
+            aria-label={copy.close}
+            data-dsh-standard-tool-details-close
+            onClick={close}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </header>
+        <div className={styles.toolDetailsBody}>
+          {args !== null && (
+            <section className={styles.toolDetailsSection}>
+              <div className={styles.toolDetailsLabel}>{copy.input}</div>
+              <pre className={styles.toolDetailsCode}>{args}</pre>
+            </section>
+          )}
+          <section className={styles.toolDetailsSection}>
+            <div className={styles.toolDetailsLabel}>{copy.output}</div>
+            <div data-dsh-standard-tool-details-output>
+              {renderSlot('conversation.details.tool', { block, cwd }, {
+                fallback: 'kind' in block
+                  ? (
+                    <pre
+                      className={styles.toolDetailsCode}
+                      data-dsh-product-tool-details-fallback
+                      data-error={block.isError || undefined}
+                    >
+                      {rawToolResult(block)}
+                    </pre>
+                  )
+                  : <div className={styles.toolDetailsEmpty} data-dsh-product-tool-details-fallback>{copy.running}</div>
+              })}
+            </div>
+          </section>
+        </div>
+      </aside>
     )
   }
 
@@ -420,7 +537,9 @@ export function apply(ctx: ClientContext) {
                 node,
                 cwd,
                 openFile: conversation.openFile,
-                inspectCall: () => conversation.runProductCommand(sessionId, 'trace'),
+                inspectCall: (callId) => {
+                  if (conversation.selectToolCall(sessionId, callId)) layout.openDetails()
+                },
                 forkAt: () => {},
                 loadImage: () => Promise.reject(new Error('工具行不提供消息图片读取')),
                 fileMentions: () => undefined
@@ -509,6 +628,14 @@ export function apply(ctx: ClientContext) {
           'conversation.chat.turnTail': { kind: 'chain', scope: 'session' }
         }
       }, DshWorkConversation))
+      disposers.push(ctx.slots.register({
+        name: 'details',
+        id: 'dsh-work-tool-details',
+        priority: -100,
+        children: {
+          'conversation.details.tool': { kind: 'single', scope: 'session' }
+        }
+      }, DshWorkToolDetails))
       disposers.push(ctx.slots.register({
         name: 'settings.section',
         id: 'general',

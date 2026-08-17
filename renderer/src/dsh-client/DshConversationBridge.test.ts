@@ -336,6 +336,66 @@ describe('DshConversationBridge', () => {
     bridge.dispose()
   })
 
+  it('keeps Tool details selection inside the bound Session and registered call lifetime', async () => {
+    const sessionId = 'dsh-session-tool-details' as SessionId
+    const otherSessionId = 'dsh-session-other-tool-details' as SessionId
+    const list = sessionList()
+    const open = vi.fn()
+    const bridge = createBridge({ list, open, clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const listener = vi.fn()
+    bridge.subscribeToolSelection(listener)
+    bridge.syncSession(sessionId)
+    list.set({
+      ...list.getSnapshot(),
+      ids: [sessionId, otherSessionId],
+      current: otherSessionId,
+      byId: {
+        [sessionId]: { id: sessionId, displayTitle: 'Tool details', running: true, blank: false, updatedAt: 2 },
+        [otherSessionId]: { id: otherSessionId, displayTitle: 'Child', running: false, blank: false, updatedAt: 1 }
+      }
+    })
+    open.mockClear()
+
+    expect(bridge.selectToolCall(sessionId, 'missing-call')).toBe(false)
+    const block: ToolCallBlock = {
+      callId: 'call-details',
+      name: 'bash',
+      argsRaw: '{"command":"pwd"}',
+      turn: 1,
+      step: 1,
+      time: 1000,
+      callView: null,
+      subCalls: []
+    }
+    const unregister = bridge.registerToolCall(block)
+
+    expect(bridge.selectToolCall(otherSessionId, 'call-details')).toBe(false)
+    expect(bridge.selectToolCall(sessionId, 'call-details')).toBe(true)
+    expect(open).toHaveBeenCalledWith(sessionId)
+    expect(bridge.getToolSelectionSnapshot()).toEqual({ sessionId, callId: 'call-details' })
+    expect(listener).toHaveBeenCalledOnce()
+    expect(bridge.selectToolCall(sessionId, 'call-details')).toBe(true)
+    expect(listener).toHaveBeenCalledOnce()
+
+    const replacement = { ...block, name: 'read' }
+    unregister()
+    const unregisterReplacement = bridge.registerToolCall(replacement)
+    await Promise.resolve()
+    expect(bridge.getToolCallSnapshot().get('call-details')).toBe(replacement)
+    expect(bridge.getToolSelectionSnapshot()).toEqual({ sessionId, callId: 'call-details' })
+    unregisterReplacement()
+    await Promise.resolve()
+    expect(bridge.getToolSelectionSnapshot()).toBeUndefined()
+    expect(listener).toHaveBeenCalledTimes(2)
+
+    const unregisterNext = bridge.registerToolCall({ ...block, callId: 'call-next' })
+    expect(bridge.selectToolCall(sessionId, 'call-next')).toBe(true)
+    bridge.syncSession(otherSessionId)
+    expect(bridge.getToolSelectionSnapshot()).toBeUndefined()
+    unregisterNext()
+    bridge.dispose()
+  })
+
   it('applies official reference events to the product draft and serializes through the source codec', async () => {
     const sessionId = 'dsh-session-reference' as SessionId
     const list = sessionList()

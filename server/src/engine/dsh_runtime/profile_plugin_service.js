@@ -50,6 +50,7 @@ const DSH_WORK_MAPPED_CLIENT_SLOTS = Object.freeze([
   "conversation.hero.agentPreset",
   "conversation.chat.assistant-actions",
   "conversation.chat.turnTail",
+  "conversation.details.tool",
   "tool.call.toolview",
   "details",
 ]);
@@ -68,7 +69,6 @@ const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
   "conversation.session.header",
   "conversation.view",
   "conversation.chat.commandview",
-  "conversation.details.tool",
   "conversation.hero.workspace",
   "conversation.composer.bar",
   "settings.trigger",

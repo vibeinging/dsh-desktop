@@ -37,6 +37,11 @@ export interface DshWorkInputHandlers {
   runCommand?: (name: string) => void
 }
 
+export interface DshWorkToolSelection {
+  readonly sessionId: SessionId
+  readonly callId: string
+}
+
 interface DshWorkInputActions {
   setDraft: (draft: string) => void
   addImages: (ids: readonly string[]) => boolean
@@ -254,6 +259,7 @@ export class DshConversationBridge {
   readonly #inputTriggerListeners = new Set<() => void>()
   readonly #composerBlockListeners = new Set<() => void>()
   readonly #toolCallListeners = new Set<() => void>()
+  readonly #toolSelectionListeners = new Set<() => void>()
   readonly #toolCalls = new Map<string, ToolCallBlock>()
   readonly #commandStates = new Map<SessionId, DshWorkCommandState>()
   #desiredSessionId: SessionId | null | undefined
@@ -267,6 +273,7 @@ export class DshConversationBridge {
   #composerBlockSnapshot: DshComposerBlock
   #composerBlockUnsubscribe: (() => void) | undefined
   #toolCallSnapshot: ReadonlyMap<string, ToolCallBlock> = new Map()
+  #toolSelectionSnapshot: DshWorkToolSelection | undefined
   #disposed = false
 
   /** Official session-scoped input facade exposed through ConversationController. */
@@ -302,6 +309,7 @@ export class DshConversationBridge {
     }
     this.#abortAdjudication()
     if (this.#desiredSessionId) this.#commandStates.delete(this.#desiredSessionId)
+    this.clearToolSelection()
     this.#desiredSessionId = next
     this.#watchComposerBlock(next)
     this.#input = { ...EMPTY_INPUT, draftRev: this.#input.draftRev + 1 }
@@ -399,6 +407,10 @@ export class DshConversationBridge {
       if (this.#toolCalls.get(callId) !== block) return
       this.#toolCalls.delete(callId)
       this.#publishToolCalls()
+      queueMicrotask(() => {
+        if (this.#disposed || this.#toolCalls.has(callId)) return
+        if (this.#toolSelectionSnapshot?.callId === callId) this.clearToolSelection()
+      })
     }
   }
 
@@ -409,6 +421,35 @@ export class DshConversationBridge {
   subscribeToolCalls = (listener: () => void) => {
     this.#toolCallListeners.add(listener)
     return () => this.#toolCallListeners.delete(listener)
+  }
+
+  /** Select one Tool block for the standard Session-scoped details seat. */
+  selectToolCall(sessionId: SessionId, callId: string) {
+    const normalizedCallId = String(callId || '').trim()
+    if (this.#disposed || this.#desiredSessionId !== sessionId || !this.#toolCalls.has(normalizedCallId)) return false
+    this.#reconcileSession()
+    const current = this.#toolSelectionSnapshot
+    if (current?.sessionId === sessionId && current.callId === normalizedCallId) return true
+    this.#toolSelectionSnapshot = Object.freeze({ sessionId, callId: normalizedCallId })
+    this.#publishToolSelection()
+    return true
+  }
+
+  /** Clear the selected Tool block, optionally only for its owning Session. */
+  clearToolSelection(sessionId?: SessionId) {
+    if (!this.#toolSelectionSnapshot) return
+    if (sessionId !== undefined && this.#toolSelectionSnapshot.sessionId !== sessionId) return
+    this.#toolSelectionSnapshot = undefined
+    this.#publishToolSelection()
+  }
+
+  /** Return the selected Tool identity consumed by the details panel. */
+  getToolSelectionSnapshot = () => this.#toolSelectionSnapshot
+
+  /** Subscribe to Tool selection changes. */
+  subscribeToolSelection = (listener: () => void) => {
+    this.#toolSelectionListeners.add(listener)
+    return () => this.#toolSelectionListeners.delete(listener)
   }
 
   /** Return the Session identity the product currently expects the Client to stage. */
@@ -437,6 +478,10 @@ export class DshConversationBridge {
   #publishToolCalls() {
     this.#toolCallSnapshot = new Map(this.#toolCalls)
     for (const listener of this.#toolCallListeners) listener()
+  }
+
+  #publishToolSelection() {
+    for (const listener of this.#toolSelectionListeners) listener()
   }
 
   /** Feed the product draft and caret into the selected Session's official trigger controller. */
@@ -568,8 +613,10 @@ export class DshConversationBridge {
     this.#inputTriggerListeners.clear()
     this.#composerBlockListeners.clear()
     this.#toolCallListeners.clear()
+    this.#toolSelectionListeners.clear()
     this.#toolCalls.clear()
     this.#toolCallSnapshot = new Map()
+    this.#toolSelectionSnapshot = undefined
     this.#abortAdjudication()
     this.#stores.clear()
     this.#actions.clear()
