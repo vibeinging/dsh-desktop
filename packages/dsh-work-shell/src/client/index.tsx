@@ -38,6 +38,7 @@ import { DshWorkConversationService } from './ConversationService'
 import { DshWorkProductActionsService } from './ProductActionsService'
 import { DshWorkProductReferencesService } from './ProductReferencesService'
 import { DshWorkProductSearchModeService } from './ProductSearchModeService'
+import { DshWorkProductWorkspacesService } from './ProductWorkspacesService'
 import { registerToolConversationLocale } from './ToolConversationLocale'
 import styles from './DshWorkSettings.module.css'
 
@@ -64,6 +65,7 @@ type DshWorkConversationSlot =
   | 'conversation.input.right'
   | 'conversation.input.plan'
   | 'conversation.input.model'
+  | 'conversation.hero.workspace'
   | 'conversation.hero.agentPreset'
   | 'conversation.chat.node'
   | 'conversation.chat.assistant-actions'
@@ -338,6 +340,7 @@ export function apply(ctx: ClientContext) {
       'conversation.input.right': null,
       'conversation.input.plan': null,
       'conversation.input.model': null,
+      'conversation.hero.workspace': null,
       'conversation.hero.agentPreset': null,
       'conversation.chat.node': null,
       'conversation.chat.assistant-actions': null,
@@ -358,6 +361,7 @@ export function apply(ctx: ClientContext) {
         'conversation.input.right': '[data-dsh-conversation-input-right]',
         'conversation.input.plan': '[data-dsh-conversation-input-plan]',
         'conversation.input.model': '[data-dsh-conversation-input-model]',
+        'conversation.hero.workspace': '[data-dsh-conversation-hero-workspace]',
         'conversation.hero.agentPreset': '[data-dsh-conversation-hero-agent-preset]'
       }
       const syncTarget = () => setTargets((current) => {
@@ -428,16 +432,21 @@ export function apply(ctx: ClientContext) {
     useLayoutEffect(() => {
       if (session) conversation.updateQueue(session.queue)
     }, [session?.queue])
+    const heroWorkspace = targets['conversation.hero.workspace'] && createPortal(
+      renderSlot('conversation.hero.workspace', {}),
+      targets['conversation.hero.workspace']
+    )
     const heroAgentPreset = targets['conversation.hero.agentPreset'] && createPortal(
       renderSlot('conversation.hero.agentPreset', {}),
       targets['conversation.hero.agentPreset']
     )
-    if (!host || !sessionId || !session) return heroAgentPreset
-    if (host.conversation.getSessionId() !== sessionId) return heroAgentPreset
+    const hero = <>{heroWorkspace}{heroAgentPreset}</>
+    if (!host || !sessionId || !session) return hero
+    if (host.conversation.getSessionId() !== sessionId) return hero
     const inputZone = { session, input }
     return (
       <>
-        {heroAgentPreset}
+        {hero}
         {targets['conversation.session.header.actions'] && createPortal(
           renderSlot('conversation.session.header.actions', {}),
           targets['conversation.session.header.actions']
@@ -582,6 +591,7 @@ export function apply(ctx: ClientContext) {
           'conversation.input.right': { kind: 'list', scope: 'session' },
           'conversation.input.plan': { kind: 'single', scope: 'session' },
           'conversation.input.model': { kind: 'single', scope: 'session' },
+          'conversation.hero.workspace': { kind: 'single', scope: 'root' },
           'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
           'conversation.chat.node': { kind: 'keyed', scope: 'session' },
           'conversation.chat.assistant-actions': { kind: 'list', scope: 'session' },
@@ -621,6 +631,7 @@ export function apply(ctx: ClientContext) {
   new DshWorkProductActionsService(ctx, conversation)
   new DshWorkProductReferencesService(ctx, conversation)
   new DshWorkProductSearchModeService(ctx, conversation)
+  new DshWorkProductWorkspacesService(ctx, conversation)
 
   ctx.effect(() => {
     const presenter = createDshThemePresenter(document)

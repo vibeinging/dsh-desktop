@@ -67,7 +67,7 @@ export default function WorkspacePicker({ workspaces, activeWs, onSelect, onOpen
   const activeIsChat = active?.id === '__chat__'
 
   return (
-    <div className={styles.wsPick} ref={ref}>
+    <div className={styles.wsPick} ref={ref} data-product-workspace-picker-local>
       <button type="button" className={styles.wsPickBtn} onClick={() => setOpen((o) => !o)}>
         {activeIsChat ? <IconMessage size={14} stroke={1.7} /> : <IconFolder size={14} stroke={1.7} />}
         <span className={styles.wsPickName}>{active?.name || '选择项目'}</span>

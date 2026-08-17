@@ -373,7 +373,7 @@ test("Profile Bundle preflight rejects mutable sources without touching DSH", as
 });
 
 test("the app-owned Profile Bundles use the current public SDK names", () => {
-  for (const packageDir of ["dsh-work-product-host-ipc", "dsh-project-tools", "dsh-canvas-tools", "dsh-structured-ui-tools", "dsh-model-inheritance", "dsh-product-bridge", "dsh-office-tools", "dsh-workbench-pages", "dsh-theme-pack", "dsh-client-product-commands", "dsh-client-product-references", "dsh-client-product-search-mode", "dsh-work-shell"]) {
+  for (const packageDir of ["dsh-work-product-host-ipc", "dsh-project-tools", "dsh-canvas-tools", "dsh-structured-ui-tools", "dsh-model-inheritance", "dsh-product-bridge", "dsh-office-tools", "dsh-workbench-pages", "dsh-theme-pack", "dsh-client-product-commands", "dsh-client-product-references", "dsh-client-product-search-mode", "dsh-client-product-workspaces", "dsh-work-shell"]) {
     const manifest = JSON.parse(readFileSync(join(APP_ROOT, "packages", packageDir, "package.json"), "utf8"));
     assert.doesNotThrow(() => validateProfileBundleSdk(manifest));
     assert.equal(manifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");
@@ -709,6 +709,16 @@ test("the Profile catalog is projected from the official Web Profile order", {
       host_requirements: ["dsh-work-product-search-mode"],
       compatibility_test: null,
     });
+    const productWorkspaces = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-client-product-workspaces");
+    assert.equal(productWorkspaces.runtime_kind, "profile_bundle");
+    assert.equal(productWorkspaces.managed_by, "app");
+    assert.equal(productWorkspaces.ui_runtime.kind, "dsh_client");
+    assert.deepEqual(productWorkspaces.portability, {
+      level: "desktop-adapter",
+      surfaces: ["dsh-desktop"],
+      host_requirements: ["dsh-work-product-workspaces"],
+      compatibility_test: null,
+    });
     assert.equal(catalog.plugins.at(-1).id, "@deepseek-ai/dsh-work-shell");
     assert.equal(catalog.plugins.at(-1).managed_by, "app");
     assert.equal(catalog.plugins.at(-1).portability.level, "desktop-shell");
@@ -797,6 +807,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         "conversation.input.right",
         "conversation.input.plan",
         "conversation.input.model",
+        "conversation.hero.workspace",
         "conversation.hero.agentPreset",
         "conversation.chat.assistant-actions",
         "conversation.chat.turnTail",
@@ -819,7 +830,6 @@ test("the Profile catalog is projected from the official Web Profile order", {
         "conversation.session.header",
         "conversation.view",
         "conversation.chat.commandview",
-        "conversation.hero.workspace",
         "conversation.composer.bar",
         "settings.trigger",
         "settings.header",
@@ -835,6 +845,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       profile.patches,
     ]);
     assert.equal(rows.find((row) => row.id === "ui-layout")?.disabled, true);
+    assert.equal(rows.find((row) => row.id === "ui-workspace")?.disabled, true);
     assert.equal(rows.find((row) => row.id === "ui-settings-general")?.disabled, true);
     assert.equal(rows.find((row) => row.id === "dsh-work-shell")?.name, "@deepseek-ai/dsh-work-shell");
     assert.equal(catalog.marketplaces[0].name, "web");

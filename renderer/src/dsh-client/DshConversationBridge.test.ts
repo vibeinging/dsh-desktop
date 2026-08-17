@@ -435,6 +435,39 @@ describe('DshConversationBridge', () => {
     expect(bridge.cycleProductSearchMode(sessionId)).toBe(false)
   })
 
+  it('publishes a root workspace catalog and fences every product action', async () => {
+    const bridge = createBridge({ list: sessionList(), open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })
+    const select = vi.fn(() => true)
+    const openFolder = vi.fn(() => true)
+    const createProject = vi.fn(async () => true)
+    bridge.bindProductWorkspaceHandlers({ select, openFolder, createProject })
+    const listener = vi.fn()
+    const unsubscribe = bridge.subscribeProductWorkspaces(listener)
+    bridge.updateProductWorkspaces({
+      activeId: '__chat__',
+      items: [
+        { id: '__chat__', name: '聊天', chat: true },
+        { id: 'project-1', name: '项目一', chat: false }
+      ],
+      canOpenFolder: true,
+      canCreateProject: true
+    })
+
+    expect(listener).toHaveBeenCalledOnce()
+    expect(bridge.getProductWorkspaceSnapshot().activeId).toBe('__chat__')
+    expect(bridge.selectProductWorkspace('project-1')).toBe(true)
+    expect(bridge.selectProductWorkspace('missing')).toBe(false)
+    expect(bridge.openProductWorkspaceFolder()).toBe(true)
+    await expect(bridge.createProductWorkspace(' 新项目 ')).resolves.toBe(true)
+    expect(select).toHaveBeenCalledWith('project-1')
+    expect(createProject).toHaveBeenCalledWith('新项目')
+
+    unsubscribe()
+    bridge.dispose()
+    expect(bridge.openProductWorkspaceFolder()).toBe(false)
+    await expect(bridge.createProductWorkspace('项目')).resolves.toBe(false)
+  })
+
   it('publishes official Tool blocks without storing a second Tool lifecycle', () => {
     const list = sessionList()
     const bridge = createBridge({ list, open: vi.fn(), clear: vi.fn(), provide: vi.fn(() => vi.fn()) })

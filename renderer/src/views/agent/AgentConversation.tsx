@@ -151,6 +151,7 @@ import {
   type DshWorkProductReferenceHandlers
 } from '@/dsh-client/ProductReferences'
 import type { DshWorkProductSearchMode } from '@/dsh-client/ProductSearchMode'
+import type { DshWorkProductWorkspaceHandlers } from '@/dsh-client/ProductWorkspaces'
 import styles from './agent.module.scss'
 
 export type { DataWorkspaceEvent } from './stream/types'
@@ -699,6 +700,52 @@ function DshWorkAgentConversation({
     if (!dshClientHost) return
     return dshClientHost.conversation.bindProductSearchModeHandler(setSearchMode)
   }, [dshClientHost])
+
+  const productWorkspaceHandlersRef = useRef<DshWorkProductWorkspaceHandlers>({
+    select: () => false,
+    openFolder: () => false,
+    createProject: async () => false
+  })
+  productWorkspaceHandlersRef.current = {
+    select: (id) => {
+      if (!onSelectWorkspace) return false
+      onSelectWorkspace(id)
+      return true
+    },
+    openFolder: () => {
+      if (!onOpenFolder) return false
+      onOpenFolder()
+      return true
+    },
+    createProject: async (name) => {
+      if (!onCreateProject) return false
+      await onCreateProject(name)
+      return true
+    }
+  }
+
+  useEffect(() => {
+    if (!dshClientHost) return
+    return dshClientHost.conversation.bindProductWorkspaceHandlers({
+      select: (id) => productWorkspaceHandlersRef.current.select(id),
+      openFolder: () => productWorkspaceHandlersRef.current.openFolder(),
+      createProject: (name) => productWorkspaceHandlersRef.current.createProject(name)
+    })
+  }, [dshClientHost])
+
+  useEffect(() => {
+    if (!dshClientHost) return
+    dshClientHost.conversation.updateProductWorkspaces({
+      activeId: projectId,
+      items: workspaces.map((workspace) => ({
+        id: workspace.id,
+        name: workspace.name,
+        chat: workspace.id === CHAT_WS.id
+      })),
+      canOpenFolder: Boolean(onOpenFolder),
+      canCreateProject: Boolean(onCreateProject)
+    })
+  }, [dshClientHost, onCreateProject, onOpenFolder, projectId, workspaces])
 
   // Resolve the project write target so diff files can be opened in external editors.
   useEffect(() => {
@@ -2773,7 +2820,9 @@ function DshWorkAgentConversation({
       )}
       {messages.length === 0 && (
         <div className={styles.composerTop}>
-          {workspaces.length > 0 && onSelectWorkspace && (
+          {dshClientHost ? (
+            <div className={styles.heroWorkspaceSlot} data-dsh-conversation-hero-workspace />
+          ) : workspaces.length > 0 && onSelectWorkspace ? (
             <WorkspacePicker
               workspaces={workspaces}
               activeWs={projectId}
@@ -2781,7 +2830,7 @@ function DshWorkAgentConversation({
               onOpenFolder={onOpenFolder || (() => {})}
               onCreateProject={onCreateProject}
             />
-          )}
+          ) : null}
           <div className={styles.heroAgentPresetSlot} data-dsh-conversation-hero-agent-preset />
         </div>
       )}

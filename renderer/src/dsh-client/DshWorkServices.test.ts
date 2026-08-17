@@ -5,6 +5,7 @@ import { DshWorkConversationService } from '../../../packages/dsh-work-shell/src
 import { DshWorkProductActionsService } from '../../../packages/dsh-work-shell/src/client/ProductActionsService'
 import { DshWorkProductReferencesService } from '../../../packages/dsh-work-shell/src/client/ProductReferencesService'
 import { DshWorkProductSearchModeService } from '../../../packages/dsh-work-shell/src/client/ProductSearchModeService'
+import { DshWorkProductWorkspacesService } from '../../../packages/dsh-work-shell/src/client/ProductWorkspacesService'
 
 describe('dsh-work Client services', () => {
   it('keeps product actions reachable through a caller plugin Context proxy', () => {
@@ -68,5 +69,32 @@ describe('dsh-work Client services', () => {
     const off = caller.dshWorkProductSearchMode.subscribe(sessionId, listener)
     expect(subscribeProductSearchMode).toHaveBeenCalledWith(sessionId, listener)
     off()
+  })
+
+  it('keeps the root product workspace catalog reachable through a caller plugin Context proxy', async () => {
+    const root = new Context()
+    const snapshot = {
+      activeId: '__chat__',
+      items: [{ id: '__chat__', name: '聊天', chat: true }],
+      canOpenFolder: true,
+      canCreateProject: true
+    }
+    const selectProductWorkspace = vi.fn(() => true)
+    const openProductWorkspaceFolder = vi.fn(() => true)
+    const createProductWorkspace = vi.fn(async () => true)
+    const subscribeProductWorkspaces = vi.fn(() => vi.fn())
+    new DshWorkProductWorkspacesService(root, {
+      getProductWorkspaceSnapshot: () => snapshot,
+      subscribeProductWorkspaces,
+      selectProductWorkspace,
+      openProductWorkspaceFolder,
+      createProductWorkspace
+    })
+
+    const service = root.extend().dshWorkProductWorkspaces
+    expect(service.getSnapshot()).toEqual(snapshot)
+    expect(service.select('__chat__')).toBe(true)
+    expect(service.openFolder()).toBe(true)
+    await expect(service.createProject('分析')).resolves.toBe(true)
   })
 })

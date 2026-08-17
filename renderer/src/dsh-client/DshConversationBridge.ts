@@ -28,6 +28,11 @@ import {
   nextProductSearchMode,
   type DshWorkProductSearchMode
 } from './ProductSearchMode'
+import {
+  EMPTY_PRODUCT_WORKSPACES,
+  type DshWorkProductWorkspaceHandlers,
+  type DshWorkProductWorkspaceSnapshot
+} from './ProductWorkspaces'
 
 type ComposerDockOwner = OwnerOf<'conversation.composer.dock'>
 export type DshWorkComposerInputSnapshot = ComposerDockOwner['input']
@@ -297,6 +302,9 @@ export class DshConversationBridge {
   #productSearchMode: DshWorkProductSearchMode = 'auto'
   #productSearchModeHandler: ((mode: DshWorkProductSearchMode) => void) | null = null
   readonly #productSearchModeListeners = new Set<() => void>()
+  #productWorkspaceSnapshot = EMPTY_PRODUCT_WORKSPACES
+  #productWorkspaceHandlers: DshWorkProductWorkspaceHandlers | null = null
+  readonly #productWorkspaceListeners = new Set<() => void>()
   #openFileHandler: ((path: string) => void) | null = null
   #composerBlockSnapshot: DshComposerBlock
   #composerBlockUnsubscribe: (() => void) | undefined
@@ -467,6 +475,65 @@ export class DshConversationBridge {
     if (this.#disposed || this.#desiredSessionId !== sessionId || !handler) return false
     handler(nextProductSearchMode(this.#productSearchMode))
     return true
+  }
+
+  /** Bind product workspace actions behind the root-scoped standard Hero Slot. */
+  bindProductWorkspaceHandlers(handlers: DshWorkProductWorkspaceHandlers) {
+    this.#productWorkspaceHandlers = handlers
+    return () => {
+      if (this.#productWorkspaceHandlers === handlers) this.#productWorkspaceHandlers = null
+    }
+  }
+
+  /** Publish the display-safe product workspace catalog to the Client service. */
+  updateProductWorkspaces(snapshot: DshWorkProductWorkspaceSnapshot) {
+    const current = this.#productWorkspaceSnapshot
+    if (
+      current.activeId === snapshot.activeId
+      && current.canOpenFolder === snapshot.canOpenFolder
+      && current.canCreateProject === snapshot.canCreateProject
+      && current.items.length === snapshot.items.length
+      && current.items.every((item, index) => {
+        const next = snapshot.items[index]
+        return item.id === next?.id && item.name === next.name && item.chat === next.chat
+      })
+    ) return
+    this.#productWorkspaceSnapshot = snapshot
+    for (const listener of this.#productWorkspaceListeners) listener()
+  }
+
+  /** Read the root-scoped product workspace catalog. */
+  getProductWorkspaceSnapshot = () => this.#productWorkspaceSnapshot
+
+  /** Subscribe to product workspace catalog changes. */
+  subscribeProductWorkspaces = (listener: () => void) => {
+    if (this.#disposed) return () => {}
+    this.#productWorkspaceListeners.add(listener)
+    return () => this.#productWorkspaceListeners.delete(listener)
+  }
+
+  /** Select one product workspace that remains present in the published catalog. */
+  selectProductWorkspace(id: string) {
+    const handlers = this.#productWorkspaceHandlers
+    if (this.#disposed || !handlers || !this.#productWorkspaceSnapshot.items.some((item) => item.id === id)) return false
+    return handlers.select(id)
+  }
+
+  /** Start product folder onboarding from the Workspace Hero control. */
+  openProductWorkspaceFolder() {
+    const handlers = this.#productWorkspaceHandlers
+    if (this.#disposed || !handlers || !this.#productWorkspaceSnapshot.canOpenFolder) return false
+    return handlers.openFolder()
+  }
+
+  /** Create a product project from the Workspace Hero control. */
+  createProductWorkspace(name: string) {
+    const handlers = this.#productWorkspaceHandlers
+    const normalized = name.trim()
+    if (this.#disposed || !handlers || !this.#productWorkspaceSnapshot.canCreateProject || !normalized) {
+      return Promise.resolve(false)
+    }
+    return handlers.createProject(normalized)
   }
 
   /** Run one App-owned command contributed through the official input-trigger registry. */
@@ -752,6 +819,9 @@ export class DshConversationBridge {
     this.#productReferenceHandlers = null
     this.#productSearchModeHandler = null
     this.#productSearchModeListeners.clear()
+    this.#productWorkspaceHandlers = null
+    this.#productWorkspaceListeners.clear()
+    this.#productWorkspaceSnapshot = EMPTY_PRODUCT_WORKSPACES
     this.#openFileHandler = null
   }
 

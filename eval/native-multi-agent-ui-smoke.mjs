@@ -252,6 +252,27 @@ try {
   modelProviderSaved = true
 
   const officialAgentPreset = '[data-dsh-conversation-hero-agent-preset] button[aria-haspopup="menu"]'
+  const officialWorkspacePicker = '[data-dsh-product-workspace-picker]'
+  try {
+    await ui.waitFor(officialWorkspacePicker, { timeout: 15_000 })
+  } catch (error) {
+    const workspaceDiagnostics = await session.evalJs(`return {
+      placeholder: Boolean(document.querySelector('[data-dsh-conversation-hero-workspace]')),
+      localPicker: Boolean(document.querySelector('[data-product-workspace-picker-local]')),
+      bootHasProductWorkspaces: JSON.stringify(window.__DSH_BOOT__ || {}).includes('dsh-client-product-workspaces'),
+      productWorkspaceResources: performance.getEntriesByType('resource').map((entry) => entry.name).filter((name) => name.includes('product-workspaces')),
+      bodyText: document.body.innerText.slice(-1000)
+    }`)
+    throw new Error(`${error.message}; workspace diagnostics=${JSON.stringify({ workspaceDiagnostics, rendererErrors })}`)
+  }
+  assert.equal(await session.evalJs(`return document.querySelector('[data-product-workspace-picker-local]') === null`), true)
+  await ui.click('[data-dsh-product-workspace-trigger]')
+  await ui.waitFor('[data-dsh-product-workspace-menu]', { timeout: 10_000 })
+  await ui.click('[data-dsh-product-workspace-menu] [data-workspace-id="__chat__"]')
+  await ui.waitUntil(`async () => document.querySelector('[data-dsh-product-workspace-menu]') === null`, {
+    timeout: 10_000,
+    label: '产品 Workspace 插件选择当前聊天并回收菜单',
+  })
   await ui.waitFor(officialAgentPreset, { timeout: 15_000 })
   await ui.click(officialAgentPreset)
   await ui.waitFor('[role="menu"]', { timeout: 15_000 })
@@ -549,7 +570,7 @@ try {
   await ui.waitFor('[data-dsh-trajectory-event][data-dsh-event-type="tool/result"]', { timeout: 15_000 })
   assert.equal(await session.evalJs(`return document.querySelector('[data-dsh-trajectory]')?.innerText.includes('subagent') || false`), true)
 
-  console.log('[native-multi-agent-ui-smoke] PASS DSH Agent Preset/子任务/产品引用/联网模式/Skill/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
+  console.log('[native-multi-agent-ui-smoke] PASS DSH Workspace/Agent Preset/子任务/产品引用/联网模式/Skill/Goal/工具插件/提问插件/父级回答/session.history 轨迹')
 } finally {
   if (session && modelProviderSaved) {
     const driver = makeDriver(session)
