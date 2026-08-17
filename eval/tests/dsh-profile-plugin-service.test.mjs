@@ -329,10 +329,20 @@ test("Profile theme descriptors keep a narrow renderer-safe contract", () => {
       name: "Ocean",
       vars: { "--el-color-primary": "#369" },
       mantineColors: colors,
+      palette: {
+        bg: "#eef5fb",
+        surface: "#ffffff",
+        hover: "#dceaf5",
+        text: "#15283c",
+        textSoft: "#294f77",
+        muted: "#336699",
+        faint: "#466f91",
+      },
       appearance: { bgImage: "deep-sea", panelOpacity: 80 },
     }],
   });
   assert.equal(theme.vars["--el-color-primary"], "#336699");
+  assert.equal(theme.palette.surface, "#ffffff");
   assert.equal(profileThemeRuntimeId("@demo/theme-pack", "ocean"), "profile:%40demo%2Ftheme-pack:ocean");
   assert.throws(() => normalizeProfileThemeDescriptor({
     schema_version: 1,
@@ -342,6 +352,10 @@ test("Profile theme descriptors keep a narrow renderer-safe contract", () => {
     schema_version: 1,
     themes: [{ id: "unsafe", name: "Unsafe", appearance: { panelOpacity: 20 } }],
   }), { code: "DSH_PROFILE_THEME_INVALID" });
+  assert.throws(() => normalizeProfileThemeDescriptor({
+    schema_version: 1,
+    themes: [{ id: "incomplete", name: "Incomplete", palette: { bg: "#ffffff" } }],
+  }), { code: "DSH_PROFILE_THEME_PALETTE_INCOMPLETE" });
 });
 
 test("Profile theme paths stay inside their Bundle", () => {
@@ -386,10 +400,28 @@ test("the app-owned Profile Bundles use the current public SDK names", () => {
   const professional = themes.find((theme) => theme.manifest_id === "professional-blue");
   assert.equal(professional.vars["--el-color-primary"], "#405fd2");
   assert.equal(professional.dark.vars["--el-color-primary"], "#7b9cff");
+  assert.deepEqual(professional.palette, {
+    bg: "#e9eef7",
+    surface: "#f8fafc",
+    hover: "#dce5f2",
+    text: "#172033",
+    textSoft: "#33415c",
+    muted: "#53627a",
+    faint: "#5d6c82",
+  });
+  assert.deepEqual(professional.dark.palette, {
+    bg: "#111827",
+    surface: "#182235",
+    hover: "#243149",
+    text: "#f5f7fb",
+    textSoft: "#d5dceb",
+    muted: "#aab6ca",
+    faint: "#8795ad",
+  });
   assert.deepEqual(professional.appearance, {
-    bgColor: "#edf2fa",
-    panelOpacity: 98,
-    dark: { bgColor: "#1b2d49", panelOpacity: 96 },
+    bgColor: "#e9eef7",
+    panelOpacity: 100,
+    dark: { bgColor: "#111827", panelOpacity: 100 },
   });
   const anime = themes.find((theme) => theme.manifest_id === "anime-blue");
   assert.equal(anime.vars["--el-color-primary"], "#5b8def");

@@ -21,8 +21,10 @@ const THEME_FIELDS = new Set([
   "extraCss",
   "dark",
   "appearance",
+  "palette",
 ]);
-const SCHEME_FIELDS = new Set(["vars", "mantineColors", "extraCss"]);
+const SCHEME_FIELDS = new Set(["vars", "mantineColors", "extraCss", "palette"]);
+const PALETTE_FIELDS = new Set(["bg", "surface", "hover", "text", "textSoft", "muted", "faint"]);
 const APPEARANCE_FIELDS = new Set([
   "appName",
   "bgColor",
@@ -111,6 +113,22 @@ function asMantineColors(value, field) {
   return value.map((color, index) => normalizeHexColor(color, `${field}[${index}]`));
 }
 
+function asPalette(value, field) {
+  if (value === undefined || value === null) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw themeError(`${field} 必须是对象`);
+  }
+  rejectUnknownFields(value, PALETTE_FIELDS, field);
+  const out = {};
+  for (const key of PALETTE_FIELDS) {
+    if (!Object.hasOwn(value, key)) {
+      throw themeError(`${field}.${key} 是完整语义色板的必填字段`, "DSH_PROFILE_THEME_PALETTE_INCOMPLETE");
+    }
+    out[key] = normalizeHexColor(value[key], `${field}.${key}`);
+  }
+  return out;
+}
+
 function rejectRawCss(value, field) {
   if (value === undefined || value === null || value === "") return;
   if (typeof value !== "string") throw themeError(`${field} 必须是字符串`);
@@ -139,8 +157,9 @@ function asScheme(value, field) {
   rejectUnknownFields(value, SCHEME_FIELDS, field);
   rejectRawCss(value.extraCss, `${field}.extraCss`);
   const pair = asColorPair(value.vars, value.mantineColors, field);
-  if (!pair.vars && !pair.mantineColors) return undefined;
-  return pair;
+  const palette = asPalette(value.palette, `${field}.palette`);
+  if (!pair.vars && !pair.mantineColors && !palette) return undefined;
+  return { ...pair, ...(palette ? { palette } : {}) };
 }
 
 function asPercent(value, field, minimum = 0) {
@@ -225,9 +244,10 @@ function normalizeTheme(value, index, ids) {
   if (!BUILTIN_THEME_IDS.has(base)) throw themeError(`${field}.base 必须是内置主题 id`);
   rejectRawCss(value.extraCss, `${field}.extraCss`);
   const pair = asColorPair(value.vars, value.mantineColors, field);
+  const palette = asPalette(value.palette, `${field}.palette`);
   const dark = asScheme(value.dark, `${field}.dark`);
   const appearance = asAppearance(value.appearance, `${field}.appearance`);
-  if (!pair.vars && !pair.mantineColors && !dark && !appearance) {
+  if (!pair.vars && !pair.mantineColors && !palette && !dark && !appearance) {
     throw themeError(`${field} 至少需要颜色、暗色或外观配置`, "DSH_PROFILE_THEME_EMPTY");
   }
   return {
@@ -239,6 +259,7 @@ function normalizeTheme(value, index, ids) {
     base,
     ...(pair.vars ? { vars: pair.vars } : {}),
     ...(pair.mantineColors ? { mantineColors: pair.mantineColors } : {}),
+    ...(palette ? { palette } : {}),
     ...(dark ? { dark } : {}),
     ...(appearance ? { appearance } : {}),
   };

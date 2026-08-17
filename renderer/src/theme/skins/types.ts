@@ -11,11 +11,23 @@
 // 注：--dsh-accent 链式依赖 --el-color-primary，换品牌皮肤时 Agent 视图强调色会自动跟随。
 
 /** 单个皮肤的明/暗变量覆盖（与明暗模式解耦，但允许皮肤自带暗色微调）。 */
+export interface ThemePalette {
+  bg: string
+  surface: string
+  hover: string
+  text: string
+  textSoft: string
+  muted: string
+  faint: string
+}
+
 export interface SkinSchemeOverride {
   /** v1 只允许 --el-color-primary，值只允许 #RGB / #RRGGBB。 */
   vars?: Record<string, string>
   /** 暗色模式专用 Mantine 主色 10 阶；第 6 阶必须与暗色主色一致。 */
   mantineColors?: string[]
+  /** 受控的完整页面语义色板；只接受固定字段的十六进制颜色。 */
+  palette?: ThemePalette
 }
 
 /** Profile 主题来源。安装与卸载只由 DSH Profile 管理。 */
@@ -74,6 +86,8 @@ export interface SkinDefinition {
   vars?: Record<string, string>
   /** Mantine 主色 10 阶色板，存在时同步更新 MantineProvider 主色。 */
   mantineColors?: string[]
+  /** 明色页面语义色板；缺省时继承内置 base。 */
+  palette?: ThemePalette
   /** @deprecated v1 安全契约禁止原始 CSS；仅为迁移旧数据保留类型兼容。 */
   extraCss?: string
   /** 可选暗色覆盖（明暗切到 dark 时叠加）。 */

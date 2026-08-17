@@ -63,6 +63,26 @@ describe('applySkin', () => {
     expect(state.styles.get('--el-color-primary')).toBe('#1e6fff')
   })
 
+  it('Profile 主题应用自己的明暗完整语义色板', () => {
+    const state = mockDocument()
+    const lightPalette = {
+      bg: '#e9eef7', surface: '#f8fafc', hover: '#dce5f2', text: '#172033',
+      textSoft: '#33415c', muted: '#53627a', faint: '#5d6c82'
+    }
+    const darkPalette = {
+      bg: '#111827', surface: '#182235', hover: '#243149', text: '#f5f7fb',
+      textSoft: '#d5dceb', muted: '#aab6ca', faint: '#8795ad'
+    }
+    applySkin(customSkin({ palette: lightPalette, dark: { palette: darkPalette } }), 'light')
+    expect(state.styles.get('--skin-dsh-bg')).toBe(lightPalette.bg)
+    expect(state.styles.get('--skin-dsh-surface')).toBe(lightPalette.surface)
+    expect(state.styles.get('--skin-dsh-text')).toBe(lightPalette.text)
+    refreshSkinScheme('dark')
+    expect(state.styles.get('--skin-dsh-bg')).toBe(darkPalette.bg)
+    expect(state.styles.get('--skin-dsh-surface')).toBe(darkPalette.surface)
+    expect(state.styles.get('--skin-dsh-text')).toBe(darkPalette.text)
+  })
+
   it('不信任调用方传入的 htmlClass 或非白名单变量', () => {
     const state = mockDocument()
     applySkin({

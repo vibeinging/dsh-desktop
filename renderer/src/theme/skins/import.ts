@@ -1,6 +1,6 @@
 // 皮肤 JSON 导入 / 导出与 Renderer 最终安全校验。
 // Renderer 不信任磁盘、导入文件或 Server catalog：三条入口最终都只保留内置基底、
-// 一个受控主色变量、Mantine 色阶和受控品牌外观。原始 CSS、远程 URL 与任意 CSS 变量均禁止。
+// 一个受控主色变量、Mantine 色阶、完整语义色板和受控品牌外观。原始 CSS、远程 URL 与任意 CSS 变量均禁止。
 import { isLocalBgImage, isSafeBgImage } from './backgrounds'
 import { DEFAULT_SKIN_ID, findBuiltinSkin, isBuiltinSkinId } from './builtin'
 import { deriveMantineColors, isSafeSkinColorVar, normalizeHexColor } from './colors'
@@ -9,7 +9,8 @@ import type {
   SkinDefinition,
   SkinFile,
   SkinSchemeOverride,
-  SkinSourceBundle
+  SkinSourceBundle,
+  ThemePalette
 } from './types'
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,62}$/
@@ -35,6 +36,7 @@ const USER_SKIN_FIELDS = new Set([
   'extraCss',
   'dark',
   'appearance',
+  'palette',
   'updatedAt'
 ])
 const PROFILE_THEME_FIELDS = new Set([
@@ -49,10 +51,12 @@ const PROFILE_THEME_FIELDS = new Set([
   'extraCss',
   'dark',
   'appearance',
+  'palette',
   'manifest_id',
   'source_bundle'
 ])
-const SCHEME_FIELDS = new Set(['vars', 'mantineColors', 'extraCss'])
+const SCHEME_FIELDS = new Set(['vars', 'mantineColors', 'extraCss', 'palette'])
+const PALETTE_FIELDS = new Set(['bg', 'surface', 'hover', 'text', 'textSoft', 'muted', 'faint'])
 const APPEARANCE_FIELDS = new Set([
   'appName',
   'bgColor',
@@ -150,6 +154,33 @@ function asMantineColors(value: unknown, field = 'mantineColors'): string[] | un
   return value.map((color, index) => asColor(color, `${field}[${index}]`))
 }
 
+function asPalette(value: unknown, field: string): ThemePalette | undefined {
+  if (value === undefined || value === null) return undefined
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    throw new SkinValidationError(`${field} 必须是对象`, 'SKIN_FIELD_TYPE')
+  }
+  const obj = value as Record<string, unknown>
+  for (const key of Object.keys(obj)) {
+    if (!PALETTE_FIELDS.has(key)) {
+      throw new SkinValidationError(`${field} 含非法字段 "${key}"`, 'SKIN_FIELD_UNKNOWN')
+    }
+  }
+  for (const key of PALETTE_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(obj, key)) {
+      throw new SkinValidationError(`${field}.${key} 是完整语义色板的必填字段`, 'SKIN_PALETTE_INCOMPLETE')
+    }
+  }
+  return {
+    bg: asColor(obj.bg, `${field}.bg`),
+    surface: asColor(obj.surface, `${field}.surface`),
+    hover: asColor(obj.hover, `${field}.hover`),
+    text: asColor(obj.text, `${field}.text`),
+    textSoft: asColor(obj.textSoft, `${field}.textSoft`),
+    muted: asColor(obj.muted, `${field}.muted`),
+    faint: asColor(obj.faint, `${field}.faint`)
+  }
+}
+
 interface ColorPair {
   vars?: Record<string, string>
   mantineColors?: string[]
@@ -189,8 +220,9 @@ function asSchemeOverride(value: unknown, field: string): SkinSchemeOverride | u
   }
   asExtraCss(obj.extraCss, `${field}.extraCss`)
   const pair = asColorPair(obj.vars, obj.mantineColors, field)
-  if (!pair.vars && !pair.mantineColors) return undefined
-  return pair
+  const palette = asPalette(obj.palette, `${field}.palette`)
+  if (!pair.vars && !pair.mantineColors && !palette) return undefined
+  return { ...pair, ...(palette ? { palette } : {}) }
 }
 
 function asBase(value: unknown, field: string): string {
@@ -394,6 +426,7 @@ export function normalizeSkinDefinition(raw: unknown): SkinDefinition {
   const base = asBase(obj.base, 'base')
   asExtraCss(obj.extraCss, 'extraCss')
   const pair = asColorPair(obj.vars, obj.mantineColors, 'skin')
+  const palette = asPalette(obj.palette, 'skin.palette')
   const dark = asSchemeOverride(obj.dark, 'dark')
   const appearance = asAppearance(obj.appearance, 'appearance', {
     allowAppName: false,
@@ -410,6 +443,7 @@ export function normalizeSkinDefinition(raw: unknown): SkinDefinition {
     base,
     ...(pair.vars ? { vars: pair.vars } : {}),
     ...(pair.mantineColors ? { mantineColors: pair.mantineColors } : {}),
+    ...(palette ? { palette } : {}),
     ...(dark ? { dark } : {}),
     ...(appearance ? { appearance } : {}),
     updatedAt: Date.now()
@@ -447,6 +481,7 @@ export function normalizeProfileThemeDefinition(raw: unknown): SkinDefinition {
   const base = asBase(obj.base, 'base')
   asExtraCss(obj.extraCss, 'extraCss')
   const pair = asColorPair(obj.vars, obj.mantineColors, 'skin')
+  const palette = asPalette(obj.palette, 'skin.palette')
   const dark = asSchemeOverride(obj.dark, 'dark')
   const appearance = asAppearance(obj.appearance, 'appearance', {
     allowAppName: false,
@@ -468,7 +503,7 @@ export function normalizeProfileThemeDefinition(raw: unknown): SkinDefinition {
       'SKIN_PROFILE_SOURCE_MISMATCH'
     )
   }
-  if (!pair.vars && !pair.mantineColors && !dark && !appearance) {
+  if (!pair.vars && !pair.mantineColors && !palette && !dark && !appearance) {
     throw new SkinValidationError(
       'Profile 主题至少需要提供 vars、mantineColors、dark 或 appearance 之一',
       'SKIN_EMPTY'
@@ -485,6 +520,7 @@ export function normalizeProfileThemeDefinition(raw: unknown): SkinDefinition {
     base,
     ...(pair.vars ? { vars: pair.vars } : {}),
     ...(pair.mantineColors ? { mantineColors: pair.mantineColors } : {}),
+    ...(palette ? { palette } : {}),
     ...(dark ? { dark } : {}),
     ...(appearance ? { appearance } : {}),
     source_bundle: { ...sourceBundle, package_name: packageName }

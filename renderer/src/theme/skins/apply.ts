@@ -84,7 +84,8 @@ function applyInlineSkinVars(html: HTMLElement, skin: SkinDefinition, scheme: 'l
   }
 
   const base = builtinBaseFor(skin)
-  const palette = builtinAgentPalette(base.id, scheme)
+  const palette = (scheme === 'dark' ? skin.dark?.palette : skin.palette)
+    || builtinAgentPalette(base.id, scheme)
   html.style.setProperty('--skin-dsh-bg', palette.bg)
   html.style.setProperty('--skin-dsh-surface', palette.surface)
   html.style.setProperty('--skin-dsh-hover', palette.hover)

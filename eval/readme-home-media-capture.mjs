@@ -11,6 +11,7 @@ const outputDir = path.join(root, 'docs', 'images', 'readme')
 const screenshotPaths = {
   light: path.join(outputDir, 'dsh-work-home-professional-light.png'),
   dark: path.join(outputDir, 'dsh-work-home-professional-dark.png'),
+  anime: path.join(outputDir, 'dsh-work-home.png'),
 }
 
 mkdirSync(outputDir, { recursive: true })
@@ -152,10 +153,61 @@ try {
     }
   }
 
+  await ui.click('[data-dsh-open-settings]')
+  await ui.clickText('主题', { selector: 'button', exact: true, timeout: 15_000 })
+  const animeCard = await session.evalJs(`
+    const card = [...document.querySelectorAll('button[aria-label]')]
+      .find((button) => /二次元蓝/.test(button.getAttribute('aria-label') || ''));
+    if (!card) return null;
+    const token = 'dsh-readme-anime-theme';
+    card.setAttribute('data-dsh-readme-target', token);
+    return '[data-dsh-readme-target="' + token + '"]';
+  `)
+  assert.ok(animeCard, '主题库中没有二次元蓝主题')
+  await ui.click(animeCard)
+  await ui.waitFor('[aria-label="当前主题：二次元蓝"]', { timeout: 20_000 })
+  await ui.clickText('亮色', { selector: 'button', exact: true, timeout: 10_000 })
+  await ui.waitUntil(`() => document.documentElement.getAttribute('data-agent-scheme') === 'light'`, {
+    timeout: 10_000,
+    label: '二次元蓝亮色模式已生效',
+  })
+  await dismissNotifications(session, ui)
+  await ui.clickText('返回项目', { selector: 'button', exact: true, timeout: 10_000 })
+  await ui.waitFor('[data-show-character="true"]', { timeout: 20_000 })
+  await dismissNotifications(session, ui)
+  const animeProof = await session.evalJs(`
+    const root = document.querySelector('[data-show-character="true"]');
+    return {
+      character: Boolean(root),
+      scheme: document.documentElement.getAttribute('data-agent-scheme'),
+      bg: getComputedStyle(document.documentElement).getPropertyValue('--skin-dsh-bg').trim(),
+      surface: getComputedStyle(document.documentElement).getPropertyValue('--skin-dsh-surface').trim(),
+      alerts: document.querySelectorAll('[role="alert"]').length,
+      dialog: Boolean(document.querySelector('[role="dialog"]')),
+      menu: Boolean(document.querySelector('[role="menu"]')),
+    };
+  `)
+  assert.deepEqual(animeProof, {
+    character: true,
+    scheme: 'light',
+    bg: '#eef4ff',
+    surface: '#fbfdff',
+    alerts: 0,
+    dialog: false,
+    menu: false,
+  })
+  await session.cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1380, y: 880 })
+  const animeShot = await session.cdp('Page.captureScreenshot', {
+    format: 'png',
+    captureBeyondViewport: true,
+  })
+  writeFileSync(screenshotPaths.anime, Buffer.from(animeShot.data, 'base64'))
+
   console.log(JSON.stringify({
-    source: 'real isolated Electron professional-blue home',
+    source: 'real isolated Electron bundled themes',
     captures,
-    checks: ['professional-blue selected', 'light and dark modes selected', 'primary and secondary home text', 'no character', 'no dialog or menu', 'no toast'],
+    anime: { screenshot: screenshotPaths.anime, ...animeProof },
+    checks: ['professional-blue light and dark', 'anime-blue light', 'semantic palette colors', 'character theme mapping', 'no dialog or menu', 'no toast'],
   }, null, 2))
 } finally {
   try { await session?.close() } catch { /* ignore */ }

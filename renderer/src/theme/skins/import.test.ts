@@ -13,6 +13,15 @@ import {
 
 const PRIMARY = '#1e6fff'
 const VALID_COLORS = deriveMantineColors(PRIMARY)
+const VALID_PALETTE = {
+  bg: '#e9eef7',
+  surface: '#f8fafc',
+  hover: '#dce5f2',
+  text: '#172033',
+  textSoft: '#33415c',
+  muted: '#53627a',
+  faint: '#5d6c82'
+}
 
 function baseSkin(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -41,6 +50,16 @@ describe('normalizeSkinDefinition', () => {
     expect(skin.source).toBe('user')
     expect(skin.base).toBe('lighting')
     expect(skin.mantineColors).toEqual(VALID_COLORS)
+  })
+
+  it('只接受固定字段完整语义色板', () => {
+    expect(normalizeSkinDefinition(baseSkin({ palette: VALID_PALETTE })).palette).toEqual(VALID_PALETTE)
+    expect(() => normalizeSkinDefinition(baseSkin({
+      palette: { ...VALID_PALETTE, text: undefined }
+    }))).toThrowError(SkinValidationError)
+    expect(() => normalizeSkinDefinition(baseSkin({
+      palette: { ...VALID_PALETTE, shadow: '#000000' }
+    }))).toThrowError(SkinValidationError)
   })
 
   it('拒绝与内置皮肤冲突或格式非法的 id', () => {
@@ -170,6 +189,20 @@ describe('appearance 安全校验', () => {
 })
 
 describe('Profile Renderer 二次校验', () => {
+  it('保留 Profile 明暗完整语义色板', () => {
+    const darkPalette = { ...VALID_PALETTE, bg: '#111827', surface: '#182235' }
+    const skin = normalizeProfileThemeDefinition(profileTheme({
+      palette: VALID_PALETTE,
+      dark: {
+        vars: { '--el-color-primary': PRIMARY },
+        mantineColors: VALID_COLORS,
+        palette: darkPalette
+      }
+    }))
+    expect(skin.palette).toEqual(VALID_PALETTE)
+    expect(skin.dark?.palette).toEqual(darkPalette)
+  })
+
   it('保留 Bundle 来源但强制 source=profile', () => {
     const skin = normalizeProfileThemeDefinition(profileTheme({ builtIn: true, source: 'builtin' }))
     expect(skin.id).toBe('profile:bundle.example:my-ocean')

@@ -4,11 +4,11 @@
 
 /* ── Color tokens: light/dark token sets as mixins shared by .dsh-root and portal scopes ── */
 @mixin dsh-color-light {
-  --dsh-bg: var(--dsw-alias-bg-base, var(--skin-dsh-bg, #fbfaf7));
+  --dsh-bg: var(--skin-dsh-bg, var(--dsw-alias-bg-base, #fbfaf7));
   /* --dsh-surface 可被品牌外观的 --dsh-surface-override 覆盖（面板透明度），无覆盖时回退 SCSS 原值。 */
-  --dsh-surface-raw: var(--dsw-alias-bg-layer-1, var(--skin-dsh-surface, #fffefa));
+  --dsh-surface-raw: var(--skin-dsh-surface, var(--dsw-alias-bg-layer-1, #fffefa));
   --dsh-surface: var(--dsh-surface-override, var(--dsh-surface-raw));
-  --dsh-hover: var(--dsw-alias-interactive-bg-hover, var(--skin-dsh-hover, #f7f6f2));
+  --dsh-hover: var(--skin-dsh-hover, var(--dsw-alias-interactive-bg-hover, #f7f6f2));
   --dsh-nav-hover: var(--dsw-alias-interactive-bg-hover, rgba(36, 35, 31, 0.028));
   --dsh-nav-hover-solid: var(--dsw-alias-interactive-bg-hover-solid, #f8f7f3);
   --dsh-nav-action-bg: var(--dsw-alias-bg-layer-2, #e7e3db);
@@ -16,10 +16,10 @@
   --dsh-border: var(--dsw-alias-border-l2, rgba(36, 35, 31, 0.082));
   --dsh-border-soft: var(--dsw-alias-border-l1, rgba(36, 35, 31, 0.048));
 
-  --dsh-text: var(--dsw-alias-label-primary, var(--skin-dsh-text, #20201d));
-  --dsh-text-soft: var(--dsw-alias-label-secondary, var(--skin-dsh-text-soft, #494741));
-  --dsh-muted: var(--dsw-alias-label-tertiary, var(--skin-dsh-muted, #6e6a61));
-  --dsh-faint: var(--dsw-alias-label-caption, var(--skin-dsh-faint, #b0aaa1));
+  --dsh-text: var(--skin-dsh-text, var(--dsw-alias-label-primary, #20201d));
+  --dsh-text-soft: var(--skin-dsh-text-soft, var(--dsw-alias-label-secondary, #494741));
+  --dsh-muted: var(--skin-dsh-muted, var(--dsw-alias-label-tertiary, #6e6a61));
+  --dsh-faint: var(--skin-dsh-faint, var(--dsw-alias-label-caption, #b0aaa1));
 
   --dsh-accent: var(--el-color-primary, #3f6fd8);
   --dsh-accent-soft: var(--dsw-alias-interactive-bg-hover-accent, #f1eee8);
@@ -45,10 +45,10 @@
 
 /* ── Dark mode: shift pink/purple accents to neutral gray-black palette for softer black-gray look ── */
 @mixin dsh-color-dark {
-  --dsh-bg: var(--dsw-alias-bg-base, var(--skin-dsh-bg, #36313f));
-  --dsh-surface-raw: var(--dsw-alias-bg-layer-1, var(--skin-dsh-surface, #16141b));
+  --dsh-bg: var(--skin-dsh-bg, var(--dsw-alias-bg-base, #36313f));
+  --dsh-surface-raw: var(--skin-dsh-surface, var(--dsw-alias-bg-layer-1, #16141b));
   --dsh-surface: var(--dsh-surface-override, var(--dsh-surface-raw));
-  --dsh-hover: var(--dsw-alias-interactive-bg-hover, var(--skin-dsh-hover, #211e29));
+  --dsh-hover: var(--skin-dsh-hover, var(--dsw-alias-interactive-bg-hover, #211e29));
   --dsh-nav-hover: var(--dsw-alias-interactive-bg-hover, rgba(180, 150, 230, 0.09));
   --dsh-nav-hover-solid: var(--dsw-alias-interactive-bg-hover-solid, #413a4e);
   --dsh-nav-action-bg: var(--dsw-alias-bg-layer-2, #211e29);
@@ -56,10 +56,10 @@
   --dsh-border: var(--dsw-alias-border-l2, rgba(255, 255, 255, 0.09));
   --dsh-border-soft: var(--dsw-alias-border-l1, rgba(255, 255, 255, 0.055));
 
-  --dsh-text: var(--dsw-alias-label-primary, var(--skin-dsh-text, #f4f3f8));
-  --dsh-text-soft: var(--dsw-alias-label-secondary, var(--skin-dsh-text-soft, #dddbe6));
-  --dsh-muted: var(--dsw-alias-label-tertiary, var(--skin-dsh-muted, #c1becb));
-  --dsh-faint: var(--dsw-alias-label-caption, var(--skin-dsh-faint, #9894a4));
+  --dsh-text: var(--skin-dsh-text, var(--dsw-alias-label-primary, #f4f3f8));
+  --dsh-text-soft: var(--skin-dsh-text-soft, var(--dsw-alias-label-secondary, #dddbe6));
+  --dsh-muted: var(--skin-dsh-muted, var(--dsw-alias-label-tertiary, #c1becb));
+  --dsh-faint: var(--skin-dsh-faint, var(--dsw-alias-label-caption, #9894a4));
 
   --dsh-accent: var(--el-color-primary, #78a2ff);
   --dsh-accent-soft: var(--dsw-alias-interactive-bg-hover-accent, #2a2a31);
