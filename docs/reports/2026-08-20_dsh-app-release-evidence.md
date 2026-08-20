@@ -122,7 +122,7 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
-- 当前证据已经包含 Developer ID 签名目录包的断网初始化、Profile authority、损坏 Bundle 恢复和真实签名 updater 替换回归，但还不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态的全平台证据；最新 arm64 目录包上的断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和预算门禁已通过。
+- 当前证据已经包含 Developer ID 签名目录包、明确关闭公证生成的 arm64 DMG/ZIP 安装器结构、断网初始化、Profile authority、损坏 Bundle 恢复和真实签名 updater 替换回归；DMG 的 UDZO 结构、ZIP 内 `DSH Desktop.app` 资源和 App 严格签名校验均通过，但仍不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终公开安装器证据。最新 arm64 目录包上的断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和预算门禁已通过。
 - macOS x64 目录包已经通过独立的官方 Node `v24.19.0` x64 运行时和 Rosetta 构建；当前尚缺原生 x64 主机或发行 CI 上的签名、安装器和性能验收，不能把本机 Rosetta 目录包写成正式 x64 发布证据。
 - 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化；公开截图和安装录制仍需在发行环境重新采集，loopback 模型也不替代真实 DeepSeek 服务验收。
 
