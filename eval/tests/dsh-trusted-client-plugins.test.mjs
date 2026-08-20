@@ -85,6 +85,15 @@ test("only audited community Client releases may enter the product Client graph"
     name: "@linxin666/dsh-client-ui-task-board",
     manifest: {
       version: "0.1.20",
+      dependencies: taskBoardDependencies,
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
+    integrity: "sha512-different-package-bytes",
+  }), false);
+  assert.equal(isReviewedCommunityClient({
+    name: "@linxin666/dsh-client-ui-task-board",
+    manifest: {
+      version: "0.1.20",
       dependencies: { ...taskBoardDependencies, schemastery: "^3.19.0" },
       dsh: { bundle: { patch: "./cordis.patch.yml" } },
     },
