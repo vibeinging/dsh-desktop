@@ -877,7 +877,7 @@ function forceStopBackend() {
 
 function forceKillBackend(child) {
   if (!child || child.exitCode != null) return;
-  try { child.kill('SIGKILL'); } catch { /* ignore */ }
+  try { child.kill('SIGKILL'); } catch { /* Server may have exited between the check and kill. */ }
 }
 
 function backendSend(msg) {

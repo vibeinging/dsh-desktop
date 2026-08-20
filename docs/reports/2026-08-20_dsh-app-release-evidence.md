@@ -57,7 +57,7 @@
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
 | Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试 | 新 Profile 与已有 Profile 的状态边界已验证 |
 | 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；loopback 模型不替代真实 DeepSeek live-model 证据 |
-| 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；x64 目录包当前未签名；Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态仍是发布门槛 |
+| 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；当前 arm64/x64 目录包均完成 Developer ID 签名和严格完整性检查；Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态仍是发布门槛 |
 
 ## 本轮安装包与性能基线
 
@@ -93,11 +93,11 @@
 
  Developer ID arm64 目录包上又生成了四帧本地 GIF `electron/.desktop-build/evidence/official-web-interactions-signed/dsh-official-web-loopback.gif`（1200x772、9 秒、168497 字节），覆盖已完成、问题等待、审批等待和审批/队列结果；它的真实来源是当前签名 Electron 与 loopback SSE 测试模型，不能替代公开安装录制或真实 DeepSeek live-model 证据。
 
-断网新用户 smoke 使用不继承用户环境的系统 PATH、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 Developer ID arm64 目录包预算门禁观测的 `cold_web_ms` 为 `8645`（同一签名包的独立 smoke 曾观测 `4965`、`8928`、`4349`、`8688`；此前观测为 `8184`、`7327`、`4201`、`5053`、`5147`、`4718`、`7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2708180` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
+断网新用户 smoke 使用不继承用户环境的系统 PATH、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 Developer ID arm64 目录包预算门禁观测的 `cold_web_ms` 为 `4480`（同一签名包的独立 smoke 曾观测 `4965`、`8928`、`4349`、`8688`；此前观测为 `8184`、`7327`、`4201`、`5053`、`5147`、`4718`、`7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2708180` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
 
 此前在同一台 Apple Silicon 主机上，使用官方 Node `v24.19.0` `darwin-x64` 二进制并通过 Rosetta 准备依赖后，x64 目录包的随包 Server、断网新用户 Profile、损坏 Bundle 恢复、Profile authority 和官方 Web Session/log/history 流程均通过；x64 目录包随包 pnpm runtime 也确认为 `11.22.0`，官方 Web smoke 截图为 `.desktop-build/evidence/official-web-x64.Ev0qMl/official-web-session-flow.png`，最新串行断网 smoke 的 Rosetta 冷启动观测为 `121710` ms。该观测明显包含 Rosetta 成本，不替代原生 x64 机器的性能验收；当时的 x64 目录包未签名，不能替代 Windows、Developer ID、公证或 Gatekeeper 证据。
 
-本轮用同一官方 Node `v24.19.0` x64 运行时重新准备当前 `HEAD` 的 x64 Server 资源，生成了 Developer ID 签名的 `release/mac/DSH Desktop.app` 以及明确关闭公证的 x64 DMG/ZIP；Server smoke、App smoke、ZIP 资源结构和 `codesign --verify --deep --strict` 均通过。随后重新运行 x64 Profile authority/recovery 串行 smoke 时，恢复阶段在 Rosetta 应用退出处超过 150 秒并被终止，因此这次不能把当前签名 x64 包的恢复证据写成通过；原生 x64 主机和发行 CI 验收仍缺。
+本轮用同一官方 Node `v24.19.0` x64 运行时重新准备当前 `HEAD` 的 x64 Server 资源，生成了 Developer ID 签名的 `release/mac/DSH Desktop.app` 以及明确关闭公证的 x64 DMG/ZIP；Server smoke、App smoke、ZIP 资源结构和 `codesign --verify --deep --strict` 均通过。此前 Rosetta 退出阶段暴露出 Server 只收到 `SIGTERM` 后可能成为孤儿的问题，已由 `7cb0805` 在启动超时、优雅退出超时和最终清理路径统一加入显式 `SIGKILL` 兜底。重新打包后，干净环境、独立 loopback 端口下的默认 x64 recovery、App、断网 Profile、Profile authority 和官方 Web smoke 均通过；Rosetta 冷启动仍不替代原生 x64 主机的性能验收。
 
 当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-21 的 macOS arm64 结果如下：
 
@@ -105,9 +105,9 @@
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
-| `DSH Desktop.app` | `1,183,526,138` bytes | `1,400,000,000` bytes |
-| 随包 Server 资源 | `847,700,719` bytes | `1,000,000,000` bytes |
-| 随包 pnpm runtime | `19,730,990` bytes | `20,000,000` bytes |
+| `DSH Desktop.app` | `1,197,028,167` bytes | `1,400,000,000` bytes |
+| 随包 Server 资源 | `845,789,175` bytes | `1,000,000,000` bytes |
+| 随包 pnpm runtime | `19,768,614` bytes | `20,000,000` bytes |
 | 7 个精选插件 tarball | `22,002` bytes | `64,000` bytes |
 | 断网新 Profile 数据目录 | `2,708,180` bytes | `4,000,000` bytes |
 | 官方 Web 冷启动 | `4,397` ms | `10,000` ms |
@@ -125,7 +125,7 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
 - 当前证据已经包含 Developer ID 签名目录包、明确关闭公证生成的 arm64 DMG/ZIP 安装器结构、断网初始化、Profile authority、损坏 Bundle 恢复和真实签名 updater 替换回归；DMG 的 UDZO 结构、ZIP 内 `DSH Desktop.app` 资源和 App 严格签名校验均通过，但仍不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终公开安装器证据。最新 arm64 目录包上的断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和预算门禁已通过。
-- macOS x64 当前已通过官方 Node `v24.19.0` x64 依赖准备、Developer ID 签名目录包/未公证安装器结构、Server smoke 和 App smoke；但 recovery 串行 smoke 在 Rosetta 退出阶段超时，仍尚缺原生 x64 主机或发行 CI 上的完整恢复、安装器和性能验收，不能把本机跨架构结果写成正式 x64 发布证据。
+- macOS x64 当前已通过官方 Node `v24.19.0` x64 依赖准备、Developer ID 签名目录包/未公证安装器结构、Server/App、默认退出路径、恢复、断网 Profile、Profile authority 和官方 Web smoke；仍尚缺原生 x64 主机或发行 CI 上的安装器和性能验收，不能把 Rosetta 结果写成原生 x64 发布证据。
 - 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化；公开截图和安装录制仍需在发行环境重新采集，loopback 模型也不替代真实 DeepSeek 服务验收。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。
