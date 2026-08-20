@@ -17,6 +17,10 @@ import {
   createWindowsAcceptanceReceipt,
   isWindowsAcceptanceReceipt,
 } from '../../scripts/windows-acceptance-receipt.mjs';
+import {
+  pathWithPackagedBin,
+  systemOnlyPath,
+} from '../../electron/scripts/packaged-smoke-environment.mjs';
 
 test('release safety rejects adhoc macOS signatures and accepts Developer ID signatures', () => {
   assert.deepEqual(classifyMacSignatureOutput('Signature=adhoc\nTeamIdentifier=not set'), {
@@ -148,4 +152,10 @@ test('Windows acceptance receipt requires every real install lifecycle check', (
   assert.equal(isWindowsAcceptanceReceipt(receipt), true);
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, checks: receipt.checks.slice(1) }), false);
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, passed: false }), false);
+});
+
+test('packaged smoke uses a platform system path without inheriting the user PATH', () => {
+  const systemPath = systemOnlyPath();
+  assert.match(systemPath, process.platform === 'win32' ? /System32/i : /\/usr\/bin/);
+  assert.match(pathWithPackagedBin('packaged-bin'), /^packaged-bin[;:]/);
 });

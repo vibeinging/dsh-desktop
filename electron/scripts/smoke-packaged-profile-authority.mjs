@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { resolvePackagedLayout } from './packaged-layout.mjs'
+import { pathWithPackagedBin, systemOnlyPath } from './packaged-smoke-environment.mjs'
 
 const appInput = process.argv[2] || '../release/mac-arm64/DSH Desktop.app'
 const { executable, resourcesDir } = resolvePackagedLayout(appInput)
@@ -23,7 +24,7 @@ function baseEnv() {
   const env = {
     ...process.env,
     HOME: join(tempDir, 'home'),
-    PATH: '/usr/bin',
+    PATH: systemOnlyPath(),
     DSH_USER_DATA_DIR: userDataDir,
     DSH_DATA_ROOT: dataRoot,
     DSH_AGENT_RUNTIME_HOME: join(tempDir, 'agent_runtime'),
@@ -67,7 +68,7 @@ async function runOfficial(args, label) {
   const childOutput = []
   const env = {
     ...baseEnv(),
-    PATH: `${pnpmBinDir}:/usr/bin`,
+    PATH: pathWithPackagedBin(pnpmBinDir),
     DSH_HOME: dataRoot,
     DSH_RUNTIME_DISTRIBUTION: 'npm',
     DSH_RUNTIME_HOME: dataRoot,

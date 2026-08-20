@@ -5,6 +5,7 @@ import { lstat, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolvePackagedLayout } from './packaged-layout.mjs'
+import { systemOnlyPath } from './packaged-smoke-environment.mjs'
 
 const appInput = process.argv[2] || '../release/mac-arm64/DSH Desktop.app'
 const { executable, resourcesDir } = resolvePackagedLayout(appInput)
@@ -32,7 +33,7 @@ try {
   const env = {
     ...process.env,
     HOME: join(tempDir, 'home'),
-    PATH: '/usr/bin',
+    PATH: systemOnlyPath(),
     DSH_SMOKE_TEST: '1',
     DSH_SMOKE_TIMEOUT_MS: '120000',
     DSH_USER_DATA_DIR: join(tempDir, 'user-data'),

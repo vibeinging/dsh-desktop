@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { resolvePackagedLayout } from './packaged-layout.mjs'
+import { systemOnlyPath } from './packaged-smoke-environment.mjs'
 
 const appInput = process.argv[2] || '../release/mac-arm64/DSH Desktop.app'
 const { executable } = resolvePackagedLayout(appInput)
@@ -443,7 +444,7 @@ try {
   }
   Object.assign(env, {
     HOME: join(tempDir, 'home'),
-    PATH: fakeModelEnabled ? '/usr/bin:/bin' : '/usr/bin',
+    PATH: systemOnlyPath(),
     DSH_USER_DATA_DIR: join(tempDir, 'user-data'),
     DSH_DATA_ROOT: join(tempDir, 'data'),
     DSH_AGENT_RUNTIME_HOME: join(tempDir, 'agent-runtime'),
