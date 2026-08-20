@@ -101,12 +101,12 @@
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
-| `DSH Desktop.app` | `1,197,026,232` bytes | `1,400,000,000` bytes |
-| 随包 Server 资源 | `845,787,278` bytes | `1,000,000,000` bytes |
-| 随包 pnpm runtime | `19,768,614` bytes | `20,000,000` bytes |
+| `DSH Desktop.app` | `1,183,526,138` bytes | `1,400,000,000` bytes |
+| 随包 Server 资源 | `847,700,719` bytes | `1,000,000,000` bytes |
+| 随包 pnpm runtime | `19,730,990` bytes | `20,000,000` bytes |
 | 7 个精选插件 tarball | `22,002` bytes | `64,000` bytes |
 | 断网新 Profile 数据目录 | `2,708,180` bytes | `4,000,000` bytes |
-| 官方 Web 冷启动 | `8,645` ms | `10,000` ms |
+| 官方 Web 冷启动 | `4,397` ms | `10,000` ms |
 
 Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/manifest.json`、`permissions.json`、`THIRD_PARTY_NOTICES.md` 和 `test-expected.json` 为准；预算门禁只接受重新生成的产物和新一轮 smoke 结果。
 
