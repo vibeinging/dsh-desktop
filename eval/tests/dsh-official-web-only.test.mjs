@@ -6,6 +6,7 @@ const appRoot = new URL("../..", import.meta.url);
 const electronMain = readFileSync(new URL("electron/main.js", appRoot), "utf8");
 const electronPackage = JSON.parse(readFileSync(new URL("electron/package.json", appRoot), "utf8"));
 const featured = JSON.parse(readFileSync(new URL("server/src/engine/dsh_runtime/featured_plugins.json", appRoot), "utf8"));
+const officialWebFlowSmoke = readFileSync(new URL("electron/scripts/smoke-packaged-official-web-flow.mjs", appRoot), "utf8");
 
 test("Electron's main window has one official DSH Web surface", () => {
   const createWindowStart = electronMain.indexOf("function createWindow(");
@@ -46,4 +47,15 @@ test("the new Profile input excludes the retired replacement shell and theme pac
   assert.equal(names.includes("@vibeinging/dsh-theme-pack"), false);
   assert.equal(existsSync(new URL("packages/dsh-theme-pack/package.json", appRoot)), false);
   assert.doesNotMatch(electronMain, /profileThemes|profile_themes|skin-settings-store|dsh-theme-pack/);
+});
+
+test("the packaged official Web interaction smoke stays on official question, approval, and queue contracts", () => {
+  assert.equal(typeof electronPackage.scripts["smoke:packaged-official-web-interactions"], "string");
+  assert.match(electronPackage.scripts["smoke:packaged-official-web-interactions"], /--fake-model/);
+  assert.match(officialWebFlowSmoke, /DEEPSEEK_BASE_URL/);
+  assert.match(officialWebFlowSmoke, /data-question-key/);
+  assert.match(officialWebFlowSmoke, /data-approval-key/);
+  assert.match(officialWebFlowSmoke, /data-queue-dock/);
+  assert.match(officialWebFlowSmoke, /mode: 'queue'/);
+  assert.match(officialWebFlowSmoke, /approvalMarkerPath/);
 });

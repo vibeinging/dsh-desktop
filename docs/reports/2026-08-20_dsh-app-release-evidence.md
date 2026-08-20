@@ -1,6 +1,6 @@
 # DSH Desktop 发行版转型实施证据
 
-日期：2026-08-20
+日期：2026-08-21
 
 本报告记录发行版转型当前已经取得的证据，以及还不能越级宣称完成的发行门槛。它对应 [发行方案](../plans/2026-08-20_dsh-app-发行版转型最终方案.md)，不把源码检查、单元测试、Profile 集成、真实 Electron 和安装包验证混为同一层证据。
 
@@ -32,7 +32,7 @@
 | 源码检查 | `node scripts/release-boundary.mjs --syntax`、Node syntax check、包清单和权限投影检查 | 官方 Web、恢复页、窄 Native Host、精选清单和退役包边界可检查 |
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
 | Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试 | 新 Profile 与已有 Profile 的状态边界已验证 |
-| 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选和 WebContentsView Browser Workspace smoke；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、原生浏览器主路径和 macOS 签名更新链路已验证；审批/队列仍需带工具调用的 live-model 环境 |
+| 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；loopback 模型不替代真实 DeepSeek live-model 证据 |
 | 安装包 | macOS arm64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | 断网新用户、恢复/卸载保持和签名更新探针已建立；Apple 公证、Gatekeeper 接受、Windows 实机和其他平台仍是发布门槛 |
 
 ## 本轮安装包与性能基线
@@ -45,10 +45,13 @@
 - `npm --prefix electron run smoke:packaged-recovery`
 - `npm --prefix electron run smoke:packaged-profile-authority`
 - `npm --prefix electron run smoke:packaged-official-web-flow`
+- `DSH_SCREENSHOT_DIR=.desktop-build/evidence/official-web-interactions npm --prefix electron run smoke:packaged-official-web-interactions`
 - `npm run smoke:updater`
 - `DSH_SMOKE_SIGN_IDENTITY=03587EF7C8984E0F7631EC905C26336C15C8189D node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-updater.mjs ".desktop-build/signed-probe/mac-arm64/DSH Desktop.app"`
 
 官方 Web CDP 流程 smoke 使用临时用户目录和 `PATH=/usr/bin`，主动清除 `DEEPSEEK_API_KEY`，通过真实随包 Electron 页面完成首次提示、官方 `workspace.create` 测试夹具、官方 Web 新建 Session、输入并发送消息、可见的 Session log、`session.list` 和 `session.history` 回读，再检查页面没有 `window.electronAPI` 或 Node 全局。无密钥时模型请求按预期显示 `MISSING_CREDENTIAL`，这条失败也属于官方 Web 的可见 Session 结果，不把它写成模型成功。命令支持 `DSH_SCREENSHOT_DIR=/path` 持久化官方 Web 截图；本次 smoke 的审批和队列没有伪造覆盖，必须在有工具调用的 live-model 环境单独验证。
+
+官方 Web 交互 smoke 使用同一 macOS arm64 打包 Electron，但把 DSH 官方 DeepSeek 适配器的 loopback endpoint 指向脚本内的确定性 SSE 测试服务，并设置 `DEEPSEEK_API_KEY` 仅作为测试凭据；它没有访问外网或真实模型。第一轮由测试模型发起 `ask_user_question`，官方 Web 问题卡片显示选项，脚本选择并提交“继续执行”；随后 bash 写入 Profile 工作区之外的临时 marker，真实沙箱返回拒绝；第二轮由测试模型提交相同命令及 `danger-full-access` 与 justification，官方审批服务向官方 Web 发布审批卡片，点击 `Allow once` 后真实写入 marker。此期间通过官方 `session.prompt({ mode: "queue" })` 接受第二条消息，官方 `session/queue` 投影渲染 QueueDock，首轮完成后排队消息再次经过官方 LLM 和 Session history。脚本还检查了实际 marker 内容为 `approved\n`，所以没有把模型文本当成工具成功证据。本次截图保存在 `electron/.desktop-build/evidence/official-web-interactions/official-web-approval-queue.png`、`official-web-question-pending.png`、`official-web-approval-pending.png` 和 `official-web-session-flow.png`；这是本机 smoke 归档，不等同于公开安装录制或真实 DeepSeek 服务验收。
 
 断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最近预算门禁观测的 `cold_web_ms` 为 `4718`（此前观测为 `7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，用随包 DSH CLI 移除了 portable Bundle `@vibeinging/dsh-model-inheritance`，写入待更新记录后再次启动；Profile 清单保持原样，已卸载 Bundle 未被重启或更新记录回放恢复。
 
@@ -74,6 +77,6 @@ Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/ma
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
 - 当前证据已经包含 Developer ID 签名目录包和真实签名 updater 替换回归，但还不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态的全平台证据；断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和当前 macOS arm64 预算门禁已通过。
-- 公开截图和安装录制仍需在可提供截图的 Electron 环境重新采集；现有 smoke 输出只证明页面和交互路径，不替代视觉证据。
+- 官方 Web 的审批/队列截图已通过 CDP 持久化到本机 smoke 归档，但公开截图和安装录制仍需在发行环境重新采集；Browser Workspace 的截图仍受当前 Electron Viz 合成器限制，loopback 模型也不替代真实 DeepSeek 服务验收。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。
