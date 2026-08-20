@@ -1,6 +1,6 @@
 # 第三方组件和分发说明
 
-本文件记录 DeepSeek Harness Desktop App 正式安装包中的关键第三方代码和原生二进制。完整依赖版本以各目录的 `package-lock.json` 为准，具体许可证文本保存在对应 npm 包或仓库文件中。
+本文件记录 DSH Desktop 正式安装包中的关键第三方代码和原生二进制。完整依赖版本以各目录的 `package-lock.json` 为准，具体许可证文本保存在对应 npm 包或仓库文件中。
 
 | 组件 | 当前版本 | 许可证 | 分发说明 |
 | --- | --- | --- | --- |
@@ -14,6 +14,9 @@
 | yiTrace DB | 0.1.8 | MIT | 随包 Trace 存储模块 |
 | SheetJS Community Edition | 0.20.3 | Apache-2.0 | 表格文件读取；许可证文本随 npm 包分发 |
 | VexDB Lite | 上游发行版 v0.0.17；随包文件见来源记录 | MIT | SQLite 向量扩展；许可证与来源见 `server/vendor/vexdb_lite/LICENSE` 和 `RELEASE-PROVENANCE.md` |
+| DeepSeek Harness npm runtime | 0.1.0-rc.7 | MIT | 官方 `@deepseek-ai/dsh`、`@deepseek-ai/dsh-web-app` 和 Cordis npm 包；不修改官方源码 |
+| DSH Desktop first-party Bundles | 当前仓库版本 | 以各包 `package.json` 为准 | `@vibeinging/*` 包通过官方 Profile 组合；默认清单不包含自研主题、替换 Shell 或工作台目录 |
+| DSH task-board candidate | `@linxin666/dsh-client-ui-task-board@0.1.20` | Apache-2.0 | 可选社区 Bundle；只按精确版本安装，不属于默认发行 Profile；来源、完整性和权限见 `server/src/engine/dsh_runtime/community_plugin_registry.json` |
 
 ## OpenAI Agent Runtime
 
@@ -24,7 +27,7 @@
 1. `server/package-lock.json` 固定来源版本和包校验值；
 2. 安装包包含 `legal/openai-agent-runtime-LICENSE.txt`；
 3. 当前 npm 分发包没有附带独立 NOTICE 文件；升级版本时必须重新检查；
-4. DeepSeek Harness Desktop App 没有获得 OpenAI 商标授权，不得把产品宣传成 OpenAI 官方产品；
+4. DSH Desktop 没有获得 OpenAI 商标授权，不得把产品宣传成 OpenAI 官方产品；
 5. 如果以后修改上游源码，必须记录修改文件并保留明显的修改说明。
 
 ## VexDB Lite
@@ -41,3 +44,7 @@ SHA-256 和来源记录。由于 v0.0.17 没有 Windows 预编译包，当前 Wi
 - 生产依赖许可证清单没有复核；
 - macOS 安装包没有 Developer ID 签名、公证和票据；
 - Windows 安装包没有代码签名和 Windows x64 实机验收。
+
+## 社区插件和皮肤资产
+
+社区插件不是 DeepSeek 或 DSH 官方产品。发行包默认不携带 `dsh-web-ui` 聚合包、社区插件管理器或未审查的皮肤资产；候选插件必须通过固定来源、依赖、权限、许可证、真实 Electron 启动和卸载回归。没有可核对的再分发许可的皮肤、插图、字体、音频和视频不得进入安装包。

@@ -1,189 +1,84 @@
-# DeepSeek Harness Desktop App
+# DSH Desktop
 
-[中文](README.md) | English
+[中文](README.md)
 
-> [View the anime README variant](README.anime.md)
+DSH Desktop is a community-maintained Electron distribution of DeepSeek Harness (DSH). It runs the official DSH Web, Profile, Session, Agent, Tool, Skill, and MCP runtime locally. The main window shows only the official `dsh-web-app`; this project does not maintain a second Chat, home, settings, or plugin-center surface.
 
-[![dshfind](https://dshfind.com/api/badge/vibeinging/deepseek-harness-desktop-app?lang=en)](https://dshfind.com/en/plugins/vibeinging/deepseek-harness-desktop-app?ref=badge)
+Profiles, Sessions, and local runtime data are stored under `~/.dsh` by default. Opening history does not upload that data automatically.
 
-DeepSeek Harness Desktop App is a local AI work desktop built on DeepSeek Harness (DSH). It brings DSH Sessions, Agents, Tools, Skills, MCP, and Profile Bundles together with projects, files, web pages, Git Worktrees, Canvas, Sites, and Office artifacts in one desktop application.
+## Use and development
 
-| Professional blue, light | Professional blue, dark |
-| --- | --- |
-| ![DeepSeek Harness Desktop App professional-blue light home](docs/images/readme/dsh-work-home-professional-light.png) | ![DeepSeek Harness Desktop App professional-blue dark home](docs/images/readme/dsh-work-home-professional-dark.png) |
+A packaged build includes the DSH Web runtime, fixed tarballs for the curated Bundles, and a controlled pnpm runtime. A new user does not need system Node.js, pnpm, npm login, or a first-run network download.
 
-## Quick start
-
-Local development requires Node.js 24 or later. The project currently uses DSH `0.1.0-rc.7`.
+Development requires Node.js 24 or later:
 
 ```bash
 npm install
 npm run doctor
-npm run dev
+npm run dev:electron
 ```
 
-Run `npm run setup` after changing the Node.js major version, CPU architecture, or operating system.
-
-### DSH rc.7 adaptation status
-
-The App pins every directly used runtime `@deepseek-ai/*` SDK explicitly to `0.1.0-rc.7`, while plugin development and peer compatibility ranges now start at `^0.1.0-rc.7`, instead of relying on the still-stale `latest` tags of some leaf packages. rc.7 does not change any public Slot, Host Service, or Client Session type used by this project; Code Mode now preserves image content returned by sub-tools for later model context, and the official Conversation page adds a Safari textarea soft-wrap repair. Optional Codex and Claude sub-Agent rows now use one-shot background mode, but this project's Profile does not enable those optional rows. The product conversation still disables the full official Conversation page, so it does not report that page's internal Safari styling as adopted by the desktop input.
-
-## Main features
-
-| Feature | What users can do |
-|---|---|
-| DSH conversations | Stream answers, inspect reasoning and tool calls, stop, continue, retry, branch messages, and restore after restart |
-| Models and permissions | Select a provider, model, and reasoning level; manage credential references, Session permissions, tool approvals, and model questions |
-| Tools, Skills, MCP, and multi-Agent | Use Tools, Skills, MCP servers, Hooks, sub-Agents, and Workflows loaded by the current Profile |
-| Projects and conversations | Create project, global, or temporary conversations; pin, reorder, rename, archive, restore, and delete |
-| Desktop shell and settings | Use a three-column workbench, collapse either side, search globally, use zoom shortcuts and update checks, and configure language, network, notifications, terminal, and privacy options |
-| Project context | Configure application and project instructions, authorized source roots, and write targets; long-term memory is provided by an installable community Bundle |
-| Input and references | Reference files with `@`, conversations with `#`, and attach images or large pasted text |
-| Coding workspace | Inspect Diff, comment or edit by line, open files in an external editor, start AI Review, and safely revert model-made file changes |
-| Git Worktrees | Create, activate, deactivate, and remove isolated working directories, then run new conversations in the selected Worktree |
-| Files and search | Browse project, task, and artifact files; preview text, code, images, and Office content; search names or contents |
-| Browser Workspace | Use multiple tabs, history, find-in-page, zoom, downloads, print, developer tools, site permissions, page snapshots, and “Use this page” |
-| Results and evidence | Inspect the current DSH Session trajectory, tool inputs and outputs, timing, Token usage, and final answer |
-| Canvas and local Sites | Create and edit Canvas content, handle inline suggestions and version conflicts, and build responsive single-file Sites |
-| Office artifacts | Create, inspect, and precisely edit Markdown, DOCX, XLSX, PPTX, and PDF artifacts while preserving versions |
-| Themes and appearance | Switch Profile themes; create, import, preview, edit, export, and delete local themes; adjust mode, background, and transparency |
-| Plugin Center | Check compatibility, install DSH Profile Bundles into the current Web Profile, and inspect their source, version, and order |
-
-## The DSH trajectory is the result and evidence
-
-The right-side Results and evidence view reads the bound DSH Session's `session.history` directly. User messages, request context, model output, tool calls, tool results, permission changes, and final answers stay in one replayable trajectory without a second run center.
-
-![DSH trajectory demo](docs/images/readme/dsh-trajectory.gif)
-
-## Conversations and workbench
-
-One project conversation maps to one DSH Session. The right-side workbench can show Results and evidence, browser, files, artifacts, and Sites. The project file tree, Agent working directory, current Diff, and line editing follow the current project permissions and active Worktree.
-
-![DeepSeek Harness Desktop App project conversation](docs/images/readme/dsh-work-project-session.png)
-
-![DeepSeek Harness Desktop App files panel](docs/images/readme/dsh-work-files.png)
-
-Canvas keeps immutable versions and supports content editing, version comparison, exact inline suggestions, and conflict handling. Sites use the same version model and provide desktop, tablet, and mobile previews in an isolated sandbox.
-
-![DeepSeek Harness Desktop App Canvas versions and conflict handling](docs/images/readme/dsh-work-canvas.png)
-
-![DeepSeek Harness Desktop App local Site responsive preview](docs/images/readme/dsh-work-site.png)
-
-## Isolated development with Git Worktrees
-
-Project settings provide a complete Worktree workflow:
-
-1. Create one or more independent branches and working directories for a project, with one active at a time.
-2. New conversations use the active Worktree for the Agent, DSH Session, Diff, and line editing while the main checkout stays unchanged.
-3. Switching working directories does not move existing conversations. Activate the target Worktree before creating a conversation.
-4. Switch back to the main checkout before removal. Removing the working directory keeps its Git branch to avoid deleting commits.
-5. Non-Git directories, duplicate branches, out-of-scope paths, and unsafe symlinks are rejected; missing Worktrees are marked unavailable.
-
-![Complete DeepSeek Harness Desktop App Git Worktree workflow](docs/images/readme/dsh-work-worktree.gif)
-
-## Themes and appearance
-
-Phase 1 new Profiles use the official Web appearance and do not install the in-house `dsh-theme-pack` or its theme selector. Existing Profile theme state is preserved; later theme migration follows the release plan as a separate review.
-
-Local themes are restricted to safe color and appearance settings. They cannot inject raw CSS, use remote images, or change the application name. Personal backgrounds, display mode, and transparency remain independently adjustable.
-
-![Theme library and local custom theme actions](docs/images/readme/dsh-work-themes.png)
-
-## Plugin Center
-
-Regular users install DSH Profile Bundles from the “Plugins” page:
-
-1. Select a candidate plugin from the built-in community directory, or enter an npm package with an exact version or a GitHub repository URL pinned to a full commit.
-2. Run compatibility checks first. Installation becomes available only when the result is “Ready”.
-3. Inspect the installed Bundle's source, version, order, and capabilities. User-installed Bundles can be removed.
-
-The desktop default Bundle set is maintained only in [`featured_plugins.json`](server/src/engine/dsh_runtime/featured_plugins.json). Release tarballs, Profile initialization input, permission materials, and test expectations are generated from that file, so this README does not keep another installation list.
-
-Host Bundles that provide Tools, Skills, MCP servers, or Hooks can enter the DSH runtime. Bundles containing third-party Client UI do not enter the Electron-privileged main window by default. Only Client Bundles that have passed code review and are pinned to an exact version can enter the current product Renderer; other plugins remain pending until a separate preload-free runtime area is available.
-
-![DSH Web Profile Bundle list](docs/images/readme/dsh-profile-bundles.png)
-
-### dsh-web-ui, Verified
-
-The Plugin Center can install the exact `@linxin666/dsh-web-ui-all@0.1.20` release. Installation, load order, and removal remain owned by the DSH rc.7 Web Profile; this project does not copy the community plugin's code. The product shell uses the DSH Web three-track `data-dsh-frame` contract and stable `data-pane` locations so the task board, SSH, and AionUI file panel can share the main window. The aggregate and its 13 dependencies enter the current Renderer only when their names, versions, and dependency graph exactly match the reviewed record.
-
-This aggregate can read local repositories and images, start processes such as Git and SSH, and access remote Web, SSH, and model services. The Plugin Center shows these high-permission scopes before preflight so users can decide whether they fit the environment. Developers can use the same official Profile command:
+Build and release-boundary checks:
 
 ```bash
-dsh plugin --profile web add -w @linxin666/dsh-web-ui-all@0.1.20 --save-exact
+npm run check:release-boundary
+npm run package:mac:dir
+npm run check:release-artifacts
+npm run smoke:official-web
+npm run smoke:browser-workspace
+npm run test:release
 ```
 
-The image below comes from real Electron with an isolated data directory. After the Plugin Center completed the rc.7 Profile preflight and installation, the community task board occupied the product's center pane while the task-board and SSH entries appeared in the left navigation. It is neither a composited image nor a standalone browser page.
+## Profile and plugin state
 
-![dsh-web-ui community task board installed in DeepSeek Harness Desktop App](docs/images/readme/dsh-web-ui-task-board.png)
+The DSH Profile is the sole authority for plugin state. Startup, status queries, and application updates read the existing `dsh.profile.bundles`, dependencies, and patches. They do not restore, isolate, delete, or rewrite the user's choices. A Bundle disabled or removed by the user stays removed across restarts, application updates, and curated-list changes.
 
-### Community Plugin Directory
+Only a new Profile is initialized in an isolated directory through the official `dsh plugin --profile web` commands. Install, update, and removal use the official DSH Profile commands with fixed tarballs, verified SHA-256 values, and the bundled pnpm runtime.
 
-The project maintains a machine-readable community plugin directory, and the Plugin Center reads the same data directly. The directory records repositories, version sources, Star snapshots, compatibility status, and adoption priority. Stars indicate community interest only; installation must still pass the Profile preflight and desktop compatibility tests.
+There is one curated input: [featured_plugins.json](server/src/engine/dsh_runtime/featured_plugins.json). It generates packaged tarballs, new-Profile installation input, permission summaries, third-party notices, and test expectations. Other code and documentation do not maintain another default package list.
 
-| Plugin | Community capabilities | Current adoption plan |
-|---|---|---|
-| [DSH Plugin Market](https://github.com/dsh-market/dsh-market) | Browse, search, install, and update DSH plugins | Reviewed and integrated into the Profile and Client graphs, pinned to `dshmarket@1.9.0` |
-| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Task board, Git graph, real-time statistics, remote UI, SSH, pet, and skins | Reviewed and connected at `@linxin666/dsh-web-ui-all@0.1.20`; rc.7 Profile installation, Host/Client boot, and real Electron task-board and SSH tests pass, with local-file, process, and network permission warnings shown before installation |
-| [modlens](https://github.com/liustack/modlens) | Provide OCR, layout, and semantic evidence from images to text models | Integrate after credential and data transmission review |
-| [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | Files, editor, terminal, Git, Sub-Agents, and third-party tabs | Wait for a standard Slot or separate runtime area to avoid conflicts with the desktop shell |
-| [DSH Vision Toolkit](https://github.com/Anionex/dsh-vision-toolkit) | Image Q&A, OCR, UI reconstruction, pixel differences, and Artifacts | Integrate after the Tool View Slot is available |
-| [DSH @file](https://github.com/omdsh-dev/dsh-at-file) | Search and reference workspace files from the input box | The official `inputTriggers` and input overlay are connected; use the independent product-reference Bundle for App-authorized roots first, then test the community package after it pins rc.7 |
-| [DSH OpenPencil](https://github.com/ZSeven-W/dsh-openpencil) | OpenPencil preview and editing | Use the community implementation instead of developing another one |
-| [DSH Files](https://github.com/taxueseek/dsh-files) | File uploads, attachment cards, and document reading | The standard reference bridge is ready; the repository is not published to npm, and fixed-commit rc.6 Profile preflight is blocked because its Cordis peer uses `*`; install after the community pins `^4.0.1` |
-| [DSH Find Plugin](https://github.com/awesome-dsh-plugin/dsh-find-plugin) | Let the Agent search for community plugins | Confirmed as a Host Tool Bundle; the current version needs migration to the rc.7 SDK |
-| [DSH Native Memory](https://github.com/highland0971/dsh-native-memory) | Persist, retrieve, and approve long-term memory by workspace | Source review plus rc.6 Profile install, Host boot, Session creation, and uninstall testing completed for `dsh-native-memory@0.2.0`; install it from the Plugin Center to replace App-owned memory |
-| [DSH Toolkit](https://github.com/omdsh-dev/dsh-toolkit) | Deterministic tools for time, encoding, JSON, CSV, diffs, and statistics | Fixed-commit Host preflight completed; two DSH SDK ranges do not match the exact rc.7 release line, so adoption waits for the community migration |
-| [Distill](https://github.com/LoserFox/distill) | Reflect on conversations and distill reusable Skills | Fixed-commit Host preflight completed; six DSH SDK dependencies still target rc.5, so lifecycle review waits for the community migration |
-| [DSH MCP Bridge](https://github.com/Edge-Echo/dsh-mcp-bridge) | Filesystem, GitHub, Playwright, memory, and remote HTTP MCP | Passed the rc.6 Profile preflight; can be installed after network and process permission review |
+The default set contains seven non-UI Bundles. Host, portable, and desktop-adapter capabilities enter through the official Profile without replacing the official Web page. First-party packages use the `@vibeinging/*` scope; official DSH SDK packages keep the `@deepseek-ai/*` scope.
 
-Discover the full ecosystem through [Awesome DeepSeek Harness Plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin). The candidate directory is a curated product list, not a copy of all community marketplace data. Compatibility changes should be contributed to community projects first; develop an in-house implementation only when the community has no suitable option.
+## Optional plugins
 
-A DSH plugin is not necessarily a UI plugin. A Profile Bundle can add or replace Host services, models and providers, Tools, Skills, MCP, Hooks, Session middleware, storage, workflows, and Client UI. DeepSeek Harness Desktop App uses the official Profile lifecycle for Host plugins; only Client code entering the window requires additional Slot mapping and Renderer permission review.
+The app does not create a second installation state. Discovery, installation, disabling, updating, and removal return to the official Profile commands or the official Web plugin-management surface.
 
-DSH Desktop is a DSH Profile distribution and an Electron plugin host. The official Web owns Chat, home, settings, Plugin Center, and the base layout; Electron provides native windows, updates, file authorization, and narrow Host services. Phase 1 new Profiles install only the seven non-UI Bundles from the curated manifest; `dsh-work-shell`, `dsh-theme-pack`, legacy product Client UI, and workbench pages are not part of the default combination. Later capabilities will be reviewed one Bundle at a time.
+Our portable candidate:
 
-The roles, permissions, and adoption status of App-owned Bundles are defined by [`featured_plugins.json`](server/src/engine/dsh_runtime/featured_plugins.json) and the release plan; this phase does not keep another package-name list in the README, packaging script, or runtime. Legacy product UI, theme, and workbench Bundles that would enter the official Web Client graph remain for later one-by-one review.
+This package is currently maintained as a source candidate. Before it is published to npm, preflight it locally through the same official Profile commands:
 
-`dsh-client-product-workspaces` disables the default `ui-workspace` provider through the Profile, then occupies the standard single `conversation.hero.workspace` seat. It consumes only the observable `dshWorkProductWorkspaces` service published by the product shell, and the formal Client no longer renders the old page-local project picker. The project catalog, folder onboarding, and project creation still come from desktop product state, so this Bundle is a `desktop-adapter`. Replace the whole Bundle in the Profile when adopting an official or community implementation; a single seat cannot accept a second registration.
+```bash
+dsh plugin --profile web add -w /path/to/dsh-work-references --save-exact --ignore-scripts
+dsh plugin --profile web remove @vibeinging/dsh-work-references
+```
 
-`dsh-client-product-attachments` owns the formal Client's draft-attachment presentation: it enters the explicit desktop-shell root extension `dsh-work.composer.pre-session` before the first DSH Session exists, then moves to the standard `conversation.input.dock` after a Session is bound. It consumes only the Session-fenced `dshWorkProductAttachments` service, so the plugin never sees local paths or attachment bytes. Its image rail directly reuses the official rc.7 `AttachmentRail` React atom; the desktop adapter renders files, folders, media, and document selections that the official atom does not yet support. The official Web `ui-conversation` keeps browser `File` objects and temporary image ids inside its private controller, while the desktop App admits local paths through its trusted Host, so this Bundle remains an explicit `desktop-adapter` instead of pretending that the two draft identities are one protocol.
+It provides bounded relative file references under the current DSH Session workspace and never accepts an absolute path from the browser.
 
-The formal Client uses the official rc.7 `dsh-client-ui-permission-presets` for the entire permission surface: the official `/permission` popup changes the current Session, the official Settings row changes the new-session default, and the plugin owns the Full access risk gate. The App has deleted its own `PermissionPicker`, and the product bridge no longer subscribes to or copies the `permissions` projection.
+The independent community UI candidate `@linxin666/dsh-client-ui-task-board@0.1.20` has passed fixed-version network installation, official Web activation, real Electron startup, official removal, and restart checks. It remains optional and is not in the default curated set:
 
-The Skill catalog and selection path in the formal Client are also owned by the official `@deepseek-ai/dsh-client-ui-skill` package from the Profile. It calls `skill.list` for the current Session, registers the `skill` source through `inputTriggers`, and writes the `/<name> ` reference into the same draft. The App-owned Skill menu remains only as a fallback for standalone development without a DSH Client Host.
+```bash
+dsh plugin --profile web add -w @linxin666/dsh-client-ui-task-board@0.1.20 --save-exact --ignore-scripts
+dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
+```
 
-File and conversation references now enter the official InputTrigger menu as well. File candidates come from the current project's authorized roots and insert `@<path> `; conversation candidates insert `#<title> `. The public rc.7 trigger characters are limited to `/` and `@`, so both sources temporarily share the `@` menu instead of presenting a separate `#` menu as an official capability. The standalone development page keeps the old pickers when no DSH Client Host exists.
+`@linxin666/dsh-web-ui-all` is used only for conflict experiments and is not a release input. Better Sidebar, remote Web, SSH, image understanding, Agent presets, and community plugin managers are not in the default Profile. A community package does not enter the curated set without a fixed source, dependency review, real Electron evidence, and uninstall evidence.
 
-## Relationship with the official DSH Web
+## Electron native boundary
 
-DeepSeek Harness Desktop App is not an iframe around DSH Web and does not copy the Agent runtime. Electron starts the DSH Web Profile and continues to use its Sessions, Agents, Tools, Skills, MCP, Settings, Profile Bundles, and Client Loader. DeepSeek Harness Desktop App provides its desktop shell on the same runtime path and adds project management, file authorization, Browser Workspace, Git Worktrees, Canvas, Sites, and Office artifacts.
+The `webContents` that hosts the official Web has no product preload, Node access, or general IPC. The Electron main process retains only narrow native Host services for windows, updates, file authorization, and Browser Workspace. Browser navigation, tabs, downloads, history, find-in-page, zoom, page capture, and permission requests use an allowlisted method set, Session binding, and boundary validation. A third-party Client cannot access Electron objects or the Node filesystem.
 
-Product capabilities needed by the model enter through the bound Session and DSH Tools. DeepSeek Harness Desktop App continues to own project data, file permissions, browser state, Worktrees, and artifact versions.
+## Startup recovery
 
-## Current boundaries
+When the DSH child, Profile parsing, or Client startup fails, the app opens a local recovery page instead of showing a blank window or silently changing the original Profile. The page supports retrying the original Profile, starting a safe Profile containing only the official `base` and `web-app` without modifying the original, opening the Profile directory, removing a named plugin after explicit confirmation, and exporting filtered diagnostics.
 
-- The base Profile does not include a five-column task board, Git graph, or SSH. Installing the reviewed `dsh-web-ui` adds the five-column task board, Git graph, and SSH entry; a standalone scheduling page, complete stage/unstage workflow, and standalone terminal page still lack product acceptance.
-- Local Sites support preview and single-file export but not deployment. Public sharing currently has a read-only viewer only.
-- The base Profile does not include mobile remote control, QR pairing, public tunnels, SSH, SFTP, or port forwarding. `dsh-web-ui` contains some of these high-permission capabilities, but those paths have not completed product-level security acceptance and are not enabled by default.
-- Sub-Agents can run and appear in conversations and trajectories, but there is no complete standalone management page yet.
+Diagnostics are bounded and omit environment variables, credentials, Session content, user-file content, and full stacks. The latest failure stage and action result are stored in restricted local recovery state to avoid an endless restart loop.
 
-## Data and security
+## Evidence levels
 
-Profiles, Sessions, projects, run records, and artifact data are stored locally under `~/.dsh` by default. Project source directories are read-only until the user explicitly authorizes Agent writes.
+Source inspection and unit tests do not substitute for real release evidence. The repository keeps these levels separate:
 
-See [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the full rules.
+- Source and Profile integration: official Web composition, read-only existing Profiles, fixed tarballs, offline initialization, and permission projection tests;
+- Real Electron: official Web startup without preload, community task-board activation, and Browser Workspace WebContentsView smoke;
+- Packaged app: `package:mac:dir` creates the packaged directory and `smoke:official-web` checks the packaged official Web. On the current machine Electron's Viz compositor cannot provide a WebContentsView screenshot, so the Browser Workspace smoke reports `compositor-unavailable` explicitly rather than treating the screenshot as passed. Signing, notarization, Windows hardware acceptance, and clean-user update/uninstall recovery remain gates for their release environments.
 
-## Platform status
-
-| Platform | Current status |
-|---|---|
-| macOS Apple Silicon | Development and directory packages verified |
-| macOS Intel | Rosetta checks pass; Intel hardware acceptance remains |
-| Windows x64 | Build path is present; installer acceptance remains |
-| Windows arm64 | Unsupported |
-| Linux | No desktop packaging configuration |
-
-## License
-
-Project code uses the [MIT License](LICENSE). Third-party origins, licenses, and distribution restrictions are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+See the [distribution migration plan](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md), [privacy notice](PRIVACY.md), [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
