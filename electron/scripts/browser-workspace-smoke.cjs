@@ -7,6 +7,7 @@ const { app, BrowserWindow, WebContentsView, session } = require('electron');
 const { BrowserWorkspaceController } = require('../browser-workspace');
 
 const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-workspace-smoke-'));
+const screenshotDirectory = String(process.env.DSH_BROWSER_SCREENSHOT_DIR || '').trim();
 app.setName('BrowserWorkspaceSmoke');
 app.setPath('userData', userDataPath);
 app.commandLine.appendSwitch('use-angle', 'swiftshader');
@@ -128,9 +129,15 @@ async function run() {
   stage = 'screenshot';
   await new Promise((resolve) => setTimeout(resolve, 500));
   let screenshotStatus = 'passed';
+  let screenshotPath = null;
   try {
     const screenshot = await controller.captureScreenshot(firstTabId);
     assert.equal(screenshot.png.length > 100, true);
+    if (screenshotDirectory) {
+      fs.mkdirSync(screenshotDirectory, { recursive: true });
+      screenshotPath = path.join(screenshotDirectory, 'browser-workspace.png');
+      fs.writeFileSync(screenshotPath, screenshot.png, { mode: 0o600 });
+    }
   } catch (error) {
     if (String(error?.message || error) !== 'UnknownVizError') throw error;
     screenshotStatus = 'compositor-unavailable';
@@ -179,7 +186,7 @@ async function run() {
   controller.removeHistory(popupHistory.id);
   assert.equal(controller.getState().history.some((item) => item.id === popupHistory.id), false);
 
-  console.log(`[browser-smoke] PASS 真实 WebContentsView 加载/导航/标签/弹窗/下载/历史/查找/缩放/沙箱/页面抓取，截图=${screenshotStatus}`);
+  console.log(`[browser-smoke] PASS 真实 WebContentsView 加载/导航/标签/弹窗/下载/历史/查找/缩放/沙箱/页面抓取，截图=${screenshotStatus}${screenshotPath ? `，path=${screenshotPath}` : ''}`);
 }
 
 app.whenReady()

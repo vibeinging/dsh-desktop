@@ -219,6 +219,42 @@ function normalizeCapturedPage(value) {
   };
 }
 
+async function captureBrowserScreenshot(webContents, bounds) {
+  try {
+    const image = await webContents.capturePage(bounds, { stayHidden: false });
+    if (image.isEmpty()) throw new Error('网页截图为空');
+    return image.toPNG();
+  } catch (error) {
+    if (String(error?.message || error) !== 'UnknownVizError') throw error;
+    const debuggerAgent = webContents.debugger;
+    if (!debuggerAgent || typeof debuggerAgent.sendCommand !== 'function') throw error;
+    let attached = false;
+    try {
+      if (!debuggerAgent.isAttached?.()) {
+        debuggerAgent.attach('1.3');
+        attached = true;
+      }
+      const result = await debuggerAgent.sendCommand('Page.captureScreenshot', {
+        format: 'png',
+        fromSurface: true,
+        captureBeyondViewport: false,
+        clip: { x: 0, y: 0, width: bounds.width, height: bounds.height, scale: 1 },
+      });
+      const png = Buffer.from(String(result?.data || ''), 'base64');
+      if (!png.length) throw new Error('DevTools 截图为空');
+      return png;
+    } catch (fallbackError) {
+      // The compositor error remains the authoritative result if DevTools cannot attach.
+      void fallbackError;
+      throw error;
+    } finally {
+      if (attached) {
+        try { debuggerAgent.detach(); } catch { /* a failed detach must not mask the screenshot result */ }
+      }
+    }
+  }
+}
+
 class BrowserWorkspaceController {
   constructor({ WebContentsView, browserSession, getParentWindow, userDataPath, downloadDirectory, sendEvent, isDev = false }) {
     if (typeof WebContentsView !== 'function') throw new Error('Electron WebContentsView 不可用');
@@ -770,9 +806,8 @@ class BrowserWorkspaceController {
   async captureScreenshot(tabId) {
     const tab = this.tabById(tabId) || this.activeTab();
     if (!tab) throw new Error('没有可截图的网页');
-    const image = await tab.view.webContents.capturePage({ x: 0, y: 0, width: 700, height: 560 }, { stayHidden: false });
-    if (image.isEmpty()) throw new Error('网页截图为空');
-    return { title: sanitizeBrowserTitle(tab.title), png: image.toPNG() };
+    const png = await captureBrowserScreenshot(tab.view.webContents, { x: 0, y: 0, width: 700, height: 560 });
+    return { title: sanitizeBrowserTitle(tab.title), png };
   }
 
   async clearBrowsingData() {

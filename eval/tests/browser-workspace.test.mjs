@@ -105,6 +105,59 @@ test('Browser Workspace persists only private history and permission state', (co
   assert.doesNotMatch(readFileSync(historyPath, 'utf8'), /secret/);
 });
 
+test('Browser Workspace falls back to the page screenshot protocol when Viz is unavailable', async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), 'browser-workspace-screenshot-'));
+  const browserSession = {
+    setPermissionCheckHandler() {},
+    setPermissionRequestHandler() {},
+    on() {},
+    removeListener() {},
+  };
+  const controller = new BrowserWorkspaceController({
+    WebContentsView: function FakeWebContentsView() {},
+    browserSession,
+    getParentWindow: () => null,
+    userDataPath,
+    sendEvent: () => {},
+  });
+  let detached = false;
+  controller.tabs = [{
+    id: 'tab-1',
+    title: '截图页面',
+    view: {
+      webContents: {
+        async capturePage() {
+          throw new Error('UnknownVizError');
+        },
+        debugger: {
+          isAttached: () => false,
+          attach(version) {
+            assert.equal(version, '1.3');
+          },
+          async sendCommand(method, params) {
+            assert.equal(method, 'Page.captureScreenshot');
+            assert.deepEqual(params.clip, { x: 0, y: 0, width: 700, height: 560, scale: 1 });
+            return { data: Buffer.from('fallback-png').toString('base64') };
+          },
+          detach() {
+            detached = true;
+          },
+        },
+      },
+    },
+  }];
+  controller.activeTabId = 'tab-1';
+  try {
+    const result = await controller.captureScreenshot('tab-1');
+    assert.equal(result.title, '截图页面');
+    assert.deepEqual(result.png, Buffer.from('fallback-png'));
+    assert.equal(detached, true);
+  } finally {
+    controller.destroy();
+    rmSync(userDataPath, { recursive: true, force: true });
+  }
+});
+
 test('Electron keeps Browser Workspace behind the trusted main-to-Server Host channel', () => {
   const main = readFileSync(new URL('../../electron/main.js', import.meta.url), 'utf8');
   const browserHost = readFileSync(new URL('../../electron/browser-workspace.js', import.meta.url), 'utf8');

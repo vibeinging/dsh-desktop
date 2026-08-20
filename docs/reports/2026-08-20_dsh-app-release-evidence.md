@@ -78,7 +78,7 @@
 
 Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/manifest.json`、`permissions.json`、`THIRD_PARTY_NOTICES.md` 和 `test-expected.json` 为准；预算门禁只接受重新生成的产物和新一轮 smoke 结果。
 
-当前机器的 Electron Viz 合成器不能提供 WebContentsView 截图，所以 Browser Workspace smoke 将截图结果标记为 `compositor-unavailable`，其余导航、标签、下载、历史、查找、缩放、沙箱和页面抓取仍单独通过。这个环境限制不能写成截图验证通过。
+Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合成器返回 `UnknownVizError` 时，Native Host 会在同一个受控 `webContents` 上回退到 DevTools `Page.captureScreenshot`，本轮真实 Electron smoke 已保存 700x560 PNG 并完成可视检查。其余导航、标签、下载、历史、查找、缩放、沙箱和页面抓取也单独通过。
 
 更新器 smoke 在临时旧 App 中使用本地 HTTPS feed、真实 `electron-updater`、固定 SHA-512 zip 和真实 Profile 预检。它先用随包固定 tarball 和官方 `dsh plugin --profile` 命令建立完整 Profile，再官方卸载 portable Bundle `@vibeinging/dsh-model-inheritance`；旧 App 的精选输入随后暂时移除该项，更新归档恢复完整精选清单，但 Developer ID 签名探针更新完成后，Profile manifest、Profile patch 保持字节不变，已卸载 Bundle 没有被恢复。ad hoc 目录包按预期在 ShipIt 代码签名校验处记录 `failed-to-start`；使用 Developer ID 身份 `03587EF7C8984E0F7631EC905C26336C15C8189D` 的签名目录包则完成下载、Profile 预检、ShipIt 替换和新版本 `success` 历史回放，更新归档为 `439263042` bytes。签名探针通过 `codesign --verify --deep --strict`，但尚未公证，因此不把它写成 Gatekeeper 或公开安装器已完成。
 
@@ -88,6 +88,6 @@ Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/ma
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
 - 当前证据已经包含 Developer ID 签名目录包和真实签名 updater 替换回归，但还不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态的全平台证据；断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和当前 macOS arm64 预算门禁已通过。
 - `npm run package:mac:x64:dir` 已尝试但未产出 x64 包；目标准备阶段的 `koffi` 构建仍落在 `darwin_arm64`，并以 arm64 N-API/uv 符号链接失败。需要原生 x64 或可用的交叉构建环境补齐 macOS x64 证据。
-- 官方 Web 的审批/队列截图已通过 CDP 持久化到本机 smoke 归档，但公开截图和安装录制仍需在发行环境重新采集；Browser Workspace 的截图仍受当前 Electron Viz 合成器限制，loopback 模型也不替代真实 DeepSeek 服务验收。
+- 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化；公开截图和安装录制仍需在发行环境重新采集，loopback 模型也不替代真实 DeepSeek 服务验收。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。
