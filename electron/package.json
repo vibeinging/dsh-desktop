@@ -142,6 +142,9 @@
       "icon": "icons/icon.icns",
       "category": "public.app-category.productivity",
       "hardenedRuntime": true,
+      "signIgnore": [
+        ".*\\.(js|mjs|cjs|ts|mts|cts|map|md|markdown|json|yaml|yml|bcmap|pak|bin|html|svg|woff|woff2|ttf|eot|icns|txt|docx|css|scss|gyp|gypi|h|hh|hpp|c|cc|cpp|py|s|proto|png|jpg|jpeg|gif|webp|pfb|xml|wasm|lock|flow|tsbuildinfo|inc|asm|def)$"
+      ],
       "notarize": true,
       "target": [
         "dmg",

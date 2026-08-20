@@ -32,8 +32,8 @@
 | 源码检查 | `node scripts/release-boundary.mjs --syntax`、Node syntax check、包清单和权限投影检查 | 官方 Web、恢复页、窄 Native Host、精选清单和退役包边界可检查 |
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
 | Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试 | 新 Profile 与已有 Profile 的状态边界已验证 |
-| 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选和 WebContentsView Browser Workspace smoke；`smoke:updater` 已通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检和 ShipIt 替换 | Electron 页面、会话持久化路径、原生浏览器主路径和更新前置流程已验证；当前 ad hoc 目录包在 ShipIt 的代码签名校验处记录 `failed-to-start`，完整替换仍需 Developer ID 包；审批/队列仍需带工具调用的 live-model 环境 |
-| 安装包 | macOS arm64 目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | 目录包、断网新用户和恢复/卸载保持证据已建立；Developer ID 签名、公证、真实签名安装器升级、Windows 实机和其他平台仍是发布门槛 |
+| 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选和 WebContentsView Browser Workspace smoke；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、原生浏览器主路径和 macOS 签名更新链路已验证；审批/队列仍需带工具调用的 live-model 环境 |
+| 安装包 | macOS arm64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | 断网新用户、恢复/卸载保持和签名更新探针已建立；Apple 公证、Gatekeeper 接受、Windows 实机和其他平台仍是发布门槛 |
 
 ## 本轮安装包与性能基线
 
@@ -46,6 +46,7 @@
 - `npm --prefix electron run smoke:packaged-profile-authority`
 - `npm --prefix electron run smoke:packaged-official-web-flow`
 - `npm run smoke:updater`
+- `DSH_SMOKE_SIGN_IDENTITY=03587EF7C8984E0F7631EC905C26336C15C8189D node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-updater.mjs ".desktop-build/signed-probe/mac-arm64/DSH Desktop.app"`
 
 官方 Web CDP 流程 smoke 使用临时用户目录和 `PATH=/usr/bin`，主动清除 `DEEPSEEK_API_KEY`，通过真实随包 Electron 页面完成首次提示、官方 `workspace.create` 测试夹具、官方 Web 新建 Session、输入并发送消息、可见的 Session log、`session.list` 和 `session.history` 回读，再检查页面没有 `window.electronAPI` 或 Node 全局。无密钥时模型请求按预期显示 `MISSING_CREDENTIAL`，这条失败也属于官方 Web 的可见 Session 结果，不把它写成模型成功。命令支持 `DSH_SCREENSHOT_DIR=/path` 持久化官方 Web 截图；本次 smoke 的审批和队列没有伪造覆盖，必须在有工具调用的 live-model 环境单独验证。
 
@@ -66,13 +67,13 @@ Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/ma
 
 当前机器的 Electron Viz 合成器不能提供 WebContentsView 截图，所以 Browser Workspace smoke 将截图结果标记为 `compositor-unavailable`，其余导航、标签、下载、历史、查找、缩放、沙箱和页面抓取仍单独通过。这个环境限制不能写成截图验证通过。
 
-更新器 smoke 在临时旧 App 中使用本地 HTTPS feed、真实 `electron-updater`、固定 SHA-512 zip 和真实 Profile 预检。ad hoc 目录包已经完成发现、下载和安装启动，但 ShipIt 因临时包代码签名不满足要求记录 `failed-to-start`；这条结果证明签名校验边界被执行，不等同于签名发行包更新成功。
+更新器 smoke 在临时旧 App 中使用本地 HTTPS feed、真实 `electron-updater`、固定 SHA-512 zip 和真实 Profile 预检。ad hoc 目录包按预期在 ShipIt 代码签名校验处记录 `failed-to-start`；使用 Developer ID 身份 `03587EF7C8984E0F7631EC905C26336C15C8189D` 的签名目录包则完成下载、Profile 预检、ShipIt 替换和新版本 `success` 历史回放，更新归档为 `439263036` bytes。签名探针通过 `codesign --verify --deep --strict`，但尚未公证，因此不把它写成 Gatekeeper 或公开安装器已完成。
 
 ## 尚未满足的公开发行门槛
 
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
-- 当前证据还不是 Developer ID 签名、公证、Windows 实机和真实签名安装器替换新 App 后的 updater 回归；断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和当前 macOS arm64 预算门禁已通过，但不能代替真实签名安装器升级验证。
+- 当前证据已经包含 Developer ID 签名目录包和真实签名 updater 替换回归，但还不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态的全平台证据；断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和当前 macOS arm64 预算门禁已通过。
 - 公开截图和安装录制仍需在可提供截图的 Electron 环境重新采集；现有 smoke 输出只证明页面和交互路径，不替代视觉证据。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。

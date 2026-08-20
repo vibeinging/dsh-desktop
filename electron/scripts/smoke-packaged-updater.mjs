@@ -51,6 +51,31 @@ async function addUpdaterFixtureConfig(app) {
     join(app, 'Contents', 'Resources', 'app-update.yml'),
     'provider: generic\nurl: https://127.0.0.1\n',
   )
+  const plistPath = join(app, 'Contents', 'Info.plist')
+  try {
+    await runCommand('/usr/libexec/PlistBuddy', ['-c', 'Delete :LSEnvironment', plistPath])
+  } catch {
+    // The fixture starts from a normal Electron bundle without LSEnvironment.
+  }
+  await runCommand('/usr/libexec/PlistBuddy', ['-c', 'Add :LSEnvironment dict', plistPath])
+  for (const [key, value] of [
+    ['DSH_USER_DATA_DIR', userDataDir],
+    ['DSH_DATA_ROOT', dataRoot],
+    ['DSH_AGENT_RUNTIME_HOME', join(tempDir, 'agent-runtime')],
+    ['DSH_SKILLS_ROOT', join(dataRoot, 'skills')],
+  ]) {
+    await runCommand('/usr/libexec/PlistBuddy', ['-c', `Add :LSEnvironment:${key} string ${value}`, plistPath])
+  }
+}
+
+async function signSmokeApp(app) {
+  const identity = String(process.env.DSH_SMOKE_SIGN_IDENTITY || '-').trim() || '-'
+  const args = ['--force', '--sign', identity]
+  if (identity !== '-') {
+    args.push('--options', 'runtime', '--timestamp', '--preserve-metadata=entitlements,requirements,flags')
+  }
+  args.push(app)
+  await runCommand('codesign', args)
 }
 
 async function updateAppVersion(app) {
@@ -69,7 +94,7 @@ async function updateAppVersion(app) {
   await runCommand('/usr/libexec/PlistBuddy', ['-c', `Set :CFBundleShortVersionString ${targetVersion}`, plistPath])
   await runCommand('/usr/libexec/PlistBuddy', ['-c', `Set :CFBundleVersion ${targetVersion}`, plistPath])
   await runCommand('/usr/libexec/PlistBuddy', ['-c', `Set :ElectronAsarIntegrity:Resources/app.asar:hash ${asarHash}`, plistPath])
-  await runCommand('codesign', ['--force', '--deep', '--sign', '-', app])
+  await signSmokeApp(app)
 }
 
 async function hashFile(filePath) {
@@ -84,6 +109,7 @@ async function prepareUpdateArchive() {
   await cloneApp(currentApp, updatedApp)
   await addUpdaterFixtureConfig(oldApp)
   await addUpdaterFixtureConfig(updatedApp)
+  await signSmokeApp(oldApp)
   await updateAppVersion(updatedApp)
   await runCommand('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', updatedApp, updateZip])
   const updateStat = await stat(updateZip)
@@ -225,7 +251,9 @@ try {
       break
     }
     if (childError) throw new Error(`updater smoke 旧 App 启动失败: ${childError.message}\n${output.join('')}`)
-    if (childExit) throw new Error(`updater smoke 旧 App 提前退出 code=${childExit.code} signal=${childExit.signal}\n${output.join('')}`)
+    if (childExit && (childExit.code !== 0 || childExit.signal)) {
+      throw new Error(`updater smoke 旧 App 提前退出 code=${childExit.code} signal=${childExit.signal}\n${output.join('')}`)
+    }
     await sleep(500)
   }
   const entry = history?.entries?.[0]
