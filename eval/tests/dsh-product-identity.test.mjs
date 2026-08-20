@@ -10,6 +10,7 @@ test('product copy and package metadata use the DeepSeek Harness Desktop App ide
   assert.match(read('README.md'), /^# DeepSeek Harness Desktop App$/m)
   assert.equal(JSON.parse(read('package.json')).productName, 'DeepSeek Harness Desktop App')
   assert.equal(JSON.parse(read('electron/package.json')).build.productName, 'DeepSeek Harness Desktop App')
+  assert.equal(JSON.parse(read('electron/package.json')).build.appId, 'com.vibeinging.dsh-desktop')
   assert.match(read('renderer/index.html'), /DeepSeek Harness Desktop App/)
   assert.match(read('server/src/config/app_name.js'), /DeepSeek Harness Desktop App/)
   assert.match(read('server/.agents/plugins/marketplace.json'), /DSH 内置能力/)
