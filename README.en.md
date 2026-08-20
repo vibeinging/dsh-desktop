@@ -32,6 +32,7 @@ npm run smoke:official-web:interactions
 npm run smoke:updater
 npm run smoke:browser-workspace
 npm run test:release
+npm run test:release:community
 ```
 
 ## Profile and plugin state

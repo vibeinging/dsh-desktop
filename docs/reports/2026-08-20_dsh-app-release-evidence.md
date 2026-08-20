@@ -23,6 +23,8 @@
 
 `@vibeinging/dsh-model-inheritance` 已在纯官方 Web Profile 通过官方命令安装和真实 Electron 启动检查。`@linxin666/dsh-client-ui-task-board@0.1.20` 已完成固定版本网络预检、官方 Web 激活、真实 Electron 启动、官方卸载命令和重启保持检查；它目前仍是可选社区候选，不进入默认精选。`@linxin666/dsh-web-ui-all`、Better Sidebar、远程 Web、SSH、图像理解、Agent 预设和社区插件管理器均未进入发行 Profile。
 
+2026-08-21 通过 `npm run test:release:community` 重新运行了 task-board 的真实网络回归；临时 DSH Profile 完成固定版本预检、官方命令安装、官方 Web 激活、打包 Electron Client 加载、官方卸载、重启后 Client 消失和最终 Profile 状态检查，1 项通过，0 项失败。该命令不会使用用户现有的 DSH_HOME。
+
 本轮对首批社区 UI 候选做了当前版本复核。`@linxin666/dsh-chat-recovery@0.2.5` 的固定完整性为 `sha512-vuPCcZfBgJijpVyNpb9VJgSuIB+7Zo+4RsZiDN3m6We3T7uekDcr1FlbcB4+xNKFCnxaJKCKb1ROBCoXbyCfbQ==`，其构建依赖 DSH `0.1.0-rc.8`；当前应用固定为 `0.1.0-rc.7`，真实 Profile 预检返回 `migration_required` 和 `DSH_PROFILE_CLIENT_SDK_MISMATCH`，因此记录为已审查但当前发行线阻塞的候选，不进入精选清单。`dsh-better-sidebar@0.14.0` 的固定完整性为 `sha512-bEjHvHnlNnKXkud+/A/kZ4VJvPt79ggHy/mKqEKfODPqLFpvdz7ZcoMCI3K4naPOw/0Wlqp6J3UDR9h2Wm6w4w==`，大小约 11.4 MB；真实预检报告 13 个 SDK 依赖仍属 rc.8，并检测到 node-pty、Shell、文件、Git 和浏览器能力，保持 `preflight-only-host-adapter-required`，不进入发行 Profile。
 
 本轮新增了社区视觉资产许可门禁。`@linxin666/dsh-web-ui-all@0.1.20` 和 `@linxin666/dsh-client-ui-skin-center@0.1.20` 的包级许可证记录为 Apache-2.0，但它们带入的 `@linxin666/dsh-skins` 资产说明包含 CC BY-NC-SA 4.0 的 Maid Atelier 皮肤；在没有逐项再分发授权前，两个目录项都标记为 `asset-license-blocked`，并由 `release-boundary` 阻止未批准视觉资产进入精选清单。发行包当前不携带皮肤中心或皮肤资产，继续使用官方外观。
@@ -49,6 +51,7 @@
 - `npm --prefix electron run smoke:packaged-official-web-flow`
 - `DSH_SCREENSHOT_DIR=.desktop-build/evidence/official-web-interactions npm --prefix electron run smoke:packaged-official-web-interactions`
 - `npm run release:check:static`
+- `npm run test:release:community`
 - `npm run smoke:updater`
 - `DSH_SMOKE_SIGN_IDENTITY=03587EF7C8984E0F7631EC905C26336C15C8189D node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-updater.mjs ".desktop-build/signed-probe/mac-arm64/DSH Desktop.app"`
 
