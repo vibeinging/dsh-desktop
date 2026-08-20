@@ -46,9 +46,11 @@ export function inspectOfficialWebReleaseBoundary(root = ROOT) {
   const mainPath = join(appRoot, "electron", "main.js");
   const packagePath = join(appRoot, "electron", "package.json");
   const preparePackagePath = join(appRoot, "electron", "scripts", "prepare-package.mjs");
+  const defaultDevPath = join(appRoot, "scripts", "dev.mjs");
   const recoveryPath = join(appRoot, "electron", "recovery.html");
   const main = readText(mainPath);
   const preparePackage = readText(preparePackagePath);
+  const defaultDev = existsSync(defaultDevPath) ? readText(defaultDevPath) : "";
   const electronPackage = readJson(packagePath);
   const files = Array.isArray(electronPackage.build?.files) ? electronPackage.build.files : [];
   const featured = readJson(join(appRoot, "server", "src", "engine", "dsh_runtime", "featured_plugins.json"));
@@ -59,6 +61,9 @@ export function inspectOfficialWebReleaseBoundary(root = ROOT) {
   }
   if (!/profile-preflight/.test(main)) {
     errors.push("应用更新没有调用 DSH Profile 只读预检");
+  }
+  if (/buildDshClientPlugin|build:dsh-client|dsh-work Client Plugin/.test(defaultDev)) {
+    errors.push("默认开发入口仍会构建退役 Renderer 或自研 Client");
   }
   if (/\bipcMain\b|\bpreload\s*:|window\.electronAPI/.test(main)) {
     errors.push("官方 Web 主窗口仍包含通用 IPC、preload 或 electronAPI");
