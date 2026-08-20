@@ -558,7 +558,7 @@ function addSlideText(slide, item, index, total, accent) {
 export async function createPptxFile(outputPath, specification = {}) {
   const presentation = new PptxGenJS();
   presentation.layout = "LAYOUT_WIDE";
-  presentation.author = "DeepSeek Harness Desktop App";
+  presentation.author = "DSH Desktop";
   presentation.subject = String(specification.title || "本地演示文稿");
   presentation.title = String(specification.title || "本地演示文稿");
   presentation.company = "DeepSeek AI";

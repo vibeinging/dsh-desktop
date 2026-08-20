@@ -514,7 +514,7 @@ test("the Office Bundle follows Agent scope disposal and DSH write approval", as
   assert.deepEqual(registered, ["artifact_office_inspect", "artifact_office_create", "artifact_office_edit"]);
   assert.deepEqual(await handlers.get("tools/pre-execute")({ name: "artifact_office_edit" }, () => "next"), {
     kind: "ask",
-    reason: "artifact_office_edit changes parent-owned DeepSeek Harness Desktop App product data",
+    reason: "artifact_office_edit changes parent-owned DSH Desktop product data",
   });
   assert.equal(await handlers.get("tools/pre-execute")({ name: "artifact_office_inspect" }, () => "next"), "next");
   handlers.get("agent/disposed")({ agent });
@@ -678,7 +678,7 @@ test("the Canvas Bundle follows Agent scope disposal and DSH write approval", as
   assert.deepEqual(registered, ["canvas_inspect", "canvas_create", "canvas_edit", "canvas_suggest"]);
   assert.deepEqual(await handlers.get("tools/pre-execute")({ name: "canvas_edit" }, () => "next"), {
     kind: "ask",
-    reason: "canvas_edit changes parent-owned DeepSeek Harness Desktop App product data",
+    reason: "canvas_edit changes parent-owned DSH Desktop product data",
   });
   assert.equal(await handlers.get("tools/pre-execute")({ name: "canvas_inspect" }, () => "next"), "next");
   handlers.get("agent/disposed")({ agent });
