@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url)
 const { createPackage, extractAll, extractFile } = require('@electron/asar')
 const run = promisify(execFile)
 const appInput = process.argv[2] || '../release/mac-arm64/DSH Desktop.app'
-const { appPath } = resolvePackagedLayout(appInput)
+const { appPath, executable, resourcesDir } = resolvePackagedLayout(appInput)
 const currentApp = appPath || appInput
 const targetVersion = '0.0.2'
 const tempDir = await mkdtemp(join(tmpdir(), 'dsh-packaged-updater-'))
@@ -23,6 +23,10 @@ const updatedApp = join(tempDir, 'updated', 'DSH Desktop.app')
 const updateZip = join(tempDir, `dsh-desktop-${targetVersion}-mac-arm64.zip`)
 const userDataDir = join(tempDir, 'user-data')
 const dataRoot = join(tempDir, 'data')
+const serverDir = join(resourcesDir, 'server')
+const dshCli = join(serverDir, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+const pnpmBinDir = join(resourcesDir, 'pnpm-bin')
+const featuredArtifactDir = join(resourcesDir, 'featured-plugins')
 const output = []
 let child
 let server
@@ -33,8 +37,8 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function runCommand(command, args) {
-  return run(command, args, { maxBuffer: 1024 * 1024 * 4 })
+async function runCommand(command, args, options = {}) {
+  return run(command, args, { maxBuffer: 1024 * 1024 * 4, ...options })
 }
 
 async function cloneApp(source, destination) {
@@ -114,6 +118,51 @@ async function prepareUpdateArchive() {
   await runCommand('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', updatedApp, updateZip])
   const updateStat = await stat(updateZip)
   return { size: updateStat.size, sha512: await hashFile(updateZip) }
+}
+
+async function seedExistingProfile() {
+  const artifactManifest = JSON.parse(await readFile(join(featuredArtifactDir, 'manifest.json'), 'utf8'))
+  const commandEnv = {
+    ...process.env,
+    HOME: join(tempDir, 'home'),
+    PATH: `${pnpmBinDir}:/usr/bin`,
+    DSH_HOME: dataRoot,
+    DSH_RUNTIME_HOME: dataRoot,
+    DSH_RUNTIME_DISTRIBUTION: 'npm',
+    DSH_PROFILE_PLUGIN_LIBRARY: join(dataRoot, 'plugin-library'),
+    DSH_FEATURED_PLUGIN_TARBALL_DIR: featuredArtifactDir,
+    DSH_FEATURED_PLUGIN_MANIFEST: join(featuredArtifactDir, 'manifest.json'),
+    DSH_PNPM_BIN_DIR: pnpmBinDir,
+    DSH_PNPM_NODE_BIN: executable,
+    DSH_PNPM_REQUIRED: '1',
+    DSH_RUNTIME_INSTALL_ANCHOR: join(serverDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'),
+    ELECTRON_RUN_AS_NODE: '1',
+    npm_config_offline: 'true',
+    pnpm_config_offline: 'true',
+    pnpm_config_store_dir: join(dataRoot, 'plugin-library', 'store'),
+    npm_config_store_dir: join(dataRoot, 'plugin-library', 'store'),
+    pnpm_config_auto_install_peers: 'false',
+    npm_config_auto_install_peers: 'false',
+  }
+  for (const plugin of artifactManifest.plugins) {
+    await runCommand(executable, [
+      dshCli, 'plugin', '--profile', 'web', 'add', '-w',
+      `file:${join(featuredArtifactDir, plugin.tarball)}`,
+      '--save-exact', '--offline', '--ignore-scripts',
+    ], { cwd: serverDir, env: commandEnv })
+  }
+  const removedPackage = artifactManifest.plugins.find((plugin) => plugin.portability === 'portable')?.name
+  if (!removedPackage) throw new Error('精选插件产物清单为空')
+  await runCommand(executable, [dshCli, 'plugin', '--profile', 'web', 'remove', removedPackage], {
+    cwd: serverDir,
+    env: commandEnv,
+  })
+  const profileDir = join(dataRoot, 'profiles', 'web')
+  const manifestPath = join(profileDir, 'package.json')
+  const patchPath = join(profileDir, 'cordis.patch.yml')
+  const manifestText = await readFile(manifestPath, 'utf8')
+  const patchText = await readFile(patchPath, 'utf8')
+  return { manifestPath, manifestText, patchPath, patchText, removedPackage }
 }
 
 async function prepareTls() {
@@ -216,6 +265,7 @@ function terminateTempApps() {
 
 try {
   const archive = await prepareUpdateArchive()
+  const existingProfile = await seedExistingProfile()
   const tls = await prepareTls()
   const apiBaseUrl = await startUpdateServer({ tls, archive })
   const env = { ...process.env }
@@ -265,7 +315,16 @@ try {
   if (installedInfo !== targetVersion || installedPackage.version !== targetVersion) {
     throw new Error(`updater smoke 替换后的 App 版本不一致: plist=${installedInfo} package=${installedPackage.version}`)
   }
-  console.log(`[smoke] PASS 真实 electron-updater 下载、Profile 预检、临时 App 替换和新版本历史回放; version=${targetVersion}; archive_bytes=${archive.size}`)
+  const updatedManifestText = await readFile(existingProfile.manifestPath, 'utf8')
+  const updatedPatchText = await readFile(existingProfile.patchPath, 'utf8')
+  const updatedManifest = JSON.parse(updatedManifestText)
+  if (updatedManifestText !== existingProfile.manifestText || updatedPatchText !== existingProfile.patchText) {
+    throw new Error('真实 updater 替换改写了已有 Profile manifest 或用户 patch')
+  }
+  if (updatedManifest.dsh?.profile?.bundles?.includes(existingProfile.removedPackage)) {
+    throw new Error(`真实 updater 恢复了已由官方命令卸载的 Bundle：${existingProfile.removedPackage}`)
+  }
+  console.log(`[smoke] PASS 真实 electron-updater 下载、Profile 预检、官方卸载结果原样保留、临时 App 替换和新版本历史回放; removed=${existingProfile.removedPackage}; version=${targetVersion}; archive_bytes=${archive.size}`)
 } finally {
   try { child?.kill() } catch { /* ignore */ }
   terminateTempApps()
