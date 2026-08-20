@@ -43,7 +43,7 @@
 - `npm --prefix electron run smoke:packaged-recovery`
 - `npm --prefix electron run smoke:packaged-profile-authority`
 
-断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，两次观测的 `cold_web_ms` 为 `4492` 和 `7754`，初始化后数据目录大小均为 `2675749` 字节。Profile authority smoke 用随包 DSH CLI 移除了 portable Bundle `@vibeinging/dsh-model-inheritance`，写入待更新记录后再次启动；Profile 清单保持原样，已卸载 Bundle 未被重启或更新记录回放恢复。
+断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，当前观测的 `cold_web_ms` 为 `4967`（此前观测为 `4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，用随包 DSH CLI 移除了 portable Bundle `@vibeinging/dsh-model-inheritance`，写入待更新记录后再次启动；Profile 清单保持原样，已卸载 Bundle 未被重启或更新记录回放恢复。
 
 当前目录包体积基线如下，尚未设定可接受预算，因此不能据此宣称性能门槛通过：
 
