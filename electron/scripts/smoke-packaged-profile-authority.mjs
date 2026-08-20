@@ -76,12 +76,12 @@ async function runOfficialRemove(packageName) {
     DSH_PNPM_NODE_BIN: executable,
     pnpm_config_store_dir: join(dataRoot, 'plugin-library', 'store'),
     npm_config_store_dir: join(dataRoot, 'plugin-library', 'store'),
+    pnpm_config_auto_install_peers: 'false',
+    npm_config_auto_install_peers: 'false',
     DSH_PNPM_REQUIRED: '1',
     ELECTRON_RUN_AS_NODE: '1',
     DSH_RUNTIME_INSTALL_ANCHOR: join(serverDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'),
   }
-  delete env.npm_config_offline
-  delete env.pnpm_config_offline
   const child = spawn(executable, [dshCli, 'plugin', '--profile', 'web', 'remove', packageName], {
     cwd: serverDir,
     env,
