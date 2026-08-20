@@ -9,7 +9,7 @@
 - Electron 主窗口只加载官方 `dsh-web-app` loopback surface，不再向官方 Web 注入产品 preload、Node 或通用 IPC。
 - Browser Workspace 保留在主进程，通过方法白名单、Session 请求关联、目标 URL、路径和权限校验提供窄 Native Host 服务。
 - 启动失败进入本地恢复页；重试、安全 Profile、打开 Profile、用户确认移除插件和隐私过滤诊断都是独立动作，原 Profile 不因恢复而被改写。
-- Profile 初始化只在新 Profile 上执行。已有 Profile 的启动和状态查询读取官方清单、依赖和最终图，不补回或隔离用户 Bundle。
+- Profile 初始化只在新 Profile 上执行。已有 Profile 的启动和状态查询读取官方清单、依赖和最终图，不补回或隔离用户 Bundle；用户 patch 停用的 Bundle 也保持在官方配置图之外，不被应用改写。
 - 应用更新安装前执行当前 Profile 和 `--dump-config` 只读预检；预检失败不会创建待安装记录或调用 `quitAndInstall`。
 - 自研替换 Shell、旧产品 Client UI、工作台目录和自研主题包已从发行包输入中移除；源代码中保留的旧 Renderer 不在 Electron 打包清单和发布边界内。
 
@@ -45,7 +45,7 @@
 
 ## 本轮安装包与性能基线
 
-2026-08-20 在 macOS arm64 目录包上运行了以下命令：
+2026-08-21 在 macOS arm64 目录包上运行了以下命令：
 
 - `npm --prefix electron run smoke:packaged-server`
 - `npm --prefix electron run smoke:packaged-app`
@@ -63,7 +63,7 @@
 
 官方 Web 交互 smoke 使用同一 macOS arm64 打包 Electron，但把 DSH 官方 DeepSeek 适配器的 loopback endpoint 指向脚本内的确定性 SSE 测试服务，并设置 `DEEPSEEK_API_KEY` 仅作为测试凭据；它没有访问外网或真实模型。第一轮由测试模型发起 `ask_user_question`，官方 Web 问题卡片显示选项，脚本选择并提交“继续执行”；随后 bash 写入 Profile 工作区之外的临时 marker，真实沙箱返回拒绝；第二轮由测试模型提交相同命令及 `danger-full-access` 与 justification，官方审批服务向官方 Web 发布审批卡片，点击 `Allow once` 后真实写入 marker。此期间通过官方 `session.prompt({ mode: "queue" })` 接受第二条消息，官方 `session/queue` 投影渲染 QueueDock，首轮完成后排队消息再次经过官方 LLM 和 Session history。脚本还检查了实际 marker 内容为 `approved\n`，所以没有把模型文本当成工具成功证据。本次截图保存在 `electron/.desktop-build/evidence/official-web-interactions/official-web-approval-queue.png`、`official-web-question-pending.png`、`official-web-approval-pending.png` 和 `official-web-session-flow.png`；这是本机 smoke 归档，不等同于公开安装录制或真实 DeepSeek 服务验收。
 
-断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最近预算门禁观测的 `cold_web_ms` 为 `4718`（此前观测为 `7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，用随包 DSH CLI 移除了 portable Bundle `@vibeinging/dsh-model-inheritance`，写入待更新记录后再次启动；Profile 清单保持原样，已卸载 Bundle 未被重启或更新记录回放恢复。
+断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最近预算门禁观测的 `cold_web_ms` 为 `4718`（此前观测为 `7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择。
 
 当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-20 的 macOS arm64 结果如下：
 

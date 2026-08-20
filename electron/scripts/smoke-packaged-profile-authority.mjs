@@ -1,8 +1,9 @@
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 
 const appInput = process.argv[2] || '../release/mac-arm64/DSH Desktop.app'
@@ -16,6 +17,7 @@ const dshCli = join(serverDir, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bi
 const pnpmBinDir = join(resourcesDir, 'pnpm-bin')
 const featuredArtifactDir = join(resourcesDir, 'featured-plugins')
 const appVersion = JSON.parse(await readFile(join(process.cwd(), 'package.json'), 'utf8')).version
+const execFileAsync = promisify(execFile)
 
 function baseEnv() {
   const env = {
@@ -60,7 +62,7 @@ async function runPackagedApp(label) {
   if (!text.includes('Server 退出 code=0')) throw new Error(`${label} Server 没有正常退出\n${text}`)
 }
 
-async function runOfficialRemove(packageName) {
+async function runOfficial(args, label) {
   if (!existsSync(dshCli)) throw new Error(`随包 DSH CLI 不存在：${dshCli}`)
   const childOutput = []
   const env = {
@@ -82,7 +84,7 @@ async function runOfficialRemove(packageName) {
     ELECTRON_RUN_AS_NODE: '1',
     DSH_RUNTIME_INSTALL_ANCHOR: join(serverDir, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'),
   }
-  const child = spawn(executable, [dshCli, 'plugin', '--profile', 'web', 'remove', packageName], {
+  const child = spawn(executable, [dshCli, ...args], {
     cwd: serverDir,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -92,7 +94,7 @@ async function runOfficialRemove(packageName) {
   const result = await new Promise((resolveExit, reject) => {
     const timer = setTimeout(() => {
       child.kill()
-      reject(new Error(`官方移除 ${packageName} 超时\n${childOutput.join('')}`))
+      reject(new Error(`${label} 超时\n${childOutput.join('')}`))
     }, 120_000)
     child.once('error', reject)
     child.once('exit', (code, signal) => {
@@ -100,16 +102,57 @@ async function runOfficialRemove(packageName) {
       resolveExit({ code, signal })
     })
   })
-  if (result.code !== 0) throw new Error(`官方移除 ${packageName} 失败 code=${result.code} signal=${result.signal}\n${childOutput.join('')}`)
+  if (result.code !== 0) throw new Error(`${label} 失败 code=${result.code} signal=${result.signal}\n${childOutput.join('')}`)
+  return childOutput.join('')
+}
+
+async function runOfficialRemove(packageName) {
+  await runOfficial(['plugin', '--profile', 'web', 'remove', packageName], `官方移除 ${packageName}`)
 }
 
 try {
   const manifestPath = join(dataRoot, 'profiles', 'web', 'package.json')
   await runPackagedApp('首次启动')
-  const initial = JSON.parse(await readFile(manifestPath, 'utf8'))
+  const initialText = await readFile(manifestPath, 'utf8')
+  const initial = JSON.parse(initialText)
   const featured = JSON.parse(await readFile(join(resourcesDir, 'server', 'src', 'engine', 'dsh_runtime', 'featured_plugins.json'), 'utf8'))
-  const target = featured.plugins.find((plugin) => plugin.portability === 'portable')?.name
+  const targetPlugin = featured.plugins.find((plugin) => plugin.portability === 'portable')
+  const target = targetPlugin?.name
   if (!target || !initial.dsh?.profile?.bundles?.includes(target)) throw new Error(`没有找到可回归的精选 Bundle：${target || 'unknown'}`)
+
+  const artifacts = JSON.parse(await readFile(join(featuredArtifactDir, 'manifest.json'), 'utf8'))
+  const targetArtifact = artifacts.plugins.find((plugin) => plugin.name === target)
+  if (!targetArtifact?.tarball) throw new Error(`没有找到 ${target} 的固定 tarball 记录`)
+  const targetTarballPath = join(featuredArtifactDir, targetArtifact.tarball)
+  const { stdout: targetPatch } = await execFileAsync('tar', [
+    '-xOf', targetTarballPath, 'package/cordis.patch.yml',
+  ], { maxBuffer: 1024 * 1024 })
+  const targetPatchId = targetPatch.match(/^\s*-?\s*id:\s*([^\s#]+)\s*$/m)?.[1]
+  if (!targetPatchId) throw new Error(`无法解析 ${target} 的 Bundle patch id：${targetTarballPath}`)
+  const homePatchPath = join(dataRoot, 'cordis.patch.yml')
+  await writeFile(homePatchPath, `- id: ${targetPatchId}\n  disabled: true\n`)
+  const disabledDump = await runOfficial(['--profile', 'web', '--dump-config'], '停用 Bundle 的官方只读预检')
+  if (!disabledDump.includes(`id: ${targetPatchId}`) || !disabledDump.includes('disabled: true')) {
+    throw new Error(`官方 dump-config 没有保留用户停用的 ${targetPatchId}`)
+  }
+  const afterDisable = await readFile(manifestPath, 'utf8')
+  if (afterDisable !== initialText) {
+    throw new Error('停用只读预检改写了已有 Profile')
+  }
+  await runPackagedApp('用户停用后重启')
+  if (await readFile(manifestPath, 'utf8') !== afterDisable) throw new Error('用户停用后重启恢复或改写了 Profile')
+
+  const disabledUpdatePath = join(userDataDir, 'pending-app-update.json')
+  await writeFile(disabledUpdatePath, `${JSON.stringify({
+    schemaVersion: 1,
+    fromVersion: appVersion,
+    toVersion: appVersion,
+    requestedAt: new Date().toISOString(),
+    preservedPaths: [userDataDir, dataRoot],
+  }, null, 2)}\n`)
+  await runPackagedApp('用户停用后更新回放')
+  if (await readFile(manifestPath, 'utf8') !== afterDisable) throw new Error('应用更新恢复或改写了用户停用的 Profile')
+  await rm(homePatchPath, { force: true })
 
   await runOfficialRemove(target)
   const afterRemove = await readFile(manifestPath, 'utf8')
@@ -128,7 +171,7 @@ try {
   }, null, 2)}\n`)
   await runPackagedApp('更新后重启回放')
   if (await readFile(manifestPath, 'utf8') !== afterRemove) throw new Error('更新后重启恢复了已卸载的 Bundle 或改写了 Profile')
-  console.log(`[smoke] PASS 官方卸载后重启、更新回放和精选默认输入均不恢复 ${target}`)
+  console.log(`[smoke] PASS 用户停用后重启/更新、官方卸载后重启/更新和精选默认输入均不恢复 ${target}`)
 } finally {
   try {
     await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })
