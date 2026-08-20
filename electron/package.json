@@ -32,6 +32,7 @@
     "smoke:mac:x64:app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs \"../release/mac/DSH Desktop.app\"",
     "smoke:win:server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs ../release/win-unpacked",
     "smoke:win:app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs ../release/win-unpacked",
+    "smoke:win:acceptance": "node ../scripts/run-with-project-node.mjs node scripts/smoke-windows-acceptance.mjs",
     "package:mac:dir": "node ../scripts/run-with-project-node.mjs npm run package:mac:dir:project",
     "package:mac:dir:project": "npm run build:renderer && npm run prepare:mac && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --dir",
     "package:mac:x64:dir": "node ../scripts/run-with-project-node.mjs npm run package:mac:x64:dir:project",

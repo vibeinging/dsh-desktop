@@ -9,6 +9,7 @@ import {
   inspectFeaturedArtifacts,
   inspectOfficialWebReleaseBoundary,
 } from './release-boundary.mjs';
+import { isWindowsAcceptanceReceipt } from './windows-acceptance-receipt.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = resolve(SCRIPT_DIR, '..');
@@ -273,8 +274,8 @@ function inspectWindowsBundle(root, appPath) {
   const receipt = readJson(receiptPath);
   const checks = [check(
     'windows_real_machine_acceptance',
-    receipt?.passed === true && receipt?.platform === 'win32' && receipt?.arch === 'x64' ? 'pass' : 'block',
-    'Windows x64 实机需要保存安装、启动、沙箱、清理和卸载验收回执',
+    isWindowsAcceptanceReceipt(receipt) ? 'pass' : 'block',
+    'Windows x64 实机需要保存完整的安装、启动、断网 Profile、恢复、权限边界、清理和卸载验收回执',
     receiptPath,
   )];
   if (process.platform !== 'win32') {

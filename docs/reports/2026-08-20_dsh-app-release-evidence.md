@@ -97,6 +97,8 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 
 更新器 smoke 在临时旧 App 中使用本地 HTTPS feed、真实 `electron-updater`、固定 SHA-512 zip 和真实 Profile 预检。它先用随包固定 tarball 和官方 `dsh plugin --profile` 命令建立完整 Profile，再官方卸载 portable Bundle `@vibeinging/dsh-model-inheritance`；旧 App 的精选输入随后暂时移除该项，更新归档恢复完整精选清单，但 Developer ID 签名探针更新完成后，Profile manifest、Profile patch 保持字节不变，已卸载 Bundle 没有被恢复。ad hoc 目录包按预期在 ShipIt 代码签名校验处记录 `failed-to-start`；使用 Developer ID 身份 `03587EF7C8984E0F7631EC905C26336C15C8189D` 的签名目录包则完成下载、Profile 预检、ShipIt 替换和新版本 `success` 历史回放，更新归档为 `439263042` bytes。最新正式 arm64 目录包也使用同一身份完成签名，`codesign --verify --deep --strict` 通过；由于本机缺少 `APPLE_APP_SPECIFIC_PASSWORD`，公证没有开始，Gatekeeper 明确返回 `source=Unnotarized Developer ID`，因此仍不把它写成公开安装器已完成。
 
+本轮新增 Windows x64 安装器验收自动化，但尚未把它写成 Windows 实机证据。`electron/scripts/smoke-windows-acceptance.mjs` 只允许在 `win32/x64` 执行：它从 `release/` 找到 NSIS 安装器，在独立临时目录静默安装，等待已安装的主程序和 `resources`，依次运行随包 Server、App、官方 Web 问题/沙箱/审批/队列、断网 Profile、恢复页和 Profile authority smoke，然后通过官方卸载器清理并确认临时目录消失。所有检查通过后才用原子重命名生成 `release/windows-x64-acceptance.json`；脚本失败会删除旧回执，不会留下通过状态。`scripts/windows-acceptance-receipt.mjs` 要求 9 个检查全部成功，`release-safety` 现在按该契约校验回执，`.github/workflows/windows-release.yml` 在 unsigned NSIS 构建后运行该步骤并上传安装器与回执。当前 macOS 工作区没有运行这条 Windows 脚本，也没有生成回执，因此 Windows 实机和签名证据仍保持阻塞。
+
 ## 尚未满足的公开发行门槛
 
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。

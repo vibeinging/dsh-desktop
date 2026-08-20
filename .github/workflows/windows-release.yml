@@ -62,11 +62,18 @@ jobs:
       - name: Smoke packaged app
         run: npm --prefix electron run smoke:win:app
 
-      # 只传安装器本体（win-unpacked 目录数百 MB，不占 artifact 存储）
+      # 只有真实安装、启动、断网 Profile、恢复、权限边界、卸载和清理都通过，
+      # 才生成 release/windows-x64-acceptance.json；发布安全检查会拒绝手写或半成品回执。
+      - name: Install and uninstall acceptance
+        run: npm --prefix electron run smoke:win:acceptance
+
+      # 传安装器和实机验收回执（win-unpacked 目录数百 MB，不占 artifact 存储）
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
           name: dsh-work-win-x64-unsigned
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/windows-x64-acceptance.json
           if-no-files-found: error
           retention-days: 14

@@ -12,6 +12,11 @@ import {
   hasVexDistributionAuthorization,
 } from '../../scripts/release-safety.mjs';
 import { inspectCommunityAssetLicenseBoundary } from '../../scripts/release-boundary.mjs';
+import {
+  WINDOWS_ACCEPTANCE_CHECKS,
+  createWindowsAcceptanceReceipt,
+  isWindowsAcceptanceReceipt,
+} from '../../scripts/windows-acceptance-receipt.mjs';
 
 test('release safety rejects adhoc macOS signatures and accepts Developer ID signatures', () => {
   assert.deepEqual(classifyMacSignatureOutput('Signature=adhoc\nTeamIdentifier=not set'), {
@@ -130,4 +135,17 @@ test('community skin assets need an explicit redistribution decision before rele
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('Windows acceptance receipt requires every real install lifecycle check', () => {
+  const receipt = createWindowsAcceptanceReceipt({
+    installer: 'release/dsh-desktop-0.0.1-win-x64.exe',
+    unpackedApp: 'release/win-unpacked',
+    checks: WINDOWS_ACCEPTANCE_CHECKS.map((name) => ({ name, passed: true, duration_ms: 1 })),
+    startedAt: '2026-08-21T00:00:00.000Z',
+    completedAt: '2026-08-21T00:01:00.000Z',
+  });
+  assert.equal(isWindowsAcceptanceReceipt(receipt), true);
+  assert.equal(isWindowsAcceptanceReceipt({ ...receipt, checks: receipt.checks.slice(1) }), false);
+  assert.equal(isWindowsAcceptanceReceipt({ ...receipt, passed: false }), false);
 });
