@@ -62,6 +62,7 @@ const API_REQUEST_TIMEOUT_MS = Number(process.env.DSH_API_REQUEST_TIMEOUT_MS || 
 const BACKEND_STOP_TIMEOUT_MS = Number(process.env.DSH_BACKEND_STOP_TIMEOUT_MS || 8_000);
 const OFFICIAL_WEB_READY_TIMEOUT_MS = Number(process.env.DSH_OFFICIAL_WEB_READY_TIMEOUT_MS || 60_000);
 const SMOKE_TEST = process.env.DSH_SMOKE_TEST === '1';
+const SMOKE_UPDATE = process.env.DSH_SMOKE_UPDATE === '1';
 const SMOKE_EXPECT_SELECTOR = String(process.env.DSH_SMOKE_EXPECT_SELECTOR || '').trim();
 const SMOKE_REJECT_SELECTOR = String(process.env.DSH_SMOKE_REJECT_SELECTOR || '').trim();
 const SMOKE_CLICK_SELECTORS = parseSmokeClickSelectors(process.env.DSH_SMOKE_CLICK_SELECTORS);
@@ -834,6 +835,26 @@ function initializeAppUpdater() {
       logger: console,
     });
     appUpdateController.start();
+    if (SMOKE_UPDATE) {
+      setTimeout(() => {
+        void appUpdateController.check()
+          .then((state) => {
+            if (state.status !== 'available') throw new Error(`updater smoke 没有发现可用版本: ${state.status}`);
+            return appUpdateController.downloadAndInstall();
+          })
+          .then((state) => {
+            if (!['installing', 'blocked'].includes(state.status)) {
+              throw new Error(`updater smoke 未进入安装阶段: ${state.status}`);
+            }
+            console.info(`[smoke-update] 已完成下载和 Profile 预检，等待临时 App 替换: ${state.status}`);
+          })
+          .catch((error) => {
+            console.error('[smoke-update] 失败:', error?.message || error);
+            process.exitCode = 1;
+            quitApplication();
+          });
+      }, 250);
+    }
   } catch (error) {
     console.error('[updater] 初始化失败:', error?.message || error);
   }

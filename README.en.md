@@ -26,6 +26,7 @@ npm run package:mac:dir
 npm run check:release-artifacts
 npm run smoke:official-web
 npm run smoke:official-web:flow
+npm run smoke:updater
 npm run smoke:browser-workspace
 npm run test:release
 ```
@@ -79,7 +80,7 @@ Diagnostics are bounded and omit environment variables, credentials, Session con
 Source inspection and unit tests do not substitute for real release evidence. The repository keeps these levels separate:
 
 - Source and Profile integration: official Web composition, read-only existing Profiles, fixed tarballs, offline initialization, and permission projection tests;
-- Real Electron: official Web startup without preload, workspace, Session, Session log, history user flow, community task-board activation, and Browser Workspace WebContentsView smoke. `smoke:official-web:flow` uses a temporary user directory without an API key and can save an official Web screenshot with `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow`; approval and queue still need a separate live-model environment with tool calls;
+- Real Electron: official Web startup without preload, workspace, Session, Session log, history user flow, community task-board activation, and Browser Workspace WebContentsView smoke. `smoke:official-web:flow` uses a temporary user directory without an API key and can save an official Web screenshot with `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow`; `smoke:updater` also exercises update metadata, fixed-hash download, Profile preflight, temporary app replacement, and history replay through a local HTTPS feed, but complete replacement requires a Developer ID-signed package; approval and queue still need a separate live-model environment with tool calls;
 - Packaged app: `package:mac:dir` creates the packaged directory and `smoke:official-web` checks the packaged official Web. On the current machine Electron's Viz compositor cannot provide a WebContentsView screenshot, so the Browser Workspace smoke reports `compositor-unavailable` explicitly rather than treating the screenshot as passed. Signing, notarization, Windows hardware acceptance, and clean-user update/uninstall recovery remain gates for their release environments.
 
 See the [distribution migration plan](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md), [privacy notice](PRIVACY.md), [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md).

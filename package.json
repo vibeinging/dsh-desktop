@@ -51,6 +51,7 @@
     "eval:dsh-alignment": "node scripts/run-with-project-node.mjs node eval/run.mjs --suite dsh-alignment --use-configured-models",
     "smoke:official-web": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-app",
     "smoke:official-web:flow": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-official-web-flow",
+    "smoke:updater": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-updater",
     "smoke:browser-workspace": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:browser-workspace"
   }
 }
