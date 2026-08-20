@@ -97,6 +97,8 @@
 
 当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-21 的 macOS arm64 结果如下：
 
+本轮还在当前 `HEAD` `b5d3166` 建立了临时干净 worktree：静态发行门禁仍为 12/12，但完整 `test:release` 有 4 项失败，集中在 Office/Canvas Agent scope 回归和产品身份回归；这些实现与测试仍在本机其他窗口的未提交改动中。现有脏工作区版本的 136 项结果不能替代干净 checkout 基线，直到这些改动由其所有者完成并显式提交前，不把 clean release test 写成通过。
+
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
 | `DSH Desktop.app` | `1,197,026,232` bytes | `1,400,000,000` bytes |
