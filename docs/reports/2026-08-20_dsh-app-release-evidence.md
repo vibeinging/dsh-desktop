@@ -95,7 +95,9 @@
 
 断网新用户 smoke 使用不继承用户环境的系统 PATH、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 Developer ID arm64 目录包预算门禁观测的 `cold_web_ms` 为 `8645`（同一签名包的独立 smoke 曾观测 `4965`、`8928`、`4349`、`8688`；此前观测为 `8184`、`7327`、`4201`、`5053`、`5147`、`4718`、`7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2708180` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
 
-在同一台 Apple Silicon 主机上，使用官方 Node `v24.19.0` `darwin-x64` 二进制并通过 Rosetta 准备依赖后，x64 目录包的随包 Server、断网新用户 Profile、损坏 Bundle 恢复、Profile authority 和官方 Web Session/log/history 流程也均通过；x64 目录包随包 pnpm runtime 也确认为 `11.22.0`，官方 Web smoke 截图为 `.desktop-build/evidence/official-web-x64.Ev0qMl/official-web-session-flow.png`，最新串行断网 smoke 的 Rosetta 冷启动观测为 `121710` ms。该观测明显包含 Rosetta 成本，不替代原生 x64 机器的性能验收；x64 目录包也未签名，不能替代 Windows、Developer ID、公证或 Gatekeeper 证据。
+此前在同一台 Apple Silicon 主机上，使用官方 Node `v24.19.0` `darwin-x64` 二进制并通过 Rosetta 准备依赖后，x64 目录包的随包 Server、断网新用户 Profile、损坏 Bundle 恢复、Profile authority 和官方 Web Session/log/history 流程均通过；x64 目录包随包 pnpm runtime 也确认为 `11.22.0`，官方 Web smoke 截图为 `.desktop-build/evidence/official-web-x64.Ev0qMl/official-web-session-flow.png`，最新串行断网 smoke 的 Rosetta 冷启动观测为 `121710` ms。该观测明显包含 Rosetta 成本，不替代原生 x64 机器的性能验收；当时的 x64 目录包未签名，不能替代 Windows、Developer ID、公证或 Gatekeeper 证据。
+
+本轮用同一官方 Node `v24.19.0` x64 运行时重新准备当前 `HEAD` 的 x64 Server 资源，生成了 Developer ID 签名的 `release/mac/DSH Desktop.app` 以及明确关闭公证的 x64 DMG/ZIP；Server smoke、App smoke、ZIP 资源结构和 `codesign --verify --deep --strict` 均通过。随后重新运行 x64 Profile authority/recovery 串行 smoke 时，恢复阶段在 Rosetta 应用退出处超过 150 秒并被终止，因此这次不能把当前签名 x64 包的恢复证据写成通过；原生 x64 主机和发行 CI 验收仍缺。
 
 当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-21 的 macOS arm64 结果如下：
 
@@ -123,7 +125,7 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
 - 当前证据已经包含 Developer ID 签名目录包、明确关闭公证生成的 arm64 DMG/ZIP 安装器结构、断网初始化、Profile authority、损坏 Bundle 恢复和真实签名 updater 替换回归；DMG 的 UDZO 结构、ZIP 内 `DSH Desktop.app` 资源和 App 严格签名校验均通过，但仍不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终公开安装器证据。最新 arm64 目录包上的断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和预算门禁已通过。
-- macOS x64 目录包已经通过独立的官方 Node `v24.19.0` x64 运行时和 Rosetta 构建；当前尚缺原生 x64 主机或发行 CI 上的签名、安装器和性能验收，不能把本机 Rosetta 目录包写成正式 x64 发布证据。
+- macOS x64 当前已通过官方 Node `v24.19.0` x64 依赖准备、Developer ID 签名目录包/未公证安装器结构、Server smoke 和 App smoke；但 recovery 串行 smoke 在 Rosetta 退出阶段超时，仍尚缺原生 x64 主机或发行 CI 上的完整恢复、安装器和性能验收，不能把本机跨架构结果写成正式 x64 发布证据。
 - 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化；公开截图和安装录制仍需在发行环境重新采集，loopback 模型也不替代真实 DeepSeek 服务验收。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。
