@@ -944,6 +944,33 @@ function openRecoveryPage({ failure, result = null } = {}) {
     if (mainWindow === recoveryWindow) mainWindow = null;
   });
   recoveryWindow.loadFile(RECOVERY_PAGE, { query: recoveryQuery({ failure: currentFailure, result }) });
+  if (SMOKE_TEST && process.env.DSH_SMOKE_EXPECT_RECOVERY === '1') {
+    recoveryWindow.webContents.once('did-finish-load', async () => {
+      try {
+        const state = await recoveryWindow.webContents.executeJavaScript(`({
+          heading: document.querySelector('h1')?.textContent || '',
+          stage: document.querySelector('#stage')?.textContent || '',
+          retry: Boolean(document.querySelector('#retry')),
+          safeProfile: Boolean(document.querySelector('#safe')),
+          pluginCount: document.querySelectorAll('#plugin option').length,
+        })`);
+        const valid = /无法启动/.test(state.heading)
+          && state.retry
+          && state.safeProfile
+          && state.stage !== '';
+        console.log(`[smoke] 恢复页已加载 stage=${state.stage} plugins=${state.pluginCount}`);
+        if (!valid) process.exitCode = 1;
+      } catch (error) {
+        console.error('[smoke] 恢复页验证失败:', error?.message || error);
+        process.exitCode = 1;
+      } finally {
+        setTimeout(() => {
+          if (recoveryWindow && !recoveryWindow.isDestroyed()) recoveryWindow.destroy();
+          quitApplication();
+        }, 100);
+      }
+    });
+  }
 }
 
 function showRecoveryFailure(stage, error) {
