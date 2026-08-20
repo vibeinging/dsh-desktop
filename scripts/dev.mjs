@@ -100,28 +100,7 @@ try {
   process.exit(1)
 }
 
-async function buildDshClientPlugin() {
-  await new Promise((resolveReady, reject) => {
-    const child = spawn('npm', ['run', 'build:dsh-client'], {
-      cwd: join(APP_DIR, 'renderer'),
-      env: { ...process.env, ...PROJECT_NODE_ENV },
-      stdio: 'inherit',
-      shell: process.platform === 'win32',
-    })
-    child.once('error', reject)
-    child.once('exit', (code, signal) => {
-      if (code === 0) resolveReady()
-      else reject(new Error(`dsh-work Client Plugin 构建失败(code=${code}, signal=${signal || 'none'})`))
-    })
-  })
-}
-
-try {
-  await buildDshClientPlugin()
-} catch (error) {
-  console.error(`[dev] ${error?.message || error}`)
-  process.exit(1)
-}
+console.log('[dev] 默认开发入口使用官方 DSH Web，不构建旧 Renderer 或自研 Client')
 
 const serverPortBusy = await isPortOpen(SERVER_PORT)
 

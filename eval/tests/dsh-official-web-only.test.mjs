@@ -7,6 +7,7 @@ const electronMain = readFileSync(new URL("electron/main.js", appRoot), "utf8");
 const electronPackage = JSON.parse(readFileSync(new URL("electron/package.json", appRoot), "utf8"));
 const featured = JSON.parse(readFileSync(new URL("server/src/engine/dsh_runtime/featured_plugins.json", appRoot), "utf8"));
 const officialWebFlowSmoke = readFileSync(new URL("electron/scripts/smoke-packaged-official-web-flow.mjs", appRoot), "utf8");
+const defaultDevScript = readFileSync(new URL("scripts/dev.mjs", appRoot), "utf8");
 
 test("Electron's main window has one official DSH Web surface", () => {
   const createWindowStart = electronMain.indexOf("function createWindow(");
@@ -34,6 +35,11 @@ test("the release package does not ship a product preload bridge", () => {
   assert.match(electronMain, /desktop-native-request/);
   assert.match(electronMain, /BROWSER_NATIVE_HANDLERS/);
   assert.doesNotMatch(electronMain, /artifact-context-menu|attachment-grants/);
+});
+
+test("the default development entry does not rebuild the retired Renderer", () => {
+  assert.doesNotMatch(defaultDevScript, /buildDshClientPlugin|build:dsh-client|dsh-work Client Plugin/);
+  assert.match(defaultDevScript, /默认开发入口使用官方 DSH Web/);
 });
 
 test("the recovery page is a local, non-product surface", () => {
