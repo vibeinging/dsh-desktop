@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-project-tools",
+  "name": "@vibeinging/dsh-project-tools",
   "description": "Session-scoped project and conversation tools over productHost",
   "version": "0.0.1",
   "private": true,

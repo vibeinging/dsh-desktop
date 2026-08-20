@@ -1,3 +1,0 @@
-- insert:
-    - id: dsh-client-product-commands
-      name: '@deepseek-ai/dsh-client-product-commands'

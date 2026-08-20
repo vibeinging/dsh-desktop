@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-office-tools",
+  "name": "@vibeinging/dsh-office-tools",
   "description": "Session-scoped Office artifact tools for a DSH host implementing officeArtifactHost",
   "version": "0.0.1",
   "private": true,

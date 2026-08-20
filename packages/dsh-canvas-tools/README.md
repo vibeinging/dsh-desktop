@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-canvas-tools
+# @vibeinging/dsh-canvas-tools
 
 This DSH Profile Bundle contributes `canvas_inspect`, `canvas_create`, `canvas_edit`, and `canvas_suggest` to every Agent scope. The tools cover versioned documents, code Canvases, and local single-file HTML Sites. They consume `productHost` without importing product storage, the Renderer, Electron, or IPC transport.
 

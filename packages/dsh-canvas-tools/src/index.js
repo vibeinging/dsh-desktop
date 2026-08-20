@@ -148,7 +148,7 @@ export function apply(ctx) {
     if (!WRITE_TOOLS.has(exec.name)) return next();
     return Promise.resolve({
       kind: "ask",
-      reason: `${exec.name} changes parent-owned DeepSeek Harness Desktop App product data`,
+      reason: `${exec.name} changes parent-owned DSH Desktop product data`,
     });
   });
 

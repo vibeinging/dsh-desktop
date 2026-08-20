@@ -7,7 +7,6 @@ import { dshRuntimeEnabled, resolveDshRuntimeDistribution } from "./source_locat
 import { createSessionProductHostDispatcher } from "./product_host_dispatcher.js";
 import { ensureDshWorkspaceSession } from "./session_attachment.js";
 import { ensureDshProfileInitialized } from "./profile_initialization.js";
-import { ensureDshProductThemeDefault } from "./theme_default.js";
 
 const CHILD_PATH = fileURLToPath(new URL("./source_runtime_child.mjs", import.meta.url));
 const CLIENT_PATCH_PATH = fileURLToPath(new URL("./desktop_web.patch.yml", import.meta.url));
@@ -224,9 +223,6 @@ export class DshRuntimeClient extends EventEmitter {
   async #activateRuntime(message) {
     try {
       await this.#startEventStreams();
-      await ensureDshProductThemeDefault((method, payload) => (
-        this.#requestClientApiOnSurface(method, payload)
-      ));
       this.emit("ready", message);
     } catch (error) {
       this.emit("fatal", error);

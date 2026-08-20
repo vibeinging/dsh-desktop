@@ -17,11 +17,6 @@ import {
   validateDshWorkProductDescriptor,
   validateProfileBundleSdk,
 } from "../../server/src/engine/dsh_runtime/profile_plugin_service.js";
-import {
-  normalizeProfileThemeDescriptor,
-  profileThemeRuntimeId,
-  readProfileThemeDescriptor,
-} from "../../server/src/engine/dsh_runtime/profile_theme_manifest.js";
 import { ensureDshProfileInitialized } from "../../server/src/engine/dsh_runtime/profile_initialization.js";
 import {
   featuredPluginNames,
@@ -312,7 +307,7 @@ test("community dsh.client Bundles stay out of the privileged Electron renderer"
     dsh: { client: { platform: "web" } },
   }), [{
     code: "DSH_PROFILE_CLIENT_ISOLATION_REQUIRED",
-    message: "@example/community-ui 包含 dsh.client 浏览器代码；当前主窗口尚未把社区 UI 与 Electron API 隔离，只能安装 Host 侧 Bundle",
+    message: "@example/community-ui 包含 dsh.client 浏览器代码；只有经过精确版本和依赖审查的独立 Client Bundle 才能进入官方 Web 图",
   }]);
   assert.deepEqual(inspectCommunityClientIsolation({
     name: "@example/host-only",
@@ -347,60 +342,9 @@ test("only app-managed Bundles may request dsh-work host components", () => {
     { code: "DSH_PRODUCT_HOST_COMPONENT_FORBIDDEN" },
   );
   assert.doesNotThrow(() => validateDshWorkProductDescriptor(descriptor, {
-    packageName: "@deepseek-ai/dsh-workbench-pages",
+    packageName: "@vibeinging/dsh-product-bridge",
     allowHostComponents: true,
   }));
-});
-
-test("Profile theme descriptors keep a narrow renderer-safe contract", () => {
-  const colors = [
-    "#eef5fb", "#dceaf5", "#bad5eb", "#98c0e0", "#76abd6",
-    "#5496cc", "#336699", "#294f77", "#1f3c5a", "#15283c",
-  ];
-  const [theme] = normalizeProfileThemeDescriptor({
-    schema_version: 1,
-    themes: [{
-      id: "ocean",
-      name: "Ocean",
-      vars: { "--el-color-primary": "#369" },
-      mantineColors: colors,
-      palette: {
-        bg: "#eef5fb",
-        surface: "#ffffff",
-        hover: "#dceaf5",
-        text: "#15283c",
-        textSoft: "#294f77",
-        muted: "#336699",
-        faint: "#466f91",
-      },
-      appearance: { bgImage: "deep-sea", panelOpacity: 80 },
-    }],
-  });
-  assert.equal(theme.vars["--el-color-primary"], "#336699");
-  assert.equal(theme.palette.surface, "#ffffff");
-  assert.equal(profileThemeRuntimeId("@demo/theme-pack", "ocean"), "profile:%40demo%2Ftheme-pack:ocean");
-  assert.throws(() => normalizeProfileThemeDescriptor({
-    schema_version: 1,
-    themes: [{ id: "unsafe", name: "Unsafe", extraCss: "body { display: none }" }],
-  }), { code: "DSH_PROFILE_THEME_RAW_CSS_FORBIDDEN" });
-  assert.throws(() => normalizeProfileThemeDescriptor({
-    schema_version: 1,
-    themes: [{ id: "unsafe", name: "Unsafe", appearance: { panelOpacity: 20 } }],
-  }), { code: "DSH_PROFILE_THEME_INVALID" });
-  assert.throws(() => normalizeProfileThemeDescriptor({
-    schema_version: 1,
-    themes: [{ id: "incomplete", name: "Incomplete", palette: { bg: "#ffffff" } }],
-  }), { code: "DSH_PROFILE_THEME_PALETTE_INCOMPLETE" });
-});
-
-test("Profile theme paths stay inside their Bundle", () => {
-  const fixture = resolve(APP_ROOT, "eval", "fixtures", "dsh-profile-bundle");
-  const manifest = JSON.parse(readFileSync(join(fixture, "package.json"), "utf8"));
-  assert.equal(readProfileThemeDescriptor(fixture, manifest).themes[0].manifest_id, "fixture-ocean");
-  assert.throws(() => readProfileThemeDescriptor(fixture, {
-    name: "outside-theme",
-    dshWork: { themes: "./../package.json" },
-  }), { code: "DSH_PROFILE_THEME_PATH_OUTSIDE_ROOT" });
 });
 
 test("Profile Bundle preflight rejects mutable sources without touching DSH", async () => {
@@ -429,39 +373,6 @@ test("the app-owned Profile Bundles use the current public SDK names", () => {
     assert.equal(manifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");
     assert.equal(manifest.peerDependencies.cordis, undefined);
   }
-  const themePackRoot = join(APP_ROOT, "packages", "dsh-theme-pack");
-  const themePackManifest = JSON.parse(readFileSync(join(themePackRoot, "package.json"), "utf8"));
-  const themes = readProfileThemeDescriptor(themePackRoot, themePackManifest).themes;
-  assert.deepEqual(themes.map((theme) => theme.manifest_id), ["professional-blue", "anime-blue"]);
-  const professional = themes.find((theme) => theme.manifest_id === "professional-blue");
-  assert.equal(professional.vars["--el-color-primary"], "#405fd2");
-  assert.equal(professional.dark.vars["--el-color-primary"], "#7b9cff");
-  assert.deepEqual(professional.palette, {
-    bg: "#e9eef7",
-    surface: "#f8fafc",
-    hover: "#dce5f2",
-    text: "#172033",
-    textSoft: "#33415c",
-    muted: "#53627a",
-    faint: "#5d6c82",
-  });
-  assert.deepEqual(professional.dark.palette, {
-    bg: "#111827",
-    surface: "#182235",
-    hover: "#243149",
-    text: "#f5f7fb",
-    textSoft: "#d5dceb",
-    muted: "#aab6ca",
-    faint: "#8795ad",
-  });
-  assert.deepEqual(professional.appearance, {
-    bgColor: "#e9eef7",
-    panelOpacity: 100,
-    dark: { bgColor: "#111827", panelOpacity: 100 },
-  });
-  const anime = themes.find((theme) => theme.manifest_id === "anime-blue");
-  assert.equal(anime.vars["--el-color-primary"], "#5b8def");
-  assert.equal(anime.dark.vars["--el-color-primary"], "#86b2ff");
 });
 
 test("a current local Bundle passes the real isolated Profile preflight", {
@@ -489,7 +400,7 @@ test("a current local Bundle passes the real isolated Profile preflight", {
       installable: true,
       package_name: "dsh-work-profile-fixture",
       version: "1.0.0",
-      surface: "dsh_work",
+      surface: "host",
       compatibility_checks: [
         {
           id: "host",
@@ -574,44 +485,6 @@ test("the reviewed market release passes the real isolated Client preflight", {
   }
 });
 
-test("an installed Profile Bundle projects its themes through the catalog", {
-  timeout: 30_000,
-  skip: existsSync(join(DSH_NPM_ROOT, "package.json"))
-    ? false
-    : `missing app-pinned DSH package: ${DSH_NPM_ROOT}`,
-}, async () => {
-  const home = await mkdtemp(join(tmpdir(), "dsh-work-profile-themes-"));
-  try {
-    const service = new DshProfilePluginService({
-      env: {
-        ...process.env,
-        DSH_RUNTIME_DISTRIBUTION: "npm",
-        DSH_RUNTIME_HOME: home,
-        DSH_HOME: home,
-        DSH_PROFILE_ALLOW_LOCAL_PLUGINS: "1",
-      },
-      restartRuntime: async () => ({ restarted: false, sessions: [] }),
-    });
-    const source = resolve(APP_ROOT, "eval", "fixtures", "dsh-profile-bundle");
-    await service.install(source);
-    const catalog = await service.catalog();
-    assert.equal(catalog.profile_theme_errors.length, 0);
-    assert.deepEqual(catalog.profile_themes
-      .filter((theme) => theme.source_bundle.package_name === "dsh-work-profile-fixture")
-      .map((theme) => ({
-      id: theme.id,
-      source: theme.source,
-      package_name: theme.source_bundle.package_name,
-      })), [{
-      id: "profile:dsh-work-profile-fixture:fixture-ocean",
-      source: "profile",
-      package_name: "dsh-work-profile-fixture",
-    }]);
-  } finally {
-    await rm(home, { recursive: true, force: true });
-  }
-});
-
 test("known dsh-external samples are refused until their SDK pins are updated", {
   skip: ["dsh-agent-budget", "dsh-tool-search"].every((name) => (
     existsSync(resolve(APP_ROOT, "..", name, "package.json"))
@@ -660,16 +533,16 @@ test("the Profile catalog is projected from the official Web Profile order", {
       "@deepseek-ai/dsh-web-app",
     ]);
     assert.deepEqual(catalog.plugins.slice(2).map((plugin) => plugin.id), featuredPluginNames());
-    const productHostIpc = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-work-product-host-ipc");
+    const productHostIpc = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-work-product-host-ipc");
     assert.equal(productHostIpc.runtime_kind, "profile_bundle");
     assert.equal(productHostIpc.managed_by, "app");
     assert.deepEqual(productHostIpc.portability, {
       level: "desktop-adapter",
       surfaces: ["dsh-desktop"],
-      host_requirements: ["dsh-work-parent-ipc"],
+      host_requirements: ["dsh-work-parent-ipc", "browser-workspace-host"],
       compatibility_test: null,
     });
-    const projectTools = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-project-tools");
+    const projectTools = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-project-tools");
     assert.equal(projectTools.runtime_kind, "profile_bundle");
     assert.equal(projectTools.managed_by, "app");
     assert.deepEqual(projectTools.portability, {
@@ -678,7 +551,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       host_requirements: ["product-host"],
       compatibility_test: null,
     });
-    const canvasTools = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-canvas-tools");
+    const canvasTools = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-canvas-tools");
     assert.equal(canvasTools.runtime_kind, "profile_bundle");
     assert.equal(canvasTools.managed_by, "app");
     assert.deepEqual(canvasTools.portability, {
@@ -687,7 +560,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       host_requirements: ["product-host"],
       compatibility_test: null,
     });
-    const structuredUiTools = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-structured-ui-tools");
+    const structuredUiTools = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-structured-ui-tools");
     assert.equal(structuredUiTools.runtime_kind, "profile_bundle");
     assert.equal(structuredUiTools.managed_by, "app");
     assert.deepEqual(structuredUiTools.portability, {
@@ -696,7 +569,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       host_requirements: ["product-host"],
       compatibility_test: null,
     });
-    const modelInheritance = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-model-inheritance");
+    const modelInheritance = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-model-inheritance");
     assert.equal(modelInheritance.runtime_kind, "profile_bundle");
     assert.equal(modelInheritance.managed_by, "app");
     assert.deepEqual(modelInheritance.portability, {
@@ -705,7 +578,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       host_requirements: [],
       compatibility_test: "eval/tests/dsh-official-web-plugin-compat.test.mjs",
     });
-    const productBridge = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-product-bridge");
+    const productBridge = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-product-bridge");
     assert.equal(productBridge.runtime_kind, "profile_bundle");
     assert.equal(productBridge.managed_by, "app");
     assert.equal(productBridge.can_uninstall, true);
@@ -716,7 +589,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       compatibility_test: null,
     });
     assert.equal(productBridge.product, null);
-    const officeTools = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-office-tools");
+    const officeTools = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-office-tools");
     assert.equal(officeTools.runtime_kind, "profile_bundle");
     assert.equal(officeTools.managed_by, "app");
     assert.deepEqual(officeTools.portability, {
@@ -725,8 +598,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       host_requirements: ["office-artifact-host"],
       compatibility_test: null,
     });
-    assert.deepEqual(catalog.profile_themes, []);
-    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-17");
+    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-20");
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
     assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.9.0");
     assert.deepEqual(
@@ -734,19 +606,41 @@ test("the Profile catalog is projected from the official Web Profile order", {
       {
         id: "dsh-web-ui",
         name: "DSH Web UI",
-        description: "Reviewed aggregate Bundle with task board, Git graph, live statistics, remote UI, SSH, pets, and skins.",
-        description_zh: "已审查的聚合 Bundle，包含任务看板、Git 图谱、实时统计、远程 UI、SSH、宠物和皮肤。",
+        description: "Experiment-only aggregate Bundle; use independently reviewed child packages for release decisions.",
+        description_zh: "仅用于兼容性实验的聚合 Bundle；发行决策必须基于独立审查的子包。",
         repository: "https://github.com/zhu1090093659/dsh-web-ui",
         stars: 2278,
         category: "collection",
         source: "@linxin666/dsh-web-ui-all@0.1.20",
-        compatibility: "reviewed-client-high-capability",
+        compatibility: "experiment-only-high-capability",
+        release_policy: "never-default",
         reviewed_at: "2026-08-17",
         reviewed_commit: "92655dbefeaf08cb60429f4b487c33137889a3f7",
         package_integrity: "sha512-mPMXmPfO0rc/3hmv8Aw71UOJqTDVW2T3VWuN6dIgiMpDlRQp9O0BCaLh13j6LjH0WB9fAS+9DmUVix8sLLwNLA==",
         permissions: ["读取本地仓库与图片", "启动 Git、SSH 与电源保持进程", "访问 SSH、远程 Web 和模型服务网络"],
         review_note_zh: "全家桶含主机侧高权限能力。只允许精确的 0.1.20 包和 13 个同版本依赖进入 Client 图；安装前请确认这些权限符合你的环境。",
         priority: 20,
+      },
+    );
+    assert.deepEqual(
+      catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-web-ui-task-board"),
+      {
+        id: "dsh-web-ui-task-board",
+        name: "DSH Web UI Task Board",
+        description: "Independent task-board Client Bundle for official DSH Web sessions.",
+        description_zh: "面向官方 DSH Web Session 的独立任务看板 Client Bundle。",
+        repository: "https://github.com/zhu1090093659/dsh-web-ui",
+        stars: 2278,
+        category: "productivity",
+        source: "@linxin666/dsh-client-ui-task-board@0.1.20",
+        compatibility: "reviewed-independent-client-candidate",
+        release_policy: "optional-after-e2e",
+        reviewed_at: "2026-08-20",
+        reviewed_commit: "92655dbefeaf08cb60429f4b487c33137889a3f7",
+        package_integrity: "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
+        permissions: ["读取当前 DSH Session 与 Workspace", "写入任务看板数据", "按用户操作启动 DSH Session 任务"],
+        review_note_zh: "独立于聚合包安装；不创建 Electron 启停器、插件市场或通用原生桥。完整发行资格仍需当前官方 Web 和 Electron 的安装、启动、停用、卸载、重启回归。",
+        priority: 21,
       },
     );
     assert.deepEqual(
@@ -813,11 +707,20 @@ test("the Profile catalog is projected from the official Web Profile order", {
     assert.deepEqual(catalog.plugins.at(-1).ui_runtime, {
       kind: "host_only",
       client_graph: false,
-      host_supported_slots: [],
-      host_partial_slots: [],
-      host_unmapped_slots: [],
     });
-    assert.equal(catalog.plugins.some((plugin) => plugin.id === "@deepseek-ai/dsh-work-shell"), false);
+    const preflight = await service.preflightCurrentProfile({ targetVersion: "1.1.0" });
+    assert.equal(preflight.ok, true);
+    assert.equal(preflight.target_version, "1.1.0");
+    assert.deepEqual(preflight.bundles.map((bundle) => bundle.id), catalog.plugins.map((plugin) => plugin.id));
+    const manifestPath = join(home, "profiles", "web", "package.json");
+    const manifestAfterPreflight = JSON.parse(await readFile(manifestPath, "utf8"));
+    const disabledName = featuredPluginNames()[0];
+    manifestAfterPreflight.dsh.profile.bundles = manifestAfterPreflight.dsh.profile.bundles.filter((name) => name !== disabledName);
+    await writeFile(manifestPath, `${JSON.stringify(manifestAfterPreflight, null, 2)}\n`);
+    const disabledState = await service.state();
+    assert.equal(disabledState.plugins.find((plugin) => plugin.id === disabledName)?.enabled, false);
+    assert.equal(JSON.parse(await readFile(manifestPath, "utf8")).dsh.profile.bundles.includes(disabledName), false);
+    assert.equal(catalog.plugins.some((plugin) => plugin.id === "@vibeinging/dsh-work-shell"), false);
     assert.equal(catalog.marketplaces[0].name, "web");
   } finally {
     await rm(home, { recursive: true, force: true });

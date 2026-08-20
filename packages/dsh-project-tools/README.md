@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-project-tools
+# @vibeinging/dsh-project-tools
 
 This DSH Profile Bundle contributes `project_list` and `conversation_list` to every Agent scope. It consumes the session-addressed `productHost` service instead of importing the desktop server, database, Renderer, Electron bridge, or IPC transport.
 

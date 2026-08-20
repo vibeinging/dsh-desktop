@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-canvas-tools",
+  "name": "@vibeinging/dsh-canvas-tools",
   "description": "Session-scoped versioned Canvas and local Site tools over productHost",
   "version": "0.0.1",
   "private": true,

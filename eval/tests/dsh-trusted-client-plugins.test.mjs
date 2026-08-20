@@ -5,6 +5,7 @@ import {
   isReviewedCommunityClient,
   reviewedCommunityClientDependencies,
   reviewedCommunityClientReview,
+  reviewedTaskBoardDependencies,
 } from "../../server/src/engine/dsh_runtime/community_client_review.js";
 import {
   featuredPluginManifest,
@@ -64,6 +65,37 @@ test("only audited community Client releases may enter the product Client graph"
       "访问 SSH、远程 Web 和模型服务网络",
     ],
   });
+
+  const taskBoardDependencies = reviewedTaskBoardDependencies();
+  assert.deepEqual(taskBoardDependencies, { schemastery: "^3.18.0" });
+  assert.equal(isReviewedCommunityClient({
+    name: "@linxin666/dsh-client-ui-task-board",
+    manifest: {
+      version: "0.1.20",
+      dependencies: taskBoardDependencies,
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
+    integrity: "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
+  }), true);
+  assert.equal(isReviewedCommunityClient({
+    name: "@linxin666/dsh-client-ui-task-board",
+    manifest: {
+      version: "0.1.20",
+      dependencies: { ...taskBoardDependencies, schemastery: "^3.19.0" },
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
+  }), false);
+  assert.deepEqual(reviewedCommunityClientReview({
+    name: "@linxin666/dsh-client-ui-task-board",
+    manifest: { version: "0.1.20", dependencies: taskBoardDependencies, dsh: { bundle: { patch: "./cordis.patch.yml" } } },
+  }), {
+    session: "任务看板使用官方 DSH Session.prompt 启动任务，并读取当前 Workspace 状态",
+    capabilities: [
+      "读取当前 DSH Session 与 Workspace",
+      "写入任务看板数据",
+      "按用户操作启动 DSH Session 任务",
+    ],
+  });
 });
 
 test("the curated Profile input has one authoritative, user-manageable list", () => {
@@ -75,4 +107,5 @@ test("the curated Profile input has one authoritative, user-manageable list", ()
   assert.equal(new Set(plugins.map((plugin) => plugin.name)).size, plugins.length);
   assert.deepEqual(plugins, manifest.plugins);
   assert.equal(plugins.every((plugin) => plugin.default && plugin.user_manageable), true);
+  assert.equal(plugins.some((plugin) => plugin.name.includes("web-ui-task-board")), false);
 });

@@ -21,6 +21,10 @@ import {
 
 const execFileAsync = promisify(execFile);
 const PROFILE_NAME = featuredPluginManifest().profile;
+const OFFICIAL_PROFILE_BUNDLES = Object.freeze([
+  "@deepseek-ai/dsh-base",
+  "@deepseek-ai/dsh-web-app",
+]);
 const initializationQueues = new Map();
 
 function profileError(message, code, details = null) {
@@ -49,6 +53,7 @@ function profilePath(api, dshHome) {
 }
 
 function artifactManifest(env) {
+  if (env.DSH_PROFILE_INITIALIZATION_MODE === "safe") return null;
   const path = String(env.DSH_FEATURED_PLUGIN_MANIFEST || "").trim();
   if (!path) return null;
   if (!existsSync(path)) {
@@ -85,6 +90,7 @@ function sourceInput(plugin, env, appRoot) {
 }
 
 function pluginInputs(env, appRoot) {
+  if (env.DSH_PROFILE_INITIALIZATION_MODE === "safe") return [];
   const generated = artifactManifest(env);
   const artifactDir = String(env.DSH_FEATURED_PLUGIN_TARBALL_DIR || "").trim();
   const artifactMode = Boolean(generated) || Boolean(artifactDir && existsSync(artifactDir));
@@ -172,15 +178,21 @@ async function defaultCommandRunner(resolved, args, env) {
   }
 }
 
-function assertInitialProfile(manifest, expectedNames) {
+function assertInitialProfile(manifest, expectedNames, { requireDependencies = true } = {}) {
   const bundles = manifest?.dsh?.profile?.bundles;
   const dependencies = manifest?.dependencies;
-  if (!Array.isArray(bundles) || !dependencies || typeof dependencies !== "object") {
-    throw profileError("新 Profile 缺少官方 dsh.profile.bundles 或 dependencies", "DSH_PROFILE_INIT_INVALID");
+  if (!Array.isArray(bundles) || (requireDependencies && (!dependencies || typeof dependencies !== "object"))) {
+    throw profileError(
+      requireDependencies
+        ? "新 Profile 缺少官方 dsh.profile.bundles 或 dependencies"
+        : "安全 Profile 缺少官方 dsh.profile.bundles",
+      "DSH_PROFILE_INIT_INVALID",
+    );
   }
   const expected = new Set(expectedNames);
   const actual = new Set(bundles);
-  if ([...expected].some((name) => !actual.has(name) || !Object.hasOwn(dependencies, name))) {
+  if ([...expected].some((name) => !actual.has(name)
+    || (requireDependencies && !Object.hasOwn(dependencies, name)))) {
     throw profileError("新 Profile 未包含全部精选插件", "DSH_PROFILE_INIT_INCOMPLETE");
   }
 }
@@ -217,15 +229,26 @@ async function initializeUnlocked({
     pnpm_config_lockfile: "false",
   }, { dshHome: stagingHome, libraryRoot });
   try {
-    for (const source of sources) {
-      await commandRunner(resolved, [
-        "plugin", "--profile", PROFILE_NAME, "add", "-w", source,
-        "--save-exact", "--offline", "--ignore-scripts",
-      ], commandEnv);
+    if (env.DSH_PROFILE_INITIALIZATION_MODE === "safe") {
+      const stagingProfileDir = profilePath(api, stagingHome);
+      const template = api.PROFILE_TEMPLATES?.web || api.DEFAULT_PROFILE_BUNDLES || OFFICIAL_PROFILE_BUNDLES;
+      await api.initProfile(stagingProfileDir, template);
+    } else {
+      for (const source of sources) {
+        await commandRunner(resolved, [
+          "plugin", "--profile", PROFILE_NAME, "add", "-w", source,
+          "--save-exact", "--offline", "--ignore-scripts",
+        ], commandEnv);
+      }
     }
     const stagingProfileDir = profilePath(api, stagingHome);
     const manifest = api.readProfileManifest("dsh-work", stagingProfileDir);
-    assertInitialProfile(manifest, featuredPlugins().map((plugin) => plugin.name));
+    const expectedBundles = env.DSH_PROFILE_INITIALIZATION_MODE === "safe"
+      ? OFFICIAL_PROFILE_BUNDLES
+      : featuredPlugins().map((plugin) => plugin.name);
+    assertInitialProfile(manifest, expectedBundles, {
+      requireDependencies: env.DSH_PROFILE_INITIALIZATION_MODE !== "safe",
+    });
     await commandRunner(resolved, ["--profile", PROFILE_NAME, "--dump-config"], commandEnv);
     mkdirSync(dirname(finalProfileDir), { recursive: true });
     if (existsSync(finalManifestPath) || existsSync(finalProfileDir)) {
@@ -266,3 +289,4 @@ export function dshProfilePluginLibraryPath(dshHome, env = process.env) {
 }
 
 export const DSH_PROFILE_NAME = PROFILE_NAME;
+export const DSH_OFFICIAL_PROFILE_BUNDLES = OFFICIAL_PROFILE_BUNDLES;

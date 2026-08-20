@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-17",
+  "updated_at": "2026-08-20",
   "catalog_source": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin",
   "plugins": [
     {
@@ -13,24 +13,45 @@
       "category": "market",
       "source": "dshmarket@1.9.0",
       "compatibility": "reviewed",
+      "release_policy": "excluded-duplicate-official-plugin-manager",
+      "review_note_zh": "仅保留为目录预检记录，不进入 DSH Desktop 发行 Profile；官方 Profile 插件命令是唯一安装状态权威。",
       "priority": 10
     },
     {
       "id": "dsh-web-ui",
       "name": "DSH Web UI",
-      "description": "Reviewed aggregate Bundle with task board, Git graph, live statistics, remote UI, SSH, pets, and skins.",
-      "description_zh": "已审查的聚合 Bundle，包含任务看板、Git 图谱、实时统计、远程 UI、SSH、宠物和皮肤。",
+      "description": "Experiment-only aggregate Bundle; use independently reviewed child packages for release decisions.",
+      "description_zh": "仅用于兼容性实验的聚合 Bundle；发行决策必须基于独立审查的子包。",
       "repository": "https://github.com/zhu1090093659/dsh-web-ui",
       "stars": 2278,
       "category": "collection",
       "source": "@linxin666/dsh-web-ui-all@0.1.20",
-      "compatibility": "reviewed-client-high-capability",
+      "compatibility": "experiment-only-high-capability",
+      "release_policy": "never-default",
       "reviewed_at": "2026-08-17",
       "reviewed_commit": "92655dbefeaf08cb60429f4b487c33137889a3f7",
       "package_integrity": "sha512-mPMXmPfO0rc/3hmv8Aw71UOJqTDVW2T3VWuN6dIgiMpDlRQp9O0BCaLh13j6LjH0WB9fAS+9DmUVix8sLLwNLA==",
       "permissions": ["读取本地仓库与图片", "启动 Git、SSH 与电源保持进程", "访问 SSH、远程 Web 和模型服务网络"],
       "review_note_zh": "全家桶含主机侧高权限能力。只允许精确的 0.1.20 包和 13 个同版本依赖进入 Client 图；安装前请确认这些权限符合你的环境。",
       "priority": 20
+    },
+    {
+      "id": "dsh-web-ui-task-board",
+      "name": "DSH Web UI Task Board",
+      "description": "Independent task-board Client Bundle for official DSH Web sessions.",
+      "description_zh": "面向官方 DSH Web Session 的独立任务看板 Client Bundle。",
+      "repository": "https://github.com/zhu1090093659/dsh-web-ui",
+      "stars": 2278,
+      "category": "productivity",
+      "source": "@linxin666/dsh-client-ui-task-board@0.1.20",
+      "compatibility": "reviewed-independent-client-candidate",
+      "release_policy": "optional-after-e2e",
+      "reviewed_at": "2026-08-20",
+      "reviewed_commit": "92655dbefeaf08cb60429f4b487c33137889a3f7",
+      "package_integrity": "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
+      "permissions": ["读取当前 DSH Session 与 Workspace", "写入任务看板数据", "按用户操作启动 DSH Session 任务"],
+      "review_note_zh": "独立于聚合包安装；不创建 Electron 启停器、插件市场或通用原生桥。完整发行资格仍需当前官方 Web 和 Electron 的安装、启动、停用、卸载、重启回归。",
+      "priority": 21
     },
     {
       "id": "modlens",
@@ -54,6 +75,7 @@
       "category": "workspace",
       "source": "dsh-better-sidebar@0.12.2",
       "compatibility": "host-adapter-required",
+      "release_policy": "preflight-only-host-adapter-required",
       "priority": 40
     },
     {

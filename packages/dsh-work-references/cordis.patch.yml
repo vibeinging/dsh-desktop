@@ -1,0 +1,4 @@
+# Additive workspace references Bundle. It does not replace an official DSH row.
+- insert:
+    - id: dsh-work-references
+      name: '@vibeinging/dsh-work-references'

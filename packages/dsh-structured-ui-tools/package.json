@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-structured-ui-tools",
+  "name": "@vibeinging/dsh-structured-ui-tools",
   "description": "Safe session-scoped structured UI tool over productHost",
   "version": "0.0.1",
   "private": true,

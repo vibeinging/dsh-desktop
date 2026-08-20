@@ -18,10 +18,6 @@ import {
   existingDshProfilePath,
 } from "./profile_initialization.js";
 import { featuredPluginByName, featuredPluginNames } from "./featured_plugins.js";
-import {
-  aggregateProfileThemes,
-  readProfileThemeDescriptor,
-} from "./profile_theme_manifest.js";
 
 const execFileAsync = promisify(execFile);
 const PROFILE_NAME = "web";
@@ -36,53 +32,6 @@ const DSH_WORK_HOST_COMPONENTS = new Map([
   ["sites", "dsh-work/sites"],
 ]);
 const DSH_WORK_HOST_ICONS = new Set(["archive", "dashboard", "file", "terminal", "world"]);
-const DSH_WORK_MAPPED_CLIENT_SLOTS = Object.freeze([
-  "settings.section",
-  "settings.general.item",
-  "settings.plugins.tab",
-  "settings.plugin.item",
-  "shell.overlay",
-  "sidebar.footer.action",
-  "conversation.session.header.actions",
-  "conversation.session.header.utilities",
-  "conversation.composer",
-  "conversation.input.overlay",
-  "conversation.input.dock",
-  "conversation.composer.dock",
-  "conversation.input.left",
-  "conversation.input.right",
-  "conversation.input.plan",
-  "conversation.input.model",
-  "conversation.hero.workspace",
-  "conversation.hero.agentPreset",
-  "conversation.chat.assistant-actions",
-  "conversation.chat.turnTail",
-  "conversation.details.tool",
-  "tool.call.toolview",
-  "details",
-]);
-const DSH_WORK_PARTIAL_CLIENT_SLOTS = Object.freeze([Object.freeze({
-  slot: "conversation.chat.node",
-  supported_keys: Object.freeze(["tool-call"]),
-  note: "当前只分派官方 ToolCallBlock；其他 Chat Node 仍等待统一的消息排序与选择状态",
-})]);
-const DSH_WORK_UNMAPPED_CLIENT_SLOTS = Object.freeze([
-  "root",
-  "sidebar",
-  "sidebar.workspaces",
-  "sidebar.settings",
-  "conversation",
-  "conversation.session",
-  "conversation.session.header",
-  "conversation.view",
-  "conversation.chat.commandview",
-  "conversation.composer.bar",
-  "settings.trigger",
-  "settings.header",
-  "settings.action",
-  "settings.close",
-  "settings.onboarding",
-]);
 const CURRENT_DSH_SDK_VERSION = "0.1.0-rc.7";
 const CURRENT_CORDIS_VERSION = "4.0.1";
 const COMMUNITY_PLUGIN_REGISTRY = readJson(new URL("./community_plugin_registry.json", import.meta.url));
@@ -151,12 +100,12 @@ export function validateDshWorkProductDescriptor(descriptor, {
     }
     if (!allowHostComponents) {
       throw profileError(
-        `${packageName} 不能请求 DeepSeek Harness Desktop App 宿主组件；社区页面贡献必须使用尚未开放的沙箱类型`,
+        `${packageName} 不能请求 DSH Desktop 宿主组件；社区页面贡献必须使用尚未开放的沙箱类型`,
         "DSH_PRODUCT_HOST_COMPONENT_FORBIDDEN",
       );
     }
     if (DSH_WORK_HOST_COMPONENTS.get(contribution.id) !== contribution.component) {
-      throw profileError(`${packageName} 请求了未知的 DeepSeek Harness Desktop App 宿主组件：${contribution.component}`, "DSH_PRODUCT_DESCRIPTOR_INVALID");
+      throw profileError(`${packageName} 请求了未知的 DSH Desktop 宿主组件：${contribution.component}`, "DSH_PRODUCT_DESCRIPTOR_INVALID");
     }
     if (!DSH_WORK_HOST_ICONS.has(contribution.icon)) {
       throw profileError(`${packageName} 请求了未知的工作台图标：${contribution.icon}`, "DSH_PRODUCT_DESCRIPTOR_INVALID");
@@ -192,7 +141,7 @@ function productInterface(manifest, descriptor) {
 export function readDshWorkPortability(manifest) {
   const value = manifest?.dshWork?.portability;
   if (value === undefined) return null;
-  const levels = new Set(["portable", "desktop-adapter", "desktop-shell"]);
+  const levels = new Set(["portable", "desktop-adapter"]);
   if (!value || typeof value !== "object" || Array.isArray(value)
     || !levels.has(value.level)
     || !Array.isArray(value.surfaces) || value.surfaces.length === 0
@@ -219,7 +168,7 @@ export function readDshWorkPortability(manifest) {
 
 function sourceView(packageName, spec, packageDir, managed) {
   if (managed === "app" || managed === "system") {
-    return { type: managed, path: packageDir, label: managed === "app" ? "随 DeepSeek Harness Desktop App 提供" : "DSH 内置" };
+    return { type: managed, path: packageDir, label: managed === "app" ? "随 DSH Desktop 提供" : "DSH 内置" };
   }
   if (/^(?:github:|git\+|https?:.*\.git)/i.test(spec)) return { type: "git", spec, label: "Git 固定版本" };
   if (/^(?:file:|link:|\/|[A-Za-z]:[\\/])/.test(spec)) return { type: "local", path: packageDir, spec, label: "本地 Bundle" };
@@ -246,7 +195,7 @@ function bundleView({
   descriptor,
   managed,
   userManageable = false,
-  themeCount,
+  enabled = true,
 }) {
   const ui = productInterface(manifest, descriptor);
   const source = sourceView(packageName, dependencySpec || "", packageDir, managed);
@@ -268,7 +217,7 @@ function bundleView({
     available_version: version,
     update_available: false,
     installed: true,
-    enabled: true,
+    enabled,
     blocked_reason: null,
     runtime_kind: "profile_bundle",
     profile_name: PROFILE_NAME,
@@ -277,16 +226,8 @@ function bundleView({
     product_plugin: Boolean(descriptor),
     ui_runtime: {
       kind: dshClient ? "dsh_client" : descriptor ? "dsh_work_descriptor" : "host_only",
-      client_graph: dshClient,
-      host_supported_slots: dshClient
-        ? DSH_WORK_MAPPED_CLIENT_SLOTS
-        : [],
-      host_partial_slots: dshClient
-        ? DSH_WORK_PARTIAL_CLIENT_SLOTS
-        : [],
-      host_unmapped_slots: dshClient ? DSH_WORK_UNMAPPED_CLIENT_SLOTS : [],
+      client_graph: enabled && dshClient,
     },
-    profile_theme_count: themeCount,
     installation: managed === "system" || managed === "app" ? "INSTALLED_BY_DEFAULT" : "AVAILABLE",
     authentication: "ON_USE",
     availability: "AVAILABLE",
@@ -404,14 +345,14 @@ function inspectDshClientManifest(manifest, { clientEntryAvailable = true } = {}
   return [];
 }
 
-/** Block community renderer code until it can run outside the privileged Electron renderer. */
+/** Admit only exact independent Client releases into the official Web graph. */
 export function inspectCommunityClientIsolation(manifest) {
   if (manifest?.dsh?.client === undefined) return [];
   const packageName = String(manifest?.name || "候选插件");
   if (isReviewedCommunityClient({ name: packageName, manifest })) return [];
   return [{
     code: "DSH_PROFILE_CLIENT_ISOLATION_REQUIRED",
-    message: `${packageName} 包含 dsh.client 浏览器代码；当前主窗口尚未把社区 UI 与 Electron API 隔离，只能安装 Host 侧 Bundle`,
+    message: `${packageName} 包含 dsh.client 浏览器代码；只有经过精确版本和依赖审查的独立 Client Bundle 才能进入官方 Web 图`,
   }];
 }
 
@@ -550,7 +491,7 @@ async function defaultCommandRunner(resolved, args, env) {
     }
     if (/ignored build scripts|blocked build scripts|approve-builds/i.test(stdout)) {
       throw profileError(
-        "候选插件需要在安装时执行仓库构建脚本；DeepSeek Harness Desktop App 不会自动授予这项主机代码执行权限",
+        "候选插件需要在安装时执行仓库构建脚本；DSH Desktop 不会自动授予这项主机代码执行权限",
         "DSH_PROFILE_BUILD_APPROVAL_REQUIRED",
         { exit_code: error?.code ?? null, command_output: output },
       );
@@ -672,7 +613,6 @@ async function inspectPinnedExternalGitSource(source) {
 function preflightStatus(error) {
   if (error?.code === "DSH_PROFILE_BUILD_APPROVAL_REQUIRED") return "build_approval_required";
   if (error?.code === "DSH_PROFILE_SDK_UNAVAILABLE") return "sdk_unavailable";
-  if (String(error?.code || "").startsWith("DSH_PROFILE_THEME_")) return "migration_required";
   if ([
     "DSH_PROFILE_NOT_A_BUNDLE",
     "DSH_PROFILE_LEGACY_CLIENT_MANIFEST",
@@ -765,9 +705,9 @@ export class DshProfilePluginService {
     const manifest = api.readProfileManifest("dsh-work", profileDir);
     const dependencies = manifest.dependencies || {};
     const bundles = readProfileBundles(manifest);
-    const themeBundles = [];
-    const themeErrors = [];
-    const activePlugins = bundles.map((packageName, index) => {
+    const disabledBundleNames = Object.keys(dependencies).filter((packageName) => !bundles.includes(packageName));
+    const projectedBundleNames = [...bundles, ...disabledBundleNames];
+    const activePlugins = projectedBundleNames.map((packageName, index) => {
       const packageDir = realpathSync(api.resolveBundleDir(
         "dsh-work",
         packageName,
@@ -782,32 +722,8 @@ export class DshProfilePluginService {
       const descriptor = readProductDescriptor(packageDir, packageManifest, {
         allowHostComponents: managed === "app",
       });
-      let themeDescriptor = { manifest_path: null, themes: [] };
-      try {
-        themeDescriptor = readProfileThemeDescriptor(packageDir, packageManifest);
-      } catch (error) {
-        themeErrors.push(Object.freeze({
-          code: error?.code || "DSH_PROFILE_THEME_INVALID",
-          theme_id: null,
-          manifest_id: null,
-          message: error?.message || String(error),
-          source_bundle: Object.freeze({
-            package_name: packageName,
-            name: String(packageManifest.displayName || packageName),
-            version: typeof packageManifest.version === "string" ? packageManifest.version : null,
-            manifest_path: typeof packageManifest?.dshWork?.themes === "string" ? packageManifest.dshWork.themes : null,
-          }),
-        }));
-      }
-      if (themeDescriptor.themes.length > 0) {
-        themeBundles.push({
-          package_name: packageName,
-          display_name: String(packageManifest.displayName || packageName),
-          version: typeof packageManifest.version === "string" ? packageManifest.version : null,
-          manifest_path: themeDescriptor.manifest_path,
-          themes: themeDescriptor.themes,
-        });
-      }
+      const enabled = bundles.includes(packageName);
+      if (!enabled && packageManifest?.dsh?.bundle?.patch === undefined) return null;
       return bundleView({
         packageName,
         packageDir,
@@ -817,9 +733,9 @@ export class DshProfilePluginService {
         descriptor,
         managed,
         userManageable: featured?.user_manageable === true,
-        themeCount: themeDescriptor.themes.length,
+        enabled,
       });
-    });
+    }).filter(Boolean);
     return {
       resolved,
       api,
@@ -827,14 +743,29 @@ export class DshProfilePluginService {
       profileDir,
       manifest,
       plugins: activePlugins,
-      themeBundles,
-      themeErrors,
+    };
+  }
+
+  /** Validate the current Profile and final DSH graph without changing user state. */
+  async preflightCurrentProfile({ targetVersion = null } = {}) {
+    const state = await this.state();
+    await this.run(state.resolved, state.dshHome, ["--profile", PROFILE_NAME, "--dump-config"]);
+    return {
+      ok: true,
+      profile: PROFILE_NAME,
+      target_version: typeof targetVersion === "string" && targetVersion.trim() ? targetVersion.trim() : null,
+      bundles: state.plugins.map((plugin) => ({
+        id: plugin.id,
+        version: plugin.version,
+        managed_by: plugin.managed_by,
+        enabled: plugin.enabled,
+        ui_runtime: plugin.ui_runtime?.kind || null,
+      })),
     };
   }
 
   async catalog() {
     const state = await this.state();
-    const themes = aggregateProfileThemes(state.themeBundles, state.themeErrors);
     return {
       plugins: state.plugins,
       apps: [],
@@ -855,8 +786,6 @@ export class DshProfilePluginService {
       recommended_plugins: COMMUNITY_PLUGIN_REGISTRY.plugins,
       recommended_plugins_updated_at: COMMUNITY_PLUGIN_REGISTRY.updated_at,
       recommended_plugins_source: COMMUNITY_PLUGIN_REGISTRY.catalog_source,
-      profile_themes: themes.profile_themes,
-      profile_theme_errors: themes.profile_theme_errors,
       catalog_warnings: [],
       catalog_errors: [],
       connection_errors: [],
@@ -867,10 +796,6 @@ export class DshProfilePluginService {
     const state = await this.state();
     const plugin = state.plugins.find((item) => item.id === packageName);
     if (!plugin) throw profileError(`Profile Bundle 不存在：${packageName}`, "PLUGIN_NOT_FOUND");
-    const themes = aggregateProfileThemes(
-      state.themeBundles.filter((bundle) => bundle.package_name === packageName),
-      state.themeErrors.filter((error) => error.source_bundle?.package_name === packageName),
-    );
     return {
       plugin,
       skills: [],
@@ -880,7 +805,6 @@ export class DshProfilePluginService {
       hooks: [],
       scheduled_tasks: [],
       connection_errors: [],
-      ...themes,
     };
   }
 
@@ -962,12 +886,6 @@ export class DshProfilePluginService {
       } catch (error) {
         issues.push({ code: error?.code || "DSH_PRODUCT_DESCRIPTOR_INVALID", message: error?.message || String(error) });
       }
-      let themeDescriptor = { themes: [] };
-      try {
-        themeDescriptor = readProfileThemeDescriptor(packageDir, packageManifest);
-      } catch (error) {
-        issues.push({ code: error?.code || "DSH_PROFILE_THEME_INVALID", message: error?.message || String(error) });
-      }
       if (issues.length > 0) {
         throw profileError(issues[0].message, issues[0].code, {
           package_name: packageName,
@@ -981,9 +899,7 @@ export class DshProfilePluginService {
       return {
         packageName,
         version: packageManifest.version || null,
-        surface: descriptor?.contributions?.length || themeDescriptor.themes.length
-          ? "dsh_work"
-          : packageManifest.dsh?.client ? "dsh_web" : "host",
+        surface: packageManifest.dsh?.client ? "dsh_web" : "host",
         compatibilityChecks,
         patchSummary,
       };
@@ -1098,18 +1014,14 @@ export class DshProfilePluginService {
     const userManageable = plugin.managed_by === "user"
       || (plugin.managed_by === "app" && featured?.user_manageable === true);
     if (!userManageable || !Object.hasOwn(state.manifest.dependencies || {}, packageName)) {
-      throw profileError(`由 ${plugin.managed_by === "app" ? "DeepSeek Harness Desktop App" : "DSH"} 提供的 Bundle 不能卸载`, "PLUGIN_UNINSTALL_NOT_ALLOWED");
+      throw profileError(`由 ${plugin.managed_by === "app" ? "DSH Desktop" : "DSH"} 提供的 Bundle 不能卸载`, "PLUGIN_UNINSTALL_NOT_ALLOWED");
     }
     await this.run(state.resolved, state.dshHome, ["plugin", "--profile", PROFILE_NAME, "remove", packageName]);
     await this.restartRuntime();
     return {
       id: packageName,
       name: plugin.display_name,
-      surface: plugin.ui_runtime?.kind === "dsh_client"
-        ? "dsh_web"
-        : plugin.product_plugin || plugin.profile_theme_count > 0
-          ? "dsh_work"
-          : "host",
+      surface: plugin.ui_runtime?.kind === "dsh_client" ? "dsh_web" : "host",
     };
   }
 }

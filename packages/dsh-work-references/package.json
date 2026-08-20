@@ -1,8 +1,7 @@
 {
-  "name": "@vibeinging/dsh-model-inheritance",
-  "description": "Portable parent-to-sub-Agent model inheritance for DSH Profiles",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@vibeinging/dsh-work-references",
+  "description": "Workspace file references through the official DSH input trigger",
+  "version": "0.1.0",
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "engines": {
@@ -11,12 +10,19 @@
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
+    "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-input-trigger"
+      ],
+      "platform": "web"
     }
   },
   "dshWork": {
@@ -24,23 +30,22 @@
       "level": "portable",
       "surfaces": ["official-web", "dsh-desktop"],
       "hostRequirements": [],
-      "compatibilityTest": "eval/tests/dsh-official-web-plugin-compat.test.mjs"
+      "compatibilityTest": "eval/tests/dsh-work-references.test.mjs"
     }
   },
   "files": [
     "src/index.js",
+    "lib/client.js",
     "cordis.patch.yml",
     "README.md"
   ],
   "license": "BSD-3-Clause",
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.7"
-  },
-  "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "^0.1.0-rc.7",
-    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.7"
+    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.7",
+    "@deepseek-ai/dsh-client-ui-input-trigger": "^0.1.0-rc.7"
   }
 }

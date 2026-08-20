@@ -104,6 +104,39 @@ test("an existing Profile is read-only even when the release inputs are unavaila
   }
 });
 
+test("a user-disabled Bundle stays out of the layer list on restart", async () => {
+  const home = await mkdtemp(join(tmpdir(), "dsh-profile-disabled-readonly-"));
+  try {
+    const api = profileApi();
+    const profileDir = api.resolveProfileDir("web", home);
+    await api.initProfile(profileDir, BASE_BUNDLES);
+    const manifestPath = join(profileDir, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.dependencies = { [featuredPluginNames()[0]]: "file:../plugin-library/tarballs/disabled.tgz" };
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    const before = await readFile(manifestPath, "utf8");
+    let commands = 0;
+    const result = await ensureDshProfileInitialized({
+      resolved: { appBootPath: "unused" },
+      dshHome: home,
+      env: {
+        ...sourceEnvironment(home),
+        DSH_FEATURED_PLUGIN_ALLOW_SOURCE: "0",
+        DSH_FEATURED_PLUGIN_MANIFEST: join(home, "missing-manifest.json"),
+      },
+      appRoot: APP_ROOT,
+      profileApi: api,
+      commandRunner: async () => { commands += 1; },
+    });
+    assert.equal(result.created, false);
+    assert.equal(commands, 0);
+    assert.deepEqual(JSON.parse(await readFile(manifestPath, "utf8")).dsh.profile.bundles, BASE_BUNDLES);
+    assert.equal(await readFile(manifestPath, "utf8"), before);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
 test("new Profile publication is atomic when an official command fails", async () => {
   const home = await mkdtemp(join(tmpdir(), "dsh-profile-atomic-failure-"));
   try {
@@ -205,6 +238,32 @@ test("the fake official command path receives every curated input in order", asy
     assert.equal(additions, featuredPlugins().length);
     const finalManifest = JSON.parse(await readFile(join(result.profileDir, "package.json"), "utf8"));
     assert.deepEqual(finalManifest.dsh.profile.bundles.slice(2), featuredPluginNames());
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("a safe Profile initializes only the official base and web bundles", async () => {
+  const home = await mkdtemp(join(tmpdir(), "dsh-safe-profile-"));
+  try {
+    const commands = [];
+    const result = await ensureDshProfileInitialized({
+      resolved: { appBootPath: "unused" },
+      dshHome: home,
+      env: {
+        ...sourceEnvironment(home),
+        DSH_PROFILE_INITIALIZATION_MODE: "safe",
+        DSH_FEATURED_PLUGIN_MANIFEST: join(home, "missing-manifest.json"),
+      },
+      appRoot: APP_ROOT,
+      profileApi: profileApi(),
+      commandRunner: async (_resolved, args) => { commands.push(args); },
+    });
+    assert.equal(result.created, true);
+    assert.deepEqual(result.bundles, BASE_BUNDLES);
+    assert.deepEqual(commands, [["--profile", "web", "--dump-config"]]);
+    const manifest = JSON.parse(await readFile(join(result.profileDir, "package.json"), "utf8"));
+    assert.deepEqual(manifest.dsh.profile.bundles, BASE_BUNDLES);
   } finally {
     await rm(home, { recursive: true, force: true });
   }

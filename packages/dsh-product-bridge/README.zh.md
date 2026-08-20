@@ -1,16 +1,16 @@
-# DeepSeek Harness Desktop App 产品桥接
+# DSH Desktop 产品桥接
 
 [English](README.md) | 中文
 
-这个私有 Profile Bundle 在不导入、不修改 DSH 源码检出目录的前提下扩展官方 DSH Web Profile。它只持有应用指令上下文，不再注册任何 Tool、工作台页面、模型继承钩子或记忆提供方。它消费按 Session 寻址的 `productHost` 服务，该服务由 `@deepseek-ai/dsh-work-product-host-ipc` 提供；portable 的 `@deepseek-ai/dsh-model-inheritance` Bundle 持有父 Agent 到子 Agent 的模型继承，独立的 `@deepseek-ai/dsh-project-tools` Bundle 持有 `project_list` 和 `conversation_list`，`@deepseek-ai/dsh-canvas-tools` 持有四个 Canvas/Site 工具，`@deepseek-ai/dsh-structured-ui-tools` 持有 `ui_render`，`@deepseek-ai/dsh-office-tools` 消费 `officeArtifactHost`，`@deepseek-ai/dsh-workbench-pages` 持有应用工作台目录。长期记忆由经过审查的社区 `dsh-native-memory` Profile Bundle 提供，不再使用应用自有数据库和注入路径。
+这个私有 Profile Bundle 在不导入、不修改 DSH 源码检出目录的前提下扩展官方 DSH Web Profile。它只持有应用指令上下文，不再注册任何 Tool、页面、模型继承钩子或记忆提供方。它消费按 Session 寻址的 `productHost` 服务，该服务由 `@vibeinging/dsh-work-product-host-ipc` 提供；portable 的 `@vibeinging/dsh-model-inheritance` Bundle 持有父 Agent 到子 Agent 的模型继承，独立的 `@vibeinging/dsh-project-tools` Bundle 持有 `project_list` 和 `conversation_list`，`@vibeinging/dsh-canvas-tools` 持有四个 Canvas/Site 工具，`@vibeinging/dsh-structured-ui-tools` 持有 `ui_render`，`@vibeinging/dsh-office-tools` 消费 `officeArtifactHost`。长期记忆由经过审查的社区 `dsh-native-memory` Profile Bundle 提供，不再使用应用自有数据库和注入路径。
 
-子进程只发送 DSH Session id。独立的 IPC 适配器把每个请求绑定到一个已授权的 DeepSeek Harness Desktop App Session、用户和项目，随后父进程通过一个受控 dispatcher 处理项目、对话、Canvas/Site 和 Office 请求。请求不能切换到另一身份或项目。Canvas/Site 审批归 Canvas Bundle 所有，Office 审批归 Office Bundle 所有。每次调用都会生成普通且可持久恢复的 DSH 工具事件；写入成功后还会投影一条隐藏工作台事件，让实时界面和恢复后的历史打开同一个 Canvas、Site 或产物。
+子进程只发送 DSH Session id。独立的 IPC 适配器把每个请求绑定到一个已授权的 DSH Desktop Session、用户和项目，随后父进程通过一个受控 dispatcher 处理项目、对话、Canvas/Site 和 Office 请求。请求不能切换到另一身份或项目。Canvas/Site 审批归 Canvas Bundle 所有，Office 审批归 Office Bundle 所有。每次调用都会生成普通且可持久恢复的 DSH 工具事件；写入成功后还会投影一条隐藏工作台事件，让实时界面和恢复后的历史打开同一个 Canvas、Site 或产物。
 
 每个进入模型的步骤都会通过同一个父进程绑定读取允许使用的应用指令和项目指令。产品桥把它们作为一条不可变用户消息加入 `agent/pre-step` 的进入批次，并以 `dsh-work-context` 来源写入 DSH Session Log；读取失败只跳过这次补充，不会替换用户消息或建立第二份历史。
 
-portable 的独立 `@deepseek-ai/dsh-model-inheritance` Bundle 记录父 Agent 最终解析出的 provider 和 model。DSH 创建子 Agent 时，该 Bundle 会在第一次请求前固定这个目标，避免子 Agent 回退到进程启动默认模型。父 Agent 之后的新请求仍按正常设置解析。
+portable 的独立 `@vibeinging/dsh-model-inheritance` Bundle 记录父 Agent 最终解析出的 provider 和 model。DSH 创建子 Agent 时，该 Bundle 会在第一次请求前固定这个目标，避免子 Agent 回退到进程启动默认模型。父 Agent 之后的新请求仍按正常设置解析。
 
-运行时就绪、产品 IPC、请求关联、取消和关停清理现均由 `@deepseek-ai/dsh-work-product-host-ipc` 负责，不属于这个功能 Bundle。
+运行时就绪、产品 IPC、请求关联、取消和关停清理现均由 `@vibeinging/dsh-work-product-host-ipc` 负责，不属于这个功能 Bundle。
 
 已删除的项目 Plugin 挂载、Skill 和 MCP 数据不会通过 ProductHost 投影。它们的目录方法返回空目录，而 Profile Bundle 的 Skill 和工具继续由 DSH 原生注册表管理。
 
@@ -20,6 +20,6 @@ portable 的独立 `@deepseek-ai/dsh-model-inheritance` Bundle 记录父 Agent �
 
 ## 已知限制和后续工作
 
-- 已发布的 rc.7 SDK 不包含 ProductHost 包。因此目前由私有的 `@deepseek-ai/dsh-work-product-host-ipc` 适配器提供与传输无关的服务；这个 Bundle 只持有应用指令上下文。模型继承和记忆是独立的 portable/社区 Bundle，而项目、Canvas、Structured UI 和 Office 工具是独立的桌面消费方。它可以在将来切换到 DSH 发布的提供方，无需把 IPC 移回功能代码。
+- 已发布的 rc.7 SDK 不包含 ProductHost 包。因此目前由私有的 `@vibeinging/dsh-work-product-host-ipc` 适配器提供与传输无关的服务；这个 Bundle 只持有应用指令上下文。模型继承和记忆是独立的 portable/社区 Bundle，而项目、Canvas、Structured UI 和 Office 工具是独立的桌面消费方。它可以在将来切换到 DSH 发布的提供方，无需把 IPC 移回功能代码。
 - rc.7 SDK 包可以公开读取，不需要 `NPM_TOKEN`，但开发时必须显式固定 `next`/rc.7 发布系列，因为部分细包的 `latest` 仍指向旧版本。开发时不能链接 DSH 源码，也不能混装不同 RC 系列。
 - 本包为私有包；成品必须携带相同的审核版本和匹配的官方 NPM SDK 版本。

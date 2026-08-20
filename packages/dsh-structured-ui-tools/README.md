@@ -1,4 +1,4 @@
-# DeepSeek Harness Desktop App Structured UI Tools
+# DSH Desktop Structured UI Tools
 
 This private Profile Bundle owns the `ui_render` tool and follows the public DSH Agent and Tool lifecycle. It consumes the session-addressed `productHost` service and never accesses Electron IPC, the product database, or Renderer code directly.
 

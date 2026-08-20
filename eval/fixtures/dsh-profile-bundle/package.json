@@ -8,11 +8,7 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "dshWork": {
-    "themes": "./themes.json"
-  },
   "files": [
-    "cordis.patch.yml",
-    "themes.json"
+    "cordis.patch.yml"
   ]
 }

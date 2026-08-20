@@ -1,4 +1,4 @@
-/** Desktop IPC providers for session-addressed product capability services. */
+/** Desktop Host providers for session-addressed product and browser services. */
 
 import { randomUUID } from "node:crypto";
 
@@ -77,7 +77,7 @@ export function createProductHostTransport(ctx, channel = process) {
         sendCancel(request);
         settle(request, new DshWorkProductHostError(
           "product-unavailable",
-          "DeepSeek Harness Desktop App product Host disposed",
+          "DSH Desktop product Host disposed",
         ));
       }
     };
@@ -88,7 +88,7 @@ export function createProductHostTransport(ctx, channel = process) {
       if (channel?.connected !== true || typeof channel.send !== "function") {
         return Promise.reject(new DshWorkProductHostError(
           "product-unavailable",
-          "DeepSeek Harness Desktop App parent process is unavailable",
+          "DSH Desktop parent process is unavailable",
         ));
       }
       const id = randomUUID();
@@ -166,15 +166,36 @@ export function createProductHostServices(transport) {
     create: (request, context) => call(transport, "artifactOfficeCreate", request, context),
     edit: (request, context) => call(transport, "artifactOfficeEdit", request, context),
   });
-  return Object.freeze({ productHost, officeArtifactHost });
+  const browserWorkspaceHost = Object.freeze({
+    getState: (context) => call(transport, "browserWorkspaceGetState", {}, context),
+    setVisible: (request, context) => call(transport, "browserWorkspaceSetVisible", request, context),
+    setBounds: (request, context) => call(transport, "browserWorkspaceSetBounds", request, context),
+    createTab: (request, context) => call(transport, "browserWorkspaceCreateTab", request, context),
+    activateTab: (request, context) => call(transport, "browserWorkspaceActivateTab", request, context),
+    closeTab: (request, context) => call(transport, "browserWorkspaceCloseTab", request, context),
+    navigate: (request, context) => call(transport, "browserWorkspaceNavigate", request, context),
+    goBack: (request, context) => call(transport, "browserWorkspaceGoBack", request, context),
+    goForward: (request, context) => call(transport, "browserWorkspaceGoForward", request, context),
+    reload: (request, context) => call(transport, "browserWorkspaceReload", request, context),
+    stop: (request, context) => call(transport, "browserWorkspaceStop", request, context),
+    findInPage: (request, context) => call(transport, "browserWorkspaceFindInPage", request, context),
+    stopFindInPage: (request, context) => call(transport, "browserWorkspaceStopFindInPage", request, context),
+    capturePage: (request, context) => call(transport, "browserWorkspaceCapturePage", request, context),
+    captureScreenshot: (request, context) => call(transport, "browserWorkspaceCaptureScreenshot", request, context),
+    listPermissions: (context) => call(transport, "browserWorkspaceListPermissions", {}, context),
+    removePermission: (request, context) => call(transport, "browserWorkspaceRemovePermission", request, context),
+    resolvePermissionRequest: (request, context) => call(transport, "browserWorkspaceResolvePermissionRequest", request, context),
+  });
+  return Object.freeze({ productHost, officeArtifactHost, browserWorkspaceHost });
 }
 
 /** Register the desktop Host services and publish runtime readiness. */
 export function apply(ctx) {
   const transport = createProductHostTransport(ctx);
-  const { productHost, officeArtifactHost } = createProductHostServices(transport);
+  const { productHost, officeArtifactHost, browserWorkspaceHost } = createProductHostServices(transport);
   ctx.provide("productHost", productHost);
   ctx.provide("officeArtifactHost", officeArtifactHost);
+  ctx.provide("browserWorkspaceHost", browserWorkspaceHost);
 
   let stopping = false;
   const stopRuntime = () => {

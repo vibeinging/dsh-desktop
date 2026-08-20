@@ -28,7 +28,7 @@ function validateManifest(value) {
     if (typeof plugin.package_path !== "string" || !plugin.package_path.startsWith("packages/")) {
       throw new Error(`${plugin.name} 的 package_path 必须位于 packages/ 下`);
     }
-    if (!new Set(["portable", "desktop-adapter", "desktop-shell"]).has(plugin.portability)) {
+    if (!new Set(["portable", "desktop-adapter"]).has(plugin.portability)) {
       throw new Error(`${plugin.name} 的 portability 无效`);
     }
     if (!Array.isArray(plugin.permissions) || plugin.permissions.some((item) => typeof item !== "string")) {

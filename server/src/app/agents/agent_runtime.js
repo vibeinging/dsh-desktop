@@ -9,6 +9,7 @@ import {
   agentRuntimeStatus,
   probeAgentRuntime as probeRuntimeKernel,
 } from "../../engine/agent_kernel/agent_runtime.js";
+import { getDshProfilePluginService } from "../../engine/dsh_runtime/profile_plugin_service.js";
 
 export async function getAgentRuntimeStatus() {
   return {
@@ -60,5 +61,21 @@ export async function getDshClientSurface() {
   } catch (error) {
     console.error(`[agent-runtime] client surface failed: ${error?.message || String(error)}`);
     throw new ApiError("DSH Client 界面启动失败", 503);
+  }
+}
+
+/** Validate the authoritative DSH Profile before an application update installs. */
+export async function getDshProfilePreflight(_ctx, input) {
+  if (!dshRuntimeEnabled()) throw new ApiError("DSH 运行时未启用", 503);
+  try {
+    return {
+      data: await getDshProfilePluginService().preflightCurrentProfile({
+        targetVersion: input?.query?.target_version,
+      }),
+      message: "DSH Profile 更新预检通过",
+    };
+  } catch (error) {
+    console.error(`[agent-runtime] profile preflight failed: ${error?.message || String(error)}`);
+    throw new ApiError("DSH Profile 更新预检失败", 503, error?.code || "DSH_PROFILE_PREFLIGHT_FAILED");
   }
 }

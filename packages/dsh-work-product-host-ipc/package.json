@@ -1,6 +1,6 @@
 {
-  "name": "@deepseek-ai/dsh-work-product-host-ipc",
-  "description": "Desktop parent-process IPC adapter for session-addressed dsh-work product capabilities",
+  "name": "@vibeinging/dsh-work-product-host-ipc",
+  "description": "Narrow DSH Desktop Host adapter for product and Browser Workspace capabilities",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -23,7 +23,7 @@
     "portability": {
       "level": "desktop-adapter",
       "surfaces": ["dsh-desktop"],
-      "hostRequirements": ["dsh-work-parent-ipc"]
+      "hostRequirements": ["dsh-work-parent-ipc", "browser-workspace-host"]
     }
   },
   "files": [

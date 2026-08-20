@@ -10,7 +10,6 @@ import { fileURLToPath } from "node:url";
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_CLI = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh/lib/bin.js");
-const THEME_PACKAGE = resolve(APP_ROOT, "packages/dsh-theme-pack");
 const MODEL_INHERITANCE_PACKAGE = resolve(APP_ROOT, "packages/dsh-model-inheritance");
 const ELECTRON_FIXTURE = resolve(APP_ROOT, "eval/fixtures/official-web-electron.cjs");
 const requireFromElectron = createRequire(resolve(APP_ROOT, "electron/package.json"));
@@ -59,11 +58,11 @@ function waitForOfficialSurface(child) {
   });
 }
 
-test("our portable Bundles install and run in an unmodified official Web Profile", {
+test("our portable Bundle installs and runs in an unmodified official Web Profile", {
   timeout: 120_000,
-  skip: existsSync(DSH_CLI) && existsSync(ELECTRON_EXECUTABLE) && existsSync(resolve(THEME_PACKAGE, "lib/client.js"))
+  skip: existsSync(DSH_CLI) && existsSync(ELECTRON_EXECUTABLE) && existsSync(resolve(MODEL_INHERITANCE_PACKAGE, "src/index.js"))
     ? false
-    : "missing app-pinned DSH CLI, Electron, or built theme client",
+    : "missing app-pinned DSH CLI, Electron, or model inheritance Bundle",
 }, async () => {
   const dshHome = await mkdtemp(join(tmpdir(), "dsh-official-web-plugin-"));
   let server;
@@ -76,16 +75,14 @@ test("our portable Bundles install and run in an unmodified official Web Profile
     };
     await runCommand(process.execPath, [
       DSH_CLI,
-      "plugin", "--profile", "web", "add", "-w", THEME_PACKAGE, MODEL_INHERITANCE_PACKAGE,
+      "plugin", "--profile", "web", "add", "-w", MODEL_INHERITANCE_PACKAGE,
       "--save-exact", "--ignore-scripts", "--offline",
     ], { cwd: APP_ROOT, env });
 
     const profileDir = join(dshHome, "profiles", "web");
     const manifest = JSON.parse(await readFile(join(profileDir, "package.json"), "utf8"));
-    assert.equal(typeof manifest.dependencies?.["@deepseek-ai/dsh-theme-pack"], "string");
-    assert.equal(typeof manifest.dependencies?.["@deepseek-ai/dsh-model-inheritance"], "string");
-    assert.equal(manifest.dsh?.profile?.bundles?.includes("@deepseek-ai/dsh-theme-pack"), true);
-    assert.equal(manifest.dsh?.profile?.bundles?.includes("@deepseek-ai/dsh-model-inheritance"), true);
+    assert.equal(typeof manifest.dependencies?.["@vibeinging/dsh-model-inheritance"], "string");
+    assert.equal(manifest.dsh?.profile?.bundles?.includes("@vibeinging/dsh-model-inheritance"), true);
 
     server = spawn(process.execPath, [DSH_CLI, "--profile", "web", "--port", "0"], {
       cwd: APP_ROOT,
@@ -97,17 +94,8 @@ test("our portable Bundles install and run in an unmodified official Web Profile
       assert.equal(response.ok, true);
       return response.text();
     });
-    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-theme-pack\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-model-inheritance\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-work-shell\/client\.js\?rev=/);
-
-    const clientUrl = new URL("/plugins/@deepseek-ai/dsh-theme-pack/client.js", surface);
-    const client = await fetch(clientUrl).then((response) => {
-      assert.equal(response.ok, true);
-      return response.text();
-    });
-    assert.match(client, /theme\.overrideTokens/);
-    assert.match(client, /--dsw-alias-brand-primary/);
 
     const electronEnv = {
       ...process.env,
@@ -122,9 +110,8 @@ test("our portable Bundles install and run in an unmodified official Web Profile
     const resultLine = browserOutput.split(/\r?\n/).find((line) => line.startsWith("DSH_OFFICIAL_WEB_RESULT "));
     assert.ok(resultLine, `missing browser result:\n${browserOutput}`);
     const result = JSON.parse(resultLine.slice("DSH_OFFICIAL_WEB_RESULT ".length));
-    assert.equal(["#405fd2", "#7b9cff"].includes(result.primary), true);
-    assert.equal(["light", "dark"].includes(result.colorScheme), true);
-    assert.equal(result.themeClientLoaded, true);
+    assert.equal(result.officialWeb, true);
+    assert.equal(result.modelInheritanceClientLoaded, false);
     assert.equal(result.productShellLoaded, false);
     assert.equal(result.bodyChildCount > 0, true);
   } finally {

@@ -1,5 +1,5 @@
 {
-  "name": "@deepseek-ai/dsh-product-bridge",
+  "name": "@vibeinging/dsh-product-bridge",
   "description": "Session-scoped App instruction context for the current DSH Web profile",
   "version": "0.0.1",
   "private": true,

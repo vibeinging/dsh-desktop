@@ -1,5 +1,5 @@
-// Product-tool IPC dispatcher: the dsh-work parent-side handler for inbound
-// `product-request` messages from the app-owned DSH product Host IPC adapter.
+// DSH Desktop Host dispatcher: the server-side handler for inbound
+// `product-request` messages from the app-owned DSH Host adapter.
 // The adapter sends `{ type: "product-request", id, sessionId, method, payload }`
 // over the fork() IPC channel when a product capability consumer runs. This dispatcher owns:
 //   - the method whitelist (default-deny; a method not listed is rejected),
@@ -41,6 +41,136 @@ import {
 import { buildProjectInstructionsMarkdown } from "../agents/workspace_context.js";
 
 const MAX_ITEMS = 200;
+const DESKTOP_NATIVE_TIMEOUT_MS = 30_000;
+const BROWSER_WORKSPACE_METHODS = new Set([
+  "browserWorkspaceGetState",
+  "browserWorkspaceSetVisible",
+  "browserWorkspaceSetBounds",
+  "browserWorkspaceCreateTab",
+  "browserWorkspaceActivateTab",
+  "browserWorkspaceCloseTab",
+  "browserWorkspaceNavigate",
+  "browserWorkspaceGoBack",
+  "browserWorkspaceGoForward",
+  "browserWorkspaceReload",
+  "browserWorkspaceStop",
+  "browserWorkspaceFindInPage",
+  "browserWorkspaceStopFindInPage",
+  "browserWorkspaceCapturePage",
+  "browserWorkspaceCaptureScreenshot",
+  "browserWorkspaceListPermissions",
+  "browserWorkspaceRemovePermission",
+  "browserWorkspaceResolvePermissionRequest",
+]);
+
+function isDesktopNativeResponse(message) {
+  return Boolean(message && typeof message === "object"
+    && message.type === "desktop-native-response"
+    && typeof message.id === "string"
+    && message.result && typeof message.result.ok === "boolean"
+    && (message.result.ok
+      ? Object.hasOwn(message.result, "value")
+      : typeof message.result.error?.code === "string"
+        && typeof message.result.error?.message === "string"));
+}
+
+/** Correlate one narrow server-to-Electron Host request without exposing it to Web code. */
+export function createDesktopNativeHostTransport(channel = process) {
+  const pending = new Map();
+  const onMessage = (message) => {
+    if (!isDesktopNativeResponse(message)) return;
+    const request = pending.get(message.id);
+    if (!request) return;
+    clearTimeout(request.timer);
+    request.signal?.removeEventListener("abort", request.onAbort);
+    pending.delete(message.id);
+    if (message.result.ok) request.resolve(message.result.value);
+    else {
+      const error = new Error(message.result.error.message);
+      error.code = message.result.error.code;
+      request.reject(error);
+    }
+  };
+  channel?.on?.("message", onMessage);
+  const cancel = (request) => {
+    try {
+      if (channel?.connected === true && typeof channel.send === "function") {
+        channel.send({ type: "desktop-native-cancel", id: request.id, sessionId: request.sessionId });
+      }
+    } catch {
+      // The parent is already exiting; the pending request will be rejected below.
+    }
+  };
+  return Object.freeze({
+    request(sessionId, method, payload = {}, signal) {
+      const sessionKey = String(sessionId || "").trim();
+      if (!sessionKey || !BROWSER_WORKSPACE_METHODS.has(method)) {
+        const error = new Error("Browser Workspace 请求缺少已绑定 Session 或使用了未知方法");
+        error.code = "desktop-native-rejected";
+        return Promise.reject(error);
+      }
+      if (channel?.connected !== true || typeof channel.send !== "function") {
+        const error = new Error("Electron Native Host 不可用");
+        error.code = "desktop-native-unavailable";
+        return Promise.reject(error);
+      }
+      const id = randomRequestId();
+      return new Promise((resolve, reject) => {
+        const request = { id, sessionId: sessionKey, resolve, reject, signal, timer: null, onAbort: null };
+        const finish = (error) => {
+          if (!pending.has(id)) return;
+          clearTimeout(request.timer);
+          request.signal?.removeEventListener("abort", request.onAbort);
+          pending.delete(id);
+          reject(error);
+        };
+        request.onAbort = () => {
+          cancel(request);
+          finish(Object.assign(new Error("Browser Workspace 请求已取消"), { code: "desktop-native-rejected" }));
+        };
+        if (signal?.aborted) {
+          request.onAbort();
+          return;
+        }
+        request.timer = setTimeout(() => {
+          cancel(request);
+          finish(Object.assign(new Error("Browser Workspace 请求超时"), { code: "desktop-native-timeout" }));
+        }, DESKTOP_NATIVE_TIMEOUT_MS);
+        request.timer.unref?.();
+        signal?.addEventListener("abort", request.onAbort, { once: true });
+        pending.set(id, request);
+        try {
+          channel.send({ type: "desktop-native-request", id, sessionId: sessionKey, method, payload }, (error) => {
+            if (!error || !pending.has(id)) return;
+            finish(Object.assign(new Error(`Electron Native Host 请求失败：${error.message || error}`), {
+              code: "desktop-native-unavailable",
+            }));
+          });
+        } catch (error) {
+          finish(Object.assign(new Error(`Electron Native Host 请求失败：${error?.message || error}`), {
+            code: "desktop-native-unavailable",
+          }));
+        }
+      });
+    },
+    dispose() {
+      channel?.off?.("message", onMessage);
+      for (const request of pending.values()) {
+        cancel(request);
+        clearTimeout(request.timer);
+        request.signal?.removeEventListener("abort", request.onAbort);
+        request.reject(Object.assign(new Error("Electron Native Host 已关闭"), { code: "desktop-native-unavailable" }));
+      }
+      pending.clear();
+    },
+  });
+}
+
+let nativeRequestSequence = 0;
+function randomRequestId() {
+  nativeRequestSequence = (nativeRequestSequence + 1) % Number.MAX_SAFE_INTEGER;
+  return `native-${process.pid}-${nativeRequestSequence}`;
+}
 
 /**
  * The business services the dispatcher calls. Held as a mutable registry so
@@ -91,7 +221,13 @@ const HANDLERS = Object.freeze({
   canvasEdit: handleCanvasEdit,
   canvasSuggest: handleCanvasSuggest,
   uiRender: handleUiRender,
+  ...Object.fromEntries([...BROWSER_WORKSPACE_METHODS].map((method) => [method, handleBrowserWorkspace])),
 });
+
+async function handleBrowserWorkspace({ nativeHost, sessionId, method, payload, signal }) {
+  if (!nativeHost) throw productRejected("Browser Workspace Native Host 不可用");
+  return nativeHost.request(sessionId, method, payload, signal);
+}
 
 function handleCapabilitySnapshot() {
   return {
@@ -193,7 +329,7 @@ export function createProductHostDispatcher({
  */
 export const nullProductHostDispatcher = {
   async handle(message) {
-    return response(message?.id, { ok: false, error: { code: "product-unavailable", message: "productHost 未接入 DeepSeek Harness Desktop App 业务服务" } });
+    return response(message?.id, { ok: false, error: { code: "product-unavailable", message: "productHost 未接入 DSH Desktop 业务服务" } });
   },
   cancel() {
     return false;
@@ -207,7 +343,7 @@ export const nullProductHostDispatcher = {
  * across turns and child restarts. Each request selects its binding with the
  * DSH-owned sessionId; userId and projectId never come from the child payload.
  */
-export function createSessionProductHostDispatcher() {
+export function createSessionProductHostDispatcher({ nativeHost = createDesktopNativeHostTransport() } = {}) {
   const bindings = new Map();
   const inFlight = new Map();
   return {
@@ -230,7 +366,7 @@ export function createSessionProductHostDispatcher() {
       if (current && (current.appSessionId !== binding.appSessionId
         || current.userId !== binding.userId
         || current.projectId !== binding.projectId)) {
-        const error = new Error("同一个 DSH session 不能改绑到另一项 DeepSeek Harness Desktop App 身份");
+        const error = new Error("同一个 DSH session 不能改绑到另一项 DSH Desktop 身份");
         error.code = "DSH_PRODUCT_HOST_IDENTITY_CONFLICT";
         throw error;
       }
@@ -272,6 +408,9 @@ export function createSessionProductHostDispatcher() {
           resolveUserId: () => binding.userId,
           resolveProjectId: () => binding.projectId || null,
           resolveAppSessionId: () => binding.appSessionId,
+          nativeHost,
+          sessionId: dshSessionId,
+          method,
           payload: message.payload || {},
           signal: controller.signal,
         });
@@ -295,6 +434,7 @@ export function createSessionProductHostDispatcher() {
       }
       inFlight.clear();
       bindings.clear();
+      nativeHost.dispose?.();
     },
   };
 }
@@ -357,7 +497,7 @@ async function handleConversationContext({
     "SELECT action_type,session_config FROM sessions WHERE id=$1 AND project_id=$2 AND created_by=$3 AND deleted_at IS NULL LIMIT 1",
     [appSessionId, projectId, userId],
   ).catch(() => null);
-  if (!session) throw productRejected("conversationContext 找不到绑定的 DeepSeek Harness Desktop App Session");
+  if (!session) throw productRejected("conversationContext 找不到绑定的 DSH Desktop Session");
   let sessionConfig = {};
   try {
     sessionConfig = typeof session.session_config === "string"
@@ -404,7 +544,7 @@ function boundOfficeRequest({ db, resolveUserId, resolveProjectId, resolveAppSes
   const projectId = String(resolveProjectId?.() || "").trim();
   const requestedProjectId = String(payload?.project_id || projectId).trim();
   const appSessionId = String(resolveAppSessionId?.() || "").trim();
-  if (!projectId || !appSessionId) throw productRejected("Office 产物工具需要活动项目和 DeepSeek Harness Desktop App Session 绑定");
+  if (!projectId || !appSessionId) throw productRejected("Office 产物工具需要活动项目和 DSH Desktop Session 绑定");
   if (requestedProjectId !== projectId) throw productRejected("Office 产物工具只能操作当前 DSH Session 绑定的项目");
   return {
     projectId,
@@ -425,7 +565,7 @@ function officeSource(appSessionId) {
 function boundCanvasRequest({ db, resolveUserId, resolveProjectId, resolveAppSessionId }) {
   const projectId = String(resolveProjectId?.() || "").trim();
   const appSessionId = String(resolveAppSessionId?.() || "").trim();
-  if (!projectId || !appSessionId) throw productRejected("Canvas 工具需要活动项目和 DeepSeek Harness Desktop App Session 绑定");
+  if (!projectId || !appSessionId) throw productRejected("Canvas 工具需要活动项目和 DSH Desktop Session 绑定");
   return {
     projectId,
     appSessionId,
@@ -576,7 +716,7 @@ async function handleCanvasSuggest(deps) {
 function handleUiRender({ resolveProjectId, resolveAppSessionId, payload }) {
   const projectId = String(resolveProjectId?.() || "").trim();
   const appSessionId = String(resolveAppSessionId?.() || "").trim();
-  if (!projectId || !appSessionId) throw productRejected("uiRender 需要活动项目和 DeepSeek Harness Desktop App Session 绑定");
+  if (!projectId || !appSessionId) throw productRejected("uiRender 需要活动项目和 DSH Desktop Session 绑定");
   const { document, stats } = parseGenerativeUiDocument(payload, { allowedLocalRoots: [] });
   return {
     success: true,

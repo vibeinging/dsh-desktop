@@ -17,9 +17,18 @@ const DSH_WEB_UI_DEPENDENCIES = Object.freeze({
   "@linxin666/dsh-client-ui-skin-center": "0.1.20",
 });
 
+const TASK_BOARD_DEPENDENCIES = Object.freeze({
+  schemastery: "^3.18.0",
+});
+
 /** Return the exact dependency projection reviewed for the aggregate Client release. */
 export function reviewedCommunityClientDependencies() {
   return DSH_WEB_UI_DEPENDENCIES;
+}
+
+/** Return the exact dependency projection reviewed for the task-board release. */
+export function reviewedTaskBoardDependencies() {
+  return TASK_BOARD_DEPENDENCIES;
 }
 
 const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
@@ -34,6 +43,20 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
         "读取本地仓库与图片",
         "启动 Git、SSH 与电源保持进程",
         "访问 SSH、远程 Web 和模型服务网络",
+      ]),
+    }),
+  })],
+  ["@linxin666/dsh-client-ui-task-board", Object.freeze({
+    version: "0.1.20",
+    bundlePatch: "./cordis.patch.yml",
+    dependencies: TASK_BOARD_DEPENDENCIES,
+    integrity: "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
+    review: Object.freeze({
+      session: "任务看板使用官方 DSH Session.prompt 启动任务，并读取当前 Workspace 状态",
+      capabilities: Object.freeze([
+        "读取当前 DSH Session 与 Workspace",
+        "写入任务看板数据",
+        "按用户操作启动 DSH Session 任务",
       ]),
     }),
   })],
@@ -56,7 +79,15 @@ export function isReviewedCommunityClient(plugin) {
   if (policy.bundlePatch !== undefined && plugin?.manifest?.dsh?.bundle?.patch !== policy.bundlePatch) return false;
   if (policy.dependencies !== undefined
     && !sameDependencyManifest(plugin?.manifest?.dependencies, policy.dependencies)) return false;
+  if (policy.integrity !== undefined
+    && plugin?.integrity !== undefined
+    && plugin.integrity !== policy.integrity) return false;
   return true;
+}
+
+/** Return the exact review policy for one community Client, without runtime state. */
+export function reviewedCommunityClientPolicy(name) {
+  return REVIEWED_COMMUNITY_CLIENTS.get(String(name || "")) || null;
 }
 
 /** Return the reviewed capability projection for one exact community release. */

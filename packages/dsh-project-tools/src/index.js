@@ -9,7 +9,7 @@ const TOOL_SPECS = [{
   name: "project_list",
   hostMethod: "projectList",
   title: "List projects",
-  description: "List DeepSeek Harness Desktop App projects available to the current user.",
+  description: "List DSH Desktop projects available to the current user.",
   parameters: {
     type: "object",
     properties: {

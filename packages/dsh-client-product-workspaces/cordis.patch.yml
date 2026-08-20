@@ -1,6 +1,0 @@
-- id: ui-workspace
-  disabled: true
-
-- insert:
-    - id: dsh-client-product-workspaces
-      name: '@deepseek-ai/dsh-client-product-workspaces'

@@ -3,16 +3,16 @@
   "profile": "web",
   "plugins": [
     {
-      "name": "@deepseek-ai/dsh-work-product-host-ipc",
+      "name": "@vibeinging/dsh-work-product-host-ipc",
       "package_path": "packages/dsh-work-product-host-ipc",
       "default": true,
       "user_manageable": true,
       "portability": "desktop-adapter",
-      "permissions": ["dsh-work-parent-ipc"],
+      "permissions": ["dsh-work-parent-ipc", "browser-workspace-host"],
       "license": "MIT"
     },
     {
-      "name": "@deepseek-ai/dsh-project-tools",
+      "name": "@vibeinging/dsh-project-tools",
       "package_path": "packages/dsh-project-tools",
       "default": true,
       "user_manageable": true,
@@ -21,7 +21,7 @@
       "license": "MIT"
     },
     {
-      "name": "@deepseek-ai/dsh-canvas-tools",
+      "name": "@vibeinging/dsh-canvas-tools",
       "package_path": "packages/dsh-canvas-tools",
       "default": true,
       "user_manageable": true,
@@ -30,7 +30,7 @@
       "license": "MIT"
     },
     {
-      "name": "@deepseek-ai/dsh-structured-ui-tools",
+      "name": "@vibeinging/dsh-structured-ui-tools",
       "package_path": "packages/dsh-structured-ui-tools",
       "default": true,
       "user_manageable": true,
@@ -39,7 +39,7 @@
       "license": "MIT"
     },
     {
-      "name": "@deepseek-ai/dsh-model-inheritance",
+      "name": "@vibeinging/dsh-model-inheritance",
       "package_path": "packages/dsh-model-inheritance",
       "default": true,
       "user_manageable": true,
@@ -48,7 +48,7 @@
       "license": "MIT"
     },
     {
-      "name": "@deepseek-ai/dsh-product-bridge",
+      "name": "@vibeinging/dsh-product-bridge",
       "package_path": "packages/dsh-product-bridge",
       "default": true,
       "user_manageable": true,
@@ -57,7 +57,7 @@
       "license": "MIT"
     },
     {
-      "name": "@deepseek-ai/dsh-office-tools",
+      "name": "@vibeinging/dsh-office-tools",
       "package_path": "packages/dsh-office-tools",
       "default": true,
       "user_manageable": true,
