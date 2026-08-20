@@ -41,11 +41,11 @@
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
 | Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试 | 新 Profile 与已有 Profile 的状态边界已验证 |
 | 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；loopback 模型不替代真实 DeepSeek live-model 证据 |
-| 安装包 | macOS arm64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | 断网新用户、恢复/卸载保持和签名更新探针已建立；Apple 公证、Gatekeeper 接受、Windows 实机和其他平台仍是发布门槛 |
+| 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；x64 目录包当前未签名；Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态仍是发布门槛 |
 
 ## 本轮安装包与性能基线
 
-2026-08-21 在 macOS arm64 目录包上运行了以下命令：
+2026-08-21 在 macOS arm64 目录包上运行了以下命令；同日又使用官方 Node `v24.19.0` `darwin-x64` 二进制和 Rosetta 完成 macOS x64 目录包及对应 smoke：
 
 - `npm --prefix electron run smoke:packaged-server`
 - `npm --prefix electron run smoke:packaged-app`
@@ -61,12 +61,21 @@
 - `npm run test:release:community`
 - `npm run smoke:updater`
 - `DSH_SMOKE_SIGN_IDENTITY=03587EF7C8984E0F7631EC905C26336C15C8189D node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-updater.mjs ".desktop-build/signed-probe/mac-arm64/DSH Desktop.app"`
+- `DSH_PACKAGE_NODE_REEXEC=1 npm_execpath=/tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/lib/node_modules/npm/bin/npm-cli.js arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/prepare-package.mjs --platform darwin --arch x64`
+- `CSC_IDENTITY_AUTO_DISCOVERY=false arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node node_modules/.bin/electron-builder --mac --x64 --dir`
+- `arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-server.mjs "release/mac/DSH Desktop.app"`
+- `arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-offline.mjs "release/mac/DSH Desktop.app"`
+- `arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-recovery.mjs "release/mac/DSH Desktop.app"`
+- `arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-profile-authority.mjs "release/mac/DSH Desktop.app"`
+- `DSH_SCREENSHOT_DIR=.desktop-build/evidence/official-web-x64.Ev0qMl arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-official-web-flow.mjs "release/mac/DSH Desktop.app"`
 
 官方 Web CDP 流程 smoke 使用临时用户目录和 `PATH=/usr/bin`，主动清除 `DEEPSEEK_API_KEY`，通过真实随包 Electron 页面完成首次提示、官方 `workspace.create` 测试夹具、官方 Web 新建 Session、输入并发送消息、可见的 Session log、`session.list` 和 `session.history` 回读，再检查页面没有 `window.electronAPI` 或 Node 全局。无密钥时模型请求按预期显示 `MISSING_CREDENTIAL`，这条失败也属于官方 Web 的可见 Session 结果，不把它写成模型成功。命令支持 `DSH_SCREENSHOT_DIR=/path` 持久化官方 Web 截图；本次 smoke 的审批和队列没有伪造覆盖，必须在有工具调用的 live-model 环境单独验证。
 
 官方 Web 交互 smoke 使用同一 macOS arm64 打包 Electron，但把 DSH 官方 DeepSeek 适配器的 loopback endpoint 指向脚本内的确定性 SSE 测试服务，并设置 `DEEPSEEK_API_KEY` 仅作为测试凭据；它没有访问外网或真实模型。第一轮由测试模型发起 `ask_user_question`，官方 Web 问题卡片显示选项，脚本选择并提交“继续执行”；随后 bash 写入 Profile 工作区之外的临时 marker，真实沙箱返回拒绝；第二轮由测试模型提交相同命令及 `danger-full-access` 与 justification，官方审批服务向官方 Web 发布审批卡片，点击 `Allow once` 后真实写入 marker。此期间通过官方 `session.prompt({ mode: "queue" })` 接受第二条消息，官方 `session/queue` 投影渲染 QueueDock，首轮完成后排队消息再次经过官方 LLM 和 Session history。脚本还检查了实际 marker 内容为 `approved\n`，所以没有把模型文本当成工具成功证据。本次截图保存在 `electron/.desktop-build/evidence/official-web-interactions/official-web-approval-queue.png`、`official-web-question-pending.png`、`official-web-approval-pending.png` 和 `official-web-session-flow.png`；这是本机 smoke 归档，不等同于公开安装录制或真实 DeepSeek 服务验收。
 
 断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 arm64 目录包预算门禁观测的 `cold_web_ms` 为 `4201`（此前观测为 `5053`、`5147`、`4718`、`7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
+
+在同一台 Apple Silicon 主机上，使用官方 Node `v24.19.0` `darwin-x64` 二进制并通过 Rosetta 准备依赖后，x64 目录包的随包 Server、断网新用户 Profile、损坏 Bundle 恢复、Profile authority 和官方 Web Session/log/history 流程也均通过；x64 官方 Web smoke 截图为 `.desktop-build/evidence/official-web-x64.Ev0qMl/official-web-session-flow.png`，断网 smoke 的 Rosetta 冷启动观测为 `77526` ms。该观测明显包含 Rosetta 成本，不替代原生 x64 机器的性能验收；x64 目录包也未签名，不能替代 Windows、Developer ID、公证或 Gatekeeper 证据。
 
 当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-21 的 macOS arm64 结果如下：
 
@@ -90,7 +99,7 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
 - 当前证据已经包含 Developer ID 签名目录包的断网初始化、Profile authority、损坏 Bundle 恢复和真实签名 updater 替换回归，但还不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态的全平台证据；最新 arm64 目录包上的断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和预算门禁已通过。
-- `npm run package:mac:x64:dir` 已尝试但未产出 x64 包；目标准备阶段的 `koffi` 构建仍落在 `darwin_arm64`，并以 arm64 N-API/uv 符号链接失败。需要原生 x64 或可用的交叉构建环境补齐 macOS x64 证据。
+- macOS x64 目录包已经通过独立的官方 Node `v24.19.0` x64 运行时和 Rosetta 构建；当前尚缺原生 x64 主机或发行 CI 上的签名、安装器和性能验收，不能把本机 Rosetta 目录包写成正式 x64 发布证据。
 - 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化；公开截图和安装录制仍需在发行环境重新采集，loopback 模型也不替代真实 DeepSeek 服务验收。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。
