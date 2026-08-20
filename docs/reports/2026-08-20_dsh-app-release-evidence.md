@@ -49,19 +49,20 @@
 
 官方 Web CDP 流程 smoke 使用临时用户目录和 `PATH=/usr/bin`，主动清除 `DEEPSEEK_API_KEY`，通过真实随包 Electron 页面完成首次提示、官方 `workspace.create` 测试夹具、官方 Web 新建 Session、输入并发送消息、可见的 Session log、`session.list` 和 `session.history` 回读，再检查页面没有 `window.electronAPI` 或 Node 全局。无密钥时模型请求按预期显示 `MISSING_CREDENTIAL`，这条失败也属于官方 Web 的可见 Session 结果，不把它写成模型成功。命令支持 `DSH_SCREENSHOT_DIR=/path` 持久化官方 Web 截图；本次 smoke 的审批和队列没有伪造覆盖，必须在有工具调用的 live-model 环境单独验证。
 
-断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，当前观测的 `cold_web_ms` 为 `4967`（此前观测为 `4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，用随包 DSH CLI 移除了 portable Bundle `@vibeinging/dsh-model-inheritance`，写入待更新记录后再次启动；Profile 清单保持原样，已卸载 Bundle 未被重启或更新记录回放恢复。
+断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最近预算门禁观测的 `cold_web_ms` 为 `7727`（此前观测为 `4967`、`4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，用随包 DSH CLI 移除了 portable Bundle `@vibeinging/dsh-model-inheritance`，写入待更新记录后再次启动；Profile 清单保持原样，已卸载 Bundle 未被重启或更新记录回放恢复。
 
-当前目录包体积基线如下，尚未设定可接受预算，因此不能据此宣称性能门槛通过：
+当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-20 的 macOS arm64 结果如下：
 
-| 项目 | 当前观测 |
-| --- | ---: |
-| `DSH Desktop.app` | `1,308,556 KiB`（约 1.2 GiB） |
-| 随包 Server 资源 | `956,424 KiB` |
-| 随包 pnpm runtime | `17,000 KiB` |
-| 7 个精选插件 tarball | `22,002` bytes |
-| 断网新 Profile 数据目录 | `2,675,749` bytes |
+| 项目 | 当前观测 | 预算 |
+| --- | ---: | ---: |
+| `DSH Desktop.app` | `1,161,521,772` bytes | `1,400,000,000` bytes |
+| 随包 Server 资源 | `847,692,449` bytes | `1,000,000,000` bytes |
+| 随包 pnpm runtime | `15,123,627` bytes | `20,000,000` bytes |
+| 7 个精选插件 tarball | `22,002` bytes | `64,000` bytes |
+| 断网新 Profile 数据目录 | `2,675,749` bytes | `4,000,000` bytes |
+| 官方 Web 冷启动 | `7,727` ms | `10,000` ms |
 
-Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/manifest.json`、`permissions.json`、`THIRD_PARTY_NOTICES.md` 和 `test-expected.json` 为准。发布前应从生成清单重新计算并确定预算。
+Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/manifest.json`、`permissions.json`、`THIRD_PARTY_NOTICES.md` 和 `test-expected.json` 为准；预算门禁只接受重新生成的产物和新一轮 smoke 结果。
 
 当前机器的 Electron Viz 合成器不能提供 WebContentsView 截图，所以 Browser Workspace smoke 将截图结果标记为 `compositor-unavailable`，其余导航、标签、下载、历史、查找、缩放、沙箱和页面抓取仍单独通过。这个环境限制不能写成截图验证通过。
 
@@ -71,7 +72,7 @@ Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/ma
 
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
-- 当前证据还不是 Developer ID 签名、公证、Windows 实机和真实签名安装器替换新 App 后的 updater 回归；断网干净用户首启、官方卸载后重启/更新记录回放和破坏插件恢复页已在 macOS arm64 目录包上通过，但不能代替真实签名安装器升级验证。
+- 当前证据还不是 Developer ID 签名、公证、Windows 实机和真实签名安装器替换新 App 后的 updater 回归；断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和当前 macOS arm64 预算门禁已通过，但不能代替真实签名安装器升级验证。
 - 公开截图和安装录制仍需在可提供截图的 Electron 环境重新采集；现有 smoke 输出只证明页面和交互路径，不替代视觉证据。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。

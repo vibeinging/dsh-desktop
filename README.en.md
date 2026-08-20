@@ -24,6 +24,7 @@ Build and release-boundary checks:
 npm run check:release-boundary
 npm run package:mac:dir
 npm run check:release-artifacts
+npm run check:release:budgets
 npm run smoke:official-web
 npm run smoke:official-web:flow
 npm run smoke:updater

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises'
+import { lstat, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolvePackagedLayout } from './packaged-layout.mjs'
@@ -91,6 +91,10 @@ try {
   const storageBytes = await directoryBytes(dataRoot)
   const coldWebMs = officialWebAt === null ? null : Math.round(officialWebAt - startedAt)
   console.log(`[smoke] PASS 断网新用户 Profile 初始化、固定 tarball 和稳定插件库 (${tarballs.length} 个 Bundle); cold_web_ms=${coldWebMs}; profile_storage_bytes=${storageBytes}`)
+  const resultPath = String(process.env.DSH_SMOKE_RESULT_FILE || '').trim()
+  if (resultPath) {
+    await writeFile(resultPath, `${JSON.stringify({ cold_web_ms: coldWebMs, profile_storage_bytes: storageBytes, tarballs: tarballs.length })}\n`)
+  }
 } finally {
   try { child?.kill() } catch { /* ignore */ }
   try {
