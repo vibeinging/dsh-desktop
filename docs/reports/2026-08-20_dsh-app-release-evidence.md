@@ -21,7 +21,9 @@
 
 2026-08-21 将生成器运行到两个独立临时目录，manifest 与 7 个 tarball 均逐字节一致，复现检查通过；这证明的是精选产物生成链路，不替代干净发行环境的完整安装验证。
 
-公开 README 的默认 Bundle 明细不再维护第二份手写名单。`scripts/generate-featured-plugin-docs.mjs` 从同一精选 JSON 生成中英文表格中的包名、类型、权限、来源和官方卸载命令；`dsh-trusted-client-plugins.test.mjs` 与 `release-boundary` 会检查表格行数和字段是否仍与精选输入一致。本轮 `npm run docs:featured-plugins`、`npm run test:release`（135 项中 133 项通过、2 项按条件跳过、0 项失败）和 `npm run release:check:static`（12/12）均通过。
+公开 README 的默认 Bundle 明细不再维护第二份手写名单。`scripts/generate-featured-plugin-docs.mjs` 从同一精选 JSON 生成中英文表格中的包名、类型、权限、来源和官方卸载命令；`dsh-trusted-client-plugins.test.mjs` 与 `release-boundary` 会检查表格行数和字段是否仍与精选输入一致。本轮 `npm run docs:featured-plugins`、`npm run test:release`（136 项中 134 项通过、2 项按条件跳过、0 项失败）和 `npm run release:check:static`（12/12）均通过。
+
+精选产物生成器现在还会在 `npm pack` 前校验包 manifest 的 `dshWork.portability.level`、有序 `hostRequirements` 与精选清单的 portability、permissions 完全一致；漂移会阻止 tarball、权限摘要和第三方公告生成。定向回归覆盖有效契约和两类漂移，临时目录生成全部 7 个精选 Bundle 成功。
 
 本轮许可审计核对了 7 个源包的 `package.json`：它们均声明 `BSD-3-Clause`，精选清单已对齐该许可证；生成器现在会拒绝包名、源路径或许可证漂移，并把仓库内的许可证原文复制到随包 `featured-plugins/licenses/`；随包公告同时写入许可证文件、相对源路径和 tarball SHA-256。
 

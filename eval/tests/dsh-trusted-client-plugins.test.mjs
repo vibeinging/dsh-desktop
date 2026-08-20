@@ -15,6 +15,7 @@ import {
   featuredPlugins,
   resolveFeaturedPackageDir,
 } from "../../server/src/engine/dsh_runtime/featured_plugins.js";
+import { validateFeaturedPackageContract } from "../../scripts/generate-featured-plugin-artifacts.mjs";
 
 const APP_ROOT = resolve(import.meta.dirname, "../..");
 
@@ -161,10 +162,28 @@ test("the curated Profile input has one authoritative, user-manageable list", ()
 test("the curated list keeps package names, source paths, and SPDX licenses aligned", () => {
   for (const plugin of featuredPlugins()) {
     const packageJson = JSON.parse(readFileSync(join(resolveFeaturedPackageDir(plugin), "package.json"), "utf8"));
-    assert.equal(packageJson.name, plugin.name);
-    assert.equal(packageJson.license, plugin.license);
+    assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
     assert.match(plugin.package_path, /^packages\/dsh-[^/]+$/);
   }
+});
+
+test("the artifact generator rejects curated portability and permission drift", () => {
+  const plugin = featuredPlugins()[0];
+  const packageJson = JSON.parse(readFileSync(join(resolveFeaturedPackageDir(plugin), "package.json"), "utf8"));
+  assert.throws(() => validateFeaturedPackageContract(plugin, {
+    ...packageJson,
+    dshWork: {
+      ...packageJson.dshWork,
+      portability: { ...packageJson.dshWork.portability, level: "portable" },
+    },
+  }), /portability/);
+  assert.throws(() => validateFeaturedPackageContract(plugin, {
+    ...packageJson,
+    dshWork: {
+      ...packageJson.dshWork,
+      portability: { ...packageJson.dshWork.portability, hostRequirements: [] },
+    },
+  }), /Host 权限/);
 });
 
 test("public README tables are generated from the curated list", () => {

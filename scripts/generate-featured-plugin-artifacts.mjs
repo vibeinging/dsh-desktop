@@ -32,6 +32,25 @@ function npmCommand() {
     : { file: "npm", prefix: [] }
 }
 
+/** Validate the package contract that backs one curated release input. */
+export function validateFeaturedPackageContract(plugin, manifest) {
+  if (manifest.name !== plugin.name || typeof manifest.version !== "string") {
+    throw new Error(`精选插件清单与包 manifest 不一致: ${plugin.name}`)
+  }
+  if (manifest.license !== plugin.license) {
+    throw new Error(`精选插件清单与包许可证不一致: ${plugin.name}`)
+  }
+  const portability = manifest.dshWork?.portability
+  if (!portability || portability.level !== plugin.portability) {
+    throw new Error(`精选插件清单与包 portability 不一致: ${plugin.name}`)
+  }
+  if (!Array.isArray(portability.hostRequirements)
+    || JSON.stringify(portability.hostRequirements) !== JSON.stringify(plugin.permissions)) {
+    throw new Error(`精选插件清单与包 Host 权限不一致: ${plugin.name}`)
+  }
+  return portability
+}
+
 async function pack(sourceDir, outputDir) {
   const command = npmCommand()
   const { stdout } = await execFileAsync(command.file, [
@@ -62,12 +81,7 @@ export async function generateFeaturedPluginArtifacts({
   for (const plugin of featuredPlugins()) {
     const sourceDir = resolveFeaturedPackageDir(plugin, { appRoot: root })
     const manifest = JSON.parse(await readFile(join(sourceDir, "package.json"), "utf8"))
-    if (manifest.name !== plugin.name || typeof manifest.version !== "string") {
-      throw new Error(`精选插件清单与包 manifest 不一致: ${plugin.name}`)
-    }
-    if (manifest.license !== plugin.license) {
-      throw new Error(`精选插件清单与包许可证不一致: ${plugin.name}`)
-    }
+    const portability = validateFeaturedPackageContract(plugin, manifest)
     const packed = await pack(sourceDir, output)
     const tarball = featuredPluginTarballName(plugin.name, manifest.version)
     const target = join(output, tarball)
@@ -81,7 +95,7 @@ export async function generateFeaturedPluginArtifacts({
       sha256: sha256(bytes),
       size_bytes: file.size,
       package_license: manifest.license || plugin.license,
-      host_requirements: manifest.dshWork?.portability?.hostRequirements || [],
+      host_requirements: portability.hostRequirements,
     })
   }
 
