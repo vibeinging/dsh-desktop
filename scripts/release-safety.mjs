@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  inspectCommunityAssetLicenseBoundary,
   inspectFeaturedArtifacts,
   inspectOfficialWebReleaseBoundary,
 } from './release-boundary.mjs';
@@ -201,6 +202,15 @@ function staticChecks(root, scope) {
       ? '主窗口只加载官方 DSH Web，发行包没有旧 Renderer、preload 或主题状态'
       : webBoundaryErrors.join('；'),
     ['electron/main.js', 'electron/package.json', 'electron/recovery.html', 'featured_plugins.json'],
+  ));
+  const communityAssetErrors = inspectCommunityAssetLicenseBoundary(root);
+  checks.push(check(
+    'community_asset_license_boundary',
+    communityAssetErrors.length === 0 ? 'pass' : 'block',
+    communityAssetErrors.length === 0
+      ? '社区皮肤和视觉资产都有明确的许可证、来源和再分发结论；未批准资产不进入精选清单'
+      : communityAssetErrors.join('；'),
+    'server/src/engine/dsh_runtime/community_plugin_registry.json',
   ));
   const artifactErrors = inspectFeaturedArtifacts(root, { required: false });
   checks.push(check(

@@ -617,7 +617,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       host_requirements: ["office-artifact-host"],
       compatibility_test: null,
     });
-    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-20");
+    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-21");
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
     assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.9.0");
     assert.deepEqual(
@@ -636,6 +636,16 @@ test("the Profile catalog is projected from the official Web Profile order", {
         reviewed_at: "2026-08-17",
         reviewed_commit: "92655dbefeaf08cb60429f4b487c33137889a3f7",
         package_integrity: "sha512-mPMXmPfO0rc/3hmv8Aw71UOJqTDVW2T3VWuN6dIgiMpDlRQp9O0BCaLh13j6LjH0WB9fAS+9DmUVix8sLLwNLA==",
+        license: "Apache-2.0",
+        asset_surface: "skin-assets",
+        asset_review: {
+          status: "blocked",
+          redistribution: "blocked",
+          asset_licenses: ["Apache-2.0", "CC-BY-NC-SA-4.0"],
+          reason_zh: "上游皮肤包明确说明 Maid Atelier 资产使用 CC BY-NC-SA 4.0；当前没有可核对的商业再分发授权，因此聚合包不能进入发行包。",
+          evidence: "https://www.npmjs.com/package/%40linxin666/dsh-skins",
+          reviewed_at: "2026-08-21",
+        },
         permissions: ["读取本地仓库与图片", "启动 Git、SSH 与电源保持进程", "访问 SSH、远程 Web 和模型服务网络"],
         review_note_zh: "全家桶含主机侧高权限能力。只允许精确的 0.1.20 包和 13 个同版本依赖进入 Client 图；安装前请确认这些权限符合你的环境。",
         priority: 20,
@@ -657,11 +667,23 @@ test("the Profile catalog is projected from the official Web Profile order", {
         reviewed_at: "2026-08-20",
         reviewed_commit: "92655dbefeaf08cb60429f4b487c33137889a3f7",
         package_integrity: "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
+        license: "Apache-2.0",
         permissions: ["读取当前 DSH Session 与 Workspace", "写入任务看板数据", "按用户操作启动 DSH Session 任务"],
         review_note_zh: "独立于聚合包安装；不创建 Electron 启停器、插件市场或通用原生桥。完整发行资格仍需当前官方 Web 和 Electron 的安装、启动、停用、卸载、重启回归。",
         priority: 21,
       },
     );
+    const skinCenter = catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-web-ui-skin-center");
+    assert.equal(skinCenter.compatibility, "asset-license-blocked");
+    assert.equal(skinCenter.release_policy, "blocked-asset-redistribution");
+    assert.deepEqual(skinCenter.asset_review, {
+      status: "blocked",
+      redistribution: "blocked",
+      asset_licenses: ["Apache-2.0", "CC-BY-NC-SA-4.0"],
+      reason_zh: "皮肤中心包内含 Maid Atelier 等内建资产；上游说明其中至少一组资产使用 CC BY-NC-SA 4.0，当前没有可核对的商业再分发授权。",
+      evidence: "https://www.npmjs.com/package/%40linxin666/dsh-skins",
+      reviewed_at: "2026-08-21",
+    });
     assert.deepEqual(
       catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-files"),
       {

@@ -17,6 +17,7 @@
     "audit:prod": "node scripts/run-with-project-node.mjs node scripts/audit-production.mjs",
     "release:check": "node scripts/run-with-project-node.mjs node scripts/release-safety.mjs --scope all",
     "release:check:report": "node scripts/run-with-project-node.mjs node scripts/release-safety.mjs --scope all --allow-blockers",
+    "release:check:static": "node scripts/run-with-project-node.mjs node scripts/release-safety.mjs --scope all --static",
     "release:check:mac:static": "node scripts/run-with-project-node.mjs node scripts/release-safety.mjs --scope macos --static",
     "release:check:win:static": "node scripts/run-with-project-node.mjs node scripts/release-safety.mjs --scope windows --static",
     "release:verify:mac": "node scripts/run-with-project-node.mjs node scripts/release-safety.mjs --scope macos --app \"release/mac-arm64/DSH Desktop.app\"",

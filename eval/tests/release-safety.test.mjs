@@ -11,6 +11,7 @@ import {
   hasAgentSandboxDefault,
   hasVexDistributionAuthorization,
 } from '../../scripts/release-safety.mjs';
+import { inspectCommunityAssetLicenseBoundary } from '../../scripts/release-boundary.mjs';
 
 test('release safety rejects adhoc macOS signatures and accepts Developer ID signatures', () => {
   assert.deepEqual(classifyMacSignatureOutput('Signature=adhoc\nTeamIdentifier=not set'), {
@@ -87,6 +88,45 @@ test('release safety recognizes the DSH runtime sandbox defaults and ask-mode ap
           approvalPolicy: "never"
     `);
     assert.equal(hasAgentSandboxDefault(root), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('community skin assets need an explicit redistribution decision before release', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-release-assets-'));
+  const runtime = join(root, 'server', 'src', 'engine', 'dsh_runtime');
+  try {
+    mkdirSync(runtime, { recursive: true });
+    writeFileSync(join(runtime, 'featured_plugins.json'), JSON.stringify({ plugins: [] }));
+    writeFileSync(join(runtime, 'community_plugin_registry.json'), JSON.stringify({
+      plugins: [{
+        id: 'skin-center',
+        name: 'Skin Center',
+        source: '@example/skin-center@1.0.0',
+        category: 'skins',
+      }],
+    }));
+    assert.match(inspectCommunityAssetLicenseBoundary(root).join('\n'), /缺少资产许可审查记录/);
+
+    writeFileSync(join(runtime, 'community_plugin_registry.json'), JSON.stringify({
+      plugins: [{
+        id: 'skin-center',
+        name: 'Skin Center',
+        source: '@example/skin-center@1.0.0',
+        category: 'skins',
+        license: 'Apache-2.0',
+        asset_surface: 'skin-assets',
+        asset_review: {
+          status: 'blocked',
+          redistribution: 'blocked',
+          asset_licenses: ['Apache-2.0', 'CC-BY-NC-SA-4.0'],
+          reason_zh: '资产许可未完成，暂不随包分发。',
+          evidence: 'https://example.test/skin-license',
+        },
+      }],
+    }));
+    assert.deepEqual(inspectCommunityAssetLicenseBoundary(root), []);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

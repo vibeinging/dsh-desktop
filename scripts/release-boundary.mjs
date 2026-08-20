@@ -98,6 +98,62 @@ export function inspectOfficialWebReleaseBoundary(root = ROOT) {
   return errors;
 }
 
+function packageNameFromSource(source) {
+  return String(source || "").match(/^((?:@[A-Za-z0-9._~-]+\/)?[A-Za-z0-9._~-]+)@/)?.[1] || null;
+}
+
+/** Check that skin and other bundled visual assets have an explicit redistribution decision. */
+export function inspectCommunityAssetLicenseBoundary(root = ROOT) {
+  const appRoot = resolve(root);
+  const registry = readJson(join(appRoot, "server/src/engine/dsh_runtime/community_plugin_registry.json"));
+  const featured = readJson(join(appRoot, "server/src/engine/dsh_runtime/featured_plugins.json"));
+  const errors = [];
+  const featuredNames = new Set((featured.plugins || []).map((plugin) => plugin.name));
+  for (const plugin of Array.isArray(registry.plugins) ? registry.plugins : []) {
+    const searchable = [
+      plugin.id,
+      plugin.name,
+      plugin.category,
+      plugin.source,
+      plugin.asset_surface,
+      plugin.description,
+      plugin.description_zh,
+    ].map((value) => String(value || "")).join(" ");
+    if (!plugin.asset_surface && !/(?:skin|skins|theme|皮肤|主题)/i.test(searchable)) continue;
+    const review = plugin.asset_review;
+    if (!review || typeof review !== "object" || Array.isArray(review)) {
+      errors.push(`${plugin.id || plugin.name || "社区插件"} 缺少资产许可审查记录`);
+      continue;
+    }
+    if (!new Set(["approved", "blocked"]).has(review.status)) {
+      errors.push(`${plugin.id || plugin.name} 的资产许可状态无效`);
+    }
+    if (!new Set(["approved", "blocked"]).has(review.redistribution)
+      || review.redistribution !== review.status) {
+      errors.push(`${plugin.id || plugin.name} 的资产再分发状态必须与许可审查状态一致`);
+    }
+    if (typeof plugin.license !== "string" || !plugin.license.trim()) {
+      errors.push(`${plugin.id || plugin.name} 缺少包级 SPDX 许可证`);
+    }
+    if (!Array.isArray(review.asset_licenses)
+      || review.asset_licenses.length === 0
+      || review.asset_licenses.some((license) => typeof license !== "string" || !license.trim())) {
+      errors.push(`${plugin.id || plugin.name} 缺少资产许可证列表`);
+    }
+    if (typeof review.reason_zh !== "string" || !review.reason_zh.trim()) {
+      errors.push(`${plugin.id || plugin.name} 缺少资产许可结论`);
+    }
+    if (typeof review.evidence !== "string" || !/^https:\/\//.test(review.evidence)) {
+      errors.push(`${plugin.id || plugin.name} 缺少资产许可证据链接`);
+    }
+    const packageName = packageNameFromSource(plugin.source);
+    if (packageName && featuredNames.has(packageName) && review.status !== "approved") {
+      errors.push(`${packageName} 的未批准资产不能进入精选清单`);
+    }
+  }
+  return errors;
+}
+
 /** Check generated tarballs, hashes, and names against the one curated input. */
 export function inspectFeaturedArtifacts(root = ROOT, { required = false } = {}) {
   const appRoot = resolve(root);
@@ -164,6 +220,7 @@ function main() {
   const args = new Set(process.argv.slice(2));
   const errors = [
     ...inspectOfficialWebReleaseBoundary(ROOT),
+    ...inspectCommunityAssetLicenseBoundary(ROOT),
     ...inspectFeaturedArtifacts(ROOT, { required: args.has("--require-artifacts") }),
     ...(args.has("--syntax") ? checkReleaseJavaScript(ROOT) : []),
   ];

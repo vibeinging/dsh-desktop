@@ -22,6 +22,7 @@ npm run dev:electron
 
 ```bash
 npm run check:release-boundary
+npm run release:check:static
 npm run package:mac:dir
 npm run check:release-artifacts
 npm run check:release:budgets
@@ -66,6 +67,8 @@ dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
 ```
 
 `@linxin666/dsh-web-ui-all` 是聚合包，只用于冲突实验，不是发行输入。Better Sidebar、远程 Web、SSH、图像理解、Agent 预设和社区插件管理器没有进入默认 Profile。没有固定来源、完整依赖审查、真实 Electron 回归和卸载证据的社区包不会写入精选清单。
+
+皮肤中心和它依赖的 `@linxin666/dsh-skins` 当前不随包分发。上游包级 Apache-2.0 许可证不自动覆盖所有内建视觉资产；上游说明 Maid Atelier 资产使用 CC BY-NC-SA 4.0，不能在没有单独再分发授权的情况下进入发行包。许可结论记录在 [社区插件目录](server/src/engine/dsh_runtime/community_plugin_registry.json) 中，发行边界会阻止未批准的视觉资产进入精选清单。只有逐项资产许可证、署名和再分发条件都通过后，皮肤中心才可重新评估。
 
 ## Electron 原生边界
 
