@@ -17,6 +17,8 @@
 
 唯一精选输入是 `server/src/engine/dsh_runtime/featured_plugins.json`。它由脚本生成固定 tarball、SHA-256 manifest、Profile 安装输入、权限摘要、第三方公告和测试预期。当前默认输入是 7 个 `@vibeinging/*` Host、portable 或 desktop-adapter Bundle，不包含替换式 UI。
 
+2026-08-21 将生成器运行到两个独立临时目录，manifest 与 7 个 tarball 均逐字节一致，复现检查通过；这证明的是精选产物生成链路，不替代干净发行环境的完整安装验证。
+
 本轮许可审计核对了 7 个源包的 `package.json`：它们均声明 `BSD-3-Clause`，精选清单已对齐该许可证；生成器现在会拒绝包名、源路径或许可证漂移，并把仓库内的许可证原文复制到随包 `featured-plugins/licenses/`；随包公告同时写入许可证文件、相对源路径和 tarball SHA-256。
 
 固定 tarball 通过安装包内的受控 pnpm 进入 DSH 数据目录下的稳定本地插件库。pnpm wrapper 必须使用 `DSH_PNPM_NODE_BIN`，发行态不回退到系统 Node。所有 Profile 安装、更新和卸载仍转发到官方 `dsh plugin --profile` 命令；本地插件库不是第二份安装状态。
@@ -61,7 +63,7 @@
 - `npm run test:release:community`
 - `npm run smoke:updater`
 - `DSH_SMOKE_SIGN_IDENTITY=03587EF7C8984E0F7631EC905C26336C15C8189D node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-updater.mjs ".desktop-build/signed-probe/mac-arm64/DSH Desktop.app"`
-- `CSC_IDENTITY_AUTO_DISCOVERY=false CSC_NAME=03587EF7C8984E0F7631EC905C26336C15C8189D node_modules/.bin/electron-builder --mac --arm64 --dir`
+- `(cd electron && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_NAME=03587EF7C8984E0F7631EC905C26336C15C8189D ./node_modules/.bin/electron-builder --mac --arm64 --dir)`
 - `DSH_PACKAGE_NODE_REEXEC=1 npm_execpath=/tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/lib/node_modules/npm/bin/npm-cli.js arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/prepare-package.mjs --platform darwin --arch x64`
 - `CSC_IDENTITY_AUTO_DISCOVERY=false arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node node_modules/.bin/electron-builder --mac --x64 --dir`
 - `arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-server.mjs "release/mac/DSH Desktop.app"`
@@ -70,13 +72,13 @@
 - `arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-profile-authority.mjs "release/mac/DSH Desktop.app"`
 - `DSH_SCREENSHOT_DIR=.desktop-build/evidence/official-web-x64.Ev0qMl arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-official-web-flow.mjs "release/mac/DSH Desktop.app"`
 
-官方 Web CDP 流程 smoke 使用临时用户目录和 `PATH=/usr/bin`，主动清除 `DEEPSEEK_API_KEY`，通过真实随包 Electron 页面完成首次提示、官方 `workspace.create` 测试夹具、官方 Web 新建 Session、输入并发送消息、可见的 Session log、`session.list` 和 `session.history` 回读，再检查页面没有 `window.electronAPI` 或 Node 全局。无密钥时模型请求按预期显示 `MISSING_CREDENTIAL`，这条失败也属于官方 Web 的可见 Session 结果，不把它写成模型成功。命令支持 `DSH_SCREENSHOT_DIR=/path` 持久化官方 Web 截图；本次 smoke 的审批和队列没有伪造覆盖，必须在有工具调用的 live-model 环境单独验证。
+官方 Web CDP 流程 smoke 使用临时用户目录和不继承用户环境的系统 PATH，主动清除 `DEEPSEEK_API_KEY`，通过真实随包 Electron 页面完成首次提示、官方 `workspace.create` 测试夹具、官方 Web 新建 Session、输入并发送消息、可见的 Session log、`session.list` 和 `session.history` 回读，再检查页面没有 `window.electronAPI` 或 Node 全局。无密钥时模型请求按预期显示 `MISSING_CREDENTIAL`，这条失败也属于官方 Web 的可见 Session 结果，不把它写成模型成功。命令支持 `DSH_SCREENSHOT_DIR=/path` 持久化官方 Web 截图；本次 smoke 的审批和队列没有伪造覆盖，必须在有工具调用的 live-model 环境单独验证。
 
 官方 Web 交互 smoke 使用同一 macOS arm64 打包 Electron，但把 DSH 官方 DeepSeek 适配器的 loopback endpoint 指向脚本内的确定性 SSE 测试服务，并设置 `DEEPSEEK_API_KEY` 仅作为测试凭据；它没有访问外网或真实模型。第一轮由测试模型发起 `ask_user_question`，官方 Web 问题卡片显示选项，脚本选择并提交“继续执行”；随后 bash 写入 Profile 工作区之外的临时 marker，真实沙箱返回拒绝；第二轮由测试模型提交相同命令及 `danger-full-access` 与 justification，官方审批服务向官方 Web 发布审批卡片，点击 `Allow once` 后真实写入 marker。此期间通过官方 `session.prompt({ mode: "queue" })` 接受第二条消息，官方 `session/queue` 投影渲染 QueueDock，首轮完成后排队消息再次经过官方 LLM 和 Session history。脚本还检查了实际 marker 内容为 `approved\n`，所以没有把模型文本当成工具成功证据。本次截图保存在 `electron/.desktop-build/evidence/official-web-interactions/official-web-approval-queue.png`、`official-web-question-pending.png`、`official-web-approval-pending.png` 和 `official-web-session-flow.png`；这是本机 smoke 归档，不等同于公开安装录制或真实 DeepSeek 服务验收。
 
  Developer ID arm64 目录包上又生成了四帧本地 GIF `electron/.desktop-build/evidence/official-web-interactions-signed/dsh-official-web-loopback.gif`（1200x772、9 秒、168497 字节），覆盖已完成、问题等待、审批等待和审批/队列结果；它的真实来源是当前签名 Electron 与 loopback SSE 测试模型，不能替代公开安装录制或真实 DeepSeek live-model 证据。
 
-断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 Developer ID arm64 目录包预算门禁观测的 `cold_web_ms` 为 `8184`（此前观测为 `7327`、`4201`、`5053`、`5147`、`4718`、`7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
+断网新用户 smoke 使用不继承用户环境的系统 PATH、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 Developer ID arm64 目录包预算门禁观测的 `cold_web_ms` 为 `4349`（同一签名包的独立 smoke 曾观测 `8688`；此前观测为 `8184`、`7327`、`4201`、`5053`、`5147`、`4718`、`7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
 
 在同一台 Apple Silicon 主机上，使用官方 Node `v24.19.0` `darwin-x64` 二进制并通过 Rosetta 准备依赖后，x64 目录包的随包 Server、断网新用户 Profile、损坏 Bundle 恢复、Profile authority 和官方 Web Session/log/history 流程也均通过；x64 官方 Web smoke 截图为 `.desktop-build/evidence/official-web-x64.Ev0qMl/official-web-session-flow.png`，断网 smoke 的 Rosetta 冷启动观测为 `77526` ms。该观测明显包含 Rosetta 成本，不替代原生 x64 机器的性能验收；x64 目录包也未签名，不能替代 Windows、Developer ID、公证或 Gatekeeper 证据。
 
@@ -89,13 +91,13 @@
 | 随包 pnpm runtime | `15,161,195` bytes | `20,000,000` bytes |
 | 7 个精选插件 tarball | `22,002` bytes | `64,000` bytes |
 | 断网新 Profile 数据目录 | `2,675,749` bytes | `4,000,000` bytes |
-| 官方 Web 冷启动 | `8,184` ms | `10,000` ms |
+| 官方 Web 冷启动 | `4,349` ms | `10,000` ms |
 
 Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/manifest.json`、`permissions.json`、`THIRD_PARTY_NOTICES.md` 和 `test-expected.json` 为准；预算门禁只接受重新生成的产物和新一轮 smoke 结果。
 
 Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合成器返回 `UnknownVizError` 时，Native Host 会在同一个受控 `webContents` 上回退到 DevTools `Page.captureScreenshot`，本轮真实 Electron smoke 使用 `DSH_BROWSER_SCREENSHOT_DIR=.desktop-build/evidence/browser-workspace.<run> npm run smoke:browser-workspace` 保存了 700x560 PNG 并完成可视检查。其余导航、标签、下载、历史、查找、缩放、沙箱和页面抓取也单独通过。
 
-更新器 smoke 在临时旧 App 中使用本地 HTTPS feed、真实 `electron-updater`、固定 SHA-512 zip 和真实 Profile 预检。它先用随包固定 tarball 和官方 `dsh plugin --profile` 命令建立完整 Profile，再官方卸载 portable Bundle `@vibeinging/dsh-model-inheritance`；旧 App 的精选输入随后暂时移除该项，更新归档恢复完整精选清单，但 Developer ID 签名探针更新完成后，Profile manifest、Profile patch 保持字节不变，已卸载 Bundle 没有被恢复。ad hoc 目录包按预期在 ShipIt 代码签名校验处记录 `failed-to-start`；使用 Developer ID 身份 `03587EF7C8984E0F7631EC905C26336C15C8189D` 的签名目录包则完成下载、Profile 预检、ShipIt 替换和新版本 `success` 历史回放，更新归档为 `439263042` bytes。最新正式 arm64 目录包也使用同一身份完成签名，`codesign --verify --deep --strict` 通过；由于本机缺少 `APPLE_APP_SPECIFIC_PASSWORD`，公证没有开始，Gatekeeper 明确返回 `source=Unnotarized Developer ID`，因此仍不把它写成公开安装器已完成。
+更新器 smoke 在临时旧 App 中使用本地 HTTPS feed、真实 `electron-updater`、固定 SHA-512 zip 和真实 Profile 预检。它先用随包固定 tarball 和官方 `dsh plugin --profile` 命令建立完整 Profile，再官方卸载 portable Bundle `@vibeinging/dsh-model-inheritance`；旧 App 的精选输入随后暂时移除该项，更新归档恢复完整精选清单，但 Developer ID 签名探针更新完成后，Profile manifest、Profile patch 保持字节不变，已卸载 Bundle 没有被恢复。ad hoc 目录包按预期在 ShipIt 代码签名校验处记录 `failed-to-start`；使用 Developer ID 身份 `03587EF7C8984E0F7631EC905C26336C15C8189D` 的签名目录包则完成下载、Profile 预检、ShipIt 替换和新版本 `success` 历史回放，更新归档为 `439263042` bytes。最新正式 arm64 目录包包含 `com.vibeinging.dsh-desktop`，也使用同一身份完成签名，`codesign --verify --deep --strict` 通过；由于本机缺少 `APPLE_APP_SPECIFIC_PASSWORD`，公证没有开始，Gatekeeper 明确返回 `source=Unnotarized Developer ID`，因此仍不把它写成公开安装器已完成。
 
 本轮新增 Windows x64 安装器验收自动化，但尚未把它写成 Windows 实机证据。`electron/scripts/smoke-windows-acceptance.mjs` 只允许在 `win32/x64` 执行：它从 `release/` 找到 NSIS 安装器，在独立临时目录静默安装，等待已安装的主程序和 `resources`，依次运行随包 Server、App、官方 Web 问题/沙箱/审批/队列、断网 Profile、恢复页和 Profile authority smoke，然后通过官方卸载器清理并确认临时目录消失。所有检查通过后才用原子重命名生成 `release/windows-x64-acceptance.json`；脚本失败会删除旧回执，不会留下通过状态。`scripts/windows-acceptance-receipt.mjs` 要求 9 个检查全部成功，`release-safety` 现在按该契约校验回执，`.github/workflows/windows-release.yml` 在 unsigned NSIS 构建后运行该步骤并上传安装器与回执。当前 macOS 工作区没有运行这条 Windows 脚本，也没有生成回执，因此 Windows 实机和签名证据仍保持阻塞。
 
