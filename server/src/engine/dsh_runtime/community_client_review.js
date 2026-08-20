@@ -60,6 +60,20 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
       ]),
     }),
   })],
+  ["@linxin666/dsh-chat-recovery", Object.freeze({
+    version: "0.2.5",
+    bundlePatch: "./cordis.patch.yml",
+    requiredDshRuntime: "0.1.0-rc.8",
+    integrity: "sha512-vuPCcZfBgJijpVyNpb9VJgSuIB+7Zo+4RsZiDN3m6We3T7uekDcr1FlbcB4+xNKFCnxaJKCKb1ROBCoXbyCfbQ==",
+    review: Object.freeze({
+      session: "编辑和重试通过官方 Session fork 契约创建子 Session，原始历史保持不变",
+      capabilities: Object.freeze([
+        "读取当前会话的已完成消息",
+        "按用户操作 fork 并重新提交文本消息",
+        "在浏览器端监督可恢复错误的重试",
+      ]),
+    }),
+  })],
 ]));
 
 function sameDependencyManifest(actual, expected) {

@@ -323,6 +323,25 @@ test("community dsh.client Bundles stay out of the privileged Electron renderer"
     version: "1.8.0",
     dsh: { client: { platform: "web" } },
   })[0].code, "DSH_PROFILE_CLIENT_ISOLATION_REQUIRED");
+  assert.deepEqual(inspectCommunityClientIsolation({
+    name: "@linxin666/dsh-chat-recovery",
+    version: "0.2.5",
+    dsh: {
+      bundle: { patch: "./cordis.patch.yml" },
+      client: { platform: "web" },
+    },
+  }), [{
+    code: "DSH_PROFILE_CLIENT_SDK_MISMATCH",
+    message: "@linxin666/dsh-chat-recovery@0.2.5 需要 DSH 0.1.0-rc.8，当前发行版固定为 0.1.0-rc.7",
+  }]);
+  assert.equal(inspectProfileBundleCompatibility({
+    name: "@linxin666/dsh-chat-recovery",
+    version: "0.2.5",
+    dsh: {
+      bundle: { patch: "./cordis.patch.yml" },
+      client: { platform: "web" },
+    },
+  })[3].status, "sdk_migration_required");
 });
 
 test("only app-managed Bundles may request dsh-work host components", () => {

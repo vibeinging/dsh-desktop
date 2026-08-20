@@ -10,6 +10,7 @@ import { dataRoot } from "../../config/paths.js";
 import { resolveDshRuntimeDistribution } from "./source_locator.js";
 import {
   isReviewedCommunityClient,
+  reviewedCommunityClientPolicy,
   reviewedCommunityClientReview,
 } from "./community_client_review.js";
 import {
@@ -349,7 +350,16 @@ function inspectDshClientManifest(manifest, { clientEntryAvailable = true } = {}
 export function inspectCommunityClientIsolation(manifest) {
   if (manifest?.dsh?.client === undefined) return [];
   const packageName = String(manifest?.name || "候选插件");
-  if (isReviewedCommunityClient({ name: packageName, manifest })) return [];
+  const policy = reviewedCommunityClientPolicy(packageName);
+  if (isReviewedCommunityClient({ name: packageName, manifest })) {
+    if (policy?.requiredDshRuntime && policy.requiredDshRuntime !== CURRENT_DSH_SDK_VERSION) {
+      return [{
+        code: "DSH_PROFILE_CLIENT_SDK_MISMATCH",
+        message: `${packageName}@${manifest.version || "unknown"} 需要 DSH ${policy.requiredDshRuntime}，当前发行版固定为 ${CURRENT_DSH_SDK_VERSION}`,
+      }];
+    }
+    return [];
+  }
   return [{
     code: "DSH_PROFILE_CLIENT_ISOLATION_REQUIRED",
     message: `${packageName} 包含 dsh.client 浏览器代码；只有经过精确版本和依赖审查的独立 Client Bundle 才能进入官方 Web 图`,
@@ -364,6 +374,10 @@ export function inspectProfileBundleCompatibility(manifest) {
     name: String(manifest?.name || ""),
     manifest,
   });
+  const reviewedPolicy = reviewedCommunityClientPolicy(String(manifest?.name || ""));
+  const runtimeMismatch = Boolean(
+    reviewedPolicy?.requiredDshRuntime && reviewedPolicy.requiredDshRuntime !== CURRENT_DSH_SDK_VERSION,
+  );
   const capabilities = [...new Set([
     uses("dsh-tools") ? "Tool" : null,
     uses("dsh-skill") ? "Skill" : null,
@@ -376,7 +390,7 @@ export function inspectProfileBundleCompatibility(manifest) {
     || ["dsh-session", "dsh-agent", "dsh-subagent", "dsh-goal", "dsh-plan"]
       .some((fragment) => uses(fragment));
   const client = manifest?.dsh?.client?.platform === "web";
-  const reviewedClient = client && isReviewedCommunityClient({
+  const reviewedClient = client && !runtimeMismatch && isReviewedCommunityClient({
     name: String(manifest?.name || ""),
     manifest,
   });
@@ -411,10 +425,14 @@ export function inspectProfileBundleCompatibility(manifest) {
     },
     {
       id: "client",
-      status: reviewedClient ? "reviewed" : client ? "isolation_required" : "not_detected",
+      status: reviewedClient
+        ? "reviewed"
+        : runtimeMismatch ? "sdk_migration_required" : client ? "isolation_required" : "not_detected",
       label: "Client UI",
       message: reviewedClient
         ? "该精确包版本已完成代码审查，可以进入当前 Client 图"
+        : runtimeMismatch
+        ? `该精确包版本需要 DSH ${reviewedPolicy.requiredDshRuntime}，当前发行版固定为 ${CURRENT_DSH_SDK_VERSION}`
         : client
         ? "检测到浏览器代码；必须继续检查标准 Slot 和 Renderer 权限"
         : "Host-only Bundle，不需要桌面 Slot",
@@ -619,6 +637,7 @@ function preflightStatus(error) {
     "DSH_PROFILE_CLIENT_MANIFEST_INVALID",
     "DSH_PROFILE_CLIENT_EXPORT_MISSING",
     "DSH_PROFILE_CLIENT_BUNDLE_MISSING",
+    "DSH_PROFILE_CLIENT_SDK_MISMATCH",
     "DSH_PROFILE_LEGACY_SDK",
     "DSH_PRODUCT_DESCRIPTOR_INVALID",
     "DSH_PRODUCT_HOST_COMPONENT_FORBIDDEN",

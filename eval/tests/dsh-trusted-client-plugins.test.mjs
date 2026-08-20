@@ -5,6 +5,7 @@ import {
   isReviewedCommunityClient,
   reviewedCommunityClientDependencies,
   reviewedCommunityClientReview,
+  reviewedCommunityClientPolicy,
   reviewedTaskBoardDependencies,
 } from "../../server/src/engine/dsh_runtime/community_client_review.js";
 import {
@@ -94,6 +95,34 @@ test("only audited community Client releases may enter the product Client graph"
       "读取当前 DSH Session 与 Workspace",
       "写入任务看板数据",
       "按用户操作启动 DSH Session 任务",
+    ],
+  });
+
+  const chatRecovery = reviewedCommunityClientPolicy("@linxin666/dsh-chat-recovery");
+  assert.equal(chatRecovery.version, "0.2.5");
+  assert.equal(chatRecovery.requiredDshRuntime, "0.1.0-rc.8");
+  assert.equal(isReviewedCommunityClient({
+    name: "@linxin666/dsh-chat-recovery",
+    manifest: {
+      version: "0.2.5",
+      dsh: {
+        bundle: { patch: "./cordis.patch.yml" },
+        client: { platform: "web" },
+      },
+    },
+  }), true);
+  assert.deepEqual(reviewedCommunityClientReview({
+    name: "@linxin666/dsh-chat-recovery",
+    manifest: {
+      version: "0.2.5",
+      dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
+    },
+  }), {
+    session: "编辑和重试通过官方 Session fork 契约创建子 Session，原始历史保持不变",
+    capabilities: [
+      "读取当前会话的已完成消息",
+      "按用户操作 fork 并重新提交文本消息",
+      "在浏览器端监督可恢复错误的重试",
     ],
   });
 });
