@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -137,6 +137,79 @@ test("the independent task-board Bundle installs, runs, uninstalls, and restarts
     server.kill("SIGTERM");
     await new Promise((resolveExit) => server.once("exit", resolveExit));
     server = null;
+
+    const taskBoardPatchPath = join(
+      dshHome,
+      "profiles",
+      "web",
+      "node_modules",
+      "@linxin666",
+      "dsh-client-ui-task-board",
+      "cordis.patch.yml",
+    );
+    const taskBoardPatch = await readFile(taskBoardPatchPath, "utf8");
+    const taskBoardPatchId = taskBoardPatch.match(/^\s*-?\s*id:\s*([^\s#]+)\s*$/m)?.[1];
+    assert.ok(taskBoardPatchId, `task-board patch 缺少稳定 id: ${taskBoardPatchPath}`);
+    const disabledPatch = `- id: ${taskBoardPatchId}\n  disabled: true\n`;
+    const homePatchPath = join(dshHome, "cordis.patch.yml");
+    await writeFile(homePatchPath, disabledPatch);
+    const installedManifest = JSON.parse(await readFile(join(dshHome, "profiles", "web", "package.json"), "utf8"));
+    assert.equal(installedManifest.dsh.profile.bundles.includes(installed.id), true);
+    assert.equal(Object.hasOwn(installedManifest.dependencies, installed.id), true);
+
+    server = spawn(process.execPath, [DSH_CLI, "--profile", "web", "--port", "0"], {
+      cwd: APP_ROOT,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const disabledSurface = await waitForOfficialSurface(server);
+    const disabledOutput = await runCommand(ELECTRON_EXECUTABLE, [ELECTRON_FIXTURE], {
+      cwd: APP_ROOT,
+      env: {
+        ...process.env,
+        DSH_OFFICIAL_WEB_URL: disabledSurface,
+        DSH_OFFICIAL_WEB_USER_DATA: join(dshHome, "electron-user-data-disabled"),
+      },
+      timeoutMs: 90_000,
+    });
+    const disabledLine = disabledOutput.split(/\r?\n/).find((line) => line.startsWith("DSH_OFFICIAL_WEB_RESULT "));
+    assert.ok(disabledLine, `missing disabled browser result:\n${disabledOutput}`);
+    const disabledResult = JSON.parse(disabledLine.slice("DSH_OFFICIAL_WEB_RESULT ".length));
+    assert.equal(disabledResult.officialWeb, true);
+    assert.equal(disabledResult.taskBoardClientLoaded, false);
+    server.kill("SIGTERM");
+    await new Promise((resolveExit) => server.once("exit", resolveExit));
+    server = null;
+    assert.equal(await readFile(homePatchPath, "utf8"), disabledPatch);
+
+    await rm(homePatchPath, { force: true });
+    server = spawn(process.execPath, [DSH_CLI, "--profile", "web", "--port", "0"], {
+      cwd: APP_ROOT,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const reenabledSurface = await waitForOfficialSurface(server);
+    const reenabledOutput = await runCommand(ELECTRON_EXECUTABLE, [ELECTRON_FIXTURE], {
+      cwd: APP_ROOT,
+      env: {
+        ...process.env,
+        DSH_OFFICIAL_WEB_URL: reenabledSurface,
+        DSH_OFFICIAL_WEB_USER_DATA: join(dshHome, "electron-user-data-reenabled"),
+        DSH_OFFICIAL_WEB_COMMUNITY_UI: "task-board",
+      },
+      timeoutMs: 90_000,
+    });
+    const reenabledLine = reenabledOutput.split(/\r?\n/).find((line) => line.startsWith("DSH_OFFICIAL_WEB_RESULT "));
+    assert.ok(reenabledLine, `missing re-enabled browser result:\n${reenabledOutput}`);
+    const reenabledResult = JSON.parse(reenabledLine.slice("DSH_OFFICIAL_WEB_RESULT ".length));
+    assert.equal(reenabledResult.officialWeb, true);
+    assert.equal(reenabledResult.taskBoardClientLoaded, true);
+    assert.equal(reenabledResult.taskBoardActive, true);
+    assert.equal(reenabledResult.taskBoardColumns, 5);
+    server.kill("SIGTERM");
+    await new Promise((resolveExit) => server.once("exit", resolveExit));
+    server = null;
+
     await service.uninstall(installed.id);
     state = await service.state();
     assert.equal(state.plugins.some((plugin) => plugin.id === installed.id), false);

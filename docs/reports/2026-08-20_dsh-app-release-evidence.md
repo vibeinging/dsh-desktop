@@ -23,9 +23,9 @@
 
 `@vibeinging/dsh-model-inheritance` 已在纯官方 Web Profile 通过官方命令安装和真实 Electron 启动检查。`@linxin666/dsh-client-ui-task-board@0.1.20` 已完成固定版本网络预检、官方 Web 激活、真实 Electron 启动、官方卸载命令和重启保持检查；它目前仍是可选社区候选，不进入默认精选。`@linxin666/dsh-web-ui-all`、Better Sidebar、远程 Web、SSH、图像理解、Agent 预设和社区插件管理器均未进入发行 Profile。
 
-2026-08-21 通过 `npm run test:release:community` 重新运行了 task-board 的真实网络回归；临时 DSH Profile 完成固定版本预检、官方命令安装、官方 Web 激活、打包 Electron Client 加载、官方卸载、重启后 Client 消失和最终 Profile 状态检查，1 项通过，0 项失败。该命令不会使用用户现有的 DSH_HOME。
+2026-08-21 通过 `npm run test:release:community` 重新运行了 task-board 的真实网络回归；临时 DSH Profile 完成固定版本预检、官方命令安装、官方 Web 激活、用户 patch 停用后保持依赖但不加载 Client、移除 patch 后重新激活、官方卸载、重启后 Client 消失和最终 Profile 状态检查，1 项通过，0 项失败。该命令不会使用用户现有的 DSH_HOME。
 
-同一回归的真实 Electron fixture 还检查了官方 Web 内的 task-board 入口、五列看板、`#root` 容器归属和无旧产品 Shell；使用 `DSH_COMMUNITY_SCREENSHOT_DIR=.desktop-build/evidence/community-task-board npm run test:release:community` 已保存看板截图。截图是当前本机 Electron 的可见界面证据，不把它扩大为聚合包、皮肤中心或默认精选采用证据。
+同一回归的真实 Electron fixture 还检查了官方 Web 内的 task-board 入口、五列看板、`#root` 容器归属、停用时 Client 不加载、恢复后重新激活和无旧产品 Shell；使用 `DSH_COMMUNITY_SCREENSHOT_DIR=.desktop-build/evidence/community-task-board npm run test:release:community` 已保存看板截图。截图是当前本机 Electron 的可见界面证据，不把它扩大为聚合包、皮肤中心或默认精选采用证据。
 
 社区 Client 的固定完整性现在由官方 CLI 安装生成的 Profile `pnpm-lock.yaml` 读取并与目录中的审查值逐字比较；有审查哈希的版本缺少 lockfile 记录或发生漂移时，预检返回明确阻塞，不进入官方 Client 图。该规则同时覆盖 task-board、Chat recovery 和仅用于实验的聚合包；已由 lockfile 单元夹具和上述真实 task-board 安装回归覆盖。
 
