@@ -101,6 +101,16 @@ async function updateAppVersion(app) {
   await signSmokeApp(app)
 }
 
+async function changeOldCuratedInput(app) {
+  const listPath = join(app, 'Contents', 'Resources', 'server', 'src', 'engine', 'dsh_runtime', 'featured_plugins.json')
+  const list = JSON.parse(await readFile(listPath, 'utf8'))
+  const candidate = list.plugins.find((plugin) => plugin.portability === 'portable')
+  if (!candidate?.name) throw new Error('精选插件清单没有 portable Bundle，无法构造更新回归')
+  list.plugins = list.plugins.filter((plugin) => plugin.name !== candidate.name)
+  await writeFile(listPath, `${JSON.stringify(list, null, 2)}\n`)
+  return candidate.name
+}
+
 async function hashFile(filePath) {
   return new Promise((resolve, reject) => {
     const hash = createHash('sha512')
@@ -111,13 +121,14 @@ async function hashFile(filePath) {
 async function prepareUpdateArchive() {
   await cloneApp(currentApp, oldApp)
   await cloneApp(currentApp, updatedApp)
+  const curatedListRemoved = await changeOldCuratedInput(oldApp)
   await addUpdaterFixtureConfig(oldApp)
   await addUpdaterFixtureConfig(updatedApp)
   await signSmokeApp(oldApp)
   await updateAppVersion(updatedApp)
   await runCommand('ditto', ['-c', '-k', '--sequesterRsrc', '--keepParent', updatedApp, updateZip])
   const updateStat = await stat(updateZip)
-  return { size: updateStat.size, sha512: await hashFile(updateZip) }
+  return { size: updateStat.size, sha512: await hashFile(updateZip), curatedListRemoved }
 }
 
 async function seedExistingProfile() {
@@ -324,7 +335,7 @@ try {
   if (updatedManifest.dsh?.profile?.bundles?.includes(existingProfile.removedPackage)) {
     throw new Error(`真实 updater 恢复了已由官方命令卸载的 Bundle：${existingProfile.removedPackage}`)
   }
-  console.log(`[smoke] PASS 真实 electron-updater 下载、Profile 预检、官方卸载结果原样保留、临时 App 替换和新版本历史回放; removed=${existingProfile.removedPackage}; version=${targetVersion}; archive_bytes=${archive.size}`)
+  console.log(`[smoke] PASS 真实 electron-updater 下载、Profile 预检、精选清单变化后官方卸载结果原样保留、临时 App 替换和新版本历史回放; curated_list_changed=${archive.curatedListRemoved}; removed=${existingProfile.removedPackage}; version=${targetVersion}; archive_bytes=${archive.size}`)
 } finally {
   try { child?.kill() } catch { /* ignore */ }
   terminateTempApps()
