@@ -45,6 +45,8 @@
 
 同日从 npm 版本列表补查到，Better Sidebar 最新仍为 `0.14.0`；最后一个声明 rc.7 peer 的 `0.13.1` 虽能通过当前 SDK 版本检查，但真实 Profile 预检仍返回 `DSH_PROFILE_CLIENT_ISOLATION_REQUIRED`，且包内继续包含 node-pty、终端、文件、Git 和浏览器工作台能力，因此也不能绕过独立 Client 隔离和高权限审查进入发行 Profile。Chat recovery 可见版本仍只有 `0.2.4`、`0.2.5`，两者均需要 rc.8。
 
+本轮还直接下载并比较了官方 `@deepseek-ai/dsh@0.1.0-rc.8` 与 `@deepseek-ai/dsh-web-app@0.1.0-rc.8` 的实际 npm 产物。rc.8 的 Web patch 新增 `session-reference`、`file-reference-local`、`ui-renderer`、官方 brand/attachment/reference 行，并加入 `openBrowser` 配置；`dsh` 同时替换整套 rc.7 运行时依赖图。当前桌面 patch 没有显式声明 rc.8 的 `openBrowser` 行或新 Client roster，因此不能只改一个版本号来解除 Chat recovery 阻塞；必须先完成整套 lockfile、Profile 图、协议和真实 Electron 回归。
+
 本轮新增了社区视觉资产许可门禁。`@linxin666/dsh-web-ui-all@0.1.20` 和 `@linxin666/dsh-client-ui-skin-center@0.1.20` 的包级许可证记录为 Apache-2.0，但它们带入的 `@linxin666/dsh-skins` 资产说明包含 CC BY-NC-SA 4.0 的 Maid Atelier 皮肤；在没有逐项再分发授权前，两个目录项都标记为 `asset-license-blocked`，并由 `release-boundary` 阻止未批准视觉资产进入精选清单。发行包当前不携带皮肤中心或皮肤资产，继续使用官方外观。
 
 ## 验证层级
