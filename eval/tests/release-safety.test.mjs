@@ -21,6 +21,7 @@ import {
   pathWithPackagedBin,
   systemOnlyPath,
 } from '../../electron/scripts/packaged-smoke-environment.mjs';
+import { BUNDLED_PNPM_FILES } from '../../electron/scripts/prepare-package.mjs';
 
 test('release safety rejects adhoc macOS signatures and accepts Developer ID signatures', () => {
   assert.deepEqual(classifyMacSignatureOutput('Signature=adhoc\nTeamIdentifier=not set'), {
@@ -158,4 +159,9 @@ test('packaged smoke uses a platform system path without inheriting the user PAT
   const systemPath = systemOnlyPath();
   assert.match(systemPath, process.platform === 'win32' ? /System32/i : /\/usr\/bin/);
   assert.match(pathWithPackagedBin('packaged-bin'), /^packaged-bin[;:]/);
+});
+
+test('bundled pnpm keeps only the Node runtime files needed by the wrapper', () => {
+  assert.deepEqual(BUNDLED_PNPM_FILES, ['bin', 'dist', 'LICENSE', 'package.json']);
+  assert.equal(BUNDLED_PNPM_FILES.includes('artifacts'), false);
 });

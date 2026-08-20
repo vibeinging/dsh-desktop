@@ -18,6 +18,7 @@ const BUILD_HEADERS_DIR = join(APP_DIR, '.desktop-build', 'electron-gyp')
 const FEATURED_PLUGIN_ARTIFACT_DIR = join(APP_DIR, '.desktop-build', 'featured-plugins')
 const PNPM_BIN_DIR = join(APP_DIR, '.desktop-build', 'pnpm-bin')
 const PNPM_RUNTIME_DIR = join(APP_DIR, '.desktop-build', 'pnpm-runtime')
+export const BUNDLED_PNPM_FILES = ['bin', 'dist', 'LICENSE', 'package.json']
 const SUPPORTED_ARCHES = new Set(['arm64', 'x64'])
 const SUPPORTED_PLATFORMS = new Set(['darwin', 'win32'])
 const AGENT_RUNTIME_TARGETS = {
@@ -72,7 +73,13 @@ async function prepareBundledPnpm() {
   const packageRoot = dirname(packageManifestPath)
   await rm(PNPM_RUNTIME_DIR, { recursive: true, force: true })
   await rm(PNPM_BIN_DIR, { recursive: true, force: true })
-  await cp(packageRoot, PNPM_RUNTIME_DIR, { recursive: true })
+  await mkdir(PNPM_RUNTIME_DIR, { recursive: true })
+  // pnpm's package also contains standalone executable artifacts for other
+  // distribution paths. The Node runtime only loads bin and dist; keeping
+  // the official runtime files and license avoids shipping duplicate bytes.
+  for (const name of BUNDLED_PNPM_FILES) {
+    await cp(join(packageRoot, name), join(PNPM_RUNTIME_DIR, name), { recursive: true })
+  }
   await mkdir(PNPM_BIN_DIR, { recursive: true })
   await writeFile(join(PNPM_BIN_DIR, 'pnpm'), `#!/bin/sh
 set -eu
