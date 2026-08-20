@@ -65,6 +65,9 @@ export async function generateFeaturedPluginArtifacts({
     if (manifest.name !== plugin.name || typeof manifest.version !== "string") {
       throw new Error(`精选插件清单与包 manifest 不一致: ${plugin.name}`)
     }
+    if (manifest.license !== plugin.license) {
+      throw new Error(`精选插件清单与包许可证不一致: ${plugin.name}`)
+    }
     const packed = await pack(sourceDir, output)
     const tarball = featuredPluginTarballName(plugin.name, manifest.version)
     const target = join(output, tarball)
@@ -86,7 +89,21 @@ export async function generateFeaturedPluginArtifacts({
     schema_version: 1,
     profile: featuredPluginManifest().profile,
     source_schema: featuredPluginManifest().schema_version,
-    plugins: records,
+    plugins: records.map((record) => ({
+      ...record,
+      license_file: `licenses/${record.package_license}.txt`,
+    })),
+  }
+  const licenseIds = new Set(records.map(({ package_license }) => package_license))
+  const licenseDir = join(output, "licenses")
+  await mkdir(licenseDir, { recursive: true })
+  for (const licenseId of licenseIds) {
+    if (!/^[A-Za-z0-9.-]+$/.test(licenseId)) throw new Error(`精选插件许可证标识无效: ${licenseId}`)
+    const licensePath = join(SCRIPT_ROOT, "legal", "licenses", `${licenseId}.txt`)
+    const licenseText = await readFile(licensePath, "utf8").catch(() => {
+      throw new Error(`缺少精选插件许可证原文: ${licenseId}`)
+    })
+    await writeFile(join(licenseDir, `${licenseId}.txt`), licenseText)
   }
   await writeFile(join(output, "manifest.json"), json(manifest))
   await writeFile(join(output, "profile-install.json"), json({
@@ -115,7 +132,7 @@ export async function generateFeaturedPluginArtifacts({
     "",
     "This file is generated from `server/src/engine/dsh_runtime/featured_plugins.json`.",
     "",
-    ...records.map(({ name, version, package_license, sha256: hash }) => `- ${name}@${version} — ${package_license}; SHA-256 ${hash}`),
+    ...records.map(({ name, version, package_license, package_path, sha256: hash }) => `- ${name}@${version} — ${package_license}; license licenses/${package_license}.txt; source ${package_path}; SHA-256 ${hash}`),
     "",
   ].join("\n")
   await writeFile(join(output, "THIRD_PARTY_NOTICES.md"), notices)

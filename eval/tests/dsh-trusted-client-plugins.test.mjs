@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { join } from "node:path";
 
 import {
   isReviewedCommunityClient,
@@ -11,6 +13,7 @@ import {
 import {
   featuredPluginManifest,
   featuredPlugins,
+  resolveFeaturedPackageDir,
 } from "../../server/src/engine/dsh_runtime/featured_plugins.js";
 
 test("only audited community Client releases may enter the product Client graph", () => {
@@ -137,4 +140,13 @@ test("the curated Profile input has one authoritative, user-manageable list", ()
   assert.deepEqual(plugins, manifest.plugins);
   assert.equal(plugins.every((plugin) => plugin.default && plugin.user_manageable), true);
   assert.equal(plugins.some((plugin) => plugin.name.includes("web-ui-task-board")), false);
+});
+
+test("the curated list keeps package names, source paths, and SPDX licenses aligned", () => {
+  for (const plugin of featuredPlugins()) {
+    const packageJson = JSON.parse(readFileSync(join(resolveFeaturedPackageDir(plugin), "package.json"), "utf8"));
+    assert.equal(packageJson.name, plugin.name);
+    assert.equal(packageJson.license, plugin.license);
+    assert.match(plugin.package_path, /^packages\/dsh-[^/]+$/);
+  }
 });

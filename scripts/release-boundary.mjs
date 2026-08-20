@@ -108,12 +108,25 @@ export function inspectFeaturedArtifacts(root = ROOT, { required = false } = {})
   const manifestPath = join(artifactRoot, "manifest.json");
   if (!existsSync(manifestPath)) return ["随包精选插件缺少 manifest.json"];
   const generated = readJson(manifestPath);
-  const expectedNames = new Set((featured.plugins || []).map((plugin) => plugin.name));
+  const expectedPlugins = new Map((featured.plugins || []).map((plugin) => [plugin.name, plugin]));
+  const expectedNames = new Set(expectedPlugins.keys());
   const actualNames = new Set((generated.plugins || []).map((plugin) => plugin.name));
   if (expectedNames.size !== actualNames.size || [...expectedNames].some((name) => !actualNames.has(name))) {
     errors.push("随包精选插件 manifest 与源码清单不一致");
   }
   for (const plugin of generated.plugins || []) {
+    const expected = expectedPlugins.get(plugin.name);
+    if (!expected) {
+      errors.push(`随包 manifest 包含未精选的插件：${plugin.name}`);
+      continue;
+    }
+    if (plugin.package_path !== expected.package_path || plugin.package_license !== expected.license) {
+      errors.push(`${plugin.name} 的源路径或许可证与精选清单不一致`);
+    }
+    const licenseFile = join(artifactRoot, plugin.license_file || "");
+    if (!plugin.license_file || !existsSync(licenseFile)) {
+      errors.push(`${plugin.name} 缺少许可证原文：${plugin.license_file || "(未声明)"}`);
+    }
     const tarball = join(artifactRoot, plugin.tarball || "");
     if (!existsSync(tarball)) {
       errors.push(`${plugin.name} 缺少固定 tarball`);

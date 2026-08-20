@@ -28,6 +28,9 @@ function validateManifest(value) {
     if (typeof plugin.package_path !== "string" || !plugin.package_path.startsWith("packages/")) {
       throw new Error(`${plugin.name} 的 package_path 必须位于 packages/ 下`);
     }
+    if (typeof plugin.license !== "string" || !plugin.license.trim()) {
+      throw new Error(`${plugin.name} 必须声明 SPDX 许可证`);
+    }
     if (!new Set(["portable", "desktop-adapter"]).has(plugin.portability)) {
       throw new Error(`${plugin.name} 的 portability 无效`);
     }

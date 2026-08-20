@@ -9,7 +9,7 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["dsh-work-parent-ipc", "browser-workspace-host"],
-      "license": "MIT"
+      "license": "BSD-3-Clause"
     },
     {
       "name": "@vibeinging/dsh-project-tools",
@@ -18,7 +18,7 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["product-host"],
-      "license": "MIT"
+      "license": "BSD-3-Clause"
     },
     {
       "name": "@vibeinging/dsh-canvas-tools",
@@ -27,7 +27,7 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["product-host"],
-      "license": "MIT"
+      "license": "BSD-3-Clause"
     },
     {
       "name": "@vibeinging/dsh-structured-ui-tools",
@@ -36,7 +36,7 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["product-host"],
-      "license": "MIT"
+      "license": "BSD-3-Clause"
     },
     {
       "name": "@vibeinging/dsh-model-inheritance",
@@ -45,7 +45,7 @@
       "user_manageable": true,
       "portability": "portable",
       "permissions": [],
-      "license": "MIT"
+      "license": "BSD-3-Clause"
     },
     {
       "name": "@vibeinging/dsh-product-bridge",
@@ -54,7 +54,7 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["product-host"],
-      "license": "MIT"
+      "license": "BSD-3-Clause"
     },
     {
       "name": "@vibeinging/dsh-office-tools",
@@ -63,7 +63,7 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["office-artifact-host"],
-      "license": "MIT"
+      "license": "BSD-3-Clause"
     }
   ]
 }

@@ -17,6 +17,8 @@
 
 唯一精选输入是 `server/src/engine/dsh_runtime/featured_plugins.json`。它由脚本生成固定 tarball、SHA-256 manifest、Profile 安装输入、权限摘要、第三方公告和测试预期。当前默认输入是 7 个 `@vibeinging/*` Host、portable 或 desktop-adapter Bundle，不包含替换式 UI。
 
+本轮许可审计核对了 7 个源包的 `package.json`：它们均声明 `BSD-3-Clause`，精选清单已对齐该许可证；生成器现在会拒绝包名、源路径或许可证漂移，并把仓库内的许可证原文复制到随包 `featured-plugins/licenses/`；随包公告同时写入许可证文件、相对源路径和 tarball SHA-256。
+
 固定 tarball 通过安装包内的受控 pnpm 进入 DSH 数据目录下的稳定本地插件库。pnpm wrapper 必须使用 `DSH_PNPM_NODE_BIN`，发行态不回退到系统 Node。所有 Profile 安装、更新和卸载仍转发到官方 `dsh plugin --profile` 命令；本地插件库不是第二份安装状态。
 
 `@vibeinging/dsh-model-inheritance` 已在纯官方 Web Profile 通过官方命令安装和真实 Electron 启动检查。`@linxin666/dsh-client-ui-task-board@0.1.20` 已完成固定版本网络预检、官方 Web 激活、真实 Electron 启动、官方卸载命令和重启保持检查；它目前仍是可选社区候选，不进入默认精选。`@linxin666/dsh-web-ui-all`、Better Sidebar、远程 Web、SSH、图像理解、Agent 预设和社区插件管理器均未进入发行 Profile。
