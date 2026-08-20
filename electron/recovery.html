@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DSH Desktop 启动恢复</title>
+  <style>
+    :root { color-scheme: light dark; font: 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f6f7f9; color: #1d2433; }
+    @media (prefers-color-scheme: dark) { :root { background: #17191f; color: #eef1f7; } .card { background: #232731; border-color: #343a48; } code { background: #303543; } }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    .card { width: min(680px, calc(100vw - 48px)); box-sizing: border-box; padding: 32px; border: 1px solid #d9dde6; border-radius: 16px; background: #fff; box-shadow: 0 14px 45px #10182818; }
+    h1 { margin: 0 0 10px; font-size: 24px; } h2 { margin: 26px 0 8px; font-size: 16px; }
+    p { line-height: 1.6; margin: 8px 0; } .muted { color: #6b7280; } .error { white-space: pre-wrap; word-break: break-word; padding: 12px; border-radius: 8px; background: #f1f3f6; }
+    @media (prefers-color-scheme: dark) { .muted { color: #aab2c1; } .error { background: #303543; } }
+    code { padding: 2px 5px; border-radius: 4px; background: #eef1f5; word-break: break-all; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+    button { border: 0; border-radius: 8px; padding: 10px 15px; font: inherit; cursor: pointer; background: #315efb; color: white; }
+    button.secondary { background: #e8ebf1; color: #263044; } button.danger { background: #b42318; } button:disabled { opacity: .5; cursor: not-allowed; }
+    @media (prefers-color-scheme: dark) { button.secondary { background: #343a48; color: #eef1f7; } }
+    label { display: block; margin: 14px 0 6px; font-weight: 600; } select, input { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #c9ced8; border-radius: 7px; background: transparent; color: inherit; }
+    .hidden { display: none; } .status { margin-top: 16px; min-height: 1.4em; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>DSH Desktop 暂时无法启动</h1>
+    <p class="muted">应用没有修改原 Profile。请选择一项恢复操作；安全 Profile 只用于本次诊断，不会替代你的日常 Profile。</p>
+    <h2>失败阶段</h2>
+    <p><code id="stage">未知</code></p>
+    <h2>错误摘要</h2>
+    <p class="error" id="message">本地服务启动失败</p>
+    <p class="muted">Profile：<code id="profile">未解析</code></p>
+
+    <section id="remove-section" class="hidden">
+      <h2>确认移除一个插件</h2>
+      <p class="muted">只会通过官方 Profile 命令移除你选择的包，不会修改其他 Bundle。</p>
+      <label for="plugin">可卸载 Bundle</label>
+      <select id="plugin"></select>
+      <div class="actions"><button class="danger" id="remove">移除并重试</button></div>
+    </section>
+
+    <div class="actions">
+      <button id="retry">不改数据重试</button>
+      <button class="secondary" id="safe">进入安全 Profile</button>
+      <button class="secondary" id="open">打开 Profile 目录</button>
+      <button class="secondary" id="diagnostics">导出隐私过滤诊断</button>
+    </div>
+    <p class="status muted" id="status" role="status"></p>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search)
+    const text = (id, value) => { document.getElementById(id).textContent = value || '未提供' }
+    text('stage', params.get('stage'))
+    text('message', params.get('message'))
+    text('profile', params.get('profile'))
+    const status = document.getElementById('status')
+    const go = (action, query = {}) => {
+      const search = new URLSearchParams(query).toString()
+      status.textContent = '正在处理……'
+      document.querySelectorAll('button').forEach((button) => { button.disabled = true })
+      location.href = `dsh-recovery://${action}${search ? `?${search}` : ''}`
+    }
+    document.getElementById('retry').onclick = () => go('retry')
+    document.getElementById('safe').onclick = () => go('safe-profile')
+    document.getElementById('open').onclick = () => go('open-profile')
+    document.getElementById('diagnostics').onclick = () => go('export-diagnostics')
+
+    let plugins = []
+    try { plugins = JSON.parse(params.get('plugins') || '[]') } catch { plugins = [] }
+    if (Array.isArray(plugins) && plugins.length) {
+      const section = document.getElementById('remove-section')
+      const select = document.getElementById('plugin')
+      plugins.forEach((plugin) => {
+        const option = document.createElement('option')
+        option.value = String(plugin)
+        option.textContent = String(plugin)
+        select.append(option)
+      })
+      section.classList.remove('hidden')
+      document.getElementById('remove').onclick = () => {
+        if (confirm(`确认通过官方命令移除 ${select.value}？`)) go('remove-plugin', { plugin: select.value })
+      }
+    }
+    const result = params.get('result')
+    if (result) status.textContent = result
+  </script>
+</body>
+</html>

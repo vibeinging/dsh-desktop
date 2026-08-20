@@ -4,6 +4,11 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  inspectFeaturedArtifacts,
+  inspectOfficialWebReleaseBoundary,
+} from './release-boundary.mjs';
+
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT = resolve(SCRIPT_DIR, '..');
 const TEXT_EXTENSIONS = new Set(['.cjs', '.js', '.json', '.jsx', '.mjs', '.ts', '.tsx', '.vue']);
@@ -188,6 +193,24 @@ function staticChecks(root, scope) {
       'server/src/engine/dsh_runtime/desktop_web.patch.yml',
     ],
   ));
+  const webBoundaryErrors = inspectOfficialWebReleaseBoundary(root);
+  checks.push(check(
+    'official_web_release_boundary',
+    webBoundaryErrors.length === 0 ? 'pass' : 'block',
+    webBoundaryErrors.length === 0
+      ? '主窗口只加载官方 DSH Web，发行包没有旧 Renderer、preload 或主题状态'
+      : webBoundaryErrors.join('；'),
+    ['electron/main.js', 'electron/package.json', 'electron/recovery.html', 'featured_plugins.json'],
+  ));
+  const artifactErrors = inspectFeaturedArtifacts(root, { required: false });
+  checks.push(check(
+    'featured_plugin_artifacts',
+    artifactErrors.length === 0 ? 'pass' : 'block',
+    artifactErrors.length === 0
+      ? '.desktop-build 中的精选插件 tarball、哈希和源码清单一致'
+      : artifactErrors.join('；'),
+    '.desktop-build/featured-plugins',
+  ));
 
   if (scope === 'all' || scope === 'macos') {
     checks.push(check(
@@ -272,7 +295,7 @@ export function inspectReleaseSafety({
   const normalizedRoot = resolve(root);
   const checks = staticChecks(normalizedRoot, scope);
   if (!staticOnly && (scope === 'all' || scope === 'macos')) {
-    checks.push(...inspectMacBundle(resolve(appPath || join(normalizedRoot, 'release', 'mac-arm64', 'DeepSeek Harness Desktop App.app'))));
+    checks.push(...inspectMacBundle(resolve(appPath || join(normalizedRoot, 'release', 'mac-arm64', 'DSH Desktop.app'))));
   }
   if (!staticOnly && (scope === 'all' || scope === 'windows')) {
     checks.push(...inspectWindowsBundle(normalizedRoot, appPath ? resolve(appPath) : null));

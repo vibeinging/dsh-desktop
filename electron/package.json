@@ -1,10 +1,10 @@
 {
   "name": "dsh-desktop",
-  "productName": "DeepSeek Harness Desktop App",
+  "productName": "DSH Desktop",
   "version": "0.0.1",
   "license": "MIT",
-  "description": "DeepSeek Harness Desktop App，基于 Electron 承载 DSH Web Profile 与本地 Node 后端",
-  "author": "DeepSeek AI",
+  "description": "DSH Desktop，基于 DeepSeek Harness 和 Electron 构建的社区桌面应用",
+  "author": "vibeinging",
   "private": true,
   "main": "main.js",
   "engines": {
@@ -15,15 +15,15 @@
     "start": "node ../scripts/run-with-project-node.mjs node scripts/run-dev.mjs",
     "dev": "node ../scripts/run-with-project-node.mjs node scripts/run-dev.mjs",
     "dev:prepare": "node ../scripts/run-with-project-node.mjs node scripts/run-dev.mjs --prepare-only",
-    "build:renderer": "node ../scripts/run-with-project-node.mjs npm --prefix .. run build:desktop-assets",
+    "build:renderer": "node ../scripts/run-with-project-node.mjs node scripts/verify-official-web-assets.mjs",
     "prepare:mac": "node ../scripts/run-with-project-node.mjs node scripts/prepare-package.mjs --platform darwin --arch arm64",
     "prepare:mac:x64": "node ../scripts/run-with-project-node.mjs node scripts/prepare-package.mjs --platform darwin --arch x64",
     "prepare:win": "node ../scripts/run-with-project-node.mjs node scripts/prepare-package.mjs --platform win32 --arch x64",
-    "smoke:packaged-server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs \"../release/mac-arm64/DeepSeek Harness Desktop App.app\"",
-    "smoke:packaged-app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs \"../release/mac-arm64/DeepSeek Harness Desktop App.app\"",
+    "smoke:packaged-server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs \"../release/mac-arm64/DSH Desktop.app\"",
+    "smoke:packaged-app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs \"../release/mac-arm64/DSH Desktop.app\"",
     "smoke:browser-workspace": "node ../scripts/run-with-project-node.mjs exec ./node_modules/.bin/electron scripts/browser-workspace-smoke.cjs",
-    "smoke:mac:x64:server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs \"../release/mac/DeepSeek Harness Desktop App.app\"",
-    "smoke:mac:x64:app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs \"../release/mac/DeepSeek Harness Desktop App.app\"",
+    "smoke:mac:x64:server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs \"../release/mac/DSH Desktop.app\"",
+    "smoke:mac:x64:app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs \"../release/mac/DSH Desktop.app\"",
     "smoke:win:server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs ../release/win-unpacked",
     "smoke:win:app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs ../release/win-unpacked",
     "package:mac:dir": "node ../scripts/run-with-project-node.mjs npm run package:mac:dir:project",
@@ -55,8 +55,8 @@
     "js-yaml": "^4.3.1"
   },
   "build": {
-    "appId": "ai.deepseek.dsh",
-    "productName": "DeepSeek Harness Desktop App",
+    "appId": "com.vibeinging.dsh.desktop",
+    "productName": "DSH Desktop",
     "asar": true,
     "npmRebuild": false,
     "directories": {
@@ -66,11 +66,9 @@
     "files": [
       "main.js",
       "app-update-controller.js",
-      "artifact-context-menu.js",
-      "attachment-grants.js",
-      "preload.js",
+      "runtime-recovery.js",
+      "recovery.html",
       "browser-workspace.js",
-      "skin-settings-store.js",
       "renderer-surface-port.js",
       "network-proxy-settings.js",
       "web-search-settings.js",
@@ -151,6 +149,6 @@
         "nsis"
       ]
     },
-    "artifactName": "deepseek-harness-desktop-app-${version}-${os}-${arch}.${ext}"
+    "artifactName": "dsh-desktop-${version}-${os}-${arch}.${ext}"
   }
 }

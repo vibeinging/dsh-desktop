@@ -77,11 +77,19 @@ async function prepareBundledPnpm() {
   await writeFile(join(PNPM_BIN_DIR, 'pnpm'), `#!/bin/sh
 set -eu
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec "\${DSH_PNPM_NODE_BIN:-node}" "$script_dir/../pnpm-runtime/bin/pnpm.cjs" "$@"
+if [ -z "\${DSH_PNPM_NODE_BIN:-}" ]; then
+  echo "DSH_PNPM_NODE_BIN is required for the bundled pnpm" >&2
+  exit 1
+fi
+exec "$DSH_PNPM_NODE_BIN" "$script_dir/../pnpm-runtime/bin/pnpm.cjs" "$@"
 `)
   await chmod(join(PNPM_BIN_DIR, 'pnpm'), 0o755)
   await writeFile(join(PNPM_BIN_DIR, 'pnpm.cmd'), `@echo off
-"%~dp0..\\pnpm-runtime\\bin\\pnpm.cjs" %*
+if not defined DSH_PNPM_NODE_BIN (
+  >&2 echo DSH_PNPM_NODE_BIN is required for the bundled pnpm
+  exit /b 1
+)
+"%DSH_PNPM_NODE_BIN%" "%~dp0..\\pnpm-runtime\\bin\\pnpm.cjs" %*
 `)
 }
 

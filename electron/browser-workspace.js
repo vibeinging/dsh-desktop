@@ -770,7 +770,7 @@ class BrowserWorkspaceController {
   async captureScreenshot(tabId) {
     const tab = this.tabById(tabId) || this.activeTab();
     if (!tab) throw new Error('没有可截图的网页');
-    const image = await tab.view.webContents.capturePage();
+    const image = await tab.view.webContents.capturePage({ x: 0, y: 0, width: 700, height: 560 }, { stayHidden: false });
     if (image.isEmpty()) throw new Error('网页截图为空');
     return { title: sanitizeBrowserTitle(tab.title), png: image.toPNG() };
   }

@@ -19,22 +19,17 @@ async function inspectOfficialSurface(window) {
     latest = await window.webContents.executeJavaScript(`(() => {
       const resources = performance.getEntriesByType("resource").map((entry) => entry.name);
       return {
-        primary: document.body.style.getPropertyValue("--dsw-alias-brand-primary").trim(),
-        colorScheme: document.documentElement.style.colorScheme,
-        themeClientLoaded: resources.some((url) => url.includes("/plugins/@deepseek-ai/dsh-theme-pack/client.js")),
-        productShellLoaded: resources.some((url) => url.includes("/plugins/@deepseek-ai/dsh-work-shell/client.js")),
+        officialWeb: Boolean(document.querySelector("#root") && globalThis.__DSH_BOOT__),
+        modelInheritanceClientLoaded: resources.some((url) => url.includes("/plugins/@vibeinging/dsh-model-inheritance/client.js")),
+        taskBoardClientLoaded: resources.some((url) => url.includes("/plugins/@linxin666/dsh-client-ui-task-board/client.js")),
+        productShellLoaded: resources.some((url) => url.includes("/plugins/@vibeinging/dsh-work-shell/client.js")),
         bodyChildCount: document.body.childElementCount,
       };
     })()`, true);
-    if (
-      ["#405fd2", "#7b9cff"].includes(latest.primary)
-      && ["light", "dark"].includes(latest.colorScheme)
-      && latest.themeClientLoaded
-      && latest.bodyChildCount > 0
-    ) return latest;
+    if (latest.officialWeb && latest.bodyChildCount > 0) return latest;
     await sleep(200);
   }
-  throw new Error(`official Web Client graph did not apply the theme Bundle: ${JSON.stringify(latest)}`);
+  throw new Error(`official Web Client graph did not start: ${JSON.stringify(latest)}`);
 }
 
 app.whenReady().then(async () => {

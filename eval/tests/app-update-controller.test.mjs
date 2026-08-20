@@ -197,3 +197,39 @@ test('desktop updater stays disabled until the app has an explicit HTTPS update 
   assert.equal(controller.getState().status, 'disabled')
   controller.destroy()
 })
+
+test('desktop updater blocks installation when the authoritative Profile preflight fails', async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), 'dsh-updater-profile-gate-'))
+  const updater = new FakeUpdater()
+  let prepareCalls = 0
+  const blocked = []
+  const controller = new AppUpdateController({
+    app: { getVersion: () => '1.0.0' },
+    updater,
+    fetch: async () => updateResponse(),
+    apiBaseUrl: 'https://updates.dsh.example',
+    platform: 'darwin',
+    arch: 'arm64',
+    userDataPath,
+    dataRoot: join(userDataPath, 'data'),
+    isPackaged: true,
+    prepareToInstall: async () => { prepareCalls += 1 },
+    preflightInstall: async () => ({
+      ok: false,
+      code: 'DSH_PROFILE_PREFLIGHT_FAILED',
+      message: 'Profile 中存在无法解析的 Bundle',
+    }),
+    onInstallBlocked: async (gate) => { blocked.push(gate) },
+    logger: { info() {}, warn() {}, error() {} },
+  })
+
+  assert.equal((await controller.check()).status, 'available')
+  const state = await controller.downloadAndInstall()
+  assert.equal(state.status, 'blocked')
+  assert.equal(state.error, 'Profile 中存在无法解析的 Bundle')
+  assert.deepEqual(state.updateGate.choices, ['update-plugins', 'defer', 'safe-profile'])
+  assert.equal(prepareCalls, 0)
+  assert.deepEqual(updater.quitArgs, null)
+  assert.equal(blocked.length, 1)
+  controller.destroy()
+})

@@ -98,6 +98,8 @@ class AppUpdateController {
     this.onStateChange = options.onStateChange || (() => {});
     this.prepareToInstall = options.prepareToInstall || (async () => {});
     this.recoverInstallFailure = options.recoverInstallFailure || (async () => {});
+    this.preflightInstall = options.preflightInstall || (async () => ({ ok: true }));
+    this.onInstallBlocked = options.onInstallBlocked || (async () => {});
     this.logger = options.logger || console;
     this.checkIntervalMs = options.checkIntervalMs || DEFAULT_CHECK_INTERVAL_MS;
     this.statePath = path.join(this.userDataPath, 'app-update-state.json');
@@ -125,6 +127,7 @@ class AppUpdateController {
       latest: null,
       progress: null,
       error: null,
+      updateGate: null,
       checkedAt: null,
       history: this.history,
     };
@@ -272,7 +275,7 @@ class AppUpdateController {
     if (!this.enabled) return Promise.resolve(this.getState());
     if (this.checkPromise) return this.checkPromise;
     if (this.downloadPromise || this.installPromise) return Promise.resolve(this.getState());
-    this._setState({ status: 'checking', error: null });
+    this._setState({ status: 'checking', error: null, updateGate: null });
     this.checkPromise = (async () => {
       try {
         const metadata = await this._fetchMetadata();
@@ -293,6 +296,7 @@ class AppUpdateController {
           checkedAt: metadata.checked_at || new Date().toISOString(),
           progress: null,
           error: null,
+          updateGate: null,
         });
       } catch (error) {
         this._setState({ status: 'error', error: cleanError(error), progress: null });
@@ -309,13 +313,14 @@ class AppUpdateController {
     if (this.downloadPromise || this.installPromise) return this.getState();
     if (this.state.status !== 'available') await this.check();
     if (this.state.status !== 'available' || !this.state.latest?.update_available) return this.getState();
-    this._setState({ status: 'downloading', progress: { percent: 0, transferred: 0, total: 0, bytesPerSecond: 0 }, error: null });
+    this._setState({ status: 'downloading', progress: { percent: 0, transferred: 0, total: 0, bytesPerSecond: 0 }, error: null, updateGate: null });
     this.downloadPromise = this.updater.downloadUpdate()
       .catch((error) => {
         this._setState({ status: 'error', error: cleanError(error), progress: null });
       })
       .finally(() => { this.downloadPromise = null; });
     await this.downloadPromise;
+    if (this.installPromise) await this.installPromise;
     return this.getState();
   }
 
@@ -325,6 +330,28 @@ class AppUpdateController {
     this.installPromise = (async () => {
       const toVersion = this.state.latest?.version;
       if (!toVersion) throw new Error('缺少待安装版本');
+      let gate;
+      try {
+        gate = await this.preflightInstall({
+          fromVersion: this.app.getVersion(),
+          toVersion,
+          dataRoot: this.dataRoot,
+        });
+      } catch (error) {
+        gate = { ok: false, code: 'DSH_PROFILE_PREFLIGHT_FAILED', message: cleanError(error) };
+      }
+      if (gate && gate.ok === false) {
+        const blocked = {
+          code: String(gate.code || 'DSH_PROFILE_PREFLIGHT_FAILED').slice(0, 120),
+          message: cleanError(gate.message || 'DSH Profile 更新预检未通过'),
+          choices: ['update-plugins', 'defer', 'safe-profile'],
+        };
+        this._setState({ status: 'blocked', error: blocked.message, progress: null, updateGate: blocked });
+        try { await this.onInstallBlocked(blocked); } catch (error) {
+          this.logger.warn?.('[updater] 更新阻断提示失败:', cleanError(error));
+        }
+        return;
+      }
       atomicWriteJson(this.pendingPath, {
         schemaVersion: STATE_SCHEMA_VERSION,
         fromVersion: this.app.getVersion(),
@@ -335,7 +362,9 @@ class AppUpdateController {
       this._setState({ status: 'installing', error: null });
       await this.prepareToInstall();
       this.updater.quitAndInstall(false, true);
-    })().catch((error) => this._handleInstallFailure(error));
+    })().catch((error) => this._handleInstallFailure(error)).finally(() => {
+      if (this.state.status === 'blocked') this.installPromise = null;
+    });
     return this.installPromise;
   }
 

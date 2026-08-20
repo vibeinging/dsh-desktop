@@ -45,9 +45,9 @@ try {
   })
   const text = output.join('')
   if (result.code !== 0) throw new Error(`随包 App 退出失败 code=${result.code} signal=${result.signal}\n${text}`)
-  if (!text.includes('[smoke] Renderer 已加载')) throw new Error(`Renderer 没有完成加载\n${text}`)
+  if (!text.includes('[smoke] 官方 DSH Web 已加载')) throw new Error(`官方 DSH Web 没有完成加载\n${text}`)
   if (!text.includes('Server 退出 code=0')) throw new Error(`Server 没有正常退出\n${text}`)
-  console.log('[smoke] 随包 App 启动、Renderer 加载和 Server 关闭正常')
+  console.log('[smoke] 随包 App 启动、官方 DSH Web 加载和 Server 关闭正常')
 } finally {
   try { child?.kill() } catch { /* ignore */ }
   try {
