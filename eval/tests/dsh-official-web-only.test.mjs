@@ -19,6 +19,9 @@ test("Electron's main window has one official DSH Web surface", () => {
   assert.match(electronMain, /rendererSurfaceUrl\s*=\s*await resolveRendererSurface\(\)/);
   assert.match(electronMain, /createWindow\(rendererSurfaceUrl\)/);
   assert.match(electronMain, /profile-preflight/);
+  assert.match(electronMain, /更新插件后重试/);
+  assert.match(electronMain, /进入安全 Profile/);
+  assert.match(electronMain, /稍后更新/);
   assert.doesNotMatch(createWindowSource, /loadFile\([^)]*renderer/);
   assert.doesNotMatch(createWindowSource, /standalone|dsh-work-shell|legacy/i);
 });

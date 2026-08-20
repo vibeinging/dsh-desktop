@@ -810,7 +810,7 @@ function initializeAppUpdater() {
           title: '更新已暂停',
           message: '当前 Profile 需要先处理，应用不会替你修改插件选择。',
           detail: `${gate.message}\n\n可选操作：更新插件后重试、稍后更新，或进入独立安全 Profile。`,
-          buttons: ['回到官方 Web', '进入安全 Profile', '稍后更新'],
+          buttons: ['更新插件后重试', '进入安全 Profile', '稍后更新'],
           defaultId: 0,
           cancelId: 2,
           noLink: true,
