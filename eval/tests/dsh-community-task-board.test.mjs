@@ -16,6 +16,7 @@ const TASK_BOARD_SOURCE = "@linxin666/dsh-client-ui-task-board@0.1.20";
 const requireFromElectron = createRequire(resolve(APP_ROOT, "electron/package.json"));
 const ELECTRON_EXECUTABLE = requireFromElectron("electron");
 const ELECTRON_FIXTURE = resolve(APP_ROOT, "eval/fixtures/official-web-electron.cjs");
+const COMMUNITY_SCREENSHOT_DIR = String(process.env.DSH_COMMUNITY_SCREENSHOT_DIR || "").trim();
 
 function runCommand(executable, args, options = {}) {
   return new Promise((resolveCommand, rejectCommand) => {
@@ -111,6 +112,10 @@ test("the independent task-board Bundle installs, runs, uninstalls, and restarts
       ...process.env,
       DSH_OFFICIAL_WEB_URL: surface,
       DSH_OFFICIAL_WEB_USER_DATA: join(dshHome, "electron-user-data"),
+      DSH_OFFICIAL_WEB_COMMUNITY_UI: "task-board",
+      ...(COMMUNITY_SCREENSHOT_DIR
+        ? { DSH_OFFICIAL_WEB_SCREENSHOT: join(COMMUNITY_SCREENSHOT_DIR, "task-board.png") }
+        : {}),
     };
     delete electronEnv.ELECTRON_RUN_AS_NODE;
     const browserOutput = await runCommand(ELECTRON_EXECUTABLE, [ELECTRON_FIXTURE], {
@@ -123,6 +128,11 @@ test("the independent task-board Bundle installs, runs, uninstalls, and restarts
     const result = JSON.parse(resultLine.slice("DSH_OFFICIAL_WEB_RESULT ".length));
     assert.equal(result.officialWeb, true);
     assert.equal(result.taskBoardClientLoaded, true);
+    assert.equal(result.taskBoardEntryVisible, true);
+    assert.equal(result.taskBoardActive, true);
+    assert.equal(result.taskBoardBoardVisible, true);
+    assert.equal(result.taskBoardColumns, 5);
+    assert.equal(result.taskBoardInsideOfficialWebRoot, true);
 
     server.kill("SIGTERM");
     await new Promise((resolveExit) => server.once("exit", resolveExit));

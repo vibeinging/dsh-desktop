@@ -33,6 +33,8 @@ npm run smoke:updater
 npm run smoke:browser-workspace
 npm run test:release
 npm run test:release:community
+# 真实社区回归也可保存 task-board Electron 截图
+DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence npm run test:release:community
 ```
 
 ## Profile 和插件状态
@@ -60,7 +62,7 @@ dsh plugin --profile web remove @vibeinging/dsh-work-references
 
 它只在当前 DSH Session 的工作目录内提供有上限的相对文件引用，不接受浏览器传入的绝对路径。
 
-社区独立 UI 候选 `@linxin666/dsh-client-ui-task-board@0.1.20` 已完成固定版本的网络安装、官方 Web 激活、真实 Electron 启动、官方卸载命令和重启回归；它是可选候选，不进入默认精选：
+社区独立 UI 候选 `@linxin666/dsh-client-ui-task-board@0.1.20` 已完成固定版本的网络安装、官方 Web 激活、真实 Electron 启动、任务看板入口与五列看板配置检查、官方卸载命令和重启回归；它是可选候选，不进入默认精选。设置 `DSH_COMMUNITY_SCREENSHOT_DIR=/path` 可保存真实 Electron 看板截图：
 
 ```bash
 dsh plugin --profile web add -w @linxin666/dsh-client-ui-task-board@0.1.20 --save-exact --ignore-scripts
@@ -92,7 +94,7 @@ DSH 子进程、Profile 解析或 Client 启动失败时，应用进入本地恢
 源码检查和单元测试不能替代真实发行证据。当前仓库分别使用以下证据层级：
 
 - 源码和 Profile 集成：官方 Web 组合、只读已有 Profile、固定 tarball、离线初始化和权限投影测试；
-- 真实 Electron：官方 Web 无 preload 启动、工作区、Session、Session log、history 用户流程、社区 task board 激活和 Browser Workspace WebContentsView 烟测。`smoke:official-web:flow` 会在无 API key 的临时用户目录运行，并可用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow` 保存官方 Web 截图；`smoke:official-web:interactions` 在同一打包 Electron 中用 loopback SSE 测试模型驱动官方 LLM、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock 和 Session history，并用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:interactions` 保存问题/审批/队列截图；它验证的是官方运行时和 UI 契约，不替代真实 DeepSeek 服务的 live-model 证据；`smoke:updater` 还会用本地 HTTPS feed 验证更新元数据、固定哈希下载、Profile 预检、临时 App 替换和历史回放，但完整替换需要 Developer ID 签名包；
+- 真实 Electron：官方 Web 无 preload 启动、工作区、Session、Session log、history 用户流程、社区 task board 入口/五列看板/官方 Web 容器内激活和 Browser Workspace WebContentsView 烟测。`smoke:official-web:flow` 会在无 API key 的临时用户目录运行，并可用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow` 保存官方 Web 截图；`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run test:release:community` 可保存真实 task board 看板截图；`smoke:official-web:interactions` 在同一打包 Electron 中用 loopback SSE 测试模型驱动官方 LLM、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock 和 Session history，并用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:interactions` 保存问题/审批/队列截图；它验证的是官方运行时和 UI 契约，不替代真实 DeepSeek 服务的 live-model 证据；`smoke:updater` 还会用本地 HTTPS feed 验证更新元数据、固定哈希下载、Profile 预检、临时 App 替换和历史回放，但完整替换需要 Developer ID 签名包；
 - 安装包：`package:mac:dir` 生成随包目录，`smoke:official-web` 验证随包官方 Web。当前机器的 Electron Viz 合成器不提供 WebContentsView 截图，因此 Browser Workspace 烟测会明确报告 `compositor-unavailable`，不把它记为截图通过；签名、公证、Windows 实机、干净用户更新和卸载回归仍需在对应发行环境完成。
 
 详见 [发行方案](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md)、[隐私说明](PRIVACY.md)、[安全说明](SECURITY.md) 和 [第三方说明](THIRD_PARTY_NOTICES.md)。

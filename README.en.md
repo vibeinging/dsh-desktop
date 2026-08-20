@@ -33,6 +33,8 @@ npm run smoke:updater
 npm run smoke:browser-workspace
 npm run test:release
 npm run test:release:community
+# Save the real community task-board Electron screenshot
+DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence npm run test:release:community
 ```
 
 ## Profile and plugin state
@@ -60,7 +62,7 @@ dsh plugin --profile web remove @vibeinging/dsh-work-references
 
 It provides bounded relative file references under the current DSH Session workspace and never accepts an absolute path from the browser.
 
-The independent community UI candidate `@linxin666/dsh-client-ui-task-board@0.1.20` has passed fixed-version network installation, official Web activation, real Electron startup, official removal, and restart checks. It remains optional and is not in the default curated set:
+The independent community UI candidate `@linxin666/dsh-client-ui-task-board@0.1.20` has passed fixed-version network installation, official Web activation, real Electron startup, task-board entry and five-column board configuration checks, official removal, and restart checks. It remains optional and is not in the default curated set. Set `DSH_COMMUNITY_SCREENSHOT_DIR=/path` to save a real Electron board screenshot:
 
 ```bash
 dsh plugin --profile web add -w @linxin666/dsh-client-ui-task-board@0.1.20 --save-exact --ignore-scripts
@@ -86,7 +88,7 @@ Diagnostics are bounded and omit environment variables, credentials, Session con
 Source inspection and unit tests do not substitute for real release evidence. The repository keeps these levels separate:
 
 - Source and Profile integration: official Web composition, read-only existing Profiles, fixed tarballs, offline initialization, and permission projection tests;
-- Real Electron: official Web startup without preload, workspace, Session, Session log, history user flow, community task-board activation, and Browser Workspace WebContentsView smoke. `smoke:official-web:flow` uses a temporary user directory without an API key and can save an official Web screenshot with `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow`; `smoke:official-web:interactions` uses a loopback SSE test model inside the same packaged Electron run to drive the official LLM adapter, the question card, bash sandbox denial/escalation, approval panel, QueueDock, and Session history, and saves question/approval/queue screenshots with `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:interactions`; it verifies the official runtime and UI contracts but does not replace live-model evidence against the real DeepSeek service; `smoke:updater` also exercises update metadata, fixed-hash download, Profile preflight, temporary app replacement, and history replay through a local HTTPS feed, but complete replacement requires a Developer ID-signed package;
+- Real Electron: official Web startup without preload, workspace, Session, Session log, history user flow, community task-board entry/five-column board/activation inside the official Web root, and Browser Workspace WebContentsView smoke. `smoke:official-web:flow` uses a temporary user directory without an API key and can save an official Web screenshot with `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow`; `DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run test:release:community` saves a real task-board screenshot; `smoke:official-web:interactions` uses a loopback SSE test model inside the same packaged Electron run to drive the official LLM adapter, the question card, bash sandbox denial/escalation, approval panel, QueueDock, and Session history, and saves question/approval/queue screenshots with `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:interactions`; it verifies the official runtime and UI contracts but does not replace live-model evidence against the real DeepSeek service; `smoke:updater` also exercises update metadata, fixed-hash download, Profile preflight, temporary app replacement, and history replay through a local HTTPS feed, but complete replacement requires a Developer ID-signed package;
 - Packaged app: `package:mac:dir` creates the packaged directory and `smoke:official-web` checks the packaged official Web. On the current machine Electron's Viz compositor cannot provide a WebContentsView screenshot, so the Browser Workspace smoke reports `compositor-unavailable` explicitly rather than treating the screenshot as passed. Signing, notarization, Windows hardware acceptance, and clean-user update/uninstall recovery remain gates for their release environments.
 
 See the [distribution migration plan](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md), [privacy notice](PRIVACY.md), [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
