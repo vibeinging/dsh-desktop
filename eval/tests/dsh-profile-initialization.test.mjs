@@ -210,6 +210,50 @@ test("tarball hashes are checked before a new Profile can be published", async (
   }
 });
 
+test("fixed tarball inputs cannot escape the stable plugin library", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-profile-tarball-path-"));
+  try {
+    const artifactDir = join(root, "featured-plugins");
+    await mkdir(artifactDir, { recursive: true });
+    const records = [];
+    for (const [index, plugin] of featuredPlugins().entries()) {
+      const tarball = index === 0
+        ? "../escape.tgz"
+        : `${plugin.name.replace(/^@/, "").replaceAll("/", "-")}.tgz`;
+      const content = Buffer.from(plugin.name, "utf8");
+      await writeFile(join(index === 0 ? root : artifactDir, index === 0 ? "escape.tgz" : tarball), content);
+      records.push({
+        ...plugin,
+        version: "0.0.1",
+        tarball,
+        sha256: createHash("sha256").update(content).digest("hex"),
+      });
+    }
+    await writeFile(join(artifactDir, "manifest.json"), `${JSON.stringify({
+      schema_version: 1,
+      profile: "web",
+      plugins: records,
+    }, null, 2)}\n`);
+    await assert.rejects(
+      ensureDshProfileInitialized({
+        resolved: { appBootPath: "unused" },
+        dshHome: join(root, "home"),
+        env: {
+          ...process.env,
+          DSH_RUNTIME_DISTRIBUTION: "npm",
+          DSH_FEATURED_PLUGIN_TARBALL_DIR: artifactDir,
+          DSH_FEATURED_PLUGIN_MANIFEST: join(artifactDir, "manifest.json"),
+        },
+        profileApi: profileApi(),
+        commandRunner: async () => { throw new Error("must not run for an invalid tarball path"); },
+      }),
+      { code: "DSH_FEATURED_PLUGIN_TARBALL_INVALID" },
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("the fake official command path receives every curated input in order", async () => {
   const home = await mkdtemp(join(tmpdir(), "dsh-profile-atomic-success-"));
   try {

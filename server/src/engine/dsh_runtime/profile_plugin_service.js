@@ -922,6 +922,22 @@ export class DshProfilePluginService {
     }, { dshHome, libraryRoot }));
   }
 
+  /** Verify the authoritative Profile and final DSH graph after an explicit mutation. */
+  async verifyMutation({ resolved, dshHome, packageName, installed }) {
+    const state = await this.state();
+    const present = state.plugins.some((plugin) => plugin.id === packageName);
+    if (present !== installed) {
+      throw profileError(
+        installed
+          ? `官方安装命令完成后 Profile 中没有 ${packageName}`
+          : `官方卸载命令完成后 Profile 仍包含 ${packageName}`,
+        "DSH_PROFILE_MUTATION_VERIFY_FAILED",
+      );
+    }
+    await this.run(resolved, dshHome, ["--profile", PROFILE_NAME, "--dump-config"]);
+    return state;
+  }
+
   async validateCandidate(source, context) {
     const candidateName = `dsh-work-candidate-${randomUUID()}`;
     const candidateDir = context.api.resolveProfileDir(candidateName, context.dshHome);
@@ -1101,6 +1117,12 @@ export class DshProfilePluginService {
       "plugin", "--profile", PROFILE_NAME, "add", "-w", source, "--save-exact", "--ignore-scripts",
     ]);
     await this.restartRuntime();
+    await this.verifyMutation({
+      resolved: context.resolved,
+      dshHome: context.dshHome,
+      packageName: candidate.packageName,
+      installed: true,
+    });
     return {
       id: candidate.packageName,
       pluginId: candidate.packageName,
@@ -1126,6 +1148,12 @@ export class DshProfilePluginService {
     }
     await this.run(state.resolved, state.dshHome, ["plugin", "--profile", PROFILE_NAME, "remove", packageName]);
     await this.restartRuntime();
+    await this.verifyMutation({
+      resolved: state.resolved,
+      dshHome: state.dshHome,
+      packageName,
+      installed: false,
+    });
     return {
       id: packageName,
       name: plugin.display_name,

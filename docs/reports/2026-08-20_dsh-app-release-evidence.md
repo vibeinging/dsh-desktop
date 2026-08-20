@@ -27,6 +27,8 @@
 
 固定 tarball 通过安装包内的受控 `pnpm@11.22.0` 进入 DSH 数据目录下的稳定本地插件库。打包脚本只保留官方 pnpm Node CLI 所需的 `bin`、`dist`、package manifest 和 MIT LICENSE，不携带其他平台的 standalone executable artifacts；pnpm wrapper 必须使用 `DSH_PNPM_NODE_BIN`，发行态不回退到系统 Node。所有 Profile 安装、更新和卸载仍转发到官方 `dsh plugin --profile` 命令；本地插件库不是第二份安装状态。
 
+本轮又收紧了两个变更边界：官方 Profile 安装或卸载命令返回后，服务会重新读取权威 Profile 并执行 `--dump-config`，最终图不匹配或无法加载时不会返回成功；固定产物的 tarball 名称必须是单层 `.tgz` 文件，且来源路径不能越出产物目录。`dsh-profile-plugin-service.test.mjs` 和 `dsh-profile-initialization.test.mjs` 分别覆盖最终图失败、命令失败和路径越界。
+
 本轮生产依赖审计发现原随包 `pnpm@8.15.3` 命中 high advisories，已升级到官方修复版本 `11.22.0`；`npm run audit:prod` 现通过，electron 目标为 0 high、0 critical，server 和 renderer 仅保留已有明确不适用记录。精简后的 arm64 随包 pnpm runtime 为 `19,768,614` bytes，仍通过 20 MB 预算和真实离线安装回归。
 
 `@vibeinging/dsh-model-inheritance` 已在纯官方 Web Profile 通过官方命令安装和真实 Electron 启动检查。`@linxin666/dsh-client-ui-task-board@0.1.20` 已完成固定版本网络预检、官方 Web 激活、真实 Electron 启动、官方卸载命令和重启保持检查；它目前仍是可选社区候选，不进入默认精选。`@linxin666/dsh-web-ui-all`、Better Sidebar、远程 Web、SSH、图像理解、Agent 预设和社区插件管理器均未进入发行 Profile。

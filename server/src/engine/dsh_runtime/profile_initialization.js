@@ -9,7 +9,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { delimiter, dirname, join, resolve } from "node:path";
+import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 
@@ -100,14 +100,29 @@ function pluginInputs(env, appRoot) {
       if (typeof artifact.tarball !== "string" || typeof artifact.sha256 !== "string" || typeof artifact.version !== "string") {
         throw profileError(`${plugin.name} 的精选插件产物记录不完整`, "DSH_FEATURED_PLUGIN_MANIFEST_INVALID");
       }
-      const sourcePath = resolve(artifactDir || dirname(env.DSH_FEATURED_PLUGIN_MANIFEST), artifact.tarball);
+      const artifactRoot = resolve(artifactDir || dirname(env.DSH_FEATURED_PLUGIN_MANIFEST));
+      const filename = artifact.tarball;
+      if (!/^[A-Za-z0-9._+-]+\.tgz$/.test(filename)) {
+        throw profileError(`${plugin.name} 的固定 tarball 文件名无效`, "DSH_FEATURED_PLUGIN_TARBALL_INVALID");
+      }
+      const sourcePath = resolve(artifactRoot, filename);
+      const sourceRelative = relative(artifactRoot, sourcePath);
+      if (sourceRelative === ".." || sourceRelative.startsWith(`..${sep}`) || isAbsolute(sourceRelative)) {
+        throw profileError(`${plugin.name} 的固定 tarball 路径越出产物目录`, "DSH_FEATURED_PLUGIN_TARBALL_INVALID");
+      }
       if (!existsSync(sourcePath)) {
         throw profileError(`${plugin.name} 的固定 tarball 不存在：${sourcePath}`, "DSH_FEATURED_PLUGIN_TARBALL_MISSING");
       }
       if (sha256(sourcePath) !== artifact.sha256) {
         throw profileError(`${plugin.name} 的 tarball SHA-256 校验失败`, "DSH_FEATURED_PLUGIN_TARBALL_HASH_MISMATCH");
       }
-      return { source: `file:${sourcePath}`, tarball: sourcePath, sha256: artifact.sha256, version: artifact.version };
+      return {
+        source: `file:${sourcePath}`,
+        tarball: sourcePath,
+        tarballName: filename,
+        sha256: artifact.sha256,
+        version: artifact.version,
+      };
     }
     if (artifactMode) {
       throw profileError(`${plugin.name} 缺少固定 tarball 产物记录`, "DSH_FEATURED_PLUGIN_MANIFEST_MISSING");
@@ -118,9 +133,13 @@ function pluginInputs(env, appRoot) {
 
 function materializeTarball(input, plugin, libraryRoot) {
   if (!input.tarball) return input.source;
+  const filename = String(input.tarballName || input.tarball.split(/[\\/]/).at(-1) || "");
+  if (!/^[A-Za-z0-9._+-]+\.tgz$/.test(filename)) {
+    throw profileError(`${plugin.name} 的固定 tarball 文件名无效`, "DSH_FEATURED_PLUGIN_TARBALL_INVALID");
+  }
   const tarballsDir = join(libraryRoot, "tarballs");
   mkdirSync(tarballsDir, { recursive: true });
-  const target = join(tarballsDir, input.tarball.split(/[\\/]/).at(-1));
+  const target = join(tarballsDir, filename);
   if (!existsSync(target) || (input.sha256 && sha256(target) !== input.sha256)) {
     const temporary = `${target}.${process.pid}.${Date.now()}.tmp`;
     writeFileSync(temporary, readFileSync(input.tarball), { mode: 0o600 });

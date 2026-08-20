@@ -957,8 +957,10 @@ test("real current DSH Web Profile serves client slots and its text prompt wire"
       profile.layers.flatMap((layer) => layer.patches),
       profile.patches,
     ]);
-    for (const id of ["dsh-work-product-host-ipc", "dsh-work-project-tools", "dsh-work-canvas-tools", "dsh-work-structured-ui-tools", "dsh-model-inheritance", "product-bridge", "dsh-work-office-tools"]) {
-      assert.equal(profileRows.filter((row) => row.id === id).length, 1, `${id} must mount once through Profile`);
+    const curatedPatchRows = profile.layers.slice(2).flatMap((layer) => layer.patches || []);
+    assert.ok(curatedPatchRows.length > 0, "精选 Bundle 必须提供 Profile patch");
+    for (const patch of curatedPatchRows) {
+      assert.equal(profileRows.filter((row) => row.id === patch.id).length, 1, `${patch.id} must mount once through Profile`);
     }
     assert.equal(profileRows.find((row) => row.id === "web-runtime")?.name, "@deepseek-ai/dsh-web-app");
     assert.equal(profileRows.find((row) => row.id === "dsh-work-shell"), undefined);

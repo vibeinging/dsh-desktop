@@ -79,6 +79,36 @@ test("Profile Bundle sources must be immutable or explicitly local", () => {
   );
 });
 
+test("Profile mutations reject success when the final graph does not match", async () => {
+  const service = new DshProfilePluginService({ env: {} });
+  service.state = async () => ({ plugins: [] });
+  service.run = async () => {};
+  await assert.rejects(
+    service.verifyMutation({
+      resolved: {},
+      dshHome: "/tmp/dsh-profile-verification",
+      packageName: "@example/plugin",
+      installed: true,
+    }),
+    { code: "DSH_PROFILE_MUTATION_VERIFY_FAILED" },
+  );
+});
+
+test("Profile mutations propagate final DSH graph failures", async () => {
+  const service = new DshProfilePluginService({ env: {} });
+  service.state = async () => ({ plugins: [{ id: "@example/plugin" }] });
+  service.run = async () => { throw new Error("final graph rejected"); };
+  await assert.rejects(
+    service.verifyMutation({
+      resolved: {},
+      dshHome: "/tmp/dsh-profile-verification",
+      packageName: "@example/plugin",
+      installed: true,
+    }),
+    /final graph rejected/,
+  );
+});
+
 test("reviewed community Client integrity must come from the Profile lockfile", async () => {
   const home = await mkdtemp(join(tmpdir(), "dsh-profile-integrity-"));
   const integrity = "sha512-test-integrity";
@@ -577,71 +607,25 @@ test("the Profile catalog is projected from the official Web Profile order", {
       "@deepseek-ai/dsh-web-app",
     ]);
     assert.deepEqual(catalog.plugins.slice(2).map((plugin) => plugin.id), featuredPluginNames());
-    const productHostIpc = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-work-product-host-ipc");
-    assert.equal(productHostIpc.runtime_kind, "profile_bundle");
-    assert.equal(productHostIpc.managed_by, "app");
-    assert.deepEqual(productHostIpc.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["dsh-work-parent-ipc", "browser-workspace-host"],
-      compatibility_test: null,
-    });
-    const projectTools = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-project-tools");
-    assert.equal(projectTools.runtime_kind, "profile_bundle");
-    assert.equal(projectTools.managed_by, "app");
-    assert.deepEqual(projectTools.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["product-host"],
-      compatibility_test: null,
-    });
-    const canvasTools = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-canvas-tools");
-    assert.equal(canvasTools.runtime_kind, "profile_bundle");
-    assert.equal(canvasTools.managed_by, "app");
-    assert.deepEqual(canvasTools.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["product-host"],
-      compatibility_test: null,
-    });
-    const structuredUiTools = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-structured-ui-tools");
-    assert.equal(structuredUiTools.runtime_kind, "profile_bundle");
-    assert.equal(structuredUiTools.managed_by, "app");
-    assert.deepEqual(structuredUiTools.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["product-host"],
-      compatibility_test: null,
-    });
-    const modelInheritance = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-model-inheritance");
-    assert.equal(modelInheritance.runtime_kind, "profile_bundle");
-    assert.equal(modelInheritance.managed_by, "app");
-    assert.deepEqual(modelInheritance.portability, {
-      level: "portable",
-      surfaces: ["official-web", "dsh-desktop"],
-      host_requirements: [],
-      compatibility_test: "eval/tests/dsh-official-web-plugin-compat.test.mjs",
-    });
-    const productBridge = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-product-bridge");
-    assert.equal(productBridge.runtime_kind, "profile_bundle");
-    assert.equal(productBridge.managed_by, "app");
+    for (const featured of featuredPlugins()) {
+      const plugin = catalog.plugins.find((item) => item.id === featured.name);
+      const packageManifest = JSON.parse(readFileSync(
+        join(APP_ROOT, featured.package_path, "package.json"),
+        "utf8",
+      ));
+      const portability = packageManifest.dshWork.portability;
+      assert.equal(plugin.runtime_kind, "profile_bundle");
+      assert.equal(plugin.managed_by, "app");
+      assert.deepEqual(plugin.portability, {
+        level: portability.level,
+        surfaces: portability.surfaces,
+        host_requirements: portability.hostRequirements,
+        compatibility_test: portability.compatibilityTest || null,
+      });
+    }
+    const productBridge = catalog.plugins.find((plugin) => plugin.id.endsWith("/dsh-product-bridge"));
     assert.equal(productBridge.can_uninstall, true);
-    assert.deepEqual(productBridge.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["product-host"],
-      compatibility_test: null,
-    });
     assert.equal(productBridge.product, null);
-    const officeTools = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-office-tools");
-    assert.equal(officeTools.runtime_kind, "profile_bundle");
-    assert.equal(officeTools.managed_by, "app");
-    assert.deepEqual(officeTools.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["office-artifact-host"],
-      compatibility_test: null,
-    });
     assert.equal(catalog.recommended_plugins_updated_at, "2026-08-21");
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
     assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.9.0");
