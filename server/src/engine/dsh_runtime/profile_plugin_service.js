@@ -509,6 +509,27 @@ function patchRowView(row, operation) {
   };
 }
 
+function patchRows(patches) {
+  const rows = [];
+  for (const patch of Array.isArray(patches) ? patches : []) {
+    if (typeof patch?.id === "string") rows.push(patch);
+    if (Array.isArray(patch?.insert)) rows.push(...patch.insert);
+  }
+  return rows.filter((row) => row && typeof row.id === "string");
+}
+
+function effectiveBundleEnabled(packageName, bundleRows, composedRows, listed) {
+  if (!listed) return false;
+  const ids = bundleRows.get(packageName) || [];
+  if (ids.length === 0) return true;
+  const disabledById = new Map(
+    composedRows
+      .filter((row) => row && typeof row.id === "string")
+      .map((row) => [row.id, row.disabled === true]),
+  );
+  return ids.some((id) => disabledById.get(id) === false);
+}
+
 /** Summarize actual Cordis patch rows without returning configuration values or secrets. */
 export function inspectProfileBundlePatches(patches) {
   const rows = [];
@@ -775,6 +796,8 @@ export class DshProfilePluginService {
     const bundles = readProfileBundles(manifest);
     const disabledBundleNames = Object.keys(dependencies).filter((packageName) => !bundles.includes(packageName));
     const projectedBundleNames = [...bundles, ...disabledBundleNames];
+    const bundleRows = new Map();
+    const bundlePatchLayers = [];
     const activePlugins = projectedBundleNames.map((packageName, index) => {
       const packageDir = realpathSync(api.resolveBundleDir(
         "dsh-work",
@@ -787,6 +810,12 @@ export class DshProfilePluginService {
       const managed = SYSTEM_BUNDLES.has(packageName)
         ? "system"
         : FEATURED_PLUGIN_NAMES.has(packageName) ? "app" : "user";
+      const patchPath = packageManifest?.dsh?.bundle?.patch;
+      if (typeof patchPath === "string" && patchPath.startsWith("./")) {
+        const patches = api.loadOverlayPatches("dsh", resolve(packageDir, patchPath));
+        bundlePatchLayers.push(patches);
+        bundleRows.set(packageName, patchRows(patches).map((row) => row.id));
+      }
       const descriptor = readProductDescriptor(packageDir, packageManifest, {
         allowHostComponents: managed === "app",
       });
@@ -804,6 +833,14 @@ export class DshProfilePluginService {
         enabled,
       });
     }).filter(Boolean);
+    const profilePatch = api.loadOptionalPatches("dsh", join(profileDir, "cordis.patch.yml")) || [];
+    const homePatch = api.loadOptionalPatches("dsh", join(dshHome, "cordis.patch.yml")) || [];
+    const composedRows = api.composeEntries([...bundlePatchLayers, profilePatch, homePatch]);
+    for (const plugin of activePlugins) {
+      const listed = bundles.includes(plugin.id);
+      plugin.enabled = effectiveBundleEnabled(plugin.id, bundleRows, composedRows, listed);
+      plugin.ui_runtime.client_graph = plugin.enabled && plugin.ui_runtime.kind === "dsh_client";
+    }
     return {
       resolved,
       api,

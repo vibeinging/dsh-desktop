@@ -814,7 +814,7 @@ test("an existing community dsh.client remains in the authoritative graph withou
       },
       exports: { "./client": "./client.js" },
     }, null, 2)}\n`);
-    await writeFile(join(packageDir, "cordis.patch.yml"), "- insert: []\n");
+    await writeFile(join(packageDir, "cordis.patch.yml"), "- insert:\n    - id: example-community-client\n      name: '@example/community-client'\n");
     await writeFile(join(packageDir, "client.js"), "export default function apply() {}\n");
     await writeFile(join(profileDir, "package.json"), `${JSON.stringify({
       name: "dsh-profile-web",
@@ -848,6 +848,13 @@ test("an existing community dsh.client remains in the authoritative graph withou
     assert.equal(await readFile(join(profileDir, "package.json"), "utf8"), before);
     assert.equal(stored.dsh.profile.bundles.includes("@example/community-client"), true);
     assert.equal(stored.dependencies["@example/community-client"], "1.0.0");
+
+    await writeFile(join(home, "cordis.patch.yml"), "- id: example-community-client\n  disabled: true\n");
+    const disabledCatalog = await service.catalog();
+    const disabledPlugin = disabledCatalog.plugins.find((item) => item.id === "@example/community-client");
+    assert.equal(disabledPlugin.enabled, false);
+    assert.equal(disabledPlugin.ui_runtime.client_graph, false);
+    assert.equal(await readFile(join(profileDir, "package.json"), "utf8"), before);
   } finally {
     await rm(home, { recursive: true, force: true });
   }
