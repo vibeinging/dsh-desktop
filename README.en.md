@@ -46,7 +46,19 @@ Only a new Profile is initialized in an isolated directory through the official 
 
 There is one curated input: [featured_plugins.json](server/src/engine/dsh_runtime/featured_plugins.json). It generates packaged tarballs, new-Profile installation input, permission summaries, third-party notices, and test expectations. Other code and documentation do not maintain another default package list.
 
-The default set contains seven non-UI Bundles. Host, portable, and desktop-adapter capabilities enter through the official Profile without replacing the official Web page. First-party packages use the `@vibeinging/*` scope; official DSH SDK packages keep the `@deepseek-ai/*` scope.
+The default set is listed below. These are non-UI Bundles; Host, portable, and desktop-adapter capabilities enter through the official Profile without replacing the official Web page. The source, permissions, and official uninstall command for each entry are generated from the [curated manifest](server/src/engine/dsh_runtime/featured_plugins.json); application updates do not reinstall an entry the user removed. First-party packages use the `@vibeinging/*` scope; official DSH SDK packages keep the `@deepseek-ai/*` scope.
+
+<!-- featured-plugins:start -->
+| Default Bundle | Type | Declared permissions | Official uninstall command | Source |
+|---|---|---|---|---|
+| `@vibeinging/dsh-work-product-host-ipc` | desktop-adapter | dsh-work-parent-ipc, browser-workspace-host | `dsh plugin --profile web remove @vibeinging/dsh-work-product-host-ipc` | [local package](packages/dsh-work-product-host-ipc) |
+| `@vibeinging/dsh-project-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-project-tools` | [local package](packages/dsh-project-tools) |
+| `@vibeinging/dsh-canvas-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-canvas-tools` | [local package](packages/dsh-canvas-tools) |
+| `@vibeinging/dsh-structured-ui-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-structured-ui-tools` | [local package](packages/dsh-structured-ui-tools) |
+| `@vibeinging/dsh-model-inheritance` | portable | no Host permission | `dsh plugin --profile web remove @vibeinging/dsh-model-inheritance` | [local package](packages/dsh-model-inheritance) |
+| `@vibeinging/dsh-product-bridge` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-product-bridge` | [local package](packages/dsh-product-bridge) |
+| `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [local package](packages/dsh-office-tools) |
+<!-- featured-plugins:end -->
 
 ## Optional plugins
 
@@ -63,7 +75,7 @@ dsh plugin --profile web remove @vibeinging/dsh-work-references
 
 It provides bounded relative file references under the current DSH Session workspace and never accepts an absolute path from the browser.
 
-The independent community UI candidate `@linxin666/dsh-client-ui-task-board@0.1.20` has passed fixed-version network installation, official Web activation, real Electron startup, task-board entry and five-column board configuration checks, official removal, and restart checks. It remains optional and is not in the default curated set. Set `DSH_COMMUNITY_SCREENSHOT_DIR=/path` to save a real Electron board screenshot:
+The independent community UI candidate `@linxin666/dsh-client-ui-task-board@0.1.20` (upstream [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui)) has passed fixed-version network installation, official Web activation, real Electron startup, task-board entry and five-column board configuration checks, official removal, and restart checks. It remains optional and is not in the default curated set. Its declared permissions are reading the current DSH Session and Workspace, writing task-board data, and starting a DSH Session task only after user action. Set `DSH_COMMUNITY_SCREENSHOT_DIR=/path` to save a real Electron board screenshot:
 
 ```bash
 dsh plugin --profile web add -w @linxin666/dsh-client-ui-task-board@0.1.20 --save-exact --ignore-scripts

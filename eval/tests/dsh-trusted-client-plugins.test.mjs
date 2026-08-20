@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import {
   isReviewedCommunityClient,
@@ -15,6 +15,8 @@ import {
   featuredPlugins,
   resolveFeaturedPackageDir,
 } from "../../server/src/engine/dsh_runtime/featured_plugins.js";
+
+const APP_ROOT = resolve(import.meta.dirname, "../..");
 
 test("only audited community Client releases may enter the product Client graph", () => {
   const dependencies = reviewedCommunityClientDependencies();
@@ -162,5 +164,21 @@ test("the curated list keeps package names, source paths, and SPDX licenses alig
     assert.equal(packageJson.name, plugin.name);
     assert.equal(packageJson.license, plugin.license);
     assert.match(plugin.package_path, /^packages\/dsh-[^/]+$/);
+  }
+});
+
+test("public README tables are generated from the curated list", () => {
+  const manifest = featuredPluginManifest();
+  for (const file of ["README.md", "README.en.md"]) {
+    const text = readFileSync(join(APP_ROOT, file), "utf8");
+    const section = text.match(/<!-- featured-plugins:start -->[\s\S]*?<!-- featured-plugins:end -->/)?.[0];
+    assert.ok(section, `${file} 缺少精选插件生成区块`);
+    const rows = section.split("\n").filter((line) => line.startsWith("| `"));
+    assert.equal(rows.length, manifest.plugins.length, `${file} 精选插件表行数不一致`);
+    for (const plugin of manifest.plugins) {
+      assert.equal(section.includes(plugin.name), true, `${file} 缺少 ${plugin.name}`);
+      assert.equal(section.includes(`dsh plugin --profile ${manifest.profile} remove ${plugin.name}`), true);
+      for (const permission of plugin.permissions) assert.equal(section.includes(permission), true);
+    }
   }
 });

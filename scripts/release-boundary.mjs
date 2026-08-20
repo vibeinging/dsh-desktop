@@ -100,11 +100,43 @@ export function inspectOfficialWebReleaseBoundary(root = ROOT) {
   if (existsSync(join(appRoot, "server/src/engine/dsh_runtime/trusted_client_plugins.js"))) {
     errors.push("旧的重复精选插件清单仍存在");
   }
+  errors.push(...inspectFeaturedPluginDocs(appRoot, featured));
   return errors;
 }
 
 function packageNameFromSource(source) {
   return String(source || "").match(/^((?:@[A-Za-z0-9._~-]+\/)?[A-Za-z0-9._~-]+)@/)?.[1] || null;
+}
+
+/** Check that the public default-Bundle tables are generated from the curated input. */
+function inspectFeaturedPluginDocs(root, featured) {
+  const errors = [];
+  for (const file of ["README.md", "README.en.md"]) {
+    const path = join(root, file);
+    if (!existsSync(path)) {
+      errors.push(`公开文档不存在：${file}`);
+      continue;
+    }
+    const section = readText(path).match(/<!-- featured-plugins:start -->[\s\S]*?<!-- featured-plugins:end -->/)?.[0];
+    if (!section) {
+      errors.push(`${file} 缺少精选插件生成区块`);
+      continue;
+    }
+    const rows = section.split("\n").filter((line) => line.startsWith("| `"));
+    if (rows.length !== (featured.plugins || []).length) {
+      errors.push(`${file} 精选插件表行数与精选清单不一致`);
+    }
+    for (const plugin of featured.plugins || []) {
+      const command = `dsh plugin --profile ${featured.profile} remove ${plugin.name}`;
+      if (!section.includes(plugin.name) || !section.includes(command)) {
+        errors.push(`${file} 缺少精选插件或卸载命令：${plugin.name}`);
+      }
+      for (const permission of plugin.permissions || []) {
+        if (!section.includes(permission)) errors.push(`${file} 缺少插件权限：${plugin.name}/${permission}`);
+      }
+    }
+  }
+  return errors;
 }
 
 /** Check that skin and other bundled visual assets have an explicit redistribution decision. */

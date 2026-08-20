@@ -46,7 +46,19 @@ DSH Profile 是插件状态的唯一权威。已有 Profile 的启动、状态�
 
 默认精选输入只有一份：[featured_plugins.json](server/src/engine/dsh_runtime/featured_plugins.json)。它生成随包 tarball、Profile 初始化输入、权限摘要、第三方公告和测试预期；其他代码和文档不维护第二份默认包名列表。
 
-当前默认精选是 7 个非 UI Bundle：Host、portable 或 desktop-adapter 能力均通过官方 Profile 接入，不替换官方 Web 页面。自研包使用 `@vibeinging/*` scope；官方 DSH SDK 仍使用 `@deepseek-ai/*` scope。
+当前默认精选如下；它们都是非 UI Bundle，Host、portable 或 desktop-adapter 能力均通过官方 Profile 接入，不替换官方 Web 页面。每个条目的来源、权限和官方卸载命令由 [精选清单](server/src/engine/dsh_runtime/featured_plugins.json) 生成；应用更新不会重新安装用户已卸载的条目。自研包使用 `@vibeinging/*` scope；官方 DSH SDK 仍使用 `@deepseek-ai/*` scope。
+
+<!-- featured-plugins:start -->
+| 默认 Bundle | 类型 | 声明权限 | 官方卸载命令 | 来源 |
+|---|---|---|---|---|
+| `@vibeinging/dsh-work-product-host-ipc` | desktop-adapter | dsh-work-parent-ipc、browser-workspace-host | `dsh plugin --profile web remove @vibeinging/dsh-work-product-host-ipc` | [本地包](packages/dsh-work-product-host-ipc) |
+| `@vibeinging/dsh-project-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-project-tools` | [本地包](packages/dsh-project-tools) |
+| `@vibeinging/dsh-canvas-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-canvas-tools` | [本地包](packages/dsh-canvas-tools) |
+| `@vibeinging/dsh-structured-ui-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-structured-ui-tools` | [本地包](packages/dsh-structured-ui-tools) |
+| `@vibeinging/dsh-model-inheritance` | portable | 无 Host 权限 | `dsh plugin --profile web remove @vibeinging/dsh-model-inheritance` | [本地包](packages/dsh-model-inheritance) |
+| `@vibeinging/dsh-product-bridge` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-product-bridge` | [本地包](packages/dsh-product-bridge) |
+| `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [本地包](packages/dsh-office-tools) |
+<!-- featured-plugins:end -->
 
 ## 可选插件
 
@@ -63,7 +75,7 @@ dsh plugin --profile web remove @vibeinging/dsh-work-references
 
 它只在当前 DSH Session 的工作目录内提供有上限的相对文件引用，不接受浏览器传入的绝对路径。
 
-社区独立 UI 候选 `@linxin666/dsh-client-ui-task-board@0.1.20` 已完成固定版本的网络安装、官方 Web 激活、真实 Electron 启动、任务看板入口与五列看板配置检查、官方卸载命令和重启回归；它是可选候选，不进入默认精选。设置 `DSH_COMMUNITY_SCREENSHOT_DIR=/path` 可保存真实 Electron 看板截图：
+社区独立 UI 候选 `@linxin666/dsh-client-ui-task-board@0.1.20`（上游 [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui)）已完成固定版本的网络安装、官方 Web 激活、真实 Electron 启动、任务看板入口与五列看板配置检查、官方卸载命令和重启回归；它是可选候选，不进入默认精选。它声明的权限是读取当前 DSH Session 与 Workspace、写入任务看板数据、按用户操作启动 DSH Session 任务。设置 `DSH_COMMUNITY_SCREENSHOT_DIR=/path` 可保存真实 Electron 看板截图：
 
 ```bash
 dsh plugin --profile web add -w @linxin666/dsh-client-ui-task-board@0.1.20 --save-exact --ignore-scripts
