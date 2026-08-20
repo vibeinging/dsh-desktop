@@ -24,6 +24,7 @@
     "smoke:packaged-offline": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-offline.mjs \"../release/mac-arm64/DSH Desktop.app\"",
     "smoke:packaged-recovery": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-recovery.mjs \"../release/mac-arm64/DSH Desktop.app\"",
     "smoke:packaged-profile-authority": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-profile-authority.mjs \"../release/mac-arm64/DSH Desktop.app\"",
+    "smoke:packaged-official-web-flow": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-official-web-flow.mjs \"../release/mac-arm64/DSH Desktop.app\"",
     "smoke:browser-workspace": "node ../scripts/run-with-project-node.mjs exec ./node_modules/.bin/electron scripts/browser-workspace-smoke.cjs",
     "smoke:mac:x64:server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs \"../release/mac/DSH Desktop.app\"",
     "smoke:mac:x64:app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs \"../release/mac/DSH Desktop.app\"",

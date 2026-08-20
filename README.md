@@ -25,6 +25,7 @@ npm run check:release-boundary
 npm run package:mac:dir
 npm run check:release-artifacts
 npm run smoke:official-web
+npm run smoke:official-web:flow
 npm run smoke:browser-workspace
 npm run test:release
 ```
@@ -84,7 +85,7 @@ DSH 子进程、Profile 解析或 Client 启动失败时，应用进入本地恢
 源码检查和单元测试不能替代真实发行证据。当前仓库分别使用以下证据层级：
 
 - 源码和 Profile 集成：官方 Web 组合、只读已有 Profile、固定 tarball、离线初始化和权限投影测试；
-- 真实 Electron：官方 Web 无 preload 启动、社区 task board 激活和 Browser Workspace WebContentsView 烟测；
+- 真实 Electron：官方 Web 无 preload 启动、工作区、Session、Session log、history 用户流程、社区 task board 激活和 Browser Workspace WebContentsView 烟测。`smoke:official-web:flow` 会在无 API key 的临时用户目录运行，并可用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow` 保存官方 Web 截图；审批和队列仍需带工具调用的 live-model 环境单独验证；
 - 安装包：`package:mac:dir` 生成随包目录，`smoke:official-web` 验证随包官方 Web。当前机器的 Electron Viz 合成器不提供 WebContentsView 截图，因此 Browser Workspace 烟测会明确报告 `compositor-unavailable`，不把它记为截图通过；签名、公证、Windows 实机、干净用户更新和卸载回归仍需在对应发行环境完成。
 
 详见 [发行方案](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md)、[隐私说明](PRIVACY.md)、[安全说明](SECURITY.md) 和 [第三方说明](THIRD_PARTY_NOTICES.md)。
