@@ -93,9 +93,7 @@ export function isReviewedCommunityClient(plugin) {
   if (policy.bundlePatch !== undefined && plugin?.manifest?.dsh?.bundle?.patch !== policy.bundlePatch) return false;
   if (policy.dependencies !== undefined
     && !sameDependencyManifest(plugin?.manifest?.dependencies, policy.dependencies)) return false;
-  if (policy.integrity !== undefined
-    && plugin?.integrity !== undefined
-    && plugin.integrity !== policy.integrity) return false;
+  if (policy.integrity !== undefined && plugin?.integrity !== policy.integrity) return false;
   return true;
 }
 

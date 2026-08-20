@@ -316,6 +316,39 @@ function clientExportOf(manifest) {
   return null;
 }
 
+function lockfilePackageLine(name, version) {
+  return `  /${String(name)}@${String(version)}`;
+}
+
+/** Read the registry integrity recorded by pnpm for one installed Profile package. */
+export function readProfilePackageIntegrity(profileDir, packageName, version) {
+  const marker = lockfilePackageLine(packageName, version);
+  const lockfiles = [
+    join(profileDir, "pnpm-lock.yaml"),
+    join(profileDir, "node_modules", ".pnpm", "lock.yaml"),
+  ];
+  for (const lockfile of lockfiles) {
+    if (!existsSync(lockfile)) continue;
+    const lines = readFileSync(lockfile, "utf8").split(/\r?\n/);
+    const start = lines.findIndex((line) => {
+      if (!line.startsWith(marker)) return false;
+      const suffix = line.slice(marker.length);
+      return suffix === ":" || /^\([^\n]*\):$/.test(suffix);
+    });
+    if (start < 0) continue;
+    const block = [];
+    for (let index = start + 1; index < lines.length; index += 1) {
+      if (/^  \/.+:$/.test(lines[index])) break;
+      block.push(lines[index]);
+    }
+    const integrity = block.join("\n").match(
+      /^\s+resolution:\s*\{[^\n]*\bintegrity:\s*([^,}\s]+)[^\n]*\}/m,
+    )?.[1] || block.join("\n").match(/^\s+integrity:\s*([^\s]+)\s*$/m)?.[1];
+    if (integrity) return integrity;
+  }
+  return null;
+}
+
 function inspectDshClientManifest(manifest, { clientEntryAvailable = true } = {}) {
   const declaration = manifest?.dsh?.client;
   if (declaration === undefined) return [];
@@ -347,11 +380,23 @@ function inspectDshClientManifest(manifest, { clientEntryAvailable = true } = {}
 }
 
 /** Admit only exact independent Client releases into the official Web graph. */
-export function inspectCommunityClientIsolation(manifest) {
+export function inspectCommunityClientIsolation(manifest, { integrity = null } = {}) {
   if (manifest?.dsh?.client === undefined) return [];
   const packageName = String(manifest?.name || "候选插件");
   const policy = reviewedCommunityClientPolicy(packageName);
-  if (isReviewedCommunityClient({ name: packageName, manifest })) {
+  if (policy?.integrity !== undefined && !integrity) {
+    return [{
+      code: "DSH_PROFILE_CLIENT_INTEGRITY_MISSING",
+      message: `${packageName}@${manifest.version || "unknown"} 没有在 Profile lockfile 中记录固定完整性，不能进入当前 Client 图`,
+    }];
+  }
+  if (policy?.integrity !== undefined && integrity !== policy.integrity) {
+    return [{
+      code: "DSH_PROFILE_CLIENT_INTEGRITY_MISMATCH",
+      message: `${packageName}@${manifest.version || "unknown"} 的 Profile lockfile 完整性与已审查版本不一致`,
+    }];
+  }
+  if (isReviewedCommunityClient({ name: packageName, manifest, integrity })) {
     if (policy?.requiredDshRuntime && policy.requiredDshRuntime !== CURRENT_DSH_SDK_VERSION) {
       return [{
         code: "DSH_PROFILE_CLIENT_SDK_MISMATCH",
@@ -367,12 +412,13 @@ export function inspectCommunityClientIsolation(manifest) {
 }
 
 /** Project a Bundle manifest into the product's four independent compatibility gates. */
-export function inspectProfileBundleCompatibility(manifest) {
+export function inspectProfileBundleCompatibility(manifest, { integrity = null } = {}) {
   const dependencies = Object.keys({ ...manifest?.dependencies, ...manifest?.peerDependencies });
   const uses = (fragment) => dependencies.some((name) => name.includes(fragment));
   const reviewedCommunity = reviewedCommunityClientReview({
     name: String(manifest?.name || ""),
     manifest,
+    integrity,
   });
   const reviewedPolicy = reviewedCommunityClientPolicy(String(manifest?.name || ""));
   const runtimeMismatch = Boolean(
@@ -393,6 +439,7 @@ export function inspectProfileBundleCompatibility(manifest) {
   const reviewedClient = client && !runtimeMismatch && isReviewedCommunityClient({
     name: String(manifest?.name || ""),
     manifest,
+    integrity,
   });
   return [
     {
@@ -638,6 +685,8 @@ function preflightStatus(error) {
     "DSH_PROFILE_CLIENT_EXPORT_MISSING",
     "DSH_PROFILE_CLIENT_BUNDLE_MISSING",
     "DSH_PROFILE_CLIENT_SDK_MISMATCH",
+    "DSH_PROFILE_CLIENT_INTEGRITY_MISSING",
+    "DSH_PROFILE_CLIENT_INTEGRITY_MISMATCH",
     "DSH_PROFILE_LEGACY_SDK",
     "DSH_PRODUCT_DESCRIPTOR_INVALID",
     "DSH_PRODUCT_HOST_COMPONENT_FORBIDDEN",
@@ -860,11 +909,14 @@ export class DshProfilePluginService {
       if (packageManifest.name !== packageName) {
         throw profileError("候选 Bundle 包名与 Profile 依赖不一致", "DSH_PROFILE_CANDIDATE_INVALID");
       }
+      const packageIntegrity = readProfilePackageIntegrity(candidateDir, packageName, packageManifest.version);
       const issues = [
         ...inspectProfileBundleManifest(packageManifest),
-        ...inspectCommunityClientIsolation(packageManifest),
+        ...inspectCommunityClientIsolation(packageManifest, { integrity: packageIntegrity }),
       ];
-      const compatibilityChecks = inspectProfileBundleCompatibility(packageManifest);
+      const compatibilityChecks = inspectProfileBundleCompatibility(packageManifest, {
+        integrity: packageIntegrity,
+      });
       const patch = packageManifest?.dsh?.bundle?.patch;
       let patchSummary = inspectProfileBundlePatches([]);
       if (typeof patch === "string" && patch.startsWith("./")) {

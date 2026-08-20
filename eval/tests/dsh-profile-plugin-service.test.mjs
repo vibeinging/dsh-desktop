@@ -13,6 +13,7 @@ import {
   inspectProfileBundleManifest,
   inspectProfileBundlePatches,
   normalizeProfileBundleSource,
+  readProfilePackageIntegrity,
   readDshWorkPortability,
   validateDshWorkProductDescriptor,
   validateProfileBundleSdk,
@@ -76,6 +77,18 @@ test("Profile Bundle sources must be immutable or explicitly local", () => {
     normalizeProfileBundleSource(APP_ROOT, { allowLocal: true }),
     `file:${APP_ROOT}`,
   );
+});
+
+test("reviewed community Client integrity must come from the Profile lockfile", async () => {
+  const home = await mkdtemp(join(tmpdir(), "dsh-profile-integrity-"));
+  const integrity = "sha512-test-integrity";
+  try {
+    await writeFile(join(home, "pnpm-lock.yaml"), `lockfileVersion: '6.0'\n\npackages:\n\n  /@example/client@1.2.3:\n    resolution: {integrity: ${integrity}}\n    dev: false\n\n  /@example/other@1.0.0:\n    resolution: {integrity: sha512-other}\n    dev: false\n`);
+    assert.equal(readProfilePackageIntegrity(home, "@example/client", "1.2.3"), integrity);
+    assert.equal(readProfilePackageIntegrity(home, "@example/client", "1.2.4"), null);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
 });
 
 test("Profile Bundle compatibility separates Host, Session, capabilities, and Client UI", () => {
@@ -330,10 +343,20 @@ test("community dsh.client Bundles stay out of the privileged Electron renderer"
       bundle: { patch: "./cordis.patch.yml" },
       client: { platform: "web" },
     },
+  }, {
+    integrity: "sha512-vuPCcZfBgJijpVyNpb9VJgSuIB+7Zo+4RsZiDN3m6We3T7uekDcr1FlbcB4+xNKFCnxaJKCKb1ROBCoXbyCfbQ==",
   }), [{
     code: "DSH_PROFILE_CLIENT_SDK_MISMATCH",
     message: "@linxin666/dsh-chat-recovery@0.2.5 需要 DSH 0.1.0-rc.8，当前发行版固定为 0.1.0-rc.7",
   }]);
+  assert.equal(inspectCommunityClientIsolation({
+    name: "@linxin666/dsh-client-ui-task-board",
+    version: "0.1.20",
+    dsh: {
+      bundle: { patch: "./cordis.patch.yml" },
+      client: { platform: "web" },
+    },
+  })[0].code, "DSH_PROFILE_CLIENT_INTEGRITY_MISSING");
   assert.equal(inspectProfileBundleCompatibility({
     name: "@linxin666/dsh-chat-recovery",
     version: "0.2.5",

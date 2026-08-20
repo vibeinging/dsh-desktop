@@ -92,6 +92,7 @@ test("only audited community Client releases may enter the product Client graph"
   assert.deepEqual(reviewedCommunityClientReview({
     name: "@linxin666/dsh-client-ui-task-board",
     manifest: { version: "0.1.20", dependencies: taskBoardDependencies, dsh: { bundle: { patch: "./cordis.patch.yml" } } },
+    integrity: "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
   }), {
     session: "任务看板使用官方 DSH Session.prompt 启动任务，并读取当前 Workspace 状态",
     capabilities: [
@@ -113,6 +114,7 @@ test("only audited community Client releases may enter the product Client graph"
         client: { platform: "web" },
       },
     },
+    integrity: "sha512-vuPCcZfBgJijpVyNpb9VJgSuIB+7Zo+4RsZiDN3m6We3T7uekDcr1FlbcB4+xNKFCnxaJKCKb1ROBCoXbyCfbQ==",
   }), true);
   assert.deepEqual(reviewedCommunityClientReview({
     name: "@linxin666/dsh-chat-recovery",
@@ -120,6 +122,7 @@ test("only audited community Client releases may enter the product Client graph"
       version: "0.2.5",
       dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
     },
+    integrity: "sha512-vuPCcZfBgJijpVyNpb9VJgSuIB+7Zo+4RsZiDN3m6We3T7uekDcr1FlbcB4+xNKFCnxaJKCKb1ROBCoXbyCfbQ==",
   }), {
     session: "编辑和重试通过官方 Session fork 契约创建子 Session，原始历史保持不变",
     capabilities: [

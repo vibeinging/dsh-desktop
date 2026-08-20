@@ -25,6 +25,8 @@
 
 2026-08-21 通过 `npm run test:release:community` 重新运行了 task-board 的真实网络回归；临时 DSH Profile 完成固定版本预检、官方命令安装、官方 Web 激活、打包 Electron Client 加载、官方卸载、重启后 Client 消失和最终 Profile 状态检查，1 项通过，0 项失败。该命令不会使用用户现有的 DSH_HOME。
 
+社区 Client 的固定完整性现在由官方 CLI 安装生成的 Profile `pnpm-lock.yaml` 读取并与目录中的审查值逐字比较；有审查哈希的版本缺少 lockfile 记录或发生漂移时，预检返回明确阻塞，不进入官方 Client 图。该门禁已由 lockfile 单元夹具和上述真实 task-board 安装回归覆盖。
+
 本轮对首批社区 UI 候选做了当前版本复核。`@linxin666/dsh-chat-recovery@0.2.5` 的固定完整性为 `sha512-vuPCcZfBgJijpVyNpb9VJgSuIB+7Zo+4RsZiDN3m6We3T7uekDcr1FlbcB4+xNKFCnxaJKCKb1ROBCoXbyCfbQ==`，其构建依赖 DSH `0.1.0-rc.8`；当前应用固定为 `0.1.0-rc.7`，真实 Profile 预检返回 `migration_required` 和 `DSH_PROFILE_CLIENT_SDK_MISMATCH`，因此记录为已审查但当前发行线阻塞的候选，不进入精选清单。`dsh-better-sidebar@0.14.0` 的固定完整性为 `sha512-bEjHvHnlNnKXkud+/A/kZ4VJvPt79ggHy/mKqEKfODPqLFpvdz7ZcoMCI3K4naPOw/0Wlqp6J3UDR9h2Wm6w4w==`，大小约 11.4 MB；真实预检报告 13 个 SDK 依赖仍属 rc.8，并检测到 node-pty、Shell、文件、Git 和浏览器能力，保持 `preflight-only-host-adapter-required`，不进入发行 Profile。
 
 本轮新增了社区视觉资产许可门禁。`@linxin666/dsh-web-ui-all@0.1.20` 和 `@linxin666/dsh-client-ui-skin-center@0.1.20` 的包级许可证记录为 Apache-2.0，但它们带入的 `@linxin666/dsh-skins` 资产说明包含 CC BY-NC-SA 4.0 的 Maid Atelier 皮肤；在没有逐项再分发授权前，两个目录项都标记为 `asset-license-blocked`，并由 `release-boundary` 阻止未批准视觉资产进入精选清单。发行包当前不携带皮肤中心或皮肤资产，继续使用官方外观。
