@@ -49,4 +49,7 @@ renderer/.env.*
 /docs/images/*
 !/docs/images/readme/
 !/docs/images/readme/*
+!/docs/plans/
+/docs/plans/*
+!/docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md
 .playwright-mcp/

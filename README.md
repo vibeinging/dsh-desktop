@@ -83,7 +83,7 @@ Canvas 保存不可变版本，支持正文编辑、版本比较、精确行内�
 
 ## 主题与外观
 
-`@deepseek-ai/dsh-theme-pack` Profile Bundle 提供默认的 `professional-blue` 和可选的 `anime-blue`。正式产品也支持本地自定义主题的新建、导入、预览、编辑、导出和删除。
+阶段 1 的新 Profile 使用官方 Web 外观，不安装自研 `dsh-theme-pack` 或自研主题选择。已有 Profile 的主题状态保持原样，后续主题迁移按发行方案单独审查。
 
 本地主题只能使用安全的颜色与外观设置，不能注入原始 CSS、远程图片或修改应用名称。个人背景、明暗模式和透明度可以独立调整。
 
@@ -96,6 +96,8 @@ Canvas 保存不可变版本，支持正文编辑、版本比较、精确行内�
 1. 从内置社区目录选择候选插件，或输入带精确版本的 npm 包、带完整 commit 的 GitHub 仓库地址。
 2. 先运行兼容性检查；只有结果为“可以安装”时才能写入当前 Profile。
 3. 安装后查看 Bundle 的来源、版本、加载顺序和能力，用户安装的 Bundle 可以卸载。
+
+桌面默认精选 Bundle 只维护在 [`featured_plugins.json`](server/src/engine/dsh_runtime/featured_plugins.json)；发行包 tarball、Profile 初始化输入、权限材料和测试预期都由这份清单生成，README 不再维护另一份安装名单。
 
 Tool、Skill、MCP、Hook 等 Host Bundle 可以进入 DSH 运行时。包含第三方 Client UI 的 Bundle 默认不会进入拥有 Electron 权限的主窗口；只有经过代码审查并固定到精确版本的 Client Bundle 可以进入当前产品 Renderer，其他插件等待独立的无 preload 运行区。
 
@@ -139,9 +141,9 @@ dsh plugin --profile web add -w @linxin666/dsh-web-ui-all@0.1.20 --save-exact
 
 DSH 插件不等于 UI 插件。Profile Bundle 可以增加或替换 Host 服务、模型与 Provider、Tool、Skill、MCP、Hook、Session 中间件、存储、工作流和 Client UI。DeepSeek Harness Desktop App 对 Host 插件沿用官方 Profile 生命周期；只有需要进入窗口的 Client 代码才额外经过 Slot 映射和 Renderer 权限审查。
 
-### App 自身如何插件化
+DSH Desktop 是一个 DSH Profile 发行版和 Electron 插件宿主。官方 Web 负责 Chat、首页、设置、插件中心和基础布局；Electron 只承担原生窗口、更新、文件授权和窄 Host 服务。阶段 1 的新 Profile 只从精选清单安装 7 个非 UI Bundle，`dsh-work-shell`、`dsh-theme-pack`、旧产品 Client UI 和工作台页面不进入默认组合；后续能力按发行方案逐包审查。
 
-DeepSeek Harness Desktop App 是一个 DSH Profile 发行版和 Electron 插件宿主，不会把窗口、更新、preload 与系统权限伪装成可安装到官方 Web 的普通插件。可复用功能按三种等级拆分：`portable` Bundle 可同时安装到官方 Web 和桌面；`desktop-adapter` Bundle 使用 DSH 生命周期但依赖明确的桌面 Host 合同；`desktop-shell` 只负责窗口、根布局与安全隔离。当前主题包和 `dsh-model-inheritance` 已经是 `portable`；后者只使用官方 Agent 生命周期，让子 Agent 继承父 Agent 已解析的模型目标。`dsh-work-product-host-ipc`、`dsh-client-product-commands`、`dsh-client-product-references`、`dsh-client-product-search-mode`、`dsh-client-product-attachments`、项目工具、Canvas 工具、结构化 UI 工具、工作台页面、产品桥和 Office 工具包属于 `desktop-adapter`，`dsh-work-shell` 属于 `desktop-shell`。父进程传输现在只由 `dsh-work-product-host-ipc` 负责；项目工具、Canvas 工具、结构化 UI 工具和产品桥消费 `productHost`，Office 工具消费更窄的 `officeArtifactHost`，功能 Bundle 不再直接接触 IPC。`dsh-client-product-commands` 独立持有 `/new`、`/runs` 和 `/trace` 的官方输入来源、双语目录与 Session token 消费，产品壳只提供窄的 `dshWorkProductActions` 服务，因此这些桌面动作可以通过 Profile 独立安装、停用或替换。`dsh-client-product-references` 通过同一个官方 `inputTriggers` 注册文件和会话来源，只消费产品壳发布的 Session 限定 `dshWorkProductReferences` 目录；正式 Client 不再启动 App 本地 `@`／`#` 扫描器。`dsh-client-product-search-mode` 通过标准 `conversation.input.left` 席位提供联网策略按钮，只消费产品壳发布的 `dshWorkProductSearchMode` 服务；正式 Client 只渲染这一份按钮，独立开发模式保留本地后备。联网策略随下一轮提示进入 App 协议，并非官方 Session 投影，因此该 Bundle 明确属于 `desktop-adapter`。产品桥已经不再注册 Tool、工作台页面、模型继承或记忆，只保留应用与项目指令上下文；长期记忆改用通过官方 Profile 安装的 `dsh-native-memory` 社区 Bundle。官方 Tool UI 插件已经通过 `conversation.chat.node` 进入产品对话面，社区 Client 插件可以继续在嵌套的 `tool.call.toolview` 席位替换单个工具视图；没有插件接管时才显示产品内置的工具卡片。点击工具行的 Inspect 后，产品右栏只保留 Session 与 call 选择，具体 terminal、read、search、web、diff 和普通结果仍由官方或社区 `conversation.details.tool` 插件渲染。rc.7 的独立 Tool 插件仍读取由官方 Conversation 页面壳注册的一小组文案；由于产品必须停用重复页面壳，`dsh-work-shell` 只通过同一个 Locale 服务补齐 Tool 实际使用的中英文键，并随插件生命周期回收，不复制 Conversation 状态或其余页面文案。产品壳也按官方 `IConversation` 合同发布 `conversation` 服务并直接调用 DSH Session，Agent Preset 插件因此可以在 `conversation.hero.agentPreset` 席位显示并为下一条 Session 暂存选择。正式 Client 中，产品队列直接订阅同一 Client Session 的 `ConversationSnapshot.queue`；Plan 与权限界面由各自官方 Client 插件直接读取 Session projection。App 协议流只解析产品会话到 DSH Session 的绑定，并继续传递尚未迁入官方 Chat 的消息内容，不再作为第二份状态权威。插件中心从同一份宿主能力清单区分“完整支持”“部分支持”和“尚未映射”；`conversation.chat.node` 当前只承诺 `tool-call`，不会把其余消息节点误报为可用。`dsh-workbench-pages` 独立贡献 Review、Browser、Files、Artifacts 和 Sites 页面目录。后续这些页面会优先采用社区插件，缺失部分再逐项拆成独立 Bundle。OpenPencil 保持为社区设计插件选择，不与现有版本化 Canvas 重复实现。业务组件不再继续堆入 shell。
+App 自有 Bundle 的角色、权限和采用状态以 [`featured_plugins.json`](server/src/engine/dsh_runtime/featured_plugins.json) 及发行方案为准；本阶段不在 README、打包脚本或运行时代码中再维护一份包名列表。需要进入官方 Web Client 图的旧产品 UI、主题包和工作台页面留到后续阶段逐包审查。
 
 `dsh-client-product-workspaces` 通过 Profile 停用默认 `ui-workspace` 提供者，再占用标准单席位 `conversation.hero.workspace`；它只消费产品壳发布的 `dshWorkProductWorkspaces` 可观察服务，正式 Client 不再渲染页面内的旧项目选择器。项目目录、文件夹导入与创建仍来自桌面产品状态，所以这个 Bundle 是 `desktop-adapter`；要换成官方或社区实现，应在 Profile 中替换整个 Bundle，不能在单席位上叠加第二个注册。
 

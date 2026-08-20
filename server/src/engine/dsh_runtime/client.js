@@ -6,7 +6,7 @@ import { dataRoot } from "../../config/paths.js";
 import { dshRuntimeEnabled, resolveDshRuntimeDistribution } from "./source_locator.js";
 import { createSessionProductHostDispatcher } from "./product_host_dispatcher.js";
 import { ensureDshWorkspaceSession } from "./session_attachment.js";
-import { prepareTrustedProfilePlugins } from "./trusted_client_plugins.js";
+import { ensureDshProfileInitialized } from "./profile_initialization.js";
 import { ensureDshProductThemeDefault } from "./theme_default.js";
 
 const CHILD_PATH = fileURLToPath(new URL("./source_runtime_child.mjs", import.meta.url));
@@ -125,16 +125,15 @@ export class DshRuntimeClient extends EventEmitter {
       DSH_RUNTIME_INSTALL_ANCHOR: resolved.installAnchor,
       ...(resolved.profileBootPath ? { DSH_PROFILE_BOOT_PATH: resolved.profileBootPath } : {}),
     };
+    await ensureDshProfileInitialized({
+      resolved,
+      dshHome,
+      env: childEnv,
+      appRoot: this.env.DSH_APP_ROOT,
+    });
     let launchPath = CHILD_PATH;
     let launchArgs = [];
     if (resolved.launch === "cli") {
-      await prepareTrustedProfilePlugins({
-        appBootPath: resolved.appBootPath,
-        installAnchor: resolved.installAnchor,
-        env: childEnv,
-        runtimeRoot: resolved.root,
-        dshHome,
-      });
       launchPath = resolved.entryPath;
       launchArgs = ["web", "--patch", CLIENT_PATCH_PATH];
     }

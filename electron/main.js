@@ -26,6 +26,12 @@ const { loadOrCreateRendererSurfacePort } = require('./renderer-surface-port');
 const isDev = !app.isPackaged;
 const APP_ROOT = isDev ? path.join(__dirname, '..') : process.resourcesPath;
 const SERVER_DIR = path.join(APP_ROOT, 'server');
+const FEATURED_PLUGIN_ARTIFACT_DIR = isDev
+  ? path.join(APP_ROOT, '.desktop-build', 'featured-plugins')
+  : path.join(APP_ROOT, 'featured-plugins');
+const PNPM_BIN_DIR = isDev
+  ? path.join(APP_ROOT, '.desktop-build', 'pnpm-bin')
+  : path.join(APP_ROOT, 'pnpm-bin');
 const APP_ICON = path.join(__dirname, 'icons', 'icon.png'); // application icon
 const APP_DISPLAY_NAME = 'DeepSeek Harness Desktop App';
 const LEGACY_DEFAULT_APP_NAMES = new Set(['DeepSeek Harness', 'dsh-work']);
@@ -736,6 +742,12 @@ function startBackend() {
   const args = isDev ? [entryRel] : [entryAbs];
   const env = { ...process.env };
   env.DSH_DATA_ROOT = DATA_ROOT;
+  env.DSH_APP_ROOT = APP_ROOT;
+  env.DSH_PROFILE_PLUGIN_LIBRARY = path.join(DATA_ROOT, 'plugin-library');
+  env.DSH_FEATURED_PLUGIN_TARBALL_DIR = FEATURED_PLUGIN_ARTIFACT_DIR;
+  env.DSH_FEATURED_PLUGIN_MANIFEST = path.join(FEATURED_PLUGIN_ARTIFACT_DIR, 'manifest.json');
+  env.DSH_PNPM_BIN_DIR = PNPM_BIN_DIR;
+  if (!isDev) env.DSH_PNPM_REQUIRED = '1';
   env.DSH_APP_VERSION = app.getVersion();
   env.DSH_APP_NAME = runtimeAppName; // 用户自定义应用名，server 侧作为 Agent client 身份
   env.DSH_ATTACHMENT_GRANT_SECRET = ATTACHMENT_GRANT_SECRET;
@@ -743,6 +755,8 @@ function startBackend() {
   env.DSH_DESKTOP_WEB_PORT = String(rendererSurfacePort);
   if (isDev) {
     env.DSH_SOURCE_ROOT = process.env.DSH_SOURCE_ROOT || path.resolve(APP_ROOT, '..', 'test-vibeinging');
+    env.DSH_FEATURED_PLUGIN_SOURCE_ROOT = APP_ROOT;
+    env.DSH_FEATURED_PLUGIN_ALLOW_SOURCE = '1';
   }
   applyNetworkEnv(env);
   if (isDev) env.DSH_TCP = '1'; // dev: backend also listens on TCP so eval can reuse running instance; prod: process channel only (portless)

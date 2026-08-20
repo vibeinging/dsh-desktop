@@ -8,7 +8,6 @@
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { prepareTrustedProfilePlugins } from "./trusted_client_plugins.js";
 
 function ipcError(error) {
   return {
@@ -30,10 +29,6 @@ async function main() {
   const { runProfile } = await import(pathToFileURL(profileBootPath).href);
   const clientPatch = fileURLToPath(new URL("./desktop_web.patch.yml", import.meta.url));
   loadEnv("dsh-work", environmentDir);
-  await prepareTrustedProfilePlugins({
-    appBootPath,
-    installAnchor: process.env.DSH_RUNTIME_INSTALL_ANCHOR,
-  });
   await runProfile({
     profile: "web",
     patchFiles: [clientPatch],

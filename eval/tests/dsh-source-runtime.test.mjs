@@ -17,6 +17,7 @@ import {
 } from "../../server/src/engine/dsh_runtime/workspace_runtime.js";
 import { DshRuntimeClient, normalizeDshClientSurface } from "../../server/src/engine/dsh_runtime/client.js";
 import { dshModelOptions, encodeDshModelRoute } from "../../server/src/engine/dsh_runtime/model_route.js";
+import { featuredPluginNames } from "../../server/src/engine/dsh_runtime/featured_plugins.js";
 import {
   publishDshModelSettingsChanged,
   resetDshModelSettingsEventsForTests,
@@ -951,13 +952,7 @@ test("real current DSH Web Profile serves client slots and its text prompt wire"
       join(DSH_SOURCE_ROOT, "apps", "cli", "package.json"),
       runtimeHome,
     );
-    assert.equal(profile.layers.at(-1).packageName, "@deepseek-ai/dsh-work-shell");
-    assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-workbench-pages"), true);
-    assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-client-product-commands"), true);
-    assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-client-product-references"), true);
-    assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-client-product-search-mode"), true);
-    assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-client-product-workspaces"), true);
-    assert.equal(profile.layers.some((layer) => layer.packageName === "@deepseek-ai/dsh-client-product-attachments"), true);
+    assert.deepEqual(profile.layers.slice(2).map((layer) => layer.packageName), featuredPluginNames());
     const profileRows = profileApi.composeEntries([
       profile.layers.flatMap((layer) => layer.patches),
       profile.patches,
@@ -966,13 +961,7 @@ test("real current DSH Web Profile serves client slots and its text prompt wire"
       assert.equal(profileRows.filter((row) => row.id === id).length, 1, `${id} must mount once through Profile`);
     }
     assert.equal(profileRows.find((row) => row.id === "web-runtime")?.name, "@deepseek-ai/dsh-web-app");
-    assert.equal(profileRows.find((row) => row.id === "dsh-work-shell")?.name, "@deepseek-ai/dsh-work-shell");
-    assert.equal(profileRows.find((row) => row.id === "dsh-client-product-commands")?.name, "@deepseek-ai/dsh-client-product-commands");
-    assert.equal(profileRows.find((row) => row.id === "dsh-client-product-references")?.name, "@deepseek-ai/dsh-client-product-references");
-    assert.equal(profileRows.find((row) => row.id === "dsh-client-product-search-mode")?.name, "@deepseek-ai/dsh-client-product-search-mode");
-    assert.equal(profileRows.find((row) => row.id === "dsh-client-product-workspaces")?.name, "@deepseek-ai/dsh-client-product-workspaces");
-    assert.equal(profileRows.find((row) => row.id === "dsh-client-product-attachments")?.name, "@deepseek-ai/dsh-client-product-attachments");
-    assert.equal(profileRows.find((row) => row.id === "ui-workspace")?.disabled, true);
+    assert.equal(profileRows.find((row) => row.id === "dsh-work-shell"), undefined);
     assert.equal(profileRows.some((row) => row.id === "product-client"), false);
     assert.equal(profileRows.some((row) => row.id === "turn-navigator"), false);
     const surface = await client.waitForClientSurface();
@@ -1035,6 +1024,10 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
       DSH_RUNTIME_HOME: runtimeHome,
       DSH_RUNTIME_ENV_DIR: runtimeHome,
       DSH_TELEMETRY_DISABLED: "1",
+      DSH_FEATURED_PLUGIN_ALLOW_SOURCE: "1",
+      DSH_FEATURED_PLUGIN_SOURCE_ROOT: resolve(dirname(fileURLToPath(import.meta.url)), "../.."),
+      DSH_FEATURED_PLUGIN_MANIFEST: "",
+      DSH_FEATURED_PLUGIN_TARBALL_DIR: "",
     },
   });
   const sessionId = "app-pinned-image-admission-smoke";
@@ -1043,20 +1036,7 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     await client.start();
     assert.equal((await ready).version, DSH_NPM_VERSION);
     const manifest = JSON.parse(readFileSync(join(runtimeHome, "profiles", "web", "package.json"), "utf8"));
-    assert.equal(manifest.dsh.profile.bundles.at(-1), "@deepseek-ai/dsh-work-shell");
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-work-product-host-ipc"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-project-tools"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-canvas-tools"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-structured-ui-tools"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-model-inheritance"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-product-bridge"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-workbench-pages"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-theme-pack"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-client-product-commands"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-client-product-references"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-client-product-search-mode"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-client-product-workspaces"), true);
-    assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-client-product-attachments"), true);
+    assert.deepEqual(manifest.dsh.profile.bundles.slice(2), featuredPluginNames());
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-product-client"), false);
     assert.equal(manifest.dsh.profile.bundles.includes("@deepseek-ai/dsh-turn-navigator"), false);
     const described = await client.request("host.describe", {});
@@ -1067,13 +1047,8 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     assert.equal(themeSettings.user.preference, "dark");
     const surface = await client.waitForClientSurface();
     const html = await fetch(surface).then((response) => response.text());
-    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-work-shell\/client\.js\?rev=/);
-    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-theme-pack\/client\.js\?rev=/);
-    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-commands\/client\.js\?rev=/);
-    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-references\/client\.js\?rev=/);
-    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-search-mode\/client\.js\?rev=/);
-    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-workspaces\/client\.js\?rev=/);
-    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-product-attachments\/client\.js\?rev=/);
+    assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-work-shell\/client\.js\?rev=/);
+    assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-theme-pack\/client\.js\?rev=/);
     assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-ui-permission-presets\/client\.js\?rev=/);
     assert.match(html, /const preference = "dark"/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-product-client\/client\.js\?rev=/);

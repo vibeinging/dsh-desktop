@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "profile": "web",
+  "plugins": [
+    {
+      "name": "@deepseek-ai/dsh-work-product-host-ipc",
+      "package_path": "packages/dsh-work-product-host-ipc",
+      "default": true,
+      "user_manageable": true,
+      "portability": "desktop-adapter",
+      "permissions": ["dsh-work-parent-ipc"],
+      "license": "MIT"
+    },
+    {
+      "name": "@deepseek-ai/dsh-project-tools",
+      "package_path": "packages/dsh-project-tools",
+      "default": true,
+      "user_manageable": true,
+      "portability": "desktop-adapter",
+      "permissions": ["product-host"],
+      "license": "MIT"
+    },
+    {
+      "name": "@deepseek-ai/dsh-canvas-tools",
+      "package_path": "packages/dsh-canvas-tools",
+      "default": true,
+      "user_manageable": true,
+      "portability": "desktop-adapter",
+      "permissions": ["product-host"],
+      "license": "MIT"
+    },
+    {
+      "name": "@deepseek-ai/dsh-structured-ui-tools",
+      "package_path": "packages/dsh-structured-ui-tools",
+      "default": true,
+      "user_manageable": true,
+      "portability": "desktop-adapter",
+      "permissions": ["product-host"],
+      "license": "MIT"
+    },
+    {
+      "name": "@deepseek-ai/dsh-model-inheritance",
+      "package_path": "packages/dsh-model-inheritance",
+      "default": true,
+      "user_manageable": true,
+      "portability": "portable",
+      "permissions": [],
+      "license": "MIT"
+    },
+    {
+      "name": "@deepseek-ai/dsh-product-bridge",
+      "package_path": "packages/dsh-product-bridge",
+      "default": true,
+      "user_manageable": true,
+      "portability": "desktop-adapter",
+      "permissions": ["product-host"],
+      "license": "MIT"
+    },
+    {
+      "name": "@deepseek-ai/dsh-office-tools",
+      "package_path": "packages/dsh-office-tools",
+      "default": true,
+      "user_manageable": true,
+      "portability": "desktop-adapter",
+      "permissions": ["office-artifact-host"],
+      "license": "MIT"
+    }
+  ]
+}

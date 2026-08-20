@@ -48,7 +48,8 @@
     "patch-package": "^8.0.1"
   },
   "dependencies": {
-    "electron-updater": "6.8.9"
+    "electron-updater": "6.8.9",
+    "pnpm": "8.15.3"
   },
   "overrides": {
     "js-yaml": "^4.3.1"
@@ -93,162 +94,24 @@
         ]
       },
       {
-        "from": "../packages/dsh-work-product-host-ipc",
-        "to": "packages/dsh-work-product-host-ipc",
+        "from": "../.desktop-build/featured-plugins",
+        "to": "featured-plugins",
         "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js"
+          "**/*"
         ]
       },
       {
-        "from": "../packages/dsh-project-tools",
-        "to": "packages/dsh-project-tools",
+        "from": "../.desktop-build/pnpm-bin",
+        "to": "pnpm-bin",
         "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js"
+          "**/*"
         ]
       },
       {
-        "from": "../packages/dsh-canvas-tools",
-        "to": "packages/dsh-canvas-tools",
+        "from": "../.desktop-build/pnpm-runtime",
+        "to": "pnpm-runtime",
         "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-structured-ui-tools",
-        "to": "packages/dsh-structured-ui-tools",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-model-inheritance",
-        "to": "packages/dsh-model-inheritance",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-product-bridge",
-        "to": "packages/dsh-product-bridge",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "README.zh.md",
-          "src/index.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-office-tools",
-        "to": "packages/dsh-office-tools",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-workbench-pages",
-        "to": "packages/dsh-workbench-pages",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "product.json",
-          "README.md",
-          "src/index.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-theme-pack",
-        "to": "packages/dsh-theme-pack",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "themes.json",
-          "README.md",
-          "src/index.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-client-product-commands",
-        "to": "packages/dsh-client-product-commands",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js",
-          "lib/client.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-client-product-references",
-        "to": "packages/dsh-client-product-references",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js",
-          "lib/client.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-client-product-search-mode",
-        "to": "packages/dsh-client-product-search-mode",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js",
-          "lib/client.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-client-product-workspaces",
-        "to": "packages/dsh-client-product-workspaces",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js",
-          "lib/client.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-client-product-attachments",
-        "to": "packages/dsh-client-product-attachments",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js",
-          "lib/client.js"
-        ]
-      },
-      {
-        "from": "../packages/dsh-work-shell",
-        "to": "packages/dsh-work-shell",
-        "filter": [
-          "package.json",
-          "cordis.patch.yml",
-          "README.md",
-          "src/index.js",
-          "lib/client.js"
+          "**/*"
         ]
       },
       {

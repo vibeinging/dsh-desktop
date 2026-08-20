@@ -1,8 +1,11 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { cp, lstat, mkdir, readFile, realpath, rm } from 'node:fs/promises'
+import { chmod, cp, lstat, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { generateFeaturedPluginArtifacts } from '../../scripts/generate-featured-plugin-artifacts.mjs'
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url)
 const SCRIPT_DIR = dirname(SCRIPT_PATH)
@@ -12,6 +15,9 @@ const SOURCE_SERVER_DIR = join(APP_DIR, 'server')
 const STAGED_SERVER_DIR = join(APP_DIR, '.desktop-build', 'server')
 const BUILD_CACHE_DIR = join(APP_DIR, '.desktop-build', 'npm-cache')
 const BUILD_HEADERS_DIR = join(APP_DIR, '.desktop-build', 'electron-gyp')
+const FEATURED_PLUGIN_ARTIFACT_DIR = join(APP_DIR, '.desktop-build', 'featured-plugins')
+const PNPM_BIN_DIR = join(APP_DIR, '.desktop-build', 'pnpm-bin')
+const PNPM_RUNTIME_DIR = join(APP_DIR, '.desktop-build', 'pnpm-runtime')
 const SUPPORTED_ARCHES = new Set(['arm64', 'x64'])
 const SUPPORTED_PLATFORMS = new Set(['darwin', 'win32'])
 const AGENT_RUNTIME_TARGETS = {
@@ -58,6 +64,25 @@ function nodeVersion(nodePath) {
   } catch {
     return ''
   }
+}
+
+async function prepareBundledPnpm() {
+  const require = createRequire(import.meta.url)
+  const packageManifestPath = require.resolve('pnpm')
+  const packageRoot = dirname(packageManifestPath)
+  await rm(PNPM_RUNTIME_DIR, { recursive: true, force: true })
+  await rm(PNPM_BIN_DIR, { recursive: true, force: true })
+  await cp(packageRoot, PNPM_RUNTIME_DIR, { recursive: true })
+  await mkdir(PNPM_BIN_DIR, { recursive: true })
+  await writeFile(join(PNPM_BIN_DIR, 'pnpm'), `#!/bin/sh
+set -eu
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "\${DSH_PNPM_NODE_BIN:-node}" "$script_dir/../pnpm-runtime/bin/pnpm.cjs" "$@"
+`)
+  await chmod(join(PNPM_BIN_DIR, 'pnpm'), 0o755)
+  await writeFile(join(PNPM_BIN_DIR, 'pnpm.cmd'), `@echo off
+"%~dp0..\\pnpm-runtime\\bin\\pnpm.cjs" %*
+`)
 }
 
 function includePackagedServerSource(source) {
@@ -210,6 +235,11 @@ export async function preparePackage() {
     await cp(join(SOURCE_SERVER_DIR, name), join(STAGED_SERVER_DIR, name))
   }
   await verifyPackagedBuiltinPlugins()
+  await generateFeaturedPluginArtifacts({
+    appRoot: APP_DIR,
+    outputDir: FEATURED_PLUGIN_ARTIFACT_DIR,
+  })
+  await prepareBundledPnpm()
 
   const npmCli = process.env.npm_execpath
   if (!npmCli) throw new Error('找不到 npm CLI，请通过 npm run 执行打包命令')
@@ -231,17 +261,6 @@ export async function preparePackage() {
     cwd: STAGED_SERVER_DIR,
     env: targetEnv,
   })
-
-  // DSH loader 以裸包名按 Node parent-walk 从 server/node_modules 解析内置 Bundle；
-  // 把随包本地插件以实体副本放进 staged node_modules，与 $DSH_HOME/profiles 的
-  // flat 链接互为冗余，保证任意平台、任意解析起点都能命中（symlink 不能跨机，必须复制）。
-  for (const pluginName of ['dsh-work-product-host-ipc', 'dsh-project-tools', 'dsh-canvas-tools', 'dsh-structured-ui-tools', 'dsh-product-bridge', 'dsh-office-tools', 'dsh-workbench-pages', 'dsh-theme-pack', 'dsh-client-product-commands', 'dsh-client-product-references', 'dsh-client-product-search-mode', 'dsh-client-product-workspaces', 'dsh-client-product-attachments', 'dsh-work-shell']) {
-    await cp(
-      join(APP_DIR, 'packages', pluginName),
-      join(STAGED_SERVER_DIR, 'node_modules', '@deepseek-ai', pluginName),
-      { recursive: true },
-    )
-  }
 
   const agentRuntimeTarget = AGENT_RUNTIME_TARGETS[`${targetPlatform}-${targetArch}`]
   if (!agentRuntimeTarget) throw new Error(`Agent 运行时不支持打包目标: ${targetPlatform}/${targetArch}`)

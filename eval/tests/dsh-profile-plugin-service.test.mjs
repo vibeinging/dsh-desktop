@@ -22,6 +22,11 @@ import {
   profileThemeRuntimeId,
   readProfileThemeDescriptor,
 } from "../../server/src/engine/dsh_runtime/profile_theme_manifest.js";
+import { ensureDshProfileInitialized } from "../../server/src/engine/dsh_runtime/profile_initialization.js";
+import {
+  featuredPluginNames,
+  featuredPlugins,
+} from "../../server/src/engine/dsh_runtime/featured_plugins.js";
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_NPM_ROOT = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh");
@@ -417,7 +422,8 @@ test("Profile Bundle preflight rejects mutable sources without touching DSH", as
 });
 
 test("the app-owned Profile Bundles use the current public SDK names", () => {
-  for (const packageDir of ["dsh-work-product-host-ipc", "dsh-project-tools", "dsh-canvas-tools", "dsh-structured-ui-tools", "dsh-model-inheritance", "dsh-product-bridge", "dsh-office-tools", "dsh-workbench-pages", "dsh-theme-pack", "dsh-client-product-commands", "dsh-client-product-references", "dsh-client-product-search-mode", "dsh-client-product-workspaces", "dsh-client-product-attachments", "dsh-work-shell"]) {
+  for (const plugin of featuredPlugins()) {
+    const packageDir = plugin.package_path.replace(/^packages\//, "");
     const manifest = JSON.parse(readFileSync(join(APP_ROOT, "packages", packageDir, "package.json"), "utf8"));
     assert.doesNotThrow(() => validateProfileBundleSdk(manifest));
     assert.equal(manifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");
@@ -634,11 +640,26 @@ test("the Profile catalog is projected from the official Web Profile order", {
       },
       restartRuntime: async () => ({ restarted: false, sessions: [] }),
     });
+    await ensureDshProfileInitialized({
+      resolved: service.distribution(),
+      dshHome: home,
+      env: {
+        ...service.env,
+        DSH_HOME: home,
+        DSH_FEATURED_PLUGIN_ALLOW_SOURCE: "1",
+        DSH_FEATURED_PLUGIN_SOURCE_ROOT: APP_ROOT,
+        DSH_FEATURED_PLUGIN_MANIFEST: "",
+        DSH_FEATURED_PLUGIN_TARBALL_DIR: "",
+        DSH_PROFILE_PLUGIN_LIBRARY: join(home, "plugin-library"),
+      },
+      appRoot: APP_ROOT,
+    });
     const catalog = await service.catalog();
     assert.deepEqual(catalog.plugins.slice(0, 2).map((plugin) => plugin.id), [
       "@deepseek-ai/dsh-base",
       "@deepseek-ai/dsh-web-app",
     ]);
+    assert.deepEqual(catalog.plugins.slice(2).map((plugin) => plugin.id), featuredPluginNames());
     const productHostIpc = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-work-product-host-ipc");
     assert.equal(productHostIpc.runtime_kind, "profile_bundle");
     assert.equal(productHostIpc.managed_by, "app");
@@ -687,7 +708,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
     const productBridge = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-product-bridge");
     assert.equal(productBridge.runtime_kind, "profile_bundle");
     assert.equal(productBridge.managed_by, "app");
-    assert.equal(productBridge.can_uninstall, false);
+    assert.equal(productBridge.can_uninstall, true);
     assert.deepEqual(productBridge.portability, {
       level: "desktop-adapter",
       surfaces: ["dsh-desktop"],
@@ -704,96 +725,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       host_requirements: ["office-artifact-host"],
       compatibility_test: null,
     });
-    const workbenchPages = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-workbench-pages");
-    assert.equal(workbenchPages.runtime_kind, "profile_bundle");
-    assert.equal(workbenchPages.managed_by, "app");
-    assert.equal(workbenchPages.ui_runtime.kind, "dsh_work_descriptor");
-    assert.deepEqual(workbenchPages.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["dsh-workbench-slot"],
-      compatibility_test: null,
-    });
-    assert.deepEqual(
-      workbenchPages.product.contributions.map((item) => item.id),
-      ["review", "browser", "files", "artifacts", "sites"],
-    );
-    const themePack = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-theme-pack");
-    assert.equal(themePack.runtime_kind, "profile_bundle");
-    assert.equal(themePack.managed_by, "app");
-    assert.equal(themePack.profile_theme_count, 2);
-    assert.deepEqual(themePack.portability, {
-      level: "portable",
-      surfaces: ["official-web", "dsh-desktop"],
-      host_requirements: [],
-      compatibility_test: "eval/tests/dsh-official-web-plugin-compat.test.mjs",
-    });
-    assert.deepEqual(catalog.profile_themes.map((theme) => ({
-      id: theme.id,
-      manifest_id: theme.manifest_id,
-      package_name: theme.source_bundle.package_name,
-    })), [{
-      id: "profile:%40deepseek-ai%2Fdsh-theme-pack:professional-blue",
-      manifest_id: "professional-blue",
-      package_name: "@deepseek-ai/dsh-theme-pack",
-    }, {
-      id: "profile:%40deepseek-ai%2Fdsh-theme-pack:anime-blue",
-      manifest_id: "anime-blue",
-      package_name: "@deepseek-ai/dsh-theme-pack",
-    }]);
-    const productCommands = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-client-product-commands");
-    assert.equal(productCommands.runtime_kind, "profile_bundle");
-    assert.equal(productCommands.managed_by, "app");
-    assert.equal(productCommands.ui_runtime.kind, "dsh_client");
-    assert.deepEqual(productCommands.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["dsh-work-product-actions"],
-      compatibility_test: null,
-    });
-    const productReferences = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-client-product-references");
-    assert.equal(productReferences.runtime_kind, "profile_bundle");
-    assert.equal(productReferences.managed_by, "app");
-    assert.equal(productReferences.ui_runtime.kind, "dsh_client");
-    assert.deepEqual(productReferences.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["dsh-work-product-references"],
-      compatibility_test: null,
-    });
-    const productSearchMode = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-client-product-search-mode");
-    assert.equal(productSearchMode.runtime_kind, "profile_bundle");
-    assert.equal(productSearchMode.managed_by, "app");
-    assert.equal(productSearchMode.ui_runtime.kind, "dsh_client");
-    assert.deepEqual(productSearchMode.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["dsh-work-product-search-mode"],
-      compatibility_test: null,
-    });
-    const productWorkspaces = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-client-product-workspaces");
-    assert.equal(productWorkspaces.runtime_kind, "profile_bundle");
-    assert.equal(productWorkspaces.managed_by, "app");
-    assert.equal(productWorkspaces.ui_runtime.kind, "dsh_client");
-    assert.deepEqual(productWorkspaces.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["dsh-work-product-workspaces"],
-      compatibility_test: null,
-    });
-    const productAttachments = catalog.plugins.find((plugin) => plugin.id === "@deepseek-ai/dsh-client-product-attachments");
-    assert.equal(productAttachments.runtime_kind, "profile_bundle");
-    assert.equal(productAttachments.managed_by, "app");
-    assert.equal(productAttachments.ui_runtime.kind, "dsh_client");
-    assert.deepEqual(productAttachments.portability, {
-      level: "desktop-adapter",
-      surfaces: ["dsh-desktop"],
-      host_requirements: ["dsh-work-product-attachments"],
-      compatibility_test: null,
-    });
-    assert.equal(catalog.plugins.at(-1).id, "@deepseek-ai/dsh-work-shell");
-    assert.equal(catalog.plugins.at(-1).managed_by, "app");
-    assert.equal(catalog.plugins.at(-1).portability.level, "desktop-shell");
+    assert.deepEqual(catalog.profile_themes, []);
     assert.equal(catalog.recommended_plugins_updated_at, "2026-08-17");
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
     assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.9.0");
@@ -879,79 +811,26 @@ test("the Profile catalog is projected from the official Web Profile order", {
       }],
     );
     assert.deepEqual(catalog.plugins.at(-1).ui_runtime, {
-      kind: "dsh_client",
-      client_graph: true,
-      host_supported_slots: [
-        "settings.section",
-        "settings.general.item",
-        "settings.plugins.tab",
-        "settings.plugin.item",
-        "shell.overlay",
-        "sidebar.footer.action",
-        "conversation.session.header.actions",
-        "conversation.session.header.utilities",
-        "conversation.composer",
-        "conversation.input.overlay",
-        "conversation.input.dock",
-        "conversation.composer.dock",
-        "conversation.input.left",
-        "conversation.input.right",
-        "conversation.input.plan",
-        "conversation.input.model",
-        "conversation.hero.workspace",
-        "conversation.hero.agentPreset",
-        "conversation.chat.assistant-actions",
-        "conversation.chat.turnTail",
-        "conversation.details.tool",
-        "tool.call.toolview",
-        "details",
-      ],
-      host_partial_slots: [{
-        slot: "conversation.chat.node",
-        supported_keys: ["tool-call"],
-        note: "当前只分派官方 ToolCallBlock；其他 Chat Node 仍等待统一的消息排序与选择状态",
-      }],
-      host_unmapped_slots: [
-        "root",
-        "sidebar",
-        "sidebar.workspaces",
-        "sidebar.settings",
-        "conversation",
-        "conversation.session",
-        "conversation.session.header",
-        "conversation.view",
-        "conversation.chat.commandview",
-        "conversation.composer.bar",
-        "settings.trigger",
-        "settings.header",
-        "settings.action",
-        "settings.close",
-        "settings.onboarding",
-      ],
+      kind: "host_only",
+      client_graph: false,
+      host_supported_slots: [],
+      host_partial_slots: [],
+      host_unmapped_slots: [],
     });
-    const state = await service.state();
-    const profile = state.api.loadProfile("dsh-work-test", "web", state.resolved.installAnchor, home);
-    const rows = state.api.composeEntries([
-      profile.layers.flatMap((layer) => layer.patches),
-      profile.patches,
-    ]);
-    assert.equal(rows.find((row) => row.id === "ui-layout")?.disabled, true);
-    assert.equal(rows.find((row) => row.id === "ui-workspace")?.disabled, true);
-    assert.equal(rows.find((row) => row.id === "ui-settings-general")?.disabled, true);
-    assert.equal(rows.find((row) => row.id === "dsh-work-shell")?.name, "@deepseek-ai/dsh-work-shell");
+    assert.equal(catalog.plugins.some((plugin) => plugin.id === "@deepseek-ai/dsh-work-shell"), false);
     assert.equal(catalog.marketplaces[0].name, "web");
   } finally {
     await rm(home, { recursive: true, force: true });
   }
 });
 
-test("an older community dsh.client stays removable without entering the active graph", {
+test("an existing community dsh.client remains in the authoritative graph without app mutation", {
   timeout: 30_000,
   skip: existsSync(join(DSH_NPM_ROOT, "package.json"))
     ? false
     : `missing app-pinned DSH package: ${DSH_NPM_ROOT}`,
 }, async () => {
-  const home = await mkdtemp(join(tmpdir(), "dsh-work-profile-quarantine-"));
+  const home = await mkdtemp(join(tmpdir(), "dsh-work-profile-readonly-"));
   const profileDir = join(home, "profiles", "web");
   const packageDir = join(profileDir, "node_modules", "@example", "community-client");
   try {
@@ -978,6 +857,7 @@ test("an older community dsh.client stays removable without entering the active 
         "@example/community-client",
       ] } },
     }, null, 2)}\n`);
+    const before = await readFile(join(profileDir, "package.json"), "utf8");
 
     const service = new DshProfilePluginService({
       env: {
@@ -990,15 +870,51 @@ test("an older community dsh.client stays removable without entering the active 
     });
     const catalog = await service.catalog();
     const plugin = catalog.plugins.find((item) => item.id === "@example/community-client");
-    assert.equal(plugin.enabled, false);
+    assert.equal(plugin.enabled, true);
     assert.equal(plugin.can_uninstall, true);
-    assert.equal(plugin.ui_runtime.client_graph, false);
-    assert.equal(plugin.ui_runtime.isolation, "quarantined");
-    assert.match(plugin.blocked_reason, /主窗口运行图隔离/);
+    assert.equal(plugin.ui_runtime.client_graph, true);
+    assert.equal(plugin.ui_runtime.isolation, undefined);
 
     const stored = JSON.parse(await readFile(join(profileDir, "package.json"), "utf8"));
-    assert.equal(stored.dsh.profile.bundles.includes("@example/community-client"), false);
+    assert.equal(await readFile(join(profileDir, "package.json"), "utf8"), before);
+    assert.equal(stored.dsh.profile.bundles.includes("@example/community-client"), true);
     assert.equal(stored.dependencies["@example/community-client"], "1.0.0");
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("a user-removed curated Bundle is not restored by a read-only catalog query", {
+  timeout: 30_000,
+  skip: existsSync(join(DSH_NPM_ROOT, "package.json"))
+    ? false
+    : `missing app-pinned DSH package: ${DSH_NPM_ROOT}`,
+}, async () => {
+  const home = await mkdtemp(join(tmpdir(), "dsh-work-profile-user-removed-"));
+  const profileDir = join(home, "profiles", "web");
+  try {
+    await mkdir(profileDir, { recursive: true });
+    const manifest = {
+      name: "dsh-profile-web",
+      private: true,
+      dependencies: {},
+      dsh: { profile: { bundles: ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app"] } },
+    };
+    const before = `${JSON.stringify(manifest, null, 2)}\n`;
+    await writeFile(join(profileDir, "package.json"), before);
+    const service = new DshProfilePluginService({
+      env: {
+        ...process.env,
+        DSH_RUNTIME_DISTRIBUTION: "npm",
+        DSH_RUNTIME_HOME: home,
+        DSH_HOME: home,
+      },
+      restartRuntime: async () => ({ restarted: false, sessions: [] }),
+    });
+    const catalog = await service.catalog();
+    assert.deepEqual(catalog.plugins.map((plugin) => plugin.id), manifest.dsh.profile.bundles);
+    assert.deepEqual(catalog.featured_plugin_ids, featuredPluginNames());
+    assert.equal(await readFile(join(profileDir, "package.json"), "utf8"), before);
   } finally {
     await rm(home, { recursive: true, force: true });
   }

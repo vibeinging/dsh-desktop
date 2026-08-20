@@ -10,10 +10,14 @@ import { dataRoot } from "../../config/paths.js";
 import { resolveDshRuntimeDistribution } from "./source_locator.js";
 import {
   isReviewedCommunityClient,
-  prepareTrustedProfilePlugins,
   reviewedCommunityClientReview,
-  trustedDshProfilePluginNames,
-} from "./trusted_client_plugins.js";
+} from "./community_client_review.js";
+import {
+  controlledDshPluginEnvironment,
+  dshProfilePluginLibraryPath,
+  existingDshProfilePath,
+} from "./profile_initialization.js";
+import { featuredPluginByName, featuredPluginNames } from "./featured_plugins.js";
 import {
   aggregateProfileThemes,
   readProfileThemeDescriptor,
@@ -22,6 +26,7 @@ import {
 const execFileAsync = promisify(execFile);
 const PROFILE_NAME = "web";
 const SYSTEM_BUNDLES = new Set(["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app"]);
+const FEATURED_PLUGIN_NAMES = new Set(featuredPluginNames());
 const DSH_WORK_WORKBENCH_SLOT = "agent.workbench.tool";
 const DSH_WORK_HOST_COMPONENTS = new Map([
   ["review", "dsh-work/review"],
@@ -221,6 +226,17 @@ function sourceView(packageName, spec, packageDir, managed) {
   return { type: "npm", package: packageName, version: spec, label: "npm 固定版本" };
 }
 
+function readProfileBundles(manifest) {
+  const bundles = manifest?.dsh?.profile?.bundles;
+  if (!Array.isArray(bundles) || bundles.some((name) => typeof name !== "string" || !name.trim())) {
+    throw profileError(
+      "DSH Profile 缺少有效的 dsh.profile.bundles；应用不会替用户补写或修复它",
+      "DSH_PROFILE_BUNDLES_INVALID",
+    );
+  }
+  return bundles;
+}
+
 function bundleView({
   packageName,
   packageDir,
@@ -229,15 +245,15 @@ function bundleView({
   index,
   descriptor,
   managed,
+  userManageable = false,
   themeCount,
-  enabled = true,
-  blockedReason = null,
 }) {
   const ui = productInterface(manifest, descriptor);
   const source = sourceView(packageName, dependencySpec || "", packageDir, managed);
   const version = typeof manifest.version === "string" ? manifest.version : null;
   const dshClient = manifest?.dsh?.client?.platform === "web";
   const portability = readDshWorkPortability(manifest);
+  const canUninstall = managed === "user" || (managed === "app" && userManageable);
   return {
     id: packageName,
     name: packageName,
@@ -252,8 +268,8 @@ function bundleView({
     available_version: version,
     update_available: false,
     installed: true,
-    enabled,
-    blocked_reason: blockedReason,
+    enabled: true,
+    blocked_reason: null,
     runtime_kind: "profile_bundle",
     profile_name: PROFILE_NAME,
     profile_order: index,
@@ -261,12 +277,11 @@ function bundleView({
     product_plugin: Boolean(descriptor),
     ui_runtime: {
       kind: dshClient ? "dsh_client" : descriptor ? "dsh_work_descriptor" : "host_only",
-      client_graph: dshClient && enabled,
-      ...(dshClient && !enabled ? { declares_client: true, isolation: "quarantined" } : {}),
-      host_supported_slots: dshClient && enabled
+      client_graph: dshClient,
+      host_supported_slots: dshClient
         ? DSH_WORK_MAPPED_CLIENT_SLOTS
         : [],
-      host_partial_slots: dshClient && enabled
+      host_partial_slots: dshClient
         ? DSH_WORK_PARTIAL_CLIENT_SLOTS
         : [],
       host_unmapped_slots: dshClient ? DSH_WORK_UNMAPPED_CLIENT_SLOTS : [],
@@ -279,11 +294,11 @@ function bundleView({
     source_details: source,
     marketplace_name: `profile:${PROFILE_NAME}`,
     marketplace_path: null,
-    readonly: managed !== "user",
+    readonly: !canUninstall,
     can_install: false,
     can_update: false,
     can_toggle: false,
-    can_uninstall: managed === "user",
+    can_uninstall: canUninstall,
     skills_count: 0,
     apps_count: 0,
     app_templates_count: 0,
@@ -730,31 +745,40 @@ export class DshProfilePluginService {
     return import(pathToFileURL(resolved.appBootPath).href);
   }
 
-  async state() {
+  async runtimeContext() {
     const resolved = this.distribution();
     const dshHome = this.home();
-    const prepared = await prepareTrustedProfilePlugins({
-      appBootPath: resolved.appBootPath,
-      installAnchor: resolved.installAnchor,
-      env: { ...this.env, DSH_HOME: dshHome },
-      runtimeRoot: resolved.root,
-      dshHome,
-    });
     const api = await this.profileApi(resolved);
-    const manifest = api.readProfileManifest("dsh-work", prepared.profileDir);
+    return { resolved, dshHome, api, profileDir: existingDshProfilePath(api, dshHome) };
+  }
+
+  async state() {
+    const context = await this.runtimeContext();
+    const { resolved, dshHome, api, profileDir } = context;
+    const manifestPath = join(profileDir, "package.json");
+    if (!existsSync(manifestPath)) {
+      throw profileError(
+        `DSH Web Profile 尚未初始化：${profileDir}`,
+        "DSH_PROFILE_NOT_INITIALIZED",
+      );
+    }
+    const manifest = api.readProfileManifest("dsh-work", profileDir);
     const dependencies = manifest.dependencies || {};
-    const trusted = new Set(trustedDshProfilePluginNames());
+    const bundles = readProfileBundles(manifest);
     const themeBundles = [];
     const themeErrors = [];
-    const activePlugins = prepared.bundles.map((packageName, index) => {
+    const activePlugins = bundles.map((packageName, index) => {
       const packageDir = realpathSync(api.resolveBundleDir(
         "dsh-work",
         packageName,
         resolved.installAnchor,
-        prepared.profileDir,
+        profileDir,
       ));
       const packageManifest = readJson(join(packageDir, "package.json"));
-      const managed = SYSTEM_BUNDLES.has(packageName) ? "system" : trusted.has(packageName) ? "app" : "user";
+      const featured = featuredPluginByName(packageName);
+      const managed = SYSTEM_BUNDLES.has(packageName)
+        ? "system"
+        : FEATURED_PLUGIN_NAMES.has(packageName) ? "app" : "user";
       const descriptor = readProductDescriptor(packageDir, packageManifest, {
         allowHostComponents: managed === "app",
       });
@@ -792,29 +816,17 @@ export class DshProfilePluginService {
         index,
         descriptor,
         managed,
+        userManageable: featured?.user_manageable === true,
         themeCount: themeDescriptor.themes.length,
       });
     });
-    const quarantinedPlugins = prepared.quarantined.map((plugin, index) => bundleView({
-      packageName: plugin.name,
-      packageDir: plugin.root,
-      manifest: plugin.manifest,
-      dependencySpec: dependencies[plugin.name],
-      index: activePlugins.length + index,
-      descriptor: null,
-      managed: "user",
-      themeCount: 0,
-      enabled: false,
-      blockedReason: "社区 dsh.client 已从主窗口运行图隔离；可卸载，但在独立 Renderer 沙箱完成前不能启用",
-    }));
-    const plugins = [...activePlugins, ...quarantinedPlugins];
     return {
       resolved,
       api,
       dshHome,
-      profileDir: prepared.profileDir,
+      profileDir,
       manifest,
-      plugins,
+      plugins: activePlugins,
       themeBundles,
       themeErrors,
     };
@@ -839,7 +851,7 @@ export class DshProfilePluginService {
         can_upgrade: false,
         can_remove: false,
       }],
-      featured_plugin_ids: [],
+      featured_plugin_ids: featuredPluginNames(),
       recommended_plugins: COMMUNITY_PLUGIN_REGISTRY.plugins,
       recommended_plugins_updated_at: COMMUNITY_PLUGIN_REGISTRY.updated_at,
       recommended_plugins_source: COMMUNITY_PLUGIN_REGISTRY.catalog_source,
@@ -873,31 +885,32 @@ export class DshProfilePluginService {
   }
 
   async run(resolved, dshHome, args) {
-    return this.commandRunner(resolved, args, {
+    const libraryRoot = dshProfilePluginLibraryPath(dshHome, this.env);
+    return this.commandRunner(resolved, args, controlledDshPluginEnvironment({
       ...this.env,
       DSH_HOME: dshHome,
       DSH_TELEMETRY_DISABLED: this.env.DSH_TELEMETRY_DISABLED || "1",
-    });
+    }, { dshHome, libraryRoot }));
   }
 
-  async validateCandidate(source, state) {
+  async validateCandidate(source, context) {
     const candidateName = `dsh-work-candidate-${randomUUID()}`;
-    const candidateDir = state.api.resolveProfileDir(candidateName, state.dshHome);
-    state.api.initProfile(candidateDir, state.api.PROFILE_TEMPLATES?.web || state.api.DEFAULT_PROFILE_BUNDLES);
+    const candidateDir = context.api.resolveProfileDir(candidateName, context.dshHome);
+    context.api.initProfile(candidateDir, context.api.PROFILE_TEMPLATES?.web || context.api.DEFAULT_PROFILE_BUNDLES);
     try {
-      await this.run(state.resolved, state.dshHome, [
+      await this.run(context.resolved, context.dshHome, [
         "plugin", "--profile", candidateName, "add", "-w", source, "--save-exact", "--ignore-scripts",
       ]);
-      const manifest = state.api.readProfileManifest("dsh-work", candidateDir);
+      const manifest = context.api.readProfileManifest("dsh-work", candidateDir);
       const dependencyNames = Object.keys(manifest.dependencies || {});
       if (dependencyNames.length !== 1) {
         throw profileError("候选 Profile 没有得到一个明确的 Bundle 包", "DSH_PROFILE_CANDIDATE_INVALID");
       }
       const packageName = dependencyNames[0];
-      const packageDir = realpathSync(state.api.resolveBundleDir(
+      const packageDir = realpathSync(context.api.resolveBundleDir(
         "dsh-work",
         packageName,
-        state.resolved.installAnchor,
+        context.resolved.installAnchor,
         candidateDir,
       ));
       const packageManifest = readJson(join(packageDir, "package.json"));
@@ -917,7 +930,7 @@ export class DshProfilePluginService {
           if (!inside(packageDir, patchPath)) {
             issues.push({ code: "DSH_PROFILE_NOT_A_BUNDLE", message: `${packageName} 的 Bundle patch 越过了包目录` });
           } else {
-            patchSummary = inspectProfileBundlePatches(state.api.loadOverlayPatches("dsh-work", patchPath));
+            patchSummary = inspectProfileBundlePatches(context.api.loadOverlayPatches("dsh-work", patchPath));
           }
         } catch (error) {
           issues.push({
@@ -964,7 +977,7 @@ export class DshProfilePluginService {
           issues,
         });
       }
-      await this.run(state.resolved, state.dshHome, ["--profile", candidateName, "--dump-config"]);
+      await this.run(context.resolved, context.dshHome, ["--profile", candidateName, "--dump-config"]);
       return {
         packageName,
         version: packageManifest.version || null,
@@ -975,7 +988,7 @@ export class DshProfilePluginService {
         patchSummary,
       };
     } finally {
-      const profilesRoot = state.api.resolveProfileDir(PROFILE_NAME, state.dshHome);
+      const profilesRoot = context.api.resolveProfileDir(PROFILE_NAME, context.dshHome);
       const root = dirname(profilesRoot);
       if (inside(root, candidateDir) && candidateDir !== root) rmSync(candidateDir, { recursive: true, force: true });
     }
@@ -1014,9 +1027,15 @@ export class DshProfilePluginService {
           }));
         }
       }
-      const state = await this.state();
-      const candidate = await this.validateCandidate(source, state);
-      if (state.plugins.some((plugin) => plugin.id === candidate.packageName)) {
+      const context = await this.runtimeContext();
+      let state = null;
+      try {
+        state = await this.state();
+      } catch (error) {
+        if (error?.code !== "DSH_PROFILE_NOT_INITIALIZED") throw error;
+      }
+      const candidate = await this.validateCandidate(source, context);
+      if (state?.plugins.some((plugin) => plugin.id === candidate.packageName)) {
         return preflightFailure(source, profileError(
           `Profile Bundle 已安装：${candidate.packageName}`,
           "PLUGIN_ALREADY_INSTALLED",
@@ -1043,21 +1062,20 @@ export class DshProfilePluginService {
     const source = normalizeProfileBundleSource(value, {
       allowLocal: this.env.DSH_PROFILE_ALLOW_LOCAL_PLUGINS === "1",
     });
-    const state = await this.state();
-    const candidate = await this.validateCandidate(source, state);
-    if (state.plugins.some((plugin) => plugin.id === candidate.packageName)) {
+    const context = await this.runtimeContext();
+    let state = null;
+    try {
+      state = await this.state();
+    } catch (error) {
+      if (error?.code !== "DSH_PROFILE_NOT_INITIALIZED") throw error;
+    }
+    const candidate = await this.validateCandidate(source, context);
+    if (state?.plugins.some((plugin) => plugin.id === candidate.packageName)) {
       throw profileError(`Profile Bundle 已安装：${candidate.packageName}`, "PLUGIN_ALREADY_INSTALLED");
     }
-    await this.run(state.resolved, state.dshHome, [
+    await this.run(context.resolved, context.dshHome, [
       "plugin", "--profile", PROFILE_NAME, "add", "-w", source, "--save-exact", "--ignore-scripts",
     ]);
-    await prepareTrustedProfilePlugins({
-      appBootPath: state.resolved.appBootPath,
-      installAnchor: state.resolved.installAnchor,
-      env: { ...this.env, DSH_HOME: state.dshHome },
-      runtimeRoot: state.resolved.root,
-      dshHome: state.dshHome,
-    });
     await this.restartRuntime();
     return {
       id: candidate.packageName,
@@ -1076,7 +1094,10 @@ export class DshProfilePluginService {
     const state = await this.state();
     const plugin = state.plugins.find((item) => item.id === packageName);
     if (!plugin) throw profileError(`Profile Bundle 不存在：${packageName}`, "PLUGIN_NOT_FOUND");
-    if (plugin.managed_by !== "user" || !Object.hasOwn(state.manifest.dependencies || {}, packageName)) {
+    const featured = featuredPluginByName(packageName);
+    const userManageable = plugin.managed_by === "user"
+      || (plugin.managed_by === "app" && featured?.user_manageable === true);
+    if (!userManageable || !Object.hasOwn(state.manifest.dependencies || {}, packageName)) {
       throw profileError(`由 ${plugin.managed_by === "app" ? "DeepSeek Harness Desktop App" : "DSH"} 提供的 Bundle 不能卸载`, "PLUGIN_UNINSTALL_NOT_ALLOWED");
     }
     await this.run(state.resolved, state.dshHome, ["plugin", "--profile", PROFILE_NAME, "remove", packageName]);
