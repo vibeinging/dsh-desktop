@@ -556,7 +556,7 @@ function startBackend() {
     backendReadyResolve = null;
     backendReadyReject = null;
     backendState = 'failed';
-    try { backendProc?.kill(); } catch { /* ignore */ }
+    forceKillBackend(backendProc);
   }, BACKEND_START_TIMEOUT_MS);
 
   try {
@@ -730,7 +730,7 @@ function stopBackendGracefully() {
     backendShutdownResolve = finish;
     const timer = setTimeout(() => {
       console.warn(`[electron] Server 未在 ${BACKEND_STOP_TIMEOUT_MS}ms 内关闭，强制终止`);
-      try { child.kill(); } catch { /* ignore */ }
+      forceKillBackend(child);
       finish();
     }, BACKEND_STOP_TIMEOUT_MS);
     child.once('exit', finish);
@@ -738,10 +738,10 @@ function stopBackendGracefully() {
       if (!child.connected) throw new Error('IPC 已断开');
       child.send({ type: 'lifecycle', event: 'shutdown' }, (error) => {
         if (!error) return;
-        try { child.kill(); } catch { /* ignore */ }
+        forceKillBackend(child);
       });
     } catch {
-      try { child.kill(); } catch { /* ignore */ }
+      forceKillBackend(child);
     }
   });
   return backendStopPromise.finally(() => { backendStopPromise = null; });
@@ -866,13 +866,18 @@ function forceStopBackend() {
   clearTimeout(backendStableTimer);
   backendReadyTimer = null;
   backendStableTimer = null;
-  try { backendProc?.kill(); } catch { /* ignore */ }
+  forceKillBackend(backendProc);
   backendProc = null;
   backendReadyPromise = null;
   backendReadyResolve = null;
   backendReadyReject = null;
   backendState = 'stopped';
   rejectPending(new Error('本地 Server 已停止'));
+}
+
+function forceKillBackend(child) {
+  if (!child || child.exitCode != null) return;
+  try { child.kill('SIGKILL'); } catch { /* ignore */ }
 }
 
 function backendSend(msg) {
