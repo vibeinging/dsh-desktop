@@ -139,6 +139,8 @@ test("Profile Bundle compatibility separates Host, Session, capabilities, and Cl
       bundle: { patch: "./cordis.patch.yml" },
       client: { platform: "web" },
     },
+  }, {
+    integrity: "sha512-mPMXmPfO0rc/3hmv8Aw71UOJqTDVW2T3VWuN6dIgiMpDlRQp9O0BCaLh13j6LjH0WB9fAS+9DmUVix8sLLwNLA==",
   });
   assert.deepEqual(reviewedWebUi.map(({ id, status }) => ({ id, status })), [
     { id: "host", status: "profile_checked" },

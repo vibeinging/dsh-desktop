@@ -37,6 +37,7 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
     version: "0.1.20",
     bundlePatch: "./cordis.patch.yml",
     dependencies: DSH_WEB_UI_DEPENDENCIES,
+    integrity: "sha512-mPMXmPfO0rc/3hmv8Aw71UOJqTDVW2T3VWuN6dIgiMpDlRQp9O0BCaLh13j6LjH0WB9fAS+9DmUVix8sLLwNLA==",
     review: Object.freeze({
       session: "任务看板会读取 Session 与 Workspace，并可从看板启动 Agent 任务",
       capabilities: Object.freeze([
