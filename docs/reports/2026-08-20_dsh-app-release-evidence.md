@@ -49,18 +49,18 @@
 
 官方 Web CDP 流程 smoke 使用临时用户目录和 `PATH=/usr/bin`，主动清除 `DEEPSEEK_API_KEY`，通过真实随包 Electron 页面完成首次提示、官方 `workspace.create` 测试夹具、官方 Web 新建 Session、输入并发送消息、可见的 Session log、`session.list` 和 `session.history` 回读，再检查页面没有 `window.electronAPI` 或 Node 全局。无密钥时模型请求按预期显示 `MISSING_CREDENTIAL`，这条失败也属于官方 Web 的可见 Session 结果，不把它写成模型成功。命令支持 `DSH_SCREENSHOT_DIR=/path` 持久化官方 Web 截图；本次 smoke 的审批和队列没有伪造覆盖，必须在有工具调用的 live-model 环境单独验证。
 
-断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最近预算门禁观测的 `cold_web_ms` 为 `7727`（此前观测为 `4967`、`4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，用随包 DSH CLI 移除了 portable Bundle `@vibeinging/dsh-model-inheritance`，写入待更新记录后再次启动；Profile 清单保持原样，已卸载 Bundle 未被重启或更新记录回放恢复。
+断网新用户 smoke 使用 `PATH=/usr/bin`、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最近预算门禁观测的 `cold_web_ms` 为 `4718`（此前观测为 `7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2675749` 字节。Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，用随包 DSH CLI 移除了 portable Bundle `@vibeinging/dsh-model-inheritance`，写入待更新记录后再次启动；Profile 清单保持原样，已卸载 Bundle 未被重启或更新记录回放恢复。
 
 当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-20 的 macOS arm64 结果如下：
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
-| `DSH Desktop.app` | `1,161,521,772` bytes | `1,400,000,000` bytes |
+| `DSH Desktop.app` | `1,161,524,308` bytes | `1,400,000,000` bytes |
 | 随包 Server 资源 | `847,692,449` bytes | `1,000,000,000` bytes |
 | 随包 pnpm runtime | `15,123,627` bytes | `20,000,000` bytes |
 | 7 个精选插件 tarball | `22,002` bytes | `64,000` bytes |
 | 断网新 Profile 数据目录 | `2,675,749` bytes | `4,000,000` bytes |
-| 官方 Web 冷启动 | `7,727` ms | `10,000` ms |
+| 官方 Web 冷启动 | `4,718` ms | `10,000` ms |
 
 Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/manifest.json`、`permissions.json`、`THIRD_PARTY_NOTICES.md` 和 `test-expected.json` 为准；预算门禁只接受重新生成的产物和新一轮 smoke 结果。
 

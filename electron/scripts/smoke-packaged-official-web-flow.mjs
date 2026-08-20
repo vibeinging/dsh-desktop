@@ -113,7 +113,21 @@ async function waitFor(predicate, label) {
     }
     await sleep(250)
   }
-  throw new Error(`等待官方 Web ${label} 超时\n${output.join('')}`)
+  let diagnostics = null
+  try {
+    diagnostics = await evaluate(`({
+      url: location.href,
+      title: document.title,
+      body: (document.body?.innerText || '').slice(0, 4000),
+      inputs: [...document.querySelectorAll('textarea')].map((item) => ({ value: item.value, readOnly: item.readOnly })),
+      sendButtons: [...document.querySelectorAll('button')]
+        .filter((button) => ['发送消息', 'Send message'].includes(button.getAttribute('aria-label')))
+        .map((button) => ({ disabled: button.disabled, aria: button.getAttribute('aria-label') })),
+    })`)
+  } catch {
+    // The page may have closed while the diagnostic snapshot was requested.
+  }
+  throw new Error(`等待官方 Web ${label} 超时\n诊断=${JSON.stringify(diagnostics)}\n${output.join('')}`)
 }
 
 async function clickTextIfPresent(texts) {
@@ -227,6 +241,15 @@ try {
   await waitFor(`Boolean([...document.querySelectorAll('textarea')].find((textarea) => !textarea.readOnly))`, '会话输入框')
   await evaluate(`(() => { const textarea = [...document.querySelectorAll('textarea')].find((item) => !item.readOnly); textarea?.focus(); return Boolean(textarea); })()`)
   await cdp.send('Input.insertText', { text: promptText })
+  await evaluate(`(() => {
+    const textarea = [...document.querySelectorAll('textarea')].find((item) => !item.readOnly);
+    if (!textarea || textarea.value) return textarea?.value || '';
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    setter?.call(textarea, ${JSON.stringify(promptText)});
+    textarea.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ${JSON.stringify(promptText)} }));
+    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    return textarea.value;
+  })()`)
   await waitFor(`Boolean([...document.querySelectorAll('button')].find((button) => ['发送消息', 'Send message'].includes(button.getAttribute('aria-label')) && !button.disabled))`, '发送按钮可用')
   await clickButtonByAria(['发送消息', 'Send message'])
   await waitFor(`(document.body.innerText || '').includes(${JSON.stringify(promptText)})`, '会话消息')
