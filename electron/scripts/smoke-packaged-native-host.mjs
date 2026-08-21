@@ -12,6 +12,7 @@ import {
   artifactReference,
   createReleaseEvidenceReceipt,
   readSignerIdentity,
+  releaseEvidenceChecks,
 } from '../../scripts/release-evidence-receipt.mjs'
 
 const APP_ROOT = resolve(new URL('../..', import.meta.url).pathname)
@@ -483,9 +484,8 @@ try {
     throw new Error(`卸载测试 Bundle 后 Profile 仍包含 ${pluginName}`)
   }
   if (resultPath) {
-    const checks = dialogMode
-      ? ['profile-install', 'official-web-tool', 'session-bound-file-dialog-open', 'session-bound-directory-dialog-open', 'profile-uninstall']
-      : ['profile-install', 'official-web-tool', 'session-bound-window-get-state', 'focus', 'minimize', 'maximize', 'restore', 'profile-uninstall']
+    const nativeHostMode = dialogMode ? 'dialogs' : 'window'
+    const checks = releaseEvidenceChecks('native-host', nativeHostMode)
     await writeFile(resultPath, `${JSON.stringify({
       ...createReleaseEvidenceReceipt({
         kind: 'native-host',
@@ -498,12 +498,12 @@ try {
         signerIdentity: readSignerIdentity(executable, process.env, { allowOverride: false }),
         startedAt: smokeStartedAt,
         completedAt: new Date().toISOString(),
+        nativeHostMode,
         checks: checks.map((name) => ({ name, passed: true })),
         screenshotRefs: screenshotPath ? [artifactReference(screenshotPath, 'native-host-evidence')] : [],
       }),
       plugin: pluginName,
       lifecycle_checks: checks,
-      native_host_mode: dialogMode ? 'dialogs' : 'window',
     }, null, 2)}\n`, { mode: 0o600 })
   }
   passed = true

@@ -33,6 +33,7 @@ import {
   isMacosDmgInstallerEvidenceReceipt,
   isMacosDmgNotarizationEvidenceReceipt,
   isNativeHostEvidenceReceipt,
+  releaseEvidenceChecks,
   resolveCommitSha,
   validateReleaseEvidenceReceipt,
   createReleaseEvidenceReceipt,
@@ -521,7 +522,8 @@ test('each release receipt kind rejects incomplete, failed, wrong-level, and str
     {
       kind: 'native-host',
       evidenceLevel: 'packaged-electron-native-host',
-      checks: ['profile-install', 'official-web-tool', 'session-bound-window-get-state', 'focus', 'minimize', 'maximize', 'restore', 'profile-uninstall'],
+      nativeHostMode: 'window',
+      checks: releaseEvidenceChecks('native-host', 'window'),
       validator: isNativeHostEvidenceReceipt,
     },
   ];
@@ -539,6 +541,7 @@ test('each release receipt kind rejects incomplete, failed, wrong-level, and str
         kind: item.kind,
         evidenceLevel: item.evidenceLevel,
         ...(item.kind === 'macos-dmg-notarization' || item.kind === 'macos-dmg-installer' ? { dmgPath: dmg } : {}),
+        ...(item.nativeHostMode ? { nativeHostMode: item.nativeHostMode } : {}),
         checks: item.checks.map((name) => ({ name, passed: true })),
       });
       if (item.kind === 'live-model') {
@@ -581,6 +584,73 @@ test('formal release commit binding rejects an environment SHA different from HE
   assert.throws(() => resolveCommitSha(process.cwd(), { DSH_RELEASE_COMMIT_SHA: 'b'.repeat(40) }, { requireMatch: true }), /checkout 不一致/);
 });
 
+test('native Host receipts require the complete mode-specific operation contract', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-native-host-receipt-contract-'));
+  const app = join(root, 'DSH Desktop.app');
+  const featuredManifest = join(app, 'Contents', 'Resources', 'featured-plugins', 'manifest.json');
+  const sourceManifest = join(root, 'server', 'src', 'engine', 'dsh_runtime', 'featured_plugins.json');
+  const common = {
+    root,
+    appPath: app,
+    featuredManifestPath: featuredManifest,
+    commitSha: 'a'.repeat(40),
+    platform: 'darwin',
+    arch: 'arm64',
+    signerIdentity: 'Developer ID Application: DSH Desktop (TEAM123)',
+    startedAt: '2026-08-21T00:00:00.000Z',
+    completedAt: '2026-08-21T00:01:00.000Z',
+    kind: 'native-host',
+    evidenceLevel: 'packaged-electron-native-host',
+  };
+  try {
+    mkdirSync(join(app, 'Contents', 'Resources', 'featured-plugins'), { recursive: true });
+    mkdirSync(join(root, 'server', 'src', 'engine', 'dsh_runtime'), { recursive: true });
+    mkdirSync(join(app, 'Contents', 'MacOS'), { recursive: true });
+    writeFileSync(join(app, 'Contents', 'MacOS', 'DSH Desktop'), 'app');
+    writeFileSync(sourceManifest, '{}');
+    writeFileSync(featuredManifest, '{}');
+    const create = (mode, checks) => createReleaseEvidenceReceipt({
+      ...common,
+      nativeHostMode: mode,
+      checks: checks.map((name) => ({ name, passed: true })),
+    });
+    const windowReceipt = create('window', releaseEvidenceChecks('native-host', 'window'));
+    const dialogsReceipt = create('dialogs', releaseEvidenceChecks('native-host', 'dialogs'));
+    assert.equal(isNativeHostEvidenceReceipt(windowReceipt, { mode: 'window' }), true);
+    assert.equal(isNativeHostEvidenceReceipt(dialogsReceipt, { mode: 'dialogs' }), true);
+    assert.equal(isNativeHostEvidenceReceipt({
+      ...windowReceipt,
+      checks: windowReceipt.checks.slice(0, 3),
+    }), false);
+    assert.equal(isNativeHostEvidenceReceipt({
+      ...windowReceipt,
+      native_host_mode: 'dialogs',
+    }), false);
+    assert.equal(isNativeHostEvidenceReceipt({
+      ...windowReceipt,
+      checks: windowReceipt.checks.filter(({ name }) => name !== 'restore'),
+    }), false);
+    assert.equal(isNativeHostEvidenceReceipt({
+      ...dialogsReceipt,
+      checks: dialogsReceipt.checks.filter(({ name }) => name !== 'session-bound-directory-dialog-open'),
+    }), false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('formal release commit binding rejects an invalid current checkout even with a supplied SHA', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-invalid-release-checkout-'));
+  try {
+    assert.throws(
+      () => resolveCommitSha(root, { DSH_RELEASE_COMMIT_SHA: 'a'.repeat(40) }, { requireMatch: true }),
+      /当前 checkout 没有有效 git commit SHA/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('macOS release workflow persists the real live-model receipt', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
   assert.match(workflow, /DSH_LIVE_MODEL_RESULT_FILE=/);
@@ -601,7 +671,11 @@ test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   assert.match(workflow, /DSH_MACOS_DMG_NOTARY_RESULT_FILE/);
   assert.match(workflow, /macos-dmg-evidence\/result\.json/);
   assert.match(workflow, /npm run smoke:native-host/);
-  assert.match(workflow, /native-host-evidence/);
+  assert.match(workflow, /npm run smoke:native-host:dialogs/);
+  assert.match(workflow, /DSH_NATIVE_HOST_WINDOW_RESULT_FILE/);
+  assert.match(workflow, /DSH_NATIVE_HOST_DIALOGS_RESULT_FILE/);
+  assert.match(workflow, /native-host-window-evidence/);
+  assert.match(workflow, /native-host-dialogs-evidence/);
   assert.match(workflow, /xcrun stapler validate/);
   assert.match(workflow, /spctl --assess --type execute/);
 });

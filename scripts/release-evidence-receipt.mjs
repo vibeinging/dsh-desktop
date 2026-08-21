@@ -52,11 +52,25 @@ export const RELEASE_EVIDENCE_CONTRACTS = Object.freeze({
   }),
   'native-host': Object.freeze({
     evidenceLevel: 'packaged-electron-native-host',
-    requiredChecks: Object.freeze([
-      'profile-install',
-      'official-web-tool',
-      'profile-uninstall',
-    ]),
+    modeChecks: Object.freeze({
+      window: Object.freeze([
+        'profile-install',
+        'official-web-tool',
+        'session-bound-window-get-state',
+        'focus',
+        'minimize',
+        'maximize',
+        'restore',
+        'profile-uninstall',
+      ]),
+      dialogs: Object.freeze([
+        'profile-install',
+        'official-web-tool',
+        'session-bound-file-dialog-open',
+        'session-bound-directory-dialog-open',
+        'profile-uninstall',
+      ]),
+    }),
     allowedChecks: Object.freeze([
       'profile-install',
       'official-web-tool',
@@ -115,8 +129,10 @@ export function resolveCommitSha(root, environment = process.env, { requireMatch
   const actual = String(spawnSync('git', ['-C', resolve(root), 'rev-parse', 'HEAD'], {
     encoding: 'utf8',
   }).stdout || '').trim()
-  if (requireMatch && supplied && COMMIT_PATTERN.test(actual)
-    && supplied.toLowerCase() !== actual.toLowerCase()) {
+  if (requireMatch && !COMMIT_PATTERN.test(actual)) {
+    throw new Error(`当前 checkout 没有有效 git commit SHA：${actual || 'missing'}`)
+  }
+  if (requireMatch && supplied && supplied.toLowerCase() !== actual.toLowerCase()) {
     throw new Error(`发行回执环境 commit SHA 与当前 checkout 不一致：${supplied} != ${actual}`)
   }
   const output = supplied || actual
@@ -169,13 +185,34 @@ function receiptContract(kind) {
   return RELEASE_EVIDENCE_CONTRACTS[kind] || null
 }
 
-function checkNames(kind, checks, errors) {
+/** Return the fixed checks for a receipt kind and native Host mode. */
+export function releaseEvidenceChecks(kind, mode = '') {
+  const contract = receiptContract(kind)
+  const normalizedMode = String(mode || '').trim()
+  const checks = contract?.modeChecks
+    ? contract.modeChecks[normalizedMode]
+    : contract?.requiredChecks
+  if (!checks) throw new Error(`发行回执没有可用的检查合同：${kind}/${normalizedMode || 'missing'}`)
+  return [...checks]
+}
+
+function checkNames(kind, checks, errors, nativeHostMode = '') {
   const contract = receiptContract(kind)
   if (!Array.isArray(checks) || checks.length === 0) {
     errors.push('发行回执缺少检查项')
     return
   }
-  const allowed = new Set(contract?.allowedChecks || contract?.requiredChecks || [])
+  const normalizedMode = String(nativeHostMode || '').trim()
+  const modeChecks = contract?.modeChecks
+  if (modeChecks && !Object.hasOwn(modeChecks, normalizedMode)) {
+    errors.push(`发行回执 native_host_mode 无效：${normalizedMode || 'missing'}`)
+  }
+  const requiredChecks = modeChecks
+    ? (modeChecks[normalizedMode] || [])
+    : (contract?.requiredChecks || [])
+  const allowed = new Set(modeChecks
+    ? requiredChecks
+    : (contract?.allowedChecks || requiredChecks))
   const seen = new Set()
   for (const item of checks) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
@@ -189,7 +226,7 @@ function checkNames(kind, checks, errors) {
     if (item.passed !== true) errors.push(`发行回执检查项未通过：${name || 'unknown'}`)
     if (contract && !allowed.has(name)) errors.push(`发行回执包含未知检查项：${name || 'unknown'}`)
   }
-  for (const name of contract?.requiredChecks || []) {
+  for (const name of requiredChecks) {
     if (!seen.has(name)) errors.push(`发行回执缺少必需检查项：${name}`)
   }
 }
@@ -210,6 +247,7 @@ export function createReleaseEvidenceReceipt({
   completedAt,
   checks = [],
   screenshotRefs = [],
+  nativeHostMode = '',
 }) {
   const contract = receiptContract(kind)
   if (!contract) throw new Error(`发行回执类型无效：${kind || 'missing'}`)
@@ -226,7 +264,7 @@ export function createReleaseEvidenceReceipt({
   const signer = String(signerIdentity || readSignerIdentity(appPath, process.env, { allowOverride: false })).trim()
   if (!signer) throw new Error('发行回执缺少签名身份')
   const checkErrors = []
-  checkNames(kind, checks, checkErrors)
+  checkNames(kind, checks, checkErrors, nativeHostMode)
   if (checkErrors.length > 0) throw new Error(checkErrors.join('；'))
   if (!artifactManifest) throw new Error('发行回执缺少精选插件产物 manifest')
 
@@ -267,6 +305,7 @@ export function createReleaseEvidenceReceipt({
     },
     checks,
     screenshot_refs: screenshotReferences,
+    ...(kind === 'native-host' ? { native_host_mode: String(nativeHostMode || '').trim() } : {}),
   }
 }
 
@@ -289,6 +328,7 @@ export function validateReleaseEvidenceReceipt(value, {
   platform,
   arch,
   signerIdentity,
+  nativeHostMode,
   verifyContent = true,
 } = {}) {
   const errors = []
@@ -384,7 +424,11 @@ export function validateReleaseEvidenceReceipt(value, {
       }
     }
   }
-  checkNames(value.kind, value.checks, errors)
+  if (value.kind === 'native-host' && nativeHostMode
+    && value.native_host_mode !== nativeHostMode) {
+    errors.push(`发行回执 native_host_mode 与当前检查不一致：${value.native_host_mode || 'missing'} != ${nativeHostMode}`)
+  }
+  checkNames(value.kind, value.checks, errors, value.native_host_mode)
   if (!Array.isArray(value.screenshot_refs) || value.screenshot_refs.some((reference) => !safeReference(reference))) {
     errors.push('发行回执 screenshot_refs 必须是 artifact 内相对引用')
   }
@@ -396,8 +440,8 @@ export function isReleaseEvidenceReceipt(value) {
   return validateReleaseEvidenceReceipt(value, { verifyContent: false }).length === 0
 }
 
-function isReceiptKind(value, kind) {
-  return validateReleaseEvidenceReceipt(value, { kind, verifyContent: false }).length === 0
+function isReceiptKind(value, kind, options = {}) {
+  return validateReleaseEvidenceReceipt(value, { kind, verifyContent: false, ...options }).length === 0
 }
 
 /** Validate the macOS DMG notarization receipt shape without local artifacts. */
@@ -411,6 +455,6 @@ export function isMacosDmgInstallerEvidenceReceipt(value) {
 }
 
 /** Validate the packaged native Host receipt shape without local artifacts. */
-export function isNativeHostEvidenceReceipt(value) {
-  return isReceiptKind(value, 'native-host')
+export function isNativeHostEvidenceReceipt(value, { mode } = {}) {
+  return isReceiptKind(value, 'native-host', { nativeHostMode: mode })
 }

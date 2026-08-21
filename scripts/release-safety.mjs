@@ -167,9 +167,10 @@ function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } =
     ['mac_live_model_receipt', 'DSH_LIVE_MODEL_RESULT_FILE', 'live-model'],
     ['mac_dmg_notarization_receipt', 'DSH_MACOS_DMG_NOTARY_RESULT_FILE', 'macos-dmg-notarization'],
     ['macos_installer_receipt', 'DSH_MACOS_INSTALLER_RESULT_FILE', 'macos-dmg-installer'],
-    ['mac_native_host_receipt', 'DSH_NATIVE_HOST_RESULT_FILE', 'native-host'],
+    ['mac_native_host_window_receipt', 'DSH_NATIVE_HOST_WINDOW_RESULT_FILE', 'native-host', 'window'],
+    ['mac_native_host_dialogs_receipt', 'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE', 'native-host', 'dialogs'],
   ];
-  return rows.map(([id, environmentName, kind]) => {
+  return rows.map(([id, environmentName, kind, nativeHostMode]) => {
     const receiptPath = String(process.env[environmentName] || '').trim();
     if (!receiptPath) {
       return check(
@@ -190,7 +191,7 @@ function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } =
       'macos-dmg-installer': isMacosDmgInstallerEvidenceReceipt,
       'native-host': isNativeHostEvidenceReceipt,
     };
-    const errors = kindValidators[kind](receipt)
+    const errors = kindValidators[kind](receipt, { mode: nativeHostMode })
       ? []
       : [`${kind} 回执未通过该类型的固定 checks/evidence_level 契约`];
     errors.push(...validateReleaseEvidenceReceipt(receipt, {
@@ -203,6 +204,7 @@ function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } =
       platform: 'darwin',
       arch,
       signerIdentity: readSignerIdentity(app, process.env, { allowOverride: false }),
+      nativeHostMode,
     }));
     return check(
       id,
@@ -347,7 +349,9 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
       'npm run measure:featured-plugins',
       'macos-installer-evidence',
       'npm run smoke:native-host',
-      'native-host-evidence',
+      'npm run smoke:native-host:dialogs',
+      'native-host-window-evidence',
+      'native-host-dialogs-evidence',
       'xcrun stapler validate',
       'spctl --assess --type execute',
       'apple-notary-history.json',
@@ -355,7 +359,8 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
       'live-model-evidence/result.json',
       'DSH_RELEASE_COMMIT_SHA:',
       'DSH_MACOS_INSTALLER_RESULT_FILE',
-      'DSH_NATIVE_HOST_RESULT_FILE',
+      'DSH_NATIVE_HOST_WINDOW_RESULT_FILE',
+      'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE',
       'DEEPSEEK_API_KEY',
       'test -n "$DEEPSEEK_API_KEY"',
       'npm run release:verify:mac -- --require-evidence',

@@ -28,7 +28,8 @@ jobs:
       DSH_LIVE_MODEL_RESULT_FILE: ${{ runner.temp }}/live-model-evidence/result.json
       DSH_MACOS_DMG_NOTARY_RESULT_FILE: ${{ runner.temp }}/macos-dmg-evidence/result.json
       DSH_MACOS_INSTALLER_RESULT_FILE: ${{ runner.temp }}/macos-installer-evidence/result.json
-      DSH_NATIVE_HOST_RESULT_FILE: ${{ runner.temp }}/native-host-evidence/result.json
+      DSH_NATIVE_HOST_WINDOW_RESULT_FILE: ${{ runner.temp }}/native-host-window-evidence/result.json
+      DSH_NATIVE_HOST_DIALOGS_RESULT_FILE: ${{ runner.temp }}/native-host-dialogs-evidence/result.json
 
     steps:
       - name: Checkout
@@ -120,8 +121,13 @@ jobs:
 
       - name: Smoke session-bound native window Host
         run: |
-          mkdir -p "$RUNNER_TEMP/native-host-evidence"
-          DSH_NATIVE_HOST_RESULT_FILE="$RUNNER_TEMP/native-host-evidence/result.json" npm run smoke:native-host
+          mkdir -p "$RUNNER_TEMP/native-host-window-evidence"
+          DSH_NATIVE_HOST_RESULT_FILE="$DSH_NATIVE_HOST_WINDOW_RESULT_FILE" npm run smoke:native-host
+
+      - name: Smoke session-bound native file and directory dialogs
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-host-dialogs-evidence"
+          DSH_NATIVE_HOST_RESULT_FILE="$DSH_NATIVE_HOST_DIALOGS_RESULT_FILE" npm run smoke:native-host:dialogs
 
       - name: Smoke real DeepSeek live-model
         env:
@@ -150,7 +156,8 @@ jobs:
             ${{ runner.temp }}/community-evidence
             ${{ runner.temp }}/macos-installer-evidence
             ${{ runner.temp }}/browser-workspace-evidence
-            ${{ runner.temp }}/native-host-evidence
+            ${{ runner.temp }}/native-host-window-evidence
+            ${{ runner.temp }}/native-host-dialogs-evidence
             ${{ runner.temp }}/live-model-evidence
           if-no-files-found: ignore
           retention-days: 14
