@@ -79,6 +79,7 @@
 - `npm run audit:prod`
 - `npm run test:release:community`
 - `npm run smoke:community:packaged`
+- `node electron/scripts/smoke-packaged-community.mjs ".desktop-build/release-mac-x64-loader/mac/DSH Desktop.app"`
 - `npm run smoke:updater`
 - `DSH_SMOKE_SIGN_IDENTITY=03587EF7C8984E0F7631EC905C26336C15C8189D node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-updater.mjs ".desktop-build/signed-probe/mac-arm64/DSH Desktop.app"`
 - `(cd electron && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_NAME=03587EF7C8984E0F7631EC905C26336C15C8189D ./node_modules/.bin/electron-builder --mac --arm64 --dir)`
@@ -101,6 +102,8 @@
 此前在同一台 Apple Silicon 主机上，使用官方 Node `v24.19.0` `darwin-x64` 二进制并通过 Rosetta 准备依赖后，x64 目录包的随包 Server、断网新用户 Profile、损坏 Bundle 恢复、Profile authority 和官方 Web Session/log/history 流程均通过；x64 目录包随包 pnpm runtime 也确认为 `11.22.0`，官方 Web smoke 截图为 `.desktop-build/evidence/official-web-x64.Ev0qMl/official-web-session-flow.png`，最新串行断网 smoke 的 Rosetta 冷启动观测为 `121710` ms。该观测明显包含 Rosetta 成本，不替代原生 x64 机器的性能验收；当时的 x64 目录包未签名，不能替代 Windows、Developer ID、公证或 Gatekeeper 证据。
 
 本轮用同一官方 Node `v24.19.0` x64 运行时重新准备当前 `HEAD` 的 x64 Server 资源，生成了 Developer ID 签名的 `release/mac/DSH Desktop.app` 以及明确关闭公证的 x64 DMG/ZIP；Server smoke、App smoke、ZIP 资源结构和 `codesign --verify --deep --strict` 均通过。此前 Rosetta 退出阶段暴露出 Server 只收到 `SIGTERM` 后可能成为孤儿的问题，已由 `7cb0805` 在启动超时、优雅退出超时和最终清理路径统一加入显式 `SIGKILL` 兜底。重新打包后，干净环境、独立 loopback 端口下的默认 x64 recovery、App、断网 Profile、Profile authority 和官方 Web smoke 均通过；Rosetta 冷启动仍不替代原生 x64 主机的性能验收。
+
+为验证 Electron 内嵌 Node 对 Profile `node_modules` 的解析修复，本轮又用同一 x64 Node 重新准备 `.desktop-build/server`，将当前源码构建到独立的 `.desktop-build/release-mac-x64-loader/mac/DSH Desktop.app` 目录，并运行打包版社区 smoke。该未签名目录包先由 App 初始化精选 Profile，再通过官方 `dsh plugin --profile` 命令安装、激活、卸载和重启 `@linxin666/dsh-client-ui-task-board@0.1.20`，结果为 PASS；它证明当前 x64 代码路径可解析已安装 Profile Client，但不替代 Developer ID、公证、Gatekeeper、原生 x64 机器或安装器证据。
 
 当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-21 的 macOS arm64 结果如下：
 
