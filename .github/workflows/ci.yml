@@ -43,7 +43,6 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            renderer/package-lock.json
             server/package-lock.json
             electron/package-lock.json
 
@@ -68,22 +67,6 @@ jobs:
       - name: Test full desktop stack
         if: runner.os == 'macOS'
         run: npm test
-
-      - name: Test Windows renderer
-        if: runner.os == 'Windows'
-        run: npm --prefix renderer ci --no-audit --no-fund && npm --prefix renderer run typecheck && npm --prefix renderer test
-
-      - name: Run deterministic UI Eval
-        if: runner.os == 'macOS'
-        run: npm run eval:pr -- --discard-failure-data
-
-      - name: Upload Eval evidence
-        if: always() && runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-results-${{ matrix.name }}
-          path: eval/results/
-          if-no-files-found: ignore
 
       - name: Build unpacked app
         run: npm run ${{ matrix.package_script }}

@@ -11,8 +11,8 @@
 - 启动失败进入本地恢复页；重试、安全 Profile、打开 Profile、用户确认移除插件和隐私过滤诊断都是独立动作，原 Profile 不因恢复而被改写。
 - Profile 初始化只在新 Profile 上执行。已有 Profile 的启动和状态查询读取官方清单、依赖和最终图，不补回或隔离用户 Bundle；用户 patch 停用的 Bundle 也保持在官方配置图之外，不被应用改写。
 - 应用更新安装前执行当前 Profile 和 `--dump-config` 只读预检；预检失败不会创建待安装记录或调用 `quitAndInstall`。
-- 自研替换 Shell、旧产品 Client UI、工作台目录和自研主题包已从发行包输入中移除；源代码中保留的旧 Renderer 不在 Electron 打包清单和发布边界内。
-- 默认 `npm run dev` 现在直接启动官方 DSH Web Electron 路径，不再自动构建旧 Renderer 或自研 Client；默认 `bootstrap`、`doctor` 和生产依赖审计也只覆盖 Server/Electron，Windows CI 只有在 legacy 测试步骤中显式安装 Renderer；需要维护旧 Renderer 的命令仍以 `dev:legacy-renderer` 显式命名，不属于发行或默认开发路径。
+- 自研替换 Shell、旧产品 Client UI、工作台目录和自研主题包已从发行包输入中移除；旧 Renderer 源码、独立依赖、测试和构建入口已从仓库删除。
+- 默认 `npm run dev` 直接启动官方 DSH Web Electron 路径；默认 `bootstrap`、`doctor`、生产依赖审计和 CI 只覆盖 Server/Electron，官方 Web 资源校验使用 `verify:official-web-assets`，不再保留 legacy Renderer 维护命令。
 - 对现存 arm64 目录包和 Developer ID 签名 arm64 目录包的 `Contents/Resources` 做了实际资源名与二进制文本扫描：只发现官方 `@deepseek-ai/dsh-client-ui-theme`、`@deepseek-ai/dsh-shell` 等运行时资源，没有 `dsh-theme-pack`、`dsh-work-shell`、`dsh-workbench-pages`、`profileThemes` 或 `skin-settings-store` 残留；这项证据补充了源码发行边界检查。
 
 ## 精选输入和插件证据
@@ -61,7 +61,7 @@
 
 本轮又收紧了两个变更边界：官方 Profile 安装或卸载命令返回后，服务会重新读取权威 Profile 并执行 `--dump-config`，最终图不匹配或无法加载时不会返回成功；固定产物的 tarball 名称必须是单层 `.tgz` 文件，且来源路径不能越出产物目录。`dsh-profile-plugin-service.test.mjs` 和 `dsh-profile-initialization.test.mjs` 分别覆盖最终图失败、命令失败和路径越界。
 
-本轮生产依赖审计发现原随包 `pnpm@8.15.3` 命中 high advisories，已升级到官方修复版本 `11.22.0`；`npm run audit:prod` 现通过，electron 目标为 0 high、0 critical，server 和 renderer 仅保留已有明确不适用记录。精简后的 arm64 随包 pnpm runtime 为 `19,768,614` bytes，仍通过 20 MB 预算和真实离线安装回归。
+本轮生产依赖审计发现原随包 `pnpm@8.15.3` 命中 high advisories，已升级到官方修复版本 `11.22.0`；`npm run audit:prod` 现通过，Electron 目标为 0 high、0 critical，Server 仅保留已有明确不适用记录。精简后的 arm64 随包 pnpm runtime 为 `19,768,614` bytes，仍通过 20 MB 预算和真实离线安装回归。
 
 `@vibeinging/dsh-model-inheritance` 已在纯官方 Web Profile 通过官方命令安装和真实 Electron 启动检查。`@linxin666/dsh-client-ui-task-board@0.1.20` 已完成固定版本网络预检、官方 Web 激活、真实 Electron 启动、官方卸载命令和重启保持检查；它目前仍是可选社区候选，不进入默认精选。`@linxin666/dsh-web-ui-all`、Better Sidebar、远程 Web、SSH、图像理解、Agent 预设和社区插件管理器均未进入发行 Profile。
 

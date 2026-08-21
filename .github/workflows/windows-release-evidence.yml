@@ -36,7 +36,6 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            renderer/package-lock.json
             server/package-lock.json
             electron/package-lock.json
 

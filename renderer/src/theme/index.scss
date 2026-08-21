@@ -1,7 +1,0 @@
-// we can add this to custom namespace, default is 'el'
-//@forward "element-plus/theme-chalk/src/mixins/config.scss" with (
-//  $namespace: "el"
-//);
-
-// 宿主只编译安全底座；可选主题由当前 DSH Profile 以受控 token 提供。
-@use "./lighting";

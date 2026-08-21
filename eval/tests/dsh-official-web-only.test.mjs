@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const appRoot = new URL("../..", import.meta.url);
+const rootPackage = JSON.parse(readFileSync(new URL("package.json", appRoot), "utf8"));
 const electronMain = readFileSync(new URL("electron/main.js", appRoot), "utf8");
 const electronPackage = JSON.parse(readFileSync(new URL("electron/package.json", appRoot), "utf8"));
 const featured = JSON.parse(readFileSync(new URL("server/src/engine/dsh_runtime/featured_plugins.json", appRoot), "utf8"));
@@ -56,7 +57,13 @@ test("the official Web overlay does not disable the community compat shim", () =
   assert.doesNotMatch(desktopWebPatch, /id:\s*web-ui-compat[\s\S]{0,100}?disabled:\s*true/);
 });
 
-test("legacy Renderer is not a default desktop dependency", () => {
+test("legacy Renderer source and build entrypoints are retired", () => {
+  assert.equal(existsSync(new URL("renderer/package.json", appRoot)), false);
+  assert.equal(existsSync(new URL("renderer/vite.config.ts", appRoot)), false);
+  assert.equal(rootPackage.scripts["dev:legacy-renderer"], undefined);
+  assert.equal(rootPackage.scripts["test:legacy-renderer"], undefined);
+  assert.equal(rootPackage.scripts["build:renderer"], undefined);
+  assert.equal(typeof rootPackage.scripts["verify:official-web-assets"], "string");
   assert.doesNotMatch(bootstrapScript, /name:\s*['"]Renderer['"]/);
   assert.doesNotMatch(doctorScript, /renderer\/node_modules/);
   assert.match(auditScript, /const targets = \['server', 'electron'\]/);
@@ -93,7 +100,7 @@ test("the native Host smoke keeps file-dialog coverage behind an explicit manual
   assert.equal(typeof electronPackage.scripts["smoke:native-host:dialogs"], "string");
   assert.match(electronPackage.scripts["smoke:native-host:dialogs"], /--dialogs/);
   assert.match(nativeHostSmoke, /native_host_file_dialog_smoke/);
-  assert.match(nativeHostSmoke, /session-bound-file-dialog-open/);
-  assert.match(nativeHostSmoke, /session-bound-directory-dialog-open/);
+  assert.match(nativeHostSmoke, /releaseEvidenceChecks\('native-host', nativeHostMode\)/);
+  assert.match(nativeHostSmoke, /nativeHostMode/);
   assert.match(nativeHostSmoke, /native-host-dialogs.*result\.json/);
 });

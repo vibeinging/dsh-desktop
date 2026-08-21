@@ -1064,14 +1064,14 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     assert.equal(typeof described.version, "string");
     const settings = await client.request("settings.describe", {});
     const themeSettings = settings.namespaces.find((namespace) => namespace.ns === "ui-theme");
-    assert.equal(themeSettings.value.preference, "dark");
-    assert.equal(themeSettings.user.preference, "dark");
+    assert.equal(themeSettings.value.preference, "system");
+    assert.equal(themeSettings.user?.preference, undefined);
     const surface = await client.waitForClientSurface();
     const html = await fetch(surface).then((response) => response.text());
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-work-shell\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-theme-pack\/client\.js\?rev=/);
     assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-ui-permission-presets\/client\.js\?rev=/);
-    assert.match(html, /const preference = "dark"/);
+    assert.doesNotMatch(html, /dsh-theme-pack|profile_themes|profileThemes/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-product-client\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-turn-navigator\/client\.js\?rev=/);
     await client.request("session.create", { sessionId, cwd: runtimeHome });

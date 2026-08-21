@@ -67,11 +67,9 @@ function walkFiles(path, output = []) {
 export function findVendorRuntimeUsage(root) {
   const paths = [
     join(root, 'server', 'src'),
-    join(root, 'renderer', 'src'),
     join(root, 'electron', 'main.js'),
     join(root, 'electron', 'preload.js'),
     join(root, 'server', 'package.json'),
-    join(root, 'renderer', 'package.json'),
     join(root, 'electron', 'package.json'),
   ];
   const pattern = /(?:github\.com\/openai\/codex|@openai\/codex|codex-rs|codex-cli)/i;

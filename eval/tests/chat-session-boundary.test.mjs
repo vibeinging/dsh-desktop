@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { compactAgentSession } from "../../server/src/app/chat/agent_misc.js";
 import { listSessionMessages } from "../../server/src/app/reads/reads_session.js";
@@ -63,19 +62,4 @@ test("manual compaction delegates to the bound DSH Session", async () => {
     sessionId: "dsh-1",
     line: "/compact",
   });
-});
-
-test("chat markdown rendering uses the shared HTML sanitizer", async () => {
-  const [conversationRoot, assistantContent, markdownConfig] = await Promise.all([
-    readFile(new URL("../../renderer/src/views/agent/AgentConversation.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../../renderer/src/views/agent/conversation/AssistantContent.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../../renderer/src/utils/markdownConfig.ts", import.meta.url), "utf8"),
-  ]);
-  const conversation = `${conversationRoot}\n${assistantContent}`;
-
-  assert.match(conversation, /renderSafeMarkdown\(normalized\)/);
-  assert.doesNotMatch(conversation, /marked\.parse\(normalized\)/);
-  assert.match(markdownConfig, /createDOMPurify/);
-  assert.match(markdownConfig, /renderer:\s*\{[\s\S]*html\(token/);
-  assert.match(markdownConfig, /FORBID_TAGS: \['iframe', 'form', 'object', 'embed', 'style'\]/);
 });

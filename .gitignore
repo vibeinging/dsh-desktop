@@ -1,7 +1,7 @@
 # 依赖(各级 node_modules)
 **/node_modules/
 
-# 前端构建产物
+# 构建产物
 renderer/dist/
 coverage/
 eval/results/
@@ -31,7 +31,7 @@ __pycache__/
 .env.local
 .env.*.local
 
-# 本地桌面/开发环境配置，不进入公开仓库
+# 已退役 Renderer 的本地缓存不进入仓库
 renderer/.env.*
 
 # 本地设计上下文

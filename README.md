@@ -18,7 +18,7 @@ npm run doctor
 npm run dev:electron
 ```
 
-默认桌面开发安装只准备 Server 和 Electron；旧 Renderer 不属于官方 Web 发行路径。需要维护 legacy Renderer 时，单独在 `renderer/` 执行 `npm ci`，再使用 `npm run dev:legacy-renderer` 或 `npm run test:legacy-renderer`。
+默认桌面开发安装只准备 Server 和 Electron；仓库不再维护第二套 Renderer。桌面打包前由 `npm run verify:official-web-assets` 校验随包官方 Web 资源，主窗口始终从官方 DSH Web Profile 启动。
 
 打包和发行边界检查：
 

@@ -117,16 +117,12 @@ test('startup cleanup removes temporary chats left by a forced shutdown', async 
 });
 
 test('temporary chat uses an ephemeral runtime and skips durable message projection', async () => {
-  const [workspaceAgent, temporaryRuntime, desktopPatch, agentChat, runCenter, conversation, shell, artifacts, files] = await Promise.all([
+  const [workspaceAgent, temporaryRuntime, desktopPatch, agentChat, runCenter] = await Promise.all([
     readFile(new URL('../../server/src/engine/agents/workspace_agent.js', import.meta.url), 'utf8'),
     readFile(new URL('../../server/src/engine/dsh_runtime/temporary_runtime.js', import.meta.url), 'utf8'),
     readFile(new URL('../../server/src/engine/dsh_runtime/desktop_web.patch.yml', import.meta.url), 'utf8'),
     readFile(new URL('../../server/src/app/chat/agent_chat.js', import.meta.url), 'utf8'),
     readFile(new URL('../../server/src/app/agents/run_center.js', import.meta.url), 'utf8'),
-    readFile(new URL('../../renderer/src/views/agent/AgentConversation.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../renderer/src/views/agent/AgentShell.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../renderer/src/views/agent/WorkspaceArtifactsSection.tsx', import.meta.url), 'utf8'),
-    readFile(new URL('../../renderer/src/views/agent/WorkspaceFilesSection.tsx', import.meta.url), 'utf8'),
   ]);
 
   assert.match(workspaceAgent, /temporary \? getTemporaryDshRuntimeLease\(sessionId\) : null/);
@@ -142,17 +138,6 @@ test('temporary chat uses an ephemeral runtime and skips durable message project
   );
   assert.match(agentChat, /sessionId:\s*temporary \? null : sessionId/);
   assert.match(runCenter, /NOT IN \('subtask','temporary'\)/);
-  assert.match(conversation, /这段对话不会出现在历史记录中，也不会读取或写入任何对话记忆/);
-  assert.doesNotMatch(conversation, /persistConversationInputQueue/);
-  assert.match(
-    conversation,
-    /if \(temporary \|\| !selectedId\) \{[\s\S]*applyDshQueueSnapshot\(null\)/,
-  );
-  assert.match(shell, /<WorkspaceArtifactsSection[\s\S]*temporary=\{temporaryMode\}/);
-  assert.match(shell, /<WorkspaceFilesSection[\s\S]*temporary=\{temporaryMode\}/);
-  assert.match(artifacts, /!temporary && officeFormat/);
-  assert.match(artifacts, /!temporary && \(/);
-  assert.match(files, /preview\.scope === 'project' && !temporary/);
 });
 
 test('temporary DSH lease uses isolated roots and deletes them on disposal', async () => {
