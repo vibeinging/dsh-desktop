@@ -211,8 +211,32 @@ test('release boundary consumes every generated curated-plugin projection', asyn
       bundles: [name],
       tarballs: [{ name, tarball, sha256: hash, size_bytes: bytes.length }],
     }));
+    writeFileSync(join(artifactRoot, 'evaluation.json'), JSON.stringify({
+      schema_version: 1,
+      profile: 'web',
+      source: 'server/src/engine/dsh_runtime/featured_plugins.json',
+      plugins: [{
+        name,
+        version: undefined,
+        package_path: 'packages/example-bundle',
+        license: 'BSD-3-Clause',
+        portability: undefined,
+        permissions: undefined,
+        tarball,
+        sha256: hash,
+        size_bytes: bytes.length,
+      }],
+    }));
     writeFileSync(join(artifactRoot, 'THIRD_PARTY_NOTICES.md'), 'notice');
     assert.deepEqual(inspectFeaturedArtifacts(root, { required: true }), []);
+
+    writeFileSync(join(artifactRoot, 'evaluation.json'), JSON.stringify({
+      schema_version: 1,
+      profile: 'web',
+      source: 'server/src/engine/dsh_runtime/featured_plugins.json',
+      plugins: [],
+    }));
+    assert.match(inspectFeaturedArtifacts(root).join('\n'), /evaluation\.json 与精选插件 manifest 不一致/);
 
     writeFileSync(join(artifactRoot, 'test-expected.json'), JSON.stringify({
       profile: 'web',

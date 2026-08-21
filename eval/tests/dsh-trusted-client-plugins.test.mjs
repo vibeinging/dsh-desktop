@@ -157,6 +157,16 @@ test("the curated Profile input has one authoritative, user-manageable list", ()
   assert.deepEqual(plugins, manifest.plugins);
   assert.equal(plugins.every((plugin) => plugin.default && plugin.user_manageable), true);
   assert.equal(plugins.some((plugin) => plugin.name.includes("web-ui-task-board")), false);
+  for (const plugin of plugins) {
+    assert.equal(plugin.evidence.source_kind, "workspace-package");
+    assert.equal(plugin.evidence.release_source, "fixed-tarball");
+    assert.equal(plugin.evidence.profile_install, "official-dsh-plugin-cli");
+    assert.equal(plugin.evidence.profile_uninstall, "official-dsh-plugin-cli");
+    assert.equal(Object.isFrozen(plugin.evidence), true);
+    for (const layer of ["unit", "profile", "electron"]) {
+      assert.ok(plugin.evidence.regression[layer].length > 0, `${plugin.name} 缺少 ${layer} 回归证据`);
+    }
+  }
 });
 
 test("the curated list keeps package names, source paths, and SPDX licenses aligned", () => {

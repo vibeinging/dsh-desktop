@@ -236,7 +236,7 @@ export function inspectFeaturedArtifacts(root = ROOT, { required = false } = {})
   if (expectedNames.size !== actualNames.size || [...expectedNames].some((name) => !actualNames.has(name))) {
     errors.push("随包精选插件 manifest 与源码清单不一致");
   }
-  const projectionFiles = ["profile-install.json", "permissions.json", "test-expected.json", "THIRD_PARTY_NOTICES.md"];
+  const projectionFiles = ["profile-install.json", "permissions.json", "test-expected.json", "evaluation.json", "THIRD_PARTY_NOTICES.md"];
   for (const file of projectionFiles) {
     if (!existsSync(join(artifactRoot, file))) errors.push(`随包精选插件缺少清单投影：${file}`);
   }
@@ -290,6 +290,38 @@ export function inspectFeaturedArtifacts(root = ROOT, { required = false } = {})
       || JSON.stringify(expected.bundles || []) !== JSON.stringify([...actualNames])
       || JSON.stringify(expectedTarballs) !== JSON.stringify(actualTarballs)) {
       errors.push("test-expected.json 与精选插件 manifest 不一致");
+    }
+  }
+  if (existsSync(join(artifactRoot, "evaluation.json"))) {
+    const evaluation = readJson(join(artifactRoot, "evaluation.json"));
+    const actualEvaluations = (generated.plugins || []).map(({
+      name,
+      version,
+      package_path,
+      package_license,
+      portability,
+      permissions,
+      tarball,
+      sha256: hash,
+      size_bytes,
+      evidence,
+    }) => ({
+      name,
+      version,
+      package_path,
+      license: package_license,
+      portability,
+      permissions,
+      tarball,
+      sha256: hash,
+      size_bytes,
+      evidence,
+    }));
+    if (evaluation.schema_version !== 1
+      || evaluation.profile !== generated.profile
+      || evaluation.source !== "server/src/engine/dsh_runtime/featured_plugins.json"
+      || JSON.stringify(evaluation.plugins || []) !== JSON.stringify(actualEvaluations)) {
+      errors.push("evaluation.json 与精选插件 manifest 不一致");
     }
   }
   for (const plugin of generated.plugins || []) {

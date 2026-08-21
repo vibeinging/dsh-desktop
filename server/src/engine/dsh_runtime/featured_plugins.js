@@ -10,6 +10,46 @@ function inside(root, target) {
   return path === "" || (!path.startsWith("..") && !isAbsolute(path));
 }
 
+function freeze(value) {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) freeze(child);
+  return Object.freeze(value);
+}
+
+function validateEvidence(plugin) {
+  const evidence = plugin.evidence;
+  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)) {
+    throw new Error(`${plugin.name} 必须提供逐包评估证据`);
+  }
+  for (const field of ["source_kind", "release_source", "entry", "patch_id", "network", "profile_install", "profile_uninstall", "cost_measurement"]) {
+    if (typeof evidence[field] !== "string" || !evidence[field].trim()) {
+      throw new Error(`${plugin.name} 的评估证据缺少 ${field}`);
+    }
+  }
+  if (evidence.source_kind !== "workspace-package" || evidence.release_source !== "fixed-tarball") {
+    throw new Error(`${plugin.name} 的评估证据必须指向工作区源码和固定 tarball`);
+  }
+  if (!evidence.compatibility || typeof evidence.compatibility !== "object"
+    || typeof evidence.compatibility.dsh_sdk !== "string"
+    || typeof evidence.compatibility.cordis !== "string") {
+    throw new Error(`${plugin.name} 的评估证据缺少 DSH/Cordis 兼容性`);
+  }
+  if (!Array.isArray(evidence.lifecycle_scripts) || evidence.lifecycle_scripts.some((item) => typeof item !== "string")) {
+    throw new Error(`${plugin.name} 的 lifecycle_scripts 必须是字符串数组`);
+  }
+  if (!Array.isArray(evidence.native_dependencies) || evidence.native_dependencies.some((item) => typeof item !== "string")) {
+    throw new Error(`${plugin.name} 的 native_dependencies 必须是字符串数组`);
+  }
+  if (typeof evidence.client !== "boolean") throw new Error(`${plugin.name} 的 client 评估必须是布尔值`);
+  if (!Array.isArray(evidence.regression?.unit) || !Array.isArray(evidence.regression?.profile)
+    || !Array.isArray(evidence.regression?.electron)
+    || [evidence.regression.unit, evidence.regression.profile, evidence.regression.electron]
+      .some((items) => items.length === 0 || items.some((item) => typeof item !== "string" || !item.trim()))) {
+    throw new Error(`${plugin.name} 必须为 unit/profile/electron 分别声明回归证据`);
+  }
+  return evidence;
+}
+
 function validateManifest(value) {
   if (!value || typeof value !== "object" || Array.isArray(value) || value.schema_version !== 1) {
     throw new Error("精选插件清单版本无效");
@@ -40,6 +80,7 @@ function validateManifest(value) {
     if (plugin.default !== true || plugin.user_manageable !== true) {
       throw new Error(`${plugin.name} 必须明确声明为默认且可由用户管理`);
     }
+    validateEvidence(plugin);
     names.add(plugin.name);
   }
   return Object.freeze({
@@ -48,6 +89,7 @@ function validateManifest(value) {
     plugins: Object.freeze(value.plugins.map((plugin) => Object.freeze({
       ...plugin,
       permissions: Object.freeze([...plugin.permissions]),
+      evidence: freeze(structuredClone(plugin.evidence)),
     }))),
   });
 }

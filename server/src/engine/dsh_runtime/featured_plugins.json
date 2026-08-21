@@ -9,7 +9,26 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["dsh-work-parent-ipc", "browser-workspace-host"],
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "dsh-work-product-host-ipc",
+        "compatibility": { "dsh_sdk": "0.1.0-rc.7", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "not-declared",
+        "client": false,
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-product-host.test.mjs", "eval/tests/browser-workspace.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-offline.mjs", "electron/scripts/smoke-browser-workspace.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
+      }
     },
     {
       "name": "@vibeinging/dsh-project-tools",
@@ -18,7 +37,26 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["product-host"],
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "dsh-work-project-tools",
+        "compatibility": { "dsh_sdk": "0.1.0-rc.7", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "not-declared",
+        "client": false,
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-product-host.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
+      }
     },
     {
       "name": "@vibeinging/dsh-canvas-tools",
@@ -27,7 +65,26 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["product-host"],
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "dsh-work-canvas-tools",
+        "compatibility": { "dsh_sdk": "0.1.0-rc.7", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "not-declared",
+        "client": false,
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-product-host.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
+      }
     },
     {
       "name": "@vibeinging/dsh-structured-ui-tools",
@@ -36,7 +93,26 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["product-host"],
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "dsh-work-structured-ui-tools",
+        "compatibility": { "dsh_sdk": "0.1.0-rc.7", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "not-declared",
+        "client": false,
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-product-host.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
+      }
     },
     {
       "name": "@vibeinging/dsh-model-inheritance",
@@ -45,7 +121,26 @@
       "user_manageable": true,
       "portability": "portable",
       "permissions": [],
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "dsh-model-inheritance",
+        "compatibility": { "dsh_sdk": "0.1.0-rc.7", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "not-declared",
+        "client": false,
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-product-host.test.mjs", "eval/tests/dsh-official-web-plugin-compat.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-profile-authority.mjs", "electron/scripts/smoke-packaged-official-web-flow.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
+      }
     },
     {
       "name": "@vibeinging/dsh-product-bridge",
@@ -54,7 +149,26 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["product-host"],
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "product-bridge",
+        "compatibility": { "dsh_sdk": "0.1.0-rc.7", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "not-declared",
+        "client": false,
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-product-host.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
+      }
     },
     {
       "name": "@vibeinging/dsh-office-tools",
@@ -63,7 +177,26 @@
       "user_manageable": true,
       "portability": "desktop-adapter",
       "permissions": ["office-artifact-host"],
-      "license": "BSD-3-Clause"
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "dsh-work-office-tools",
+        "compatibility": { "dsh_sdk": "0.1.0-rc.7", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "not-declared",
+        "client": false,
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-product-host.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
+      }
     }
   ]
 }

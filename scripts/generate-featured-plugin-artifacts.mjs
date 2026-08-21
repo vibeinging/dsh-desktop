@@ -37,6 +37,15 @@ export function validateFeaturedPackageContract(plugin, manifest) {
   if (manifest.name !== plugin.name || typeof manifest.version !== "string") {
     throw new Error(`精选插件清单与包 manifest 不一致: ${plugin.name}`)
   }
+  if (manifest.main !== `./${plugin.evidence.entry}`) {
+    throw new Error(`精选插件清单与包入口不一致: ${plugin.name}`)
+  }
+  if (manifest.packageManager !== "pnpm@11.22.0") {
+    throw new Error(`精选插件必须固定使用 pnpm@11.22.0: ${plugin.name}`)
+  }
+  if (manifest.dsh?.bundle?.patch !== "./cordis.patch.yml") {
+    throw new Error(`精选插件必须通过 cordis.patch.yml 挂载: ${plugin.name}`)
+  }
   if (manifest.license !== plugin.license) {
     throw new Error(`精选插件清单与包许可证不一致: ${plugin.name}`)
   }
@@ -49,6 +58,21 @@ export function validateFeaturedPackageContract(plugin, manifest) {
     throw new Error(`精选插件清单与包 Host 权限不一致: ${plugin.name}`)
   }
   return portability
+}
+
+function evaluationRecord(record) {
+  return {
+    name: record.name,
+    version: record.version,
+    package_path: record.package_path,
+    license: record.package_license,
+    portability: record.portability,
+    permissions: record.permissions,
+    tarball: record.tarball,
+    sha256: record.sha256,
+    size_bytes: record.size_bytes,
+    evidence: record.evidence,
+  }
 }
 
 async function pack(sourceDir, outputDir) {
@@ -155,6 +179,18 @@ export async function generateFeaturedPluginArtifacts({
     profile: manifest.profile,
     bundles: records.map(({ name }) => name),
     tarballs: records.map(({ name, tarball, sha256: hash, size_bytes }) => ({ name, tarball, sha256: hash, size_bytes })),
+  }))
+  await writeFile(join(output, "evaluation.json"), json({
+    schema_version: 1,
+    profile: manifest.profile,
+    source: "server/src/engine/dsh_runtime/featured_plugins.json",
+    measurement_policy: {
+      tarball: "per-plugin",
+      profile_storage: "must be measured per-plugin; aggregate release smoke is not a substitute",
+      cold_start: "must be measured per-plugin; aggregate release smoke is not a substitute",
+      client_activation: "not-applicable for the current host-only curated set",
+    },
+    plugins: records.map(evaluationRecord),
   }))
   return manifest
 }
