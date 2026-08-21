@@ -91,7 +91,7 @@
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
 | Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试；`npm run measure:featured-plugins` 对 7 个精选包逐包完成安装和启动，6 个可管理包完成停用、卸载和重启；基础服务卸载被契约阻止 | 新 Profile 与已有 Profile 的状态边界已验证；逐包源码 Profile 生命周期通过，并有逐包打包版 Electron 证据 |
 | 真实 Electron | 官方 Web 无 preload 启动、逐精选包 arm64 打包版 Profile 安装/启动/停用/卸载/重启、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选、打包版社区插件安装/激活/卸载/重启和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放；独立 arm64 打包包又通过官方 Web Tool 到 Electron 窗口 Host 的真实状态、聚焦、最小化、最大化、恢复，以及文件/目录对话框的真实选择链路 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径、macOS 窗口 Host、macOS 文件/目录对话框和 macOS 签名更新链路已验证；窗口 Host 的跨平台用户交互验收仍缺；loopback 模型不替代真实 DeepSeek live-model 证据 |
-| 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放；独立 arm64 打包 Electron 的 session-bound 窗口及文件/目录 Host smoke | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；当前 arm64/x64 目录包均完成 Developer ID 签名和严格完整性检查；macOS arm64 文件/目录对话框回执已通过；跨平台窗口、Apple 公证容器、Gatekeeper、Windows 实机和最终安装器形态仍是发布门槛 |
+| 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、未公证 arm64/x64 DMG/ZIP、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放；独立 arm64 打包 Electron 的 session-bound 窗口及文件/目录 Host smoke；x64 DMG 在 Rosetta 下的挂载、复制和社区 Profile 生命周期 smoke | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；当前 arm64/x64 目录包均完成 Developer ID 签名和严格完整性检查；macOS arm64 文件/目录对话框回执以及 x64 DMG Rosetta 安装器回执已通过；跨平台窗口、Apple 公证容器、Gatekeeper、Windows 实机和原生 x64 性能仍是发布门槛 |
 
 ## Session-bound Native Host 实机证据
 
@@ -145,6 +145,8 @@
 
 为验证 Electron 内嵌 Node 对 Profile `node_modules` 的解析修复，本轮又用同一 x64 Node 重新准备 `.desktop-build/server`，将当前源码构建到独立的 `.desktop-build/release-mac-x64-loader/mac/DSH Desktop.app` 目录，并运行打包版社区 smoke。该未签名目录包先由 App 初始化精选 Profile，再通过官方 `dsh plugin --profile` 命令安装、激活、卸载和重启 `@linxin666/dsh-client-ui-task-board@0.1.20`，结果为 PASS；它证明当前 x64 代码路径可解析已安装 Profile Client，但不替代 Developer ID、公证、Gatekeeper、原生 x64 机器或安装器证据。
 
+随后对 `release/dsh-desktop-0.0.1-mac-x64.dmg` 运行 `smoke:macos:installer`。第一次使用旧包默认的 90 秒本地请求上限时，Rosetta 冷启动进入恢复页并失败；在保留该失败证据后，以 `DSH_API_REQUEST_TIMEOUT_MS=300000` 重新运行，结果回执 `electron/.desktop-build/evidence/macos-installer-x64-rosetta/result.json` 为 `passed`，完成 DMG 挂载、复制、官方 Profile 安装、task-board 激活、官方卸载、重启和 DMG 卸载。该结果是 Apple Silicon 上的 Rosetta x64 安装器生命周期证据，不能替代原生 x64 主机的冷启动预算、性能或 Gatekeeper 验收。
+
 当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-21 的 macOS arm64 结果如下：
 
 此前在提交 `a30c263` 建立的临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：当时的 HEAD 为 137 项中 135 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果是历史干净源码和全新依赖安装基线，不替代当前提交、平台安装器、签名和公证验证。
@@ -177,7 +179,7 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
 - 当前证据已经包含 Developer ID 签名目录包、明确关闭公证生成的 arm64 DMG/ZIP 安装器结构、断网初始化、Profile authority、损坏 Bundle 恢复和真实签名 updater 替换回归；DMG 的 UDZO 结构、ZIP 内 `DSH Desktop.app` 资源和 App 严格签名校验均通过，但仍不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终公开安装器证据。最新 arm64 目录包上的断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和预算门禁已通过。
-- macOS x64 当前已通过官方 Node `v24.19.0` x64 依赖准备、Developer ID 签名目录包/未公证安装器结构、Server/App、默认退出路径、恢复、断网 Profile、Profile authority 和官方 Web smoke；仍尚缺原生 x64 主机或发行 CI 上的安装器和性能验收，不能把 Rosetta 结果写成原生 x64 发布证据。
+- macOS x64 当前已通过官方 Node `v24.19.0` x64 依赖准备、Developer ID 签名目录包/未公证安装器结构、Server/App、默认退出路径、恢复、断网 Profile、Profile authority、官方 Web smoke，以及 Apple Silicon 上 Rosetta x64 DMG 挂载/复制后的社区 Profile 生命周期；仍尚缺原生 x64 主机或发行 CI 上的安装器和性能验收，不能把 Rosetta 结果写成原生 x64 发布证据。
 - 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化，README 也已换成当前官方 Web 与社区候选截图。现在提供显式的 `npm run smoke:official-web:live` 入口；无 `DEEPSEEK_API_KEY` 时会 fail closed，本轮只验证了这个保护，不把 loopback 模型或未执行的 live 命令写成真实 DeepSeek 证据。公开安装录制和真实 DeepSeek 服务验收仍需在发行环境完成。
 - `.github/workflows/macos-release-evidence.yml` 现在提供手动的 arm64 签名、公证、打包 smoke、社区三帧和可选 live-model 证据入口；live-model 步骤同时上传截图和 `result.json` 成功回执。`.github/workflows/windows-release-evidence.yml` 提供 Windows 签名、安装器验收和 Authenticode 证据入口。两者都要求发行环境提供对应 secrets，本机未触发这些 workflow，因此不把 workflow 或回执契约存在写成 Apple、Windows、公开安装器或真实服务验收通过。
 - macOS 正式 arm64/x64 打包脚本现在在 Electron Builder 之后对当前版本和架构的 DMG 单独执行 `xcrun notarytool submit --wait`，随后附加并验证 DMG 票据、执行 `spctl --assess --type open`，再挂载并验证 App 载荷的 stapler/Gatekeeper；手动发行 workflow 会上传无凭据回执，之后再运行 `smoke:macos:installer` 并上传安装器回执和截图。本机当前 DMG 容器请求仍在 Apple 处理中，所以该代码和 workflow 契约已就绪但最终 DMG 公证结果仍以发行环境回执为准。
