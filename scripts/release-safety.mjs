@@ -246,6 +246,7 @@ function staticChecks(root, scope) {
       'macos-installer-evidence',
       'xcrun stapler validate',
       'spctl --assess --type execute',
+      'apple-notary-history.json',
       'DSH_LIVE_MODEL_RESULT_FILE=',
       'live-model-evidence/result.json',
     ];

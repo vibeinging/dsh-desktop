@@ -292,6 +292,8 @@ test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   assert.match(workflow, /npm run smoke:macos:installer/);
   assert.match(workflow, /macos-installer-evidence\/result\.json/);
   assert.match(workflow, /macos-installer-evidence/);
+  assert.match(workflow, /xcrun notarytool history/);
+  assert.match(workflow, /apple-notary-history\.json/);
   assert.match(workflow, /xcrun stapler validate/);
   assert.match(workflow, /spctl --assess --type execute/);
 });

@@ -63,6 +63,15 @@ jobs:
       - name: Build signed and notarized package
         run: npm run package:mac
 
+      - name: Record Apple notarization history
+        if: always()
+        run: |
+          xcrun notarytool history \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --output-format json > "$RUNNER_TEMP/apple-notary-history.json"
+
       - name: Verify packaged artifacts and budget
         run: |
           npm run check:release-artifacts
@@ -125,6 +134,7 @@ jobs:
           path: |
             release/*.dmg
             release/*.zip
+            ${{ runner.temp }}/apple-notary-history.json
             ${{ runner.temp }}/community-evidence
             ${{ runner.temp }}/macos-installer-evidence
             ${{ runner.temp }}/browser-workspace-evidence
