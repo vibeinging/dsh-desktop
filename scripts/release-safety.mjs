@@ -244,6 +244,8 @@ function staticChecks(root, scope) {
       'npm run smoke:community:packaged',
       'npm run smoke:macos:installer',
       'macos-installer-evidence',
+      'xcrun stapler validate',
+      'spctl --assess --type execute',
       'DSH_LIVE_MODEL_RESULT_FILE=',
       'live-model-evidence/result.json',
     ];
