@@ -31,6 +31,8 @@
 
 精选清单现在还生成逐包 `evaluation.json` 投影，记录源码入口、固定 tarball、DSH/Cordis 兼容线、生命周期脚本、原生依赖、网络声明、Client 参与、官方 Profile 安装/卸载命令和 unit/Profile/Electron 回归路径；`release-boundary` 会拒绝该投影与 manifest 漂移。桌面基础服务另外声明 `desktop_runtime_required`，源码和打包版测量均只验证安装/启动，并把卸载记录为被桌面运行时契约阻止。`scripts/measure-featured-plugin-evidence.mjs` 用同一批固定 tarball 对每个精选包执行官方 CLI 安装、Web 启动、用户 patch 停用、官方卸载和卸载后重启，输出的是源码 Profile 集成证据，不替代真实 Electron 或安装包验收。
 
+同一证据字段还记录每个 Bundle 的 `composition.plugin_id`、依赖服务、提供服务、路由、Slot 和已知冲突；清单加载时拒绝与 patch 不一致的插件 id，并拒绝多个精选 Bundle 重复提供同一个服务。当前 7 个 Host/portable 条目没有声明路由、Slot 或冲突；基础服务唯一提供 `productHost`、`officeArtifactHost` 和 `browserWorkspaceHost`，其余条目只声明所需的官方 Agent、Tool 或 Host 服务。
+
 2026-08-21 的逐包测量命令为 `npm run measure:featured-plugins -- --output .desktop-build/reports/featured-plugin-evaluation.json`，运行环境为 macOS arm64、Node `v26.5.0`。7/7 个包通过；除桌面基础服务外的 6 个条目都额外安装清单已声明的 `@vibeinging/dsh-work-product-host-ipc` 支持 Bundle，以便验证真实的 Profile provider 依赖，不把无 Host 的 standalone Web 启动失败误判为包自身通过。表中的 Profile 数据目录大小是安装后总量（包含 DSH 官方依赖和声明的支持 Bundle），tarball 大小才是逐包随包增量；冷启动是源码 DSH CLI 到 loopback Web ready 的观测。
 
 | 精选包 | tarball bytes | 支持 Bundle | 安装后 Profile bytes | CLI cold Web ms | 生命周期 |
