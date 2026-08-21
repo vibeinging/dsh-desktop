@@ -1,0 +1,109 @@
+name: macOS Release Evidence
+
+# This workflow is intentionally manual. It consumes signing/notarization
+# credentials and can optionally consume a real DeepSeek API key.
+on:
+  workflow_dispatch:
+    inputs:
+      live_model:
+        description: Run the real DeepSeek live-model smoke and upload its screenshot
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-release-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: macOS arm64 signed release evidence
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            renderer/package-lock.json
+            server/package-lock.json
+            electron/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+        env:
+          npm_config_replace_registry_host: registry.npmjs.org
+
+      - name: Check native runtime
+        run: npm run doctor
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+      - name: Run release tests
+        run: npm run test:release
+
+      - name: Build signed and notarized package
+        run: npm run package:mac
+
+      - name: Verify packaged artifacts and budget
+        run: |
+          npm run check:release-artifacts
+          npm run check:release:budgets
+          npm run release:verify:mac
+
+      - name: Smoke official Web
+        run: npm run smoke:official-web
+
+      - name: Smoke packaged community install and removal
+        run: |
+          mkdir -p "$RUNNER_TEMP/community-evidence"
+          DSH_COMMUNITY_SCREENSHOT_DIR="$RUNNER_TEMP/community-evidence" npm run smoke:community:packaged
+
+      - name: Smoke signed updater
+        run: npm run smoke:updater
+
+      - name: Smoke Browser Workspace
+        run: |
+          mkdir -p "$RUNNER_TEMP/browser-workspace-evidence"
+          DSH_BROWSER_SCREENSHOT_DIR="$RUNNER_TEMP/browser-workspace-evidence" npm run smoke:browser-workspace
+
+      - name: Smoke real DeepSeek live-model
+        if: ${{ inputs.live_model }}
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          test -n "$DEEPSEEK_API_KEY"
+          mkdir -p "$RUNNER_TEMP/live-model-evidence"
+          DSH_SCREENSHOT_DIR="$RUNNER_TEMP/live-model-evidence" npm run smoke:official-web:live
+
+      - name: Upload release and smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-macos-release-evidence-${{ github.run_id }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            ${{ runner.temp }}/community-evidence
+            ${{ runner.temp }}/browser-workspace-evidence
+            ${{ runner.temp }}/live-model-evidence
+          if-no-files-found: ignore
+          retention-days: 14
