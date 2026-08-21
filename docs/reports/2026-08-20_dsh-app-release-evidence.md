@@ -160,6 +160,8 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 
 本轮新增 Windows x64 安装器验收自动化，但尚未把它写成 Windows 实机证据。`electron/scripts/smoke-windows-acceptance.mjs` 只允许在 `win32/x64` 执行：它从 `release/` 找到 NSIS 安装器，在独立临时目录静默安装，等待已安装的主程序和 `resources`，依次运行随包 Server、App、官方 Web 问题/沙箱/审批/队列、断网 Profile、恢复页和 Profile authority smoke，然后通过官方卸载器清理并确认临时目录消失。所有检查通过后才用原子重命名生成 `release/windows-x64-acceptance.json`；脚本失败会删除旧回执，不会留下通过状态。`scripts/windows-acceptance-receipt.mjs` 要求 9 个检查全部成功，`release-safety` 现在按该契约校验回执，`.github/workflows/windows-release.yml` 在 unsigned NSIS 构建后运行该步骤并上传安装器与回执；新增的 `.github/workflows/windows-release-evidence.yml` 还提供了使用 `WIN_CSC_LINK`、`WIN_CSC_KEY_PASSWORD` 的 signed NSIS、完整回归、实机验收和 Authenticode 校验入口。当前 macOS 工作区没有运行这两条 Windows workflow，也没有生成回执，因此 Windows 实机和签名证据仍保持阻塞。
 
+本轮新增 `npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg`：它在 macOS 上只读挂载 DMG，复制其中的 `DSH Desktop.app`，再调用现有官方 Profile 社区安装/激活/卸载/重启 smoke，最后卸载 DMG；设置 `DSH_MACOS_INSTALLER_RESULT_FILE` 会生成 `evidence_level=macos-dmg-installer-electron` 的 JSON 回执。本轮使用现有 arm64 公证前 DMG 已通过完整生命周期，回执保存在 `electron/.desktop-build/evidence/macos-installer-dmg-pre-notary/result.json`；这补充了“安装包来源”证据，但不替代当前新公证 DMG、Gatekeeper 或公开安装录制。
+
 ## 尚未满足的公开发行门槛
 
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
