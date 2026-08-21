@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import net from 'node:net'
@@ -8,7 +9,10 @@ import { fileURLToPath } from 'node:url'
 
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 import { systemOnlyPath } from './packaged-smoke-environment.mjs'
-import { createLiveModelEvidenceReceipt } from '../../scripts/live-model-evidence.mjs'
+import {
+  createLiveModelEvidenceReceipt,
+  inspectLiveModelHistory,
+} from '../../scripts/live-model-evidence.mjs'
 
 const appInput = process.argv[2] || '../release/mac-arm64/DSH Desktop.app'
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -21,10 +25,11 @@ const screenshotDir = String(process.env.DSH_SCREENSHOT_DIR || '').trim()
 const liveModelResultPath = String(process.env.DSH_LIVE_MODEL_RESULT_FILE || '').trim()
 const fakeModelEnabled = process.env.DSH_OFFICIAL_WEB_FLOW_FAKE_MODEL === '1' || process.argv.includes('--fake-model')
 const liveModelEnabled = process.env.DSH_OFFICIAL_WEB_FLOW_LIVE_MODEL === '1' || process.argv.includes('--live-model')
+const liveModelResponseMarker = liveModelEnabled ? `DSH-LIVE-MODEL-${randomUUID()}` : ''
 const promptText = fakeModelEnabled
   ? 'DSH Desktop 官方 Web 审批烟测'
   : liveModelEnabled
-    ? 'DSH Desktop 官方 Web live-model 烟测，请用一句话确认当前会话已启动。'
+    ? `DSH Desktop 官方 Web live-model 烟测。请用一句完整的话确认当前会话已启动，并原样包含唯一回执标记 ${liveModelResponseMarker}。`
     : 'DSH Desktop 官方 Web 流程烟测'
 const queuedPromptText = 'DSH Desktop 官方 Web 排队烟测'
 const questionText = '是否继续执行审批烟测？'
@@ -401,6 +406,33 @@ async function rpc(method, payload = {}) {
   return envelope.result.value
 }
 
+async function findSmokeSession() {
+  const deadline = Date.now() + timeoutMs
+  let lastLiveErrors = []
+  while (Date.now() < deadline) {
+    const sessions = await rpc('session.list')
+    for (const candidate of [...(sessions.items || [])].reverse()) {
+      if (!candidate?.sessionId) continue
+      const candidateHistory = await rpc('session.history', { sessionId: candidate.sessionId, maxMessages: 100 })
+      const serialized = JSON.stringify(candidateHistory)
+      if (!serialized.includes(promptText)) continue
+      if (!liveModelEnabled) {
+        return { session: candidate, history: candidateHistory, liveCheck: null }
+      }
+      const liveCheck = inspectLiveModelHistory(candidateHistory, {
+        responseMarker: liveModelResponseMarker,
+      })
+      if (liveCheck.ok) return { session: candidate, history: candidateHistory, liveCheck }
+      lastLiveErrors = liveCheck.errors
+      if (liveCheck.terminalFailure || liveCheck.completed) {
+        throw new Error(`真实 DeepSeek live-model 已结束但未满足成功契约：${liveCheck.errors.join('；')}`)
+      }
+    }
+    await sleep(500)
+  }
+  throw new Error(`官方 Web session.history 未在超时前形成可验收会话${liveModelEnabled ? `；live-model=${lastLiveErrors.join('；')}` : ''}`)
+}
+
 async function pageSummary() {
   return evaluate(`({
     body: (document.body.innerText || '').slice(0, 16000),
@@ -555,17 +587,9 @@ try {
   }
   await waitFor(`(document.body.innerText || '').includes('Session log') || (document.body.innerText || '').includes('会话日志')`, 'Session log')
 
-  const sessions = await rpc('session.list')
-  let session
-  let history
-  for (const candidate of [...(sessions.items || [])].reverse()) {
-    const candidateHistory = await rpc('session.history', { sessionId: candidate.sessionId, maxMessages: 100 })
-    if (JSON.stringify(candidateHistory).includes(promptText)) {
-      session = candidate
-      history = candidateHistory
-      break
-    }
-  }
+  const smokeSession = await findSmokeSession()
+  const session = smokeSession.session
+  const history = smokeSession.history
   if (!session?.sessionId) throw new Error('官方 Web session.list 没有返回刚创建的会话')
   if (!JSON.stringify(history).includes(promptText)) throw new Error('官方 Web session.history 没有返回用户消息')
   if (fakeModelEnabled && !JSON.stringify(history).includes(queuedPromptText)) throw new Error('官方 Web session.history 没有返回排队后的用户消息')
@@ -586,6 +610,8 @@ try {
       featuredManifestPath,
       startedAt: smokeStartedAt,
       completedAt: new Date().toISOString(),
+      history,
+      responseMarker: liveModelResponseMarker,
     }), null, 2)}\n`, { mode: 0o600 })
     liveModelResultWritten = true
   }

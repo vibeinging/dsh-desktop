@@ -385,6 +385,9 @@ export function inspectFeaturedMeasurement(root = ROOT, { required = false } = {
     if (measurement.tarball !== plugin.tarball || measurement.sha256 !== plugin.sha256) {
       errors.push(`精选插件测量报告与 ${plugin.name} 当前 tarball/hash 不一致`);
     }
+    if (measurement.status !== 'passed') {
+      errors.push(`精选插件测量报告中的 ${plugin.name} status 不是 passed`);
+    }
   }
   if (measured.size !== (artifact.plugins || []).length) errors.push('精选插件测量报告包含未生成的插件');
   return errors;

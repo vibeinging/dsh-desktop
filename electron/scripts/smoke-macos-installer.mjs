@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -53,6 +53,16 @@ function runProcess(label, command, args, env = process.env, timeoutMs = 360_000
   })
 }
 
+async function writeReceiptAtomically(path, receipt) {
+  const temporaryPath = `${path}.tmp-${process.pid}-${Date.now()}`
+  try {
+    await writeFile(temporaryPath, `${JSON.stringify(receipt, null, 2)}\n`, { mode: 0o600 })
+    await rename(temporaryPath, path)
+  } finally {
+    await rm(temporaryPath, { force: true }).catch(() => {})
+  }
+}
+
 async function main() {
   if (process.platform !== 'darwin') {
     throw new Error(`macOS DMG 安装 smoke 只能在 darwin 执行，当前为 ${process.platform}`)
@@ -62,6 +72,7 @@ async function main() {
     throw new Error(`找不到 macOS DMG: ${dmgPath}`)
   }
   if (!existsSync(communitySmoke)) throw new Error(`缺少社区 Profile smoke: ${communitySmoke}`)
+  if (resultPath) await rm(resultPath, { force: true })
 
   const tempDir = await mkdtemp(join(tmpdir(), 'dsh-macos-installer-'))
   const mountPoint = join(tempDir, 'mounted')
@@ -70,6 +81,7 @@ async function main() {
   const startedAt = new Date().toISOString()
   let mounted = false
   let passed = false
+  let receiptContext = null
   try {
     await mkdir(mountPoint, { recursive: true })
     await mkdir(installedDir, { recursive: true })
@@ -96,41 +108,72 @@ async function main() {
       const screenshotRefs = screenshotDir && existsSync(screenshotDir)
         ? (await readdir(screenshotDir)).map((name) => artifactReference(join(screenshotDir, name), 'macos-installer-evidence'))
         : []
-      const receipt = {
-        ...createReleaseEvidenceReceipt({
-          kind: 'macos-dmg-installer',
-          evidenceLevel: 'macos-dmg-installer-electron',
-          root: APP_ROOT,
-          appPath: installedApp,
-          dmgPath,
-          featuredManifestPath: join(installedLayout.resourcesDir, 'featured-plugins', 'manifest.json'),
-          platform: process.platform,
-          arch: process.arch,
-          signerIdentity: readSignerIdentity(installedLayout.executable),
-          startedAt,
-          completedAt: new Date().toISOString(),
-          checks: ['mount', 'copy', 'install', 'activate', 'uninstall', 'restart', 'detach']
-            .map((name) => ({ name, passed: true })),
-          screenshotRefs,
-        }),
-        source_dmg: basename(dmgPath),
-        copied_app: 'DSH Desktop.app',
-        runtime: { platform: process.platform, arch: process.arch },
-        community_candidate: '@linxin666/dsh-client-ui-task-board@0.1.20',
-        lifecycle: ['mount', 'copy', 'install', 'activate', 'uninstall', 'restart', 'detach'],
+      receiptContext = {
+        installedApp,
+        dmgPath,
+        featuredManifestPath: join(installedLayout.resourcesDir, 'featured-plugins', 'manifest.json'),
+        signerIdentity: readSignerIdentity(installedLayout.executable, process.env, { allowOverride: false }),
+        screenshotRefs,
+        sourceDmg: basename(dmgPath),
+        copiedApp: 'DSH Desktop.app',
+        communityCandidate: '@linxin666/dsh-client-ui-task-board@0.1.20',
       }
       await mkdir(dirname(resultPath), { recursive: true })
-      await writeFile(resultPath, `${JSON.stringify(receipt, null, 2)}\n`)
     }
     passed = true
-    console.log(`[installer-smoke] PASS 从 ${basename(dmgPath)} 挂载、复制并运行签名 DSH Desktop；官方 Profile 社区安装/激活/卸载/重启通过`)
   } finally {
+    let detachError = null
     if (mounted) {
-      await runProcess('卸载 DMG', '/usr/bin/hdiutil', ['detach', mountPoint, '-force'], process.env, 60_000)
-        .catch((error) => console.warn(`[installer-smoke] DMG 卸载失败(已忽略): ${error.message}`))
+      try {
+        await runProcess('卸载 DMG', '/usr/bin/hdiutil', ['detach', mountPoint, '-force'], process.env, 60_000)
+      } catch (error) {
+        detachError = error
+      }
+      mounted = false
     }
-    await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })
-    if (!passed && resultPath) await rm(resultPath, { force: true })
+    try {
+      if (detachError) {
+        passed = false
+        if (resultPath) await rm(resultPath, { force: true })
+        throw new Error(`DMG 卸载失败，不能生成安装验收回执：${detachError.message}`)
+      }
+      if (!passed) {
+        if (resultPath) await rm(resultPath, { force: true })
+      } else {
+        if (resultPath && receiptContext) {
+          const receipt = {
+            ...createReleaseEvidenceReceipt({
+              kind: 'macos-dmg-installer',
+              evidenceLevel: 'macos-dmg-installer-electron',
+              root: APP_ROOT,
+              appPath: receiptContext.installedApp,
+              dmgPath: receiptContext.dmgPath,
+              featuredManifestPath: receiptContext.featuredManifestPath,
+              platform: process.platform,
+              arch: process.arch,
+              signerIdentity: receiptContext.signerIdentity,
+              startedAt,
+              completedAt: new Date().toISOString(),
+              checks: ['mount', 'copy', 'install', 'activate', 'uninstall', 'restart', 'detach']
+                .map((name) => ({ name, passed: true })),
+              screenshotRefs: receiptContext.screenshotRefs,
+            }),
+            source_dmg: receiptContext.sourceDmg,
+            copied_app: receiptContext.copiedApp,
+            runtime: { platform: process.platform, arch: process.arch },
+            community_candidate: receiptContext.communityCandidate,
+            lifecycle: ['mount', 'copy', 'install', 'activate', 'uninstall', 'restart', 'detach'],
+          }
+          await writeReceiptAtomically(resultPath, receipt)
+        }
+        console.log(`[installer-smoke] PASS 从 ${basename(dmgPath)} 挂载、复制、detach 并运行签名 DSH Desktop；官方 Profile 社区安装/激活/卸载/重启通过`)
+      }
+    } catch (error) {
+      if (resultPath) await rm(resultPath, { force: true }).catch(() => {})
+      throw error
+    } finally {
+      await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })
+    }
   }
 }
 

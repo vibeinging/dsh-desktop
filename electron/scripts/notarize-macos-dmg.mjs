@@ -122,7 +122,7 @@ async function main() {
         featuredManifestPath: join(appPath, 'Contents', 'Resources', 'featured-plugins', 'manifest.json'),
         platform: 'darwin',
         arch,
-        signerIdentity: readSignerIdentity(appPath),
+        signerIdentity: readSignerIdentity(appPath, process.env, { allowOverride: false }),
         startedAt,
         completedAt: new Date().toISOString(),
         checks: ['notarytool-accepted', 'dmg-stapled', 'dmg-stapler-validate', 'dmg-gatekeeper-open', 'payload-stapler-validate', 'payload-gatekeeper-execute']

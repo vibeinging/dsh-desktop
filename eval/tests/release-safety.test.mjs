@@ -26,9 +26,17 @@ import {
 import {
   LIVE_MODEL_EVIDENCE_CHECKS,
   createLiveModelEvidenceReceipt,
+  inspectLiveModelHistory,
   isLiveModelEvidenceReceipt,
 } from '../../scripts/live-model-evidence.mjs';
-import { validateReleaseEvidenceReceipt } from '../../scripts/release-evidence-receipt.mjs';
+import {
+  isMacosDmgInstallerEvidenceReceipt,
+  isMacosDmgNotarizationEvidenceReceipt,
+  isNativeHostEvidenceReceipt,
+  resolveCommitSha,
+  validateReleaseEvidenceReceipt,
+  createReleaseEvidenceReceipt,
+} from '../../scripts/release-evidence-receipt.mjs';
 import {
   pathWithPackagedBin,
   systemOnlyPath,
@@ -313,6 +321,37 @@ test('Windows acceptance receipt requires every real install lifecycle check', (
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, passed: false }), false);
 });
 
+test('featured-plugin measurement rejects a plugin whose status is not passed', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-featured-measurement-status-'));
+  const artifactRoot = join(root, '.desktop-build', 'featured-plugins');
+  const reportRoot = join(root, '.desktop-build', 'reports');
+  const runtimeRoot = join(root, 'server', 'src', 'engine', 'dsh_runtime');
+  const plugin = {
+    name: '@example/featured-bundle',
+    tarball: 'example-featured-bundle.tgz',
+    sha256: 'a'.repeat(64),
+  };
+  try {
+    mkdirSync(artifactRoot, { recursive: true });
+    mkdirSync(reportRoot, { recursive: true });
+    mkdirSync(runtimeRoot, { recursive: true });
+    writeFileSync(join(runtimeRoot, 'featured_plugins.json'), '{}');
+    writeFileSync(join(artifactRoot, 'manifest.json'), JSON.stringify({ plugins: [plugin] }));
+    writeFileSync(join(reportRoot, 'featured-plugin-evaluation.json'), JSON.stringify({
+      schema_version: 2,
+      git_commit_sha: 'not-a-git-checkout',
+      featured_source: { sha256: createHash('sha256').update('{}').digest('hex') },
+      artifact_manifest: {
+        sha256: createHash('sha256').update(JSON.stringify({ plugins: [plugin] })).digest('hex'),
+      },
+      plugins: [{ ...plugin, status: 'failed' }],
+    }));
+    assert.match(inspectFeaturedMeasurement(root, { required: true }).join('\n'), /status 不是 passed/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('live-model evidence receipt binds the current artifacts and rejects drift', async () => {
   const root = await mkdtemp(join(tmpdir(), 'dsh-live-model-receipt-'));
   const app = join(root, 'DSH Desktop.app');
@@ -324,6 +363,31 @@ test('live-model evidence receipt binds the current artifacts and rejects drift'
   writeFileSync(join(root, 'server', 'src', 'engine', 'dsh_runtime', 'featured_plugins.json'), '{}');
   writeFileSync(featuredManifest, '{}');
   try {
+    const responseMarker = 'DSH-LIVE-MODEL-test-marker';
+    const history = {
+      entries: [
+        { event: { type: 'turn/start', seq: 1, data: { turn: 1 } } },
+        { event: { type: 'assistant/message', seq: 2, data: {
+          turn: 1,
+          step: 1,
+          message: {
+            role: 'assistant',
+            content: [{ type: 'text', text: `已完成 ${responseMarker}` }],
+            source: { kind: 'model', provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+          },
+        } } },
+        { event: { type: 'turn/end', seq: 3, data: { turn: 1, reason: { kind: 'completed' } } } },
+      ],
+    };
+    assert.deepEqual(inspectLiveModelHistory(history, { responseMarker }), {
+      ok: true,
+      completed: true,
+      terminalFailure: false,
+      assistantText: `已完成 ${responseMarker}`,
+      provider: 'deepseek-official',
+      providerName: 'DeepSeek',
+      errors: [],
+    });
     const receipt = createLiveModelEvidenceReceipt({
       root,
       appPath: app,
@@ -333,9 +397,14 @@ test('live-model evidence receipt binds the current artifacts and rejects drift'
       signerIdentity: 'Developer ID Application: DSH Desktop (TEAM123)',
       startedAt: '2026-08-21T00:00:00.000Z',
       completedAt: '2026-08-21T00:01:00.000Z',
+      history,
+      responseMarker,
     });
     assert.equal(isLiveModelEvidenceReceipt(receipt), true);
     assert.equal(receipt.credentials_persisted, false);
+    assert.equal(receipt.provider, 'deepseek-official');
+    assert.equal(receipt.provider_name, 'DeepSeek');
+    assert.equal(receipt.model_response_marker, responseMarker);
     assert.equal(receipt.checks.length, LIVE_MODEL_EVIDENCE_CHECKS.length);
     assert.deepEqual(receipt.screenshot_refs, ['live-model-evidence/official-web-session-flow.png']);
     assert.deepEqual(validateReleaseEvidenceReceipt(receipt, {
@@ -357,6 +426,27 @@ test('live-model evidence receipt binds the current artifacts and rejects drift'
         source: { ...receipt.featured_manifest.source, reference: 'elsewhere/featured_plugins.json' },
       },
     }), false);
+    assert.equal(isLiveModelEvidenceReceipt({ ...receipt, provider: 'fake-provider' }), false);
+    assert.equal(isLiveModelEvidenceReceipt({ ...receipt, model_response_marker: '' }), false);
+    assert.throws(() => createLiveModelEvidenceReceipt({
+      root,
+      appPath: app,
+      screenshot: '/tmp/live-model/official-web-session-flow.png',
+      featuredManifestPath: featuredManifest,
+      commitSha: 'a'.repeat(40),
+      signerIdentity: 'Developer ID Application: DSH Desktop (TEAM123)',
+      startedAt: '2026-08-21T00:00:00.000Z',
+      completedAt: '2026-08-21T00:01:00.000Z',
+      responseMarker,
+      history: {
+        entries: [
+          { event: { type: 'user/message', seq: 1, data: { content: [{ type: 'text', text: 'prompt' }] } } },
+          { event: { type: 'turn/end', seq: 2, data: {
+            reason: { kind: 'error', error: { code: 'MISSING_CREDENTIAL', message: 'missing key' } },
+          } } },
+        ],
+      },
+    }), /MISSING_CREDENTIAL|assistant 文本|completed/);
     assert.match(validateReleaseEvidenceReceipt({
       ...receipt,
       git_commit_sha: 'b'.repeat(40),
@@ -388,6 +478,107 @@ test('live-model evidence receipt binds the current artifacts and rejects drift'
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test('each release receipt kind rejects incomplete, failed, wrong-level, and string checks', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-release-receipt-contract-'));
+  const app = join(root, 'DSH Desktop.app');
+  const dmg = join(root, 'dsh-desktop.dmg');
+  const featuredManifest = join(app, 'Contents', 'Resources', 'featured-plugins', 'manifest.json');
+  const sourceManifest = join(root, 'server', 'src', 'engine', 'dsh_runtime', 'featured_plugins.json');
+  const commitSha = 'a'.repeat(40);
+  const signerIdentity = 'Developer ID Application: DSH Desktop (TEAM123)';
+  const common = {
+    root,
+    appPath: app,
+    featuredManifestPath: featuredManifest,
+    commitSha,
+    platform: 'darwin',
+    arch: 'arm64',
+    signerIdentity,
+    startedAt: '2026-08-21T00:00:00.000Z',
+    completedAt: '2026-08-21T00:01:00.000Z',
+  };
+  const cases = [
+    {
+      kind: 'live-model',
+      evidenceLevel: 'packaged-electron-live-model',
+      checks: ['official-web-launch', 'session-create', 'session-history', 'provider-success', 'model-response-success'],
+      validator: isLiveModelEvidenceReceipt,
+    },
+    {
+      kind: 'macos-dmg-notarization',
+      evidenceLevel: 'macos-dmg-notarization',
+      checks: ['notarytool-accepted', 'dmg-stapled', 'dmg-stapler-validate', 'dmg-gatekeeper-open', 'payload-stapler-validate', 'payload-gatekeeper-execute'],
+      validator: isMacosDmgNotarizationEvidenceReceipt,
+    },
+    {
+      kind: 'macos-dmg-installer',
+      evidenceLevel: 'macos-dmg-installer-electron',
+      checks: ['mount', 'copy', 'install', 'activate', 'uninstall', 'restart', 'detach'],
+      validator: isMacosDmgInstallerEvidenceReceipt,
+    },
+    {
+      kind: 'native-host',
+      evidenceLevel: 'packaged-electron-native-host',
+      checks: ['profile-install', 'official-web-tool', 'session-bound-window-get-state', 'focus', 'minimize', 'maximize', 'restore', 'profile-uninstall'],
+      validator: isNativeHostEvidenceReceipt,
+    },
+  ];
+  try {
+    mkdirSync(join(app, 'Contents', 'Resources', 'featured-plugins'), { recursive: true });
+    mkdirSync(join(root, 'server', 'src', 'engine', 'dsh_runtime'), { recursive: true });
+    mkdirSync(join(app, 'Contents', 'MacOS'), { recursive: true });
+    writeFileSync(join(app, 'Contents', 'MacOS', 'DSH Desktop'), 'app');
+    writeFileSync(sourceManifest, '{}');
+    writeFileSync(featuredManifest, '{}');
+    writeFileSync(dmg, 'dmg');
+    for (const item of cases) {
+      const receipt = createReleaseEvidenceReceipt({
+        ...common,
+        kind: item.kind,
+        evidenceLevel: item.evidenceLevel,
+        ...(item.kind === 'macos-dmg-notarization' || item.kind === 'macos-dmg-installer' ? { dmgPath: dmg } : {}),
+        checks: item.checks.map((name) => ({ name, passed: true })),
+      });
+      if (item.kind === 'live-model') {
+        Object.assign(receipt, {
+          live_model_version: 'dsh.live-model.evidence.v1',
+          provider: 'deepseek-official',
+          provider_name: 'DeepSeek',
+          model_response_marker: 'DSH-LIVE-MODEL-test-marker',
+          credentials_persisted: false,
+          screenshot_refs: ['live-model-evidence/smoke.png'],
+        });
+      }
+      assert.equal(item.validator(receipt), true, `${item.kind} valid receipt`);
+      const validate = (candidate) => validateReleaseEvidenceReceipt(candidate, {
+        kind: item.kind,
+        verifyContent: false,
+      });
+      assert.match(validate({ ...receipt, checks: receipt.checks.slice(1) }).join('\n'), /必需检查项|缺少检查项/);
+      assert.match(validate({
+        ...receipt,
+        checks: receipt.checks.map((check, index) => index === 0 ? { ...check, passed: false } : check),
+      }).join('\n'), /未通过/);
+      assert.match(validate({ ...receipt, evidence_level: 'anything' }).join('\n'), /evidence_level/);
+      assert.match(validate({ ...receipt, checks: receipt.checks.map((check) => check.name) }).join('\n'), /对象数组/);
+      assert.match(validate({
+        ...receipt,
+        checks: [...receipt.checks, { name: 'not-a-real-release-check', passed: true }],
+      }).join('\n'), /未知检查项/);
+      assert.match(validate({
+        ...receipt,
+        checks: [...receipt.checks, { ...receipt.checks[0] }],
+      }).join('\n'), /检查项重复/);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('formal release commit binding rejects an environment SHA different from HEAD', () => {
+  assert.throws(() => resolveCommitSha(process.cwd(), { DSH_RELEASE_COMMIT_SHA: 'b'.repeat(40) }, { requireMatch: true }), /checkout 不一致/);
 });
 
 test('macOS release workflow persists the real live-model receipt', () => {

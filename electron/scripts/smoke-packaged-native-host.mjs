@@ -489,20 +489,21 @@ try {
     await writeFile(resultPath, `${JSON.stringify({
       ...createReleaseEvidenceReceipt({
         kind: 'native-host',
-        evidenceLevel: dialogMode ? 'packaged-electron-native-host-dialogs' : 'packaged-electron-native-host',
+        evidenceLevel: 'packaged-electron-native-host',
         root: APP_ROOT,
         appPath: packagedArtifactPath,
         featuredManifestPath,
         platform: packagedLayout.platform,
         arch: process.arch,
-        signerIdentity: readSignerIdentity(executable),
+        signerIdentity: readSignerIdentity(executable, process.env, { allowOverride: false }),
         startedAt: smokeStartedAt,
         completedAt: new Date().toISOString(),
         checks: checks.map((name) => ({ name, passed: true })),
         screenshotRefs: screenshotPath ? [artifactReference(screenshotPath, 'native-host-evidence')] : [],
       }),
       plugin: pluginName,
-      checks,
+      lifecycle_checks: checks,
+      native_host_mode: dialogMode ? 'dialogs' : 'window',
     }, null, 2)}\n`, { mode: 0o600 })
   }
   passed = true

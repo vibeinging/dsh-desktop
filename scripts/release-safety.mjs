@@ -15,6 +15,14 @@ import {
   resolveCommitSha,
   validateReleaseEvidenceReceipt,
 } from './release-evidence-receipt.mjs';
+import {
+  isLiveModelEvidenceReceipt,
+} from './live-model-evidence.mjs';
+import {
+  isMacosDmgInstallerEvidenceReceipt,
+  isMacosDmgNotarizationEvidenceReceipt,
+  isNativeHostEvidenceReceipt,
+} from './release-evidence-receipt.mjs';
 import { isWindowsAcceptanceReceipt } from './windows-acceptance-receipt.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -151,7 +159,7 @@ function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } =
   const arch = String(app).includes(`${sep}mac${sep}`) ? 'x64' : 'arm64';
   let commit;
   try {
-    commit = resolveCommitSha(root);
+    commit = resolveCommitSha(root, process.env, { requireMatch: true });
   } catch (error) {
     return [check('release_receipt_commit', 'block', error.message, root)];
   }
@@ -176,7 +184,16 @@ function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } =
     if (!existsSync(receiptPath)) return check(id, 'block', `找不到回执：${receiptPath}`, receiptPath);
     const receipt = readReceipt(receiptPath);
     if (!receipt) return check(id, 'block', `回执不是有效 JSON：${receiptPath}`, receiptPath);
-    const errors = validateReleaseEvidenceReceipt(receipt, {
+    const kindValidators = {
+      'live-model': isLiveModelEvidenceReceipt,
+      'macos-dmg-notarization': isMacosDmgNotarizationEvidenceReceipt,
+      'macos-dmg-installer': isMacosDmgInstallerEvidenceReceipt,
+      'native-host': isNativeHostEvidenceReceipt,
+    };
+    const errors = kindValidators[kind](receipt)
+      ? []
+      : [`${kind} 回执未通过该类型的固定 checks/evidence_level 契约`];
+    errors.push(...validateReleaseEvidenceReceipt(receipt, {
       root,
       kind,
       appPath: app,
@@ -185,8 +202,8 @@ function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } =
       commitSha: commit,
       platform: 'darwin',
       arch,
-      signerIdentity: readSignerIdentity(app),
-    });
+      signerIdentity: readSignerIdentity(app, process.env, { allowOverride: false }),
+    }));
     return check(
       id,
       errors.length === 0 ? 'pass' : 'block',

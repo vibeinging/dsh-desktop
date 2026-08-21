@@ -12,6 +12,67 @@ export const RELEASE_EVIDENCE_KINDS = Object.freeze([
   'native-host',
 ])
 
+/** The fixed evidence contract for each release receipt kind. */
+export const RELEASE_EVIDENCE_CONTRACTS = Object.freeze({
+  'live-model': Object.freeze({
+    evidenceLevel: 'packaged-electron-live-model',
+    requiredChecks: Object.freeze([
+      'official-web-launch',
+      'session-create',
+      'session-history',
+      'provider-success',
+      'model-response-success',
+    ]),
+    allowedArtifacts: Object.freeze(['app']),
+  }),
+  'macos-dmg-notarization': Object.freeze({
+    evidenceLevel: 'macos-dmg-notarization',
+    requiredChecks: Object.freeze([
+      'notarytool-accepted',
+      'dmg-stapled',
+      'dmg-stapler-validate',
+      'dmg-gatekeeper-open',
+      'payload-stapler-validate',
+      'payload-gatekeeper-execute',
+    ]),
+    allowedArtifacts: Object.freeze(['app', 'dmg']),
+  }),
+  'macos-dmg-installer': Object.freeze({
+    evidenceLevel: 'macos-dmg-installer-electron',
+    requiredChecks: Object.freeze([
+      'mount',
+      'copy',
+      'install',
+      'activate',
+      'uninstall',
+      'restart',
+      'detach',
+    ]),
+    allowedArtifacts: Object.freeze(['app', 'dmg']),
+  }),
+  'native-host': Object.freeze({
+    evidenceLevel: 'packaged-electron-native-host',
+    requiredChecks: Object.freeze([
+      'profile-install',
+      'official-web-tool',
+      'profile-uninstall',
+    ]),
+    allowedChecks: Object.freeze([
+      'profile-install',
+      'official-web-tool',
+      'session-bound-file-dialog-open',
+      'session-bound-directory-dialog-open',
+      'session-bound-window-get-state',
+      'focus',
+      'minimize',
+      'maximize',
+      'restore',
+      'profile-uninstall',
+    ]),
+    allowedArtifacts: Object.freeze(['app']),
+  }),
+})
+
 const HASH_PATTERN = /^[0-9a-f]{64}$/
 const COMMIT_PATTERN = /^[0-9a-f]{40}$/i
 
@@ -48,20 +109,25 @@ export function artifactReference(path, prefix) {
   return `${normalizedPrefix}/${name}`
 }
 
-/** Return the current checkout commit, or the CI-provided immutable commit. */
-export function resolveCommitSha(root, environment = process.env) {
+/** Return the current checkout commit, optionally requiring the CI value to match it. */
+export function resolveCommitSha(root, environment = process.env, { requireMatch = false } = {}) {
   const supplied = String(environment.DSH_RELEASE_COMMIT_SHA || '').trim()
-  const output = supplied || String(spawnSync('git', ['-C', resolve(root), 'rev-parse', 'HEAD'], {
+  const actual = String(spawnSync('git', ['-C', resolve(root), 'rev-parse', 'HEAD'], {
     encoding: 'utf8',
   }).stdout || '').trim()
+  if (requireMatch && supplied && COMMIT_PATTERN.test(actual)
+    && supplied.toLowerCase() !== actual.toLowerCase()) {
+    throw new Error(`发行回执环境 commit SHA 与当前 checkout 不一致：${supplied} != ${actual}`)
+  }
+  const output = supplied || actual
   if (!COMMIT_PATTERN.test(output)) throw new Error(`发行回执缺少有效 commit SHA：${output || 'missing'}`)
   return output.toLowerCase()
 }
 
 /** Read the exact macOS signing authority from a packaged App. */
-export function readSignerIdentity(appPath, environment = process.env) {
+export function readSignerIdentity(appPath, environment = process.env, { allowOverride = true } = {}) {
   const supplied = String(environment.DSH_SIGNING_IDENTITY || '').trim()
-  if (supplied) return supplied
+  if (allowOverride && supplied) return supplied
   if (!appPath) return ''
   if (process.platform === 'darwin') {
     const result = spawnSync('codesign', ['-dv', '--verbose=4', resolve(appPath)], { encoding: 'utf8' })
@@ -99,6 +165,35 @@ function checkTime(value, label) {
   return text
 }
 
+function receiptContract(kind) {
+  return RELEASE_EVIDENCE_CONTRACTS[kind] || null
+}
+
+function checkNames(kind, checks, errors) {
+  const contract = receiptContract(kind)
+  if (!Array.isArray(checks) || checks.length === 0) {
+    errors.push('发行回执缺少检查项')
+    return
+  }
+  const allowed = new Set(contract?.allowedChecks || contract?.requiredChecks || [])
+  const seen = new Set()
+  for (const item of checks) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      errors.push('发行回执 checks 必须是对象数组')
+      continue
+    }
+    const name = String(item.name || '').trim()
+    if (!name) errors.push('发行回执检查项缺少 name')
+    else if (seen.has(name)) errors.push(`发行回执检查项重复：${name}`)
+    else seen.add(name)
+    if (item.passed !== true) errors.push(`发行回执检查项未通过：${name || 'unknown'}`)
+    if (contract && !allowed.has(name)) errors.push(`发行回执包含未知检查项：${name || 'unknown'}`)
+  }
+  for (const name of contract?.requiredChecks || []) {
+    if (!seen.has(name)) errors.push(`发行回执缺少必需检查项：${name}`)
+  }
+}
+
 /** Create the shared identity portion and evidence fields for a release receipt. */
 export function createReleaseEvidenceReceipt({
   kind,
@@ -116,7 +211,11 @@ export function createReleaseEvidenceReceipt({
   checks = [],
   screenshotRefs = [],
 }) {
-  if (!RELEASE_EVIDENCE_KINDS.includes(kind)) throw new Error(`发行回执类型无效：${kind || 'missing'}`)
+  const contract = receiptContract(kind)
+  if (!contract) throw new Error(`发行回执类型无效：${kind || 'missing'}`)
+  if (String(evidenceLevel || '') !== contract.evidenceLevel) {
+    throw new Error(`发行回执 evidence_level 不匹配：${evidenceLevel || 'missing'} != ${contract.evidenceLevel}`)
+  }
   const sourcePath = join(resolve(root), RELEASE_EVIDENCE_SOURCE_MANIFEST)
   const artifactManifest = featuredManifestPath
   const started = checkTime(startedAt, 'started_at')
@@ -124,14 +223,19 @@ export function createReleaseEvidenceReceipt({
   if (Date.parse(completed) < Date.parse(started)) throw new Error('发行回执 completed_at 早于 started_at')
   const commit = commitSha || resolveCommitSha(root)
   if (!COMMIT_PATTERN.test(commit)) throw new Error(`发行回执 commit SHA 无效：${commit}`)
-  const signer = String(signerIdentity || readSignerIdentity(appPath)).trim()
+  const signer = String(signerIdentity || readSignerIdentity(appPath, process.env, { allowOverride: false })).trim()
   if (!signer) throw new Error('发行回执缺少签名身份')
-  if (!Array.isArray(checks) || checks.length === 0) throw new Error('发行回执缺少检查项')
+  const checkErrors = []
+  checkNames(kind, checks, checkErrors)
+  if (checkErrors.length > 0) throw new Error(checkErrors.join('；'))
   if (!artifactManifest) throw new Error('发行回执缺少精选插件产物 manifest')
 
   const artifacts = {}
   if (appPath) artifacts.app = hashRecord(artifactReference(appPath, 'app'), appPath)
   if (dmgPath) artifacts.dmg = hashRecord(artifactReference(dmgPath, 'installer'), dmgPath)
+  for (const name of contract.allowedArtifacts) {
+    if (!artifacts[name]) throw new Error(`发行回执缺少必需 artifact：${name}`)
+  }
   const screenshotReferences = screenshotRefs.map((reference) => String(reference || '').trim())
   if (screenshotReferences.some((reference) => !safeReference(reference))) {
     throw new Error('发行回执截图引用必须是 artifact 内的相对路径')
@@ -193,7 +297,11 @@ export function validateReleaseEvidenceReceipt(value, {
   if (!RELEASE_EVIDENCE_KINDS.includes(value.kind)) errors.push('发行回执 kind 无效')
   if (kind && value.kind !== kind) errors.push(`发行回执 kind 不匹配：${value.kind} != ${kind}`)
   if (value.status !== 'passed' || value.passed !== true) errors.push('发行回执没有 passed 状态')
+  const contract = receiptContract(value.kind)
   if (!String(value.evidence_level || '').trim()) errors.push('发行回执缺少 evidence_level')
+  else if (contract && value.evidence_level !== contract.evidenceLevel) {
+    errors.push(`发行回执 evidence_level 不匹配：${value.evidence_level} != ${contract.evidenceLevel}`)
+  }
   if (!COMMIT_PATTERN.test(String(value.git_commit_sha || ''))) errors.push('发行回执缺少有效 git_commit_sha')
   if (commitSha && String(value.git_commit_sha).toLowerCase() !== String(commitSha).toLowerCase()) {
     errors.push('发行回执 git_commit_sha 与当前提交不一致')
@@ -225,6 +333,14 @@ export function validateReleaseEvidenceReceipt(value, {
       }
       validateReference(record.reference, `发行回执 artifacts.${name}.reference`, errors)
       requireHash(record.sha256, `发行回执 artifacts.${name}.sha256`, errors)
+    }
+    for (const name of contract?.allowedArtifacts || []) {
+      if (!artifacts[name]) errors.push(`发行回执缺少必需 artifact：${name}`)
+    }
+    for (const name of Object.keys(artifacts)) {
+      if (contract && !contract.allowedArtifacts.includes(name)) {
+        errors.push(`发行回执包含未知 artifact：${name}`)
+      }
     }
   }
   if (verifyContent && appPath) {
@@ -268,7 +384,7 @@ export function validateReleaseEvidenceReceipt(value, {
       }
     }
   }
-  if (!Array.isArray(value.checks) || value.checks.length === 0) errors.push('发行回执缺少检查项')
+  checkNames(value.kind, value.checks, errors)
   if (!Array.isArray(value.screenshot_refs) || value.screenshot_refs.some((reference) => !safeReference(reference))) {
     errors.push('发行回执 screenshot_refs 必须是 artifact 内相对引用')
   }
@@ -278,4 +394,23 @@ export function validateReleaseEvidenceReceipt(value, {
 /** Return whether a value satisfies the shared receipt contract without external paths. */
 export function isReleaseEvidenceReceipt(value) {
   return validateReleaseEvidenceReceipt(value, { verifyContent: false }).length === 0
+}
+
+function isReceiptKind(value, kind) {
+  return validateReleaseEvidenceReceipt(value, { kind, verifyContent: false }).length === 0
+}
+
+/** Validate the macOS DMG notarization receipt shape without local artifacts. */
+export function isMacosDmgNotarizationEvidenceReceipt(value) {
+  return isReceiptKind(value, 'macos-dmg-notarization')
+}
+
+/** Validate the macOS DMG installer receipt shape without local artifacts. */
+export function isMacosDmgInstallerEvidenceReceipt(value) {
+  return isReceiptKind(value, 'macos-dmg-installer')
+}
+
+/** Validate the packaged native Host receipt shape without local artifacts. */
+export function isNativeHostEvidenceReceipt(value) {
+  return isReceiptKind(value, 'native-host')
 }
