@@ -90,4 +90,5 @@ test("the native Host smoke keeps file-dialog coverage behind an explicit manual
   assert.match(nativeHostSmoke, /native_host_file_dialog_smoke/);
   assert.match(nativeHostSmoke, /session-bound-file-dialog-open/);
   assert.match(nativeHostSmoke, /session-bound-directory-dialog-open/);
+  assert.match(nativeHostSmoke, /native-host-dialogs.*result\.json/);
 });

@@ -26,7 +26,10 @@ const resultText = dialogMode
   ? 'DSH Desktop native file and directory dialog smoke passed'
   : 'DSH Desktop native window Host smoke passed'
 const timeoutMs = Number(process.env.DSH_NATIVE_HOST_TIMEOUT_MS || 180_000)
-const resultPath = String(process.env.DSH_NATIVE_HOST_RESULT_FILE || '').trim()
+const defaultResultPath = dialogMode
+  ? join(APP_ROOT, 'electron', '.desktop-build', 'evidence', 'native-host-dialogs', 'result.json')
+  : ''
+const resultPath = String(process.env.DSH_NATIVE_HOST_RESULT_FILE || defaultResultPath).trim()
 const keepTemp = process.env.DSH_NATIVE_HOST_KEEP_TEMP === '1'
 const tempDir = await mkdtemp(join(tmpdir(), 'dsh-packaged-native-host-'))
 const dataRoot = join(tempDir, 'data')
