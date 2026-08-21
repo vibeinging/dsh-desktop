@@ -12,7 +12,7 @@
 - Profile 初始化只在新 Profile 上执行。已有 Profile 的启动和状态查询读取官方清单、依赖和最终图，不补回或隔离用户 Bundle；用户 patch 停用的 Bundle 也保持在官方配置图之外，不被应用改写。
 - 应用更新安装前执行当前 Profile 和 `--dump-config` 只读预检；预检失败不会创建待安装记录或调用 `quitAndInstall`。
 - 自研替换 Shell、旧产品 Client UI、工作台目录和自研主题包已从发行包输入中移除；源代码中保留的旧 Renderer 不在 Electron 打包清单和发布边界内。
-- 默认 `npm run dev` 现在直接启动官方 DSH Web Electron 路径，不再自动构建旧 Renderer 或自研 Client；需要维护旧 Renderer 的命令仍以 `dev:legacy-renderer` 显式命名，不属于发行或默认开发路径。
+- 默认 `npm run dev` 现在直接启动官方 DSH Web Electron 路径，不再自动构建旧 Renderer 或自研 Client；默认 `bootstrap`、`doctor` 和生产依赖审计也只覆盖 Server/Electron，Windows CI 只有在 legacy 测试步骤中显式安装 Renderer；需要维护旧 Renderer 的命令仍以 `dev:legacy-renderer` 显式命名，不属于发行或默认开发路径。
 - 对现存 arm64 目录包和 Developer ID 签名 arm64 目录包的 `Contents/Resources` 做了实际资源名与二进制文本扫描：只发现官方 `@deepseek-ai/dsh-client-ui-theme`、`@deepseek-ai/dsh-shell` 等运行时资源，没有 `dsh-theme-pack`、`dsh-work-shell`、`dsh-workbench-pages`、`profileThemes` 或 `skin-settings-store` 残留；这项证据补充了源码发行边界检查。
 
 ## 精选输入和插件证据
