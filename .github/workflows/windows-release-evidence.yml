@@ -21,6 +21,9 @@ jobs:
       WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
       WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      DSH_RELEASE_COMMIT_SHA: ${{ github.sha }}
+      DSH_NATIVE_HOST_WINDOW_RESULT_FILE: ${{ runner.temp }}\native-host-window-evidence\result.json
+      DSH_NATIVE_HOST_DIALOGS_RESULT_FILE: ${{ runner.temp }}\native-host-dialogs-evidence\result.json
 
     steps:
       - name: Checkout
@@ -62,19 +65,30 @@ jobs:
       - name: Build signed NSIS installer
         run: npm run package:win
 
+      - name: Measure curated plugin evidence
+        run: npm run measure:featured-plugins
+
       - name: Run installed Windows acceptance
         run: npm --prefix electron run smoke:win:acceptance
 
       - name: Smoke session-bound native window Host
         shell: pwsh
         env:
-          DSH_NATIVE_HOST_RESULT_FILE: ${{ runner.temp }}\native-host-evidence\result.json
+          DSH_NATIVE_HOST_RESULT_FILE: ${{ runner.temp }}\native-host-window-evidence\result.json
         run: |
           New-Item -ItemType Directory -Force (Split-Path -Parent $env:DSH_NATIVE_HOST_RESULT_FILE) | Out-Null
           npm run smoke:native-host
 
-      - name: Verify signed release
-        run: npm run release:verify:win -- --app "release/win-unpacked/DSH Desktop.exe"
+      - name: Smoke session-bound native file and directory dialogs
+        shell: pwsh
+        env:
+          DSH_NATIVE_HOST_RESULT_FILE: ${{ runner.temp }}\native-host-dialogs-evidence\result.json
+        run: |
+          New-Item -ItemType Directory -Force (Split-Path -Parent $env:DSH_NATIVE_HOST_RESULT_FILE) | Out-Null
+          npm run smoke:native-host:dialogs
+
+      - name: Verify signed release and bound evidence
+        run: npm run release:verify:win -- --require-evidence
 
       - name: Upload Windows release evidence
         if: always()
@@ -84,6 +98,8 @@ jobs:
           path: |
             release/*.exe
             release/windows-x64-acceptance.json
-            ${{ runner.temp }}/native-host-evidence
+            .desktop-build/reports/featured-plugin-evaluation.json
+            ${{ runner.temp }}/native-host-window-evidence
+            ${{ runner.temp }}/native-host-dialogs-evidence
           if-no-files-found: ignore
           retention-days: 14

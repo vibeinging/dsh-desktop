@@ -152,24 +152,25 @@ function resolveMacDmg(root, appPath) {
   return existsSync(candidate) ? candidate : null;
 }
 
-function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } = {}) {
-  const app = resolve(appPath);
-  const resourcesManifest = join(app, 'Contents', 'Resources', 'featured-plugins', 'manifest.json');
-  const dmg = resolveMacDmg(root, app);
-  const arch = String(app).includes(`${sep}mac${sep}`) ? 'x64' : 'arm64';
-  let commit;
-  try {
-    commit = resolveCommitSha(root, process.env, { requireMatch: true });
-  } catch (error) {
-    return [check('release_receipt_commit', 'block', error.message, root)];
-  }
-  const rows = [
-    ['mac_live_model_receipt', 'DSH_LIVE_MODEL_RESULT_FILE', 'live-model'],
-    ['mac_dmg_notarization_receipt', 'DSH_MACOS_DMG_NOTARY_RESULT_FILE', 'macos-dmg-notarization'],
-    ['macos_installer_receipt', 'DSH_MACOS_INSTALLER_RESULT_FILE', 'macos-dmg-installer'],
-    ['mac_native_host_window_receipt', 'DSH_NATIVE_HOST_WINDOW_RESULT_FILE', 'native-host', 'window'],
-    ['mac_native_host_dialogs_receipt', 'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE', 'native-host', 'dialogs'],
-  ];
+const EVIDENCE_RECEIPT_VALIDATORS = Object.freeze({
+  'live-model': isLiveModelEvidenceReceipt,
+  'macos-dmg-notarization': isMacosDmgNotarizationEvidenceReceipt,
+  'macos-dmg-installer': isMacosDmgInstallerEvidenceReceipt,
+  'native-host': isNativeHostEvidenceReceipt,
+});
+
+function inspectEvidenceReceiptRows({
+  root,
+  appPath,
+  resourcesManifest,
+  dmgPath = null,
+  platform,
+  arch,
+  signerIdentity,
+  commit,
+  requireEvidence = false,
+  rows,
+}) {
   return rows.map(([id, environmentName, kind, nativeHostMode]) => {
     const receiptPath = String(process.env[environmentName] || '').trim();
     if (!receiptPath) {
@@ -185,33 +186,85 @@ function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } =
     if (!existsSync(receiptPath)) return check(id, 'block', `找不到回执：${receiptPath}`, receiptPath);
     const receipt = readReceipt(receiptPath);
     if (!receipt) return check(id, 'block', `回执不是有效 JSON：${receiptPath}`, receiptPath);
-    const kindValidators = {
-      'live-model': isLiveModelEvidenceReceipt,
-      'macos-dmg-notarization': isMacosDmgNotarizationEvidenceReceipt,
-      'macos-dmg-installer': isMacosDmgInstallerEvidenceReceipt,
-      'native-host': isNativeHostEvidenceReceipt,
-    };
-    const errors = kindValidators[kind](receipt, { mode: nativeHostMode })
+    const errors = EVIDENCE_RECEIPT_VALIDATORS[kind](receipt, { mode: nativeHostMode })
       ? []
       : [`${kind} 回执未通过该类型的固定 checks/evidence_level 契约`];
     errors.push(...validateReleaseEvidenceReceipt(receipt, {
       root,
       kind,
-      appPath: app,
-      dmgPath: kind === 'macos-dmg-notarization' || kind === 'macos-dmg-installer' ? dmg : null,
+      appPath,
+      dmgPath: kind === 'macos-dmg-notarization' || kind === 'macos-dmg-installer' ? dmgPath : null,
       featuredManifestPath: resourcesManifest,
       commitSha: commit,
-      platform: 'darwin',
+      platform,
       arch,
-      signerIdentity: readSignerIdentity(app, process.env, { allowOverride: false }),
+      signerIdentity,
       nativeHostMode,
     }));
     return check(
       id,
       errors.length === 0 ? 'pass' : 'block',
-      errors.length === 0 ? `回执绑定当前 ${arch} App、精选 manifest 和 commit ${commit}` : errors.join('；'),
+      errors.length === 0 ? `回执绑定当前 ${platform}/${arch} 产物、精选 manifest 和 commit ${commit}` : errors.join('；'),
       receiptPath,
     );
+  });
+}
+
+function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } = {}) {
+  const app = resolve(appPath);
+  const resourcesManifest = join(app, 'Contents', 'Resources', 'featured-plugins', 'manifest.json');
+  const dmg = resolveMacDmg(root, app);
+  const arch = String(app).includes(`${sep}mac${sep}`) ? 'x64' : 'arm64';
+  let commit;
+  try {
+    commit = resolveCommitSha(root, process.env, { requireMatch: true });
+  } catch (error) {
+    return [check('release_receipt_commit', 'block', error.message, root)];
+  }
+  return inspectEvidenceReceiptRows({
+    root,
+    appPath: app,
+    resourcesManifest,
+    dmgPath: dmg,
+    platform: 'darwin',
+    arch,
+    signerIdentity: readSignerIdentity(app, process.env, { allowOverride: false }),
+    commit,
+    requireEvidence,
+    rows: [
+      ['mac_live_model_receipt', 'DSH_LIVE_MODEL_RESULT_FILE', 'live-model'],
+      ['mac_dmg_notarization_receipt', 'DSH_MACOS_DMG_NOTARY_RESULT_FILE', 'macos-dmg-notarization'],
+      ['macos_installer_receipt', 'DSH_MACOS_INSTALLER_RESULT_FILE', 'macos-dmg-installer'],
+      ['mac_native_host_window_receipt', 'DSH_NATIVE_HOST_WINDOW_RESULT_FILE', 'native-host', 'window'],
+      ['mac_native_host_dialogs_receipt', 'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE', 'native-host', 'dialogs'],
+    ],
+  });
+}
+
+function inspectWindowsNativeHostReceipts(root, appPath, { requireEvidence = false } = {}) {
+  const app = appPath ? resolve(appPath) : null;
+  const resourcesManifest = app
+    ? join(dirname(app), 'resources', 'featured-plugins', 'manifest.json')
+    : null;
+  let commit;
+  try {
+    commit = resolveCommitSha(root, process.env, { requireMatch: true });
+  } catch (error) {
+    return [check('windows_release_receipt_commit', 'block', error.message, root)];
+  }
+  return inspectEvidenceReceiptRows({
+    root,
+    appPath: app,
+    resourcesManifest,
+    platform: 'win32',
+    arch: 'x64',
+    signerIdentity: app ? readSignerIdentity(app, process.env, { allowOverride: false }) : '',
+    commit,
+    requireEvidence,
+    rows: [
+      ['windows_native_host_window_receipt', 'DSH_NATIVE_HOST_WINDOW_RESULT_FILE', 'native-host', 'window'],
+      ['windows_native_host_dialogs_receipt', 'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE', 'native-host', 'dialogs'],
+    ],
   });
 }
 
@@ -387,10 +440,16 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
       'WIN_CSC_LINK:',
       'WIN_CSC_KEY_PASSWORD:',
       'npm run package:win',
+      'DSH_RELEASE_COMMIT_SHA:',
+      'npm run measure:featured-plugins',
       'smoke:win:acceptance',
       'npm run smoke:native-host',
-      'native-host-evidence',
-      'release:verify:win',
+      'npm run smoke:native-host:dialogs',
+      'native-host-window-evidence',
+      'native-host-dialogs-evidence',
+      'DSH_NATIVE_HOST_WINDOW_RESULT_FILE',
+      'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE',
+      'release:verify:win -- --require-evidence',
     ];
     checks.push(check(
       'windows_release_evidence_workflow',
@@ -427,7 +486,7 @@ function inspectMacBundle(appPath, { root = DEFAULT_ROOT, requireEvidence = fals
   ];
 }
 
-function inspectWindowsBundle(root, appPath) {
+function inspectWindowsBundle(root, appPath, { requireEvidence = false } = {}) {
   const receiptPath = join(root, 'release', 'windows-x64-acceptance.json');
   const receipt = readJson(receiptPath);
   const checks = [check(
@@ -438,10 +497,12 @@ function inspectWindowsBundle(root, appPath) {
   )];
   if (process.platform !== 'win32') {
     checks.push(check('windows_code_signature', 'manual', 'Windows 签名只能在 Windows 产物或实机上验证', appPath || null));
+    if (requireEvidence) checks.push(...inspectWindowsNativeHostReceipts(root, appPath, { requireEvidence }));
     return checks;
   }
   if (!appPath || !existsSync(appPath)) {
     checks.push(check('windows_code_signature', 'block', '找不到待发布 Windows 可执行文件', appPath || null));
+    if (requireEvidence) checks.push(...inspectWindowsNativeHostReceipts(root, appPath, { requireEvidence }));
     return checks;
   }
   const command = `(Get-AuthenticodeSignature -FilePath '${String(appPath).replaceAll("'", "''")}').Status`;
@@ -452,6 +513,7 @@ function inspectWindowsBundle(root, appPath) {
     'Windows Authenticode 签名有效',
     signature.output,
   ));
+  if (requireEvidence) checks.push(...inspectWindowsNativeHostReceipts(root, appPath, { requireEvidence }));
   return checks;
 }
 
@@ -471,7 +533,7 @@ export function inspectReleaseSafety({
     }));
   }
   if (!staticOnly && (scope === 'all' || scope === 'windows')) {
-    checks.push(...inspectWindowsBundle(normalizedRoot, appPath ? resolve(appPath) : null));
+    checks.push(...inspectWindowsBundle(normalizedRoot, appPath ? resolve(appPath) : null, { requireEvidence }));
   }
   const summary = {
     pass: checks.filter((item) => item.status === 'pass').length,

@@ -24,6 +24,7 @@ const appInput = smokeArgs.find((argument) => !argument.startsWith('--')) || (pr
 const packagedLayout = resolvePackagedLayout(appInput)
 const { executable, resourcesDir } = packagedLayout
 const packagedArtifactPath = resolve(appInput)
+const receiptArtifactPath = packagedLayout.platform === 'win32' ? executable : packagedArtifactPath
 const featuredManifestPath = join(resourcesDir, 'featured-plugins', 'manifest.json')
 const fixture = join(APP_ROOT, 'eval', 'fixtures', 'dsh-native-host-smoke')
 const pluginName = '@vibeinging/dsh-native-host-smoke'
@@ -491,7 +492,7 @@ try {
         kind: 'native-host',
         evidenceLevel: 'packaged-electron-native-host',
         root: APP_ROOT,
-        appPath: packagedArtifactPath,
+        appPath: receiptArtifactPath,
         featuredManifestPath,
         platform: packagedLayout.platform,
         arch: process.arch,

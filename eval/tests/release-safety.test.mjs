@@ -11,6 +11,7 @@ import {
   findVendorRuntimeUsage,
   hasAgentSandboxDefault,
   hasVexDistributionAuthorization,
+  inspectReleaseSafety,
 } from '../../scripts/release-safety.mjs';
 import {
   inspectCommunityAssetLicenseBoundary,
@@ -35,6 +36,7 @@ import {
   isNativeHostEvidenceReceipt,
   releaseEvidenceChecks,
   resolveCommitSha,
+  sha256Path,
   validateReleaseEvidenceReceipt,
   createReleaseEvidenceReceipt,
 } from '../../scripts/release-evidence-receipt.mjs';
@@ -651,6 +653,104 @@ test('formal release commit binding rejects an invalid current checkout even wit
   }
 });
 
+test('Windows native Host receipts bind the EXE artifact separately from the unpacked directory', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-windows-native-host-receipt-'));
+  const appDirectory = join(root, 'release', 'win-unpacked');
+  const executable = join(appDirectory, 'DSH Desktop.exe');
+  const resourcesManifest = join(appDirectory, 'resources', 'featured-plugins', 'manifest.json');
+  const sourceManifest = join(root, 'server', 'src', 'engine', 'dsh_runtime', 'featured_plugins.json');
+  const commitSha = 'a'.repeat(40);
+  const signerIdentity = 'CN=DSH Desktop, O=DSH, C=CN';
+  try {
+    mkdirSync(join(appDirectory, 'resources', 'featured-plugins'), { recursive: true });
+    mkdirSync(join(root, 'server', 'src', 'engine', 'dsh_runtime'), { recursive: true });
+    writeFileSync(executable, 'signed Windows executable');
+    writeFileSync(join(appDirectory, 'resources', 'version.txt'), 'resources');
+    writeFileSync(sourceManifest, '{}');
+    writeFileSync(resourcesManifest, '{}');
+    const create = (mode) => createReleaseEvidenceReceipt({
+      root,
+      appPath: executable,
+      featuredManifestPath: resourcesManifest,
+      commitSha,
+      platform: 'win32',
+      arch: 'x64',
+      signerIdentity,
+      startedAt: '2026-08-21T00:00:00.000Z',
+      completedAt: '2026-08-21T00:01:00.000Z',
+      kind: 'native-host',
+      evidenceLevel: 'packaged-electron-native-host',
+      nativeHostMode: mode,
+      checks: releaseEvidenceChecks('native-host', mode).map((name) => ({ name, passed: true })),
+    });
+    const validate = (receipt, mode = receipt.native_host_mode, overrides = {}) => validateReleaseEvidenceReceipt(receipt, {
+      root,
+      kind: 'native-host',
+      appPath: executable,
+      featuredManifestPath: resourcesManifest,
+      commitSha,
+      platform: 'win32',
+      arch: 'x64',
+      signerIdentity,
+      ...overrides,
+      nativeHostMode: mode,
+    });
+    const windowReceipt = create('window');
+    const dialogsReceipt = create('dialogs');
+    assert.equal(windowReceipt.artifacts.app.sha256, sha256Path(executable));
+    assert.notEqual(windowReceipt.artifacts.app.sha256, sha256Path(appDirectory));
+    assert.deepEqual(validate(windowReceipt), []);
+    assert.deepEqual(validate(dialogsReceipt), []);
+    assert.match(validate({
+      ...windowReceipt,
+      artifacts: { ...windowReceipt.artifacts, app: { ...windowReceipt.artifacts.app, sha256: 'b'.repeat(64) } },
+    }).join('\n'), /App SHA-256/);
+    assert.match(validate({ ...windowReceipt, git_commit_sha: 'b'.repeat(40) }).join('\n'), /git_commit_sha/);
+    assert.match(validate(windowReceipt, 'window', { platform: 'darwin' }).join('\n'), /platform/);
+    assert.match(validate(windowReceipt, 'window', { arch: 'arm64' }).join('\n'), /arch/);
+    assert.match(validate(windowReceipt, 'window', { signerIdentity: 'Other signer' }).join('\n'), /signer_identity/);
+    assert.match(validate({ ...windowReceipt, native_host_mode: 'dialogs' }).join('\n'), /未知检查项|native_host_mode/);
+    assert.match(validate({
+      ...dialogsReceipt,
+      checks: dialogsReceipt.checks.filter(({ name }) => name !== 'session-bound-directory-dialog-open'),
+    }).join('\n'), /必需检查项/);
+    const nativeSmoke = readFileSync(new URL('../../electron/scripts/smoke-packaged-native-host.mjs', import.meta.url), 'utf8');
+    assert.match(nativeSmoke, /const receiptArtifactPath = packagedLayout\.platform === 'win32' \? executable : packagedArtifactPath/);
+    assert.match(nativeSmoke, /appPath: receiptArtifactPath/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('Windows formal gate requires separate window and dialogs receipts', () => {
+  const resultVariables = [
+    'DSH_RELEASE_COMMIT_SHA',
+    'DSH_NATIVE_HOST_WINDOW_RESULT_FILE',
+    'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE',
+  ];
+  const saved = Object.fromEntries(resultVariables.map((name) => [name, process.env[name]]));
+  try {
+    for (const name of resultVariables) delete process.env[name];
+    const report = inspectReleaseSafety({
+      root: process.cwd(),
+      scope: 'windows',
+      appPath: join(tmpdir(), 'dsh-missing-win-unpacked', 'DSH Desktop.exe'),
+      requireEvidence: true,
+    });
+    const nativeChecks = report.checks.filter(({ id }) => id.startsWith('windows_native_host_'));
+    assert.deepEqual(nativeChecks.map(({ id }) => id), [
+      'windows_native_host_window_receipt',
+      'windows_native_host_dialogs_receipt',
+    ]);
+    assert.equal(nativeChecks.every(({ status }) => status === 'block'), true);
+  } finally {
+    for (const name of resultVariables) {
+      if (saved[name] === undefined) delete process.env[name];
+      else process.env[name] = saved[name];
+    }
+  }
+});
+
 test('macOS release workflow persists the real live-model receipt', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
   assert.match(workflow, /DSH_LIVE_MODEL_RESULT_FILE=/);
@@ -697,14 +797,23 @@ test('macOS DMG notarization selects the current architecture and keeps the rece
 
 test('Windows release evidence workflow requires signing, installer acceptance, and signature verification', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/windows-release-evidence.yml', import.meta.url), 'utf8');
+  const electronPackage = JSON.parse(readFileSync(new URL('../../electron/package.json', import.meta.url), 'utf8'));
   assert.match(workflow, /WIN_CSC_LINK:/);
   assert.match(workflow, /WIN_CSC_KEY_PASSWORD:/);
+  assert.match(workflow, /DSH_RELEASE_COMMIT_SHA:/);
   assert.match(workflow, /npm run package:win\b/);
+  assert.match(workflow, /npm run measure:featured-plugins/);
   assert.match(workflow, /smoke:win:acceptance/);
   assert.match(workflow, /npm run smoke:native-host/);
-  assert.match(workflow, /native-host-evidence/);
-  assert.match(workflow, /release:verify:win/);
+  assert.match(workflow, /npm run smoke:native-host:dialogs/);
+  assert.match(workflow, /DSH_NATIVE_HOST_WINDOW_RESULT_FILE/);
+  assert.match(workflow, /DSH_NATIVE_HOST_DIALOGS_RESULT_FILE/);
+  assert.match(workflow, /native-host-window-evidence/);
+  assert.match(workflow, /native-host-dialogs-evidence/);
+  assert.match(workflow, /release:verify:win -- --require-evidence/);
+  assert.match(workflow, /featured-plugin-evaluation\.json/);
   assert.match(workflow, /windows-x64-acceptance\.json/);
+  assert.match(electronPackage.scripts['package:win:project'], /release:verify:win -- --allow-blockers/);
 });
 
 test('packaged smoke uses a platform system path without inheriting the user PATH', () => {
