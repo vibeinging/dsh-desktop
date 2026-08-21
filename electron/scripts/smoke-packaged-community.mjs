@@ -119,7 +119,12 @@ async function runPackagedApp(label, overrides = {}) {
 try {
   // The App owns first-use initialization. This ordering proves a community
   // install augments an existing Profile instead of becoming its initializer.
-  await runPackagedApp('首次启动')
+  await runPackagedApp('首次启动', screenshotDir
+    ? {
+        DSH_SMOKE_SCREENSHOT_DIR: screenshotDir,
+        DSH_SMOKE_SCREENSHOT_NAME: 'official-web-before-install.png',
+      }
+    : {})
   await runOfficial([
     'plugin', '--profile', 'web', 'add', '-w', candidate,
     '--save-exact', '--ignore-scripts',
