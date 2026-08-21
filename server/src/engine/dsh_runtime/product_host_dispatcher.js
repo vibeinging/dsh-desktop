@@ -352,6 +352,7 @@ export const nullProductHostDispatcher = {
  */
 export function createSessionProductHostDispatcher({ nativeHost = createDesktopNativeHostTransport() } = {}) {
   const bindings = new Map();
+  const nativeSessions = new Set();
   const inFlight = new Map();
   return {
     bind(next) {
@@ -378,13 +379,35 @@ export function createSessionProductHostDispatcher({ nativeHost = createDesktopN
         throw error;
       }
       bindings.set(dshSessionId, binding);
+      nativeSessions.delete(dshSessionId);
       return dshSessionId;
+    },
+    registerNativeHostSession(dshSessionId) {
+      const key = String(dshSessionId || "").trim();
+      if (!key || key.length > 160) {
+        const error = new Error("注册原生 Host Session 需要有效的 DSH sessionId");
+        error.code = "DSH_PRODUCT_HOST_NATIVE_SESSION_INVALID";
+        throw error;
+      }
+      nativeSessions.add(key);
+      return key;
+    },
+    clearNativeHostSession(dshSessionId) {
+      const key = String(dshSessionId || "").trim();
+      const removed = nativeSessions.delete(key);
+      for (const [id, pending] of inFlight) {
+        if (pending.sessionId !== key || pending.binding) continue;
+        pending.controller.abort(new DOMException("product-host native Session announcement removed", "AbortError"));
+        inFlight.delete(id);
+      }
+      return removed;
     },
     clear(dshSessionId) {
       const key = String(dshSessionId || "").trim();
       const binding = bindings.get(key);
-      if (!binding) return false;
-      bindings.delete(key);
+      const native = nativeSessions.delete(key);
+      if (!binding && !native) return false;
+      if (binding) bindings.delete(key);
       for (const [id, pending] of inFlight) {
         if (pending.sessionId !== key) continue;
         pending.controller.abort(new DOMException("product-host Session binding removed", "AbortError"));
@@ -398,23 +421,24 @@ export function createSessionProductHostDispatcher({ nativeHost = createDesktopN
       if (!dshSessionId) {
         return response(id, { ok: false, error: { code: "product-rejected", message: "productHost 请求缺少 DSH sessionId" } });
       }
-      const binding = bindings.get(dshSessionId);
-      if (!binding) {
-        return response(id, { ok: false, error: { code: "product-unavailable", message: "productHost 没有这个 DSH session 的授权绑定" } });
-      }
       const method = message?.method;
       const handler = HANDLERS[method];
       if (!handler) {
         return response(id, { ok: false, error: { code: "product-rejected", message: `不支持的 productHost 方法：${method}` } });
       }
+      const binding = bindings.get(dshSessionId);
+      const nativeOnly = !binding && nativeSessions.has(dshSessionId) && DESKTOP_NATIVE_METHODS.has(method);
+      if (!binding && !nativeOnly) {
+        return response(id, { ok: false, error: { code: "product-unavailable", message: "productHost 没有这个 DSH session 的授权绑定" } });
+      }
       const controller = new AbortController();
-      inFlight.set(id, { sessionId: dshSessionId, controller });
+      inFlight.set(id, { sessionId: dshSessionId, controller, binding: Boolean(binding) });
       try {
         const value = await handler({
-          db: binding.db,
-          resolveUserId: () => binding.userId,
-          resolveProjectId: () => binding.projectId || null,
-          resolveAppSessionId: () => binding.appSessionId,
+          db: binding?.db || null,
+          resolveUserId: binding ? () => binding.userId : () => null,
+          resolveProjectId: binding ? () => binding.projectId || null : () => null,
+          resolveAppSessionId: binding ? () => binding.appSessionId : () => null,
           nativeHost,
           sessionId: dshSessionId,
           method,
@@ -441,6 +465,7 @@ export function createSessionProductHostDispatcher({ nativeHost = createDesktopN
       }
       inFlight.clear();
       bindings.clear();
+      nativeSessions.clear();
       nativeHost.dispose?.();
     },
   };

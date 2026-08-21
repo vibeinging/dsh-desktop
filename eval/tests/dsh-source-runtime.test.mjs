@@ -218,6 +218,7 @@ class FakeWebSocket extends EventTarget {
 test("DSH runtime opens current mux and host WebSockets before reporting ready", async () => {
   FakeWebSocket.sockets = [];
   const apiMethods = [];
+  const nativeSessionEvents = [];
   const child = new EventEmitter();
   child.connected = true;
   child.send = (message, callback) => {
@@ -231,9 +232,23 @@ test("DSH runtime opens current mux and host WebSockets before reporting ready",
   child.disconnect = () => { child.connected = false; };
   child.kill = () => {};
   const client = new DshRuntimeClient({
-    env: { DSH_RUNTIME_DISTRIBUTION: "npm" },
+    productHostDispatcher: {
+      registerNativeHostSession(sessionId) {
+        nativeSessionEvents.push({ type: "ready", sessionId });
+      },
+      clearNativeHostSession(sessionId) {
+        nativeSessionEvents.push({ type: "released", sessionId });
+      },
+    },
+    env: {
+      DSH_RUNTIME_DISTRIBUTION: "npm",
+      DSH_FEATURED_PLUGIN_ALLOW_SOURCE: "1",
+      DSH_APP_ROOT: resolve(dirname(fileURLToPath(import.meta.url)), "../.."),
+    },
     spawn: () => {
       queueMicrotask(() => {
+        child.emit("message", { type: "product-native-session-ready", sessionId: "dsh-native-1" });
+        child.emit("message", { type: "product-native-session-released", sessionId: "dsh-native-1" });
         child.emit("message", { type: "client-ready", url: "http://127.0.0.1:3080/" });
         child.emit("message", { type: "ready", distribution: "npm", version: DSH_NPM_VERSION });
       });
@@ -257,7 +272,11 @@ test("DSH runtime opens current mux and host WebSockets before reporting ready",
   });
 
   await client.start();
-  assert.deepEqual(apiMethods, ["settings.describe", "settings.mutate"]);
+  assert.deepEqual(nativeSessionEvents, [
+    { type: "ready", sessionId: "dsh-native-1" },
+    { type: "released", sessionId: "dsh-native-1" },
+  ]);
+  assert.deepEqual(apiMethods, []);
   assert.deepEqual(FakeWebSocket.sockets.map((socket) => socket.url).sort(), [
     "ws://127.0.0.1:3080/api/events.host",
     "ws://127.0.0.1:3080/api/events.mux",

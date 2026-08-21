@@ -170,6 +170,49 @@ test("session dispatcher rejects an unknown DSH session", async () => {
   assert.equal(reply.result.error.code, "product-unavailable");
 });
 
+test("native-only Session authorization exposes only Electron Host methods", async () => {
+  const calls = [];
+  const dispatcher = createSessionProductHostDispatcher({
+    nativeHost: {
+      async request(sessionId, method, payload) {
+        calls.push({ sessionId, method, payload });
+        return { state: "visible" };
+      },
+      dispose() {},
+    },
+  });
+  dispatcher.registerNativeHostSession("dsh-native");
+
+  const nativeReply = await dispatcher.handle({
+    id: "native-state",
+    sessionId: "dsh-native",
+    method: "windowGetState",
+    payload: {},
+  });
+  assert.deepEqual(nativeReply.result, { ok: true, value: { state: "visible" } });
+  assert.deepEqual(calls, [{ sessionId: "dsh-native", method: "windowGetState", payload: {} }]);
+
+  const businessReply = await dispatcher.handle({
+    id: "native-business",
+    sessionId: "dsh-native",
+    method: "projectList",
+    payload: {},
+  });
+  assert.equal(businessReply.result.ok, false);
+  assert.equal(businessReply.result.error.code, "product-unavailable");
+
+  assert.equal(dispatcher.clearNativeHostSession("dsh-native"), true);
+  const releasedReply = await dispatcher.handle({
+    id: "native-released",
+    sessionId: "dsh-native",
+    method: "windowGetState",
+    payload: {},
+  });
+  assert.equal(releasedReply.result.ok, false);
+  assert.equal(releasedReply.result.error.code, "product-unavailable");
+  await dispatcher.dispose();
+});
+
 test("session dispatcher rejects an unknown method even when bound", async () => {
   const dispatcher = createSessionProductHostDispatcher();
   bindSession(dispatcher);

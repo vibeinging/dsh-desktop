@@ -103,6 +103,20 @@ export class DshRuntimeClient extends EventEmitter {
     return false;
   }
 
+  registerNativeProductHostSession(dshSessionId) {
+    if (typeof this.productHostDispatcher.registerNativeHostSession === "function") {
+      return this.productHostDispatcher.registerNativeHostSession(dshSessionId);
+    }
+    return dshSessionId;
+  }
+
+  unregisterNativeProductHostSession(dshSessionId) {
+    if (typeof this.productHostDispatcher.clearNativeHostSession === "function") {
+      return this.productHostDispatcher.clearNativeHostSession(dshSessionId);
+    }
+    return false;
+  }
+
   async start() {
     if (this.starting) return this.starting;
     if (this.child?.connected) return this;
@@ -205,6 +219,18 @@ export class DshRuntimeClient extends EventEmitter {
     }
     if (message.type === "fatal") {
       this.emit("fatal", errorFromPayload(message.error, "DSH 运行时启动失败"));
+      return;
+    }
+    if (message.type === "product-native-session-ready") {
+      try {
+        this.registerNativeProductHostSession(message.sessionId);
+      } catch (error) {
+        this.emit("fatal", error);
+      }
+      return;
+    }
+    if (message.type === "product-native-session-released") {
+      this.unregisterNativeProductHostSession(message.sessionId);
       return;
     }
     if (message.type === "product-cancel") {

@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 
 export const name = "dsh-work-product-host-ipc";
-export const inject = ["webServer"];
+export const inject = ["webServer", "agents"];
 
 const PRODUCT_REQUEST_TIMEOUT_MS = 30_000;
 
@@ -209,6 +209,33 @@ export function apply(ctx) {
   ctx.provide("browserWorkspaceHost", browserWorkspaceHost);
   ctx.provide("fileDialogHost", fileDialogHost);
   ctx.provide("windowHost", windowHost);
+
+  const announcedAgents = new Map();
+  const announceNativeSession = (agent) => {
+    const sessionId = String(agent?.session?.id || "").trim();
+    if (!sessionId) throw new Error("dsh-work product Host cannot authorize an Agent without a DSH Session id");
+    if (announcedAgents.has(agent)) return;
+    announcedAgents.set(agent, sessionId);
+    sendRuntimeParentMessage(process, {
+      type: "product-native-session-ready",
+      sessionId,
+    });
+  };
+  const releaseNativeSession = (agent) => {
+    const sessionId = announcedAgents.get(agent);
+    if (!sessionId) return;
+    announcedAgents.delete(agent);
+    sendRuntimeParentMessage(process, {
+      type: "product-native-session-released",
+      sessionId,
+    });
+  };
+  ctx.on("agent/created", ({ agent }) => announceNativeSession(agent));
+  ctx.on("agent/disposed", ({ agent }) => releaseNativeSession(agent));
+  ctx.effect(() => () => {
+    for (const agent of announcedAgents.keys()) releaseNativeSession(agent);
+    announcedAgents.clear();
+  }, "dsh-work native Host Session announcements");
 
   let stopping = false;
   const stopRuntime = () => {

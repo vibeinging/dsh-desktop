@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-native-host-smoke
+      name: '@vibeinging/dsh-native-host-smoke'

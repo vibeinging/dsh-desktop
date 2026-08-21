@@ -22,7 +22,7 @@
         "client": false,
         "composition": {
           "plugin_id": "dsh-work-product-host-ipc",
-          "requires": ["webServer"],
+          "requires": ["webServer", "agents"],
           "provides": ["productHost", "officeArtifactHost", "browserWorkspaceHost", "fileDialogHost", "windowHost"],
           "routes": [],
           "slots": [],
@@ -34,7 +34,7 @@
         "regression": {
           "unit": ["eval/tests/dsh-product-host.test.mjs", "eval/tests/browser-workspace.test.mjs"],
           "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-offline.mjs", "electron/scripts/smoke-browser-workspace.mjs"]
+          "electron": ["electron/scripts/smoke-packaged-offline.mjs", "electron/scripts/smoke-browser-workspace.mjs", "electron/scripts/smoke-packaged-native-host.mjs"]
         },
         "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
       }
