@@ -61,6 +61,14 @@ function waitForOfficialSurface(child) {
   });
 }
 
+test("macOS installer smoke records the DMG-to-App installation boundary", async () => {
+  const script = await readFile(resolve(APP_ROOT, "electron/scripts/smoke-macos-installer.mjs"), "utf8");
+  assert.match(script, /hdiutil/);
+  assert.match(script, /ditto/);
+  assert.match(script, /smoke-packaged-community\.mjs/);
+  assert.match(script, /DSH_INSTALLER_SOURCE/);
+});
+
 test("the independent task-board Bundle installs, runs, uninstalls, and restarts through the official Profile", {
   timeout: 300_000,
   skip: process.env.DSH_LIVE_COMMUNITY_TEST === "1"
