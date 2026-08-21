@@ -1,15 +1,9 @@
 name: macOS Release Evidence
 
 # This workflow is intentionally manual. It consumes signing/notarization
-# credentials and can optionally consume a real DeepSeek API key.
+# credentials and requires a real DeepSeek API key for release evidence.
 on:
   workflow_dispatch:
-    inputs:
-      live_model:
-        description: Run the real DeepSeek live-model smoke and upload its screenshot
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -30,6 +24,11 @@ jobs:
       CSC_LINK: ${{ secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      DSH_RELEASE_COMMIT_SHA: ${{ github.sha }}
+      DSH_LIVE_MODEL_RESULT_FILE: ${{ runner.temp }}/live-model-evidence/result.json
+      DSH_MACOS_DMG_NOTARY_RESULT_FILE: ${{ runner.temp }}/macos-dmg-evidence/result.json
+      DSH_MACOS_INSTALLER_RESULT_FILE: ${{ runner.temp }}/macos-installer-evidence/result.json
+      DSH_NATIVE_HOST_RESULT_FILE: ${{ runner.temp }}/native-host-evidence/result.json
 
     steps:
       - name: Checkout
@@ -78,7 +77,9 @@ jobs:
         run: |
           npm run check:release-artifacts
           npm run check:release:budgets
-          npm run release:verify:mac
+
+      - name: Measure curated plugin evidence
+        run: npm run measure:featured-plugins
 
       - name: Verify notarized DMG payload
         run: |
@@ -123,7 +124,6 @@ jobs:
           DSH_NATIVE_HOST_RESULT_FILE="$RUNNER_TEMP/native-host-evidence/result.json" npm run smoke:native-host
 
       - name: Smoke real DeepSeek live-model
-        if: ${{ inputs.live_model }}
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
@@ -133,6 +133,9 @@ jobs:
           DSH_LIVE_MODEL_RESULT_FILE="$RUNNER_TEMP/live-model-evidence/result.json" \
           npm run smoke:official-web:live
 
+      - name: Enforce bound release receipts
+        run: npm run release:verify:mac -- --require-evidence
+
       - name: Upload release and smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -141,6 +144,7 @@ jobs:
           path: |
             release/*.dmg
             release/*.zip
+            .desktop-build/reports/featured-plugin-evaluation.json
             ${{ runner.temp }}/apple-notary-history.json
             ${{ runner.temp }}/macos-dmg-evidence
             ${{ runner.temp }}/community-evidence
