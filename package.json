@@ -61,6 +61,7 @@
     "smoke:featured-plugins:packaged": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-featured-plugins",
     "smoke:community:packaged": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-community",
     "smoke:native-host": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:native-host",
+    "smoke:native-host:dialogs": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:native-host:dialogs",
     "smoke:macos:installer": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:macos:installer",
     "smoke:updater": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-updater",
     "smoke:browser-workspace": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:browser-workspace"

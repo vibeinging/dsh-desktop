@@ -7,6 +7,7 @@ const electronMain = readFileSync(new URL("electron/main.js", appRoot), "utf8");
 const electronPackage = JSON.parse(readFileSync(new URL("electron/package.json", appRoot), "utf8"));
 const featured = JSON.parse(readFileSync(new URL("server/src/engine/dsh_runtime/featured_plugins.json", appRoot), "utf8"));
 const officialWebFlowSmoke = readFileSync(new URL("electron/scripts/smoke-packaged-official-web-flow.mjs", appRoot), "utf8");
+const nativeHostSmoke = readFileSync(new URL("electron/scripts/smoke-packaged-native-host.mjs", appRoot), "utf8");
 const defaultDevScript = readFileSync(new URL("scripts/dev.mjs", appRoot), "utf8");
 const bootstrapScript = readFileSync(new URL("scripts/bootstrap.mjs", appRoot), "utf8");
 const doctorScript = readFileSync(new URL("scripts/doctor.mjs", appRoot), "utf8");
@@ -81,4 +82,12 @@ test("the packaged official Web interaction smoke stays on official question, ap
   assert.match(officialWebFlowSmoke, /data-queue-dock/);
   assert.match(officialWebFlowSmoke, /mode: 'queue'/);
   assert.match(officialWebFlowSmoke, /approvalMarkerPath/);
+});
+
+test("the native Host smoke keeps file-dialog coverage behind an explicit manual mode", () => {
+  assert.equal(typeof electronPackage.scripts["smoke:native-host:dialogs"], "string");
+  assert.match(electronPackage.scripts["smoke:native-host:dialogs"], /--dialogs/);
+  assert.match(nativeHostSmoke, /native_host_file_dialog_smoke/);
+  assert.match(nativeHostSmoke, /session-bound-file-dialog-open/);
+  assert.match(nativeHostSmoke, /session-bound-directory-dialog-open/);
 });

@@ -2,7 +2,7 @@
 
 This desktop-adapter Bundle exposes session-bound product services and narrow `browserWorkspaceHost`, `fileDialogHost`, and `windowHost` services. The Browser Workspace, native file dialogs, and window operations stay in Electron's trusted main process; the official Web and Client Bundles never receive a preload, Electron object, or generic IPC channel.
 
-Browser methods accept only HTTP(S) targets, bounded tab identifiers, bounded layout values, and explicit session context. File dialogs accept only bounded titles, filters, and user-visible open operations; window methods are limited to reading state, focusing, minimizing, maximizing, and restoring. Unknown methods, unbound DSH Sessions, unsafe URLs, arbitrary paths, and JavaScript execution are rejected.
+Browser methods accept only HTTP(S) targets, bounded tab identifiers, bounded layout values, and explicit session context. File dialogs accept only bounded titles, filters, and user-visible open operations; interactive file-dialog requests use a longer bounded wait so a user can finish the native panel, while cancellation still follows the initiating Session. Window methods are limited to reading state, focusing, minimizing, maximizing, and restoring. Unknown methods, unbound DSH Sessions, unsafe URLs, arbitrary paths, and JavaScript execution are rejected.
 
 This private DSH Profile Bundle is the desktop transport adapter between the DSH child process and the DSH Desktop parent. It owns the correlated `product-request`, `product-cancel`, and `product-response` wire, then provides narrow Cordis services: `productHost` for project, context, Canvas, and structured UI capabilities, `officeArtifactHost` for Office artifact inspection, creation, and editing, and the native services described above.
 

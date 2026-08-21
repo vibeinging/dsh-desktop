@@ -41,6 +41,15 @@ const {
   writeDiagnostics,
 } = require('./runtime-recovery');
 
+function ignoreClosedDiagnosticStream(stream) {
+  stream?.on?.('error', (error) => {
+    if (error?.code !== 'EPIPE') process.nextTick(() => { throw error; });
+  });
+}
+
+ignoreClosedDiagnosticStream(process.stdout);
+ignoreClosedDiagnosticStream(process.stderr);
+
 const isDev = !app.isPackaged;
 const APP_ROOT = isDev ? path.join(__dirname, '..') : process.resourcesPath;
 const SERVER_DIR = path.join(APP_ROOT, 'server');

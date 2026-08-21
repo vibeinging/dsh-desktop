@@ -6,6 +6,7 @@ export const name = "dsh-work-product-host-ipc";
 export const inject = ["webServer", "agents"];
 
 const PRODUCT_REQUEST_TIMEOUT_MS = 30_000;
+const PRODUCT_FILE_DIALOG_TIMEOUT_MS = 180_000;
 
 /** A closed product-capability failure returned by the desktop parent. */
 export class DshWorkProductHostError extends Error {
@@ -111,10 +112,13 @@ export function createProductHostTransport(ctx, channel = process) {
           return;
         }
         signal?.addEventListener("abort", request.onAbort, { once: true });
+        const timeoutMs = method.startsWith("fileDialog")
+          ? PRODUCT_FILE_DIALOG_TIMEOUT_MS
+          : PRODUCT_REQUEST_TIMEOUT_MS;
         request.timer = setTimeout(() => {
           sendCancel(request);
           settle(request, new DshWorkProductHostError("product-timeout", `product request ${method} timed out`));
-        }, PRODUCT_REQUEST_TIMEOUT_MS);
+        }, timeoutMs);
         request.timer.unref?.();
         pending.set(id, request);
         sendRuntimeParentMessage(

@@ -36,6 +36,9 @@ npm run smoke:official-web:flow
 npm run smoke:official-web:interactions
 npm run smoke:updater
 npm run smoke:browser-workspace
+npm run smoke:native-host
+# macOS 上的手动原生文件/目录对话框验收
+npm run smoke:native-host:dialogs
 DSH_BROWSER_SCREENSHOT_DIR=/path/to/evidence npm run smoke:browser-workspace
 npm run test:release
 npm run test:release:community
@@ -111,7 +114,7 @@ DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence DSH_MACOS_INSTALLER_RESULT_FILE=/
 
 官方 Web 所在的 `webContents` 没有产品 preload、Node 或通用 IPC。Electron 主进程只保留受限的原生 Host：窗口、更新、文件授权和 Browser Workspace。Browser Workspace 的导航、标签、下载、历史、查找、缩放、页面抓取和权限请求都通过方法白名单、Session 绑定和边界校验完成；第三方 Client 不能取得 Electron 对象或 Node 文件系统。
 
-官方 Web Session 对窗口原生 Host 的授权只允许白名单方法，不携带 dsh-work 用户或项目身份；`smoke:native-host` 已在当前 macOS arm64 打包 Electron 中真实验证状态、聚焦、最小化、最大化和恢复，并在结束时通过官方 Profile 命令卸载测试 Bundle。文件/目录对话框和跨平台窗口交互仍需对应发行环境验收。
+官方 Web Session 对窗口原生 Host 的授权只允许白名单方法，不携带 dsh-work 用户或项目身份；`smoke:native-host` 已在当前 macOS arm64 打包 Electron 中真实验证状态、聚焦、最小化、最大化和恢复，并在结束时通过官方 Profile 命令卸载测试 Bundle。文件/目录对话框由同一窄服务和 `smoke:native-host:dialogs` 手动模式覆盖，但当前没有通过回执；跨平台窗口交互仍需对应发行环境验收。
 
 ## 启动失败恢复
 
@@ -131,6 +134,6 @@ DSH 子进程、Profile 解析或 Client 启动失败时，应用进入本地恢
 
 - 源码和 Profile 集成：官方 Web 组合、只读已有 Profile、固定 tarball、离线初始化和权限投影测试；
 - 真实 Electron：官方 Web 无 preload 启动、工作区、Session、Session log、history 用户流程、社区 task board 入口/五列看板/官方 Web 容器内激活和 Browser Workspace WebContentsView 烟测。`smoke:official-web:flow` 会在无 API key 的临时用户目录运行，并可用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow` 保存官方 Web 截图；`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run test:release:community` 可保存开发态 task board 看板截图，`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run smoke:community:packaged` 可保存打包版安装前、激活态和卸载后基线三帧；`DSH_BROWSER_SCREENSHOT_DIR=/path npm run smoke:browser-workspace` 可保存真实 WebContentsView 页面截图；`npm run smoke:native-host` 在打包 Electron 中通过官方 Web Tool 真实验证 session-bound 窗口 Host 的状态、聚焦、最小化、最大化和恢复；`smoke:official-web:interactions` 在同一打包 Electron 中用 loopback SSE 测试模型驱动官方 LLM、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock 和 Session history，并用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:interactions` 保存问题/审批/队列截图；它验证的是官方运行时和 UI 契约，不替代真实 DeepSeek 服务的 live-model 证据；有凭据的发行环境使用 `DEEPSEEK_API_KEY=... npm run smoke:official-web:live` 运行真实模型基础流程，无 key 时该命令会 fail closed；`smoke:updater` 还会用本地 HTTPS feed 验证更新元数据、固定哈希下载、Profile 预检、临时 App 替换和历史回放，但完整替换需要 Developer ID 签名包；
-- 安装包：`package:mac:dir` 生成随包目录，`smoke:official-web` 验证随包官方 Web，`smoke:community:packaged` 验证打包版 App 先初始化精选 Profile，再通过官方命令安装、激活、卸载和重启独立社区 Bundle；`smoke:native-host` 覆盖打包版官方 Web 到 Electron 窗口 Host 的真实调用链；`smoke:macos:installer -- /path/to/*.dmg` 会只读挂载 DMG、复制 App，并重复这条 Profile 生命周期，设置 `DSH_COMMUNITY_SCREENSHOT_DIR=/path` 可保存安装前、激活态和卸载后的三帧。Browser Workspace 截图先使用 Electron `capturePage`，在当前 Viz 不可用时回退到受控的 DevTools Page 截图协议；文件/目录对话框、Windows 实机、原生 x64 和真实 DeepSeek live-model 仍需在对应发行环境完成。
+- 安装包：`package:mac:dir` 生成随包目录，`smoke:official-web` 验证随包官方 Web，`smoke:community:packaged` 验证打包版 App 先初始化精选 Profile，再通过官方命令安装、激活、卸载和重启独立社区 Bundle；`smoke:native-host` 覆盖打包版官方 Web 到 Electron 窗口 Host 的真实调用链，`smoke:native-host:dialogs` 是需要人工选择文件和目录的 macOS 对话框模式；`smoke:macos:installer -- /path/to/*.dmg` 会只读挂载 DMG、复制 App，并重复这条 Profile 生命周期，设置 `DSH_COMMUNITY_SCREENSHOT_DIR=/path` 可保存安装前、激活态和卸载后的三帧。Browser Workspace 截图先使用 Electron `capturePage`，在当前 Viz 不可用时回退到受控的 DevTools Page 截图协议；文件/目录对话框、Windows 实机、原生 x64 和真实 DeepSeek live-model 仍需在对应发行环境完成。
 
 详见 [发行方案](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md)、[隐私说明](PRIVACY.md)、[安全说明](SECURITY.md) 和 [第三方说明](THIRD_PARTY_NOTICES.md)。

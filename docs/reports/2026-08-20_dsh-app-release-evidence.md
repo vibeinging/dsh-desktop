@@ -97,6 +97,8 @@
 
 在独立的未签名 macOS arm64 打包目录 `release/native-host-smoke/mac-arm64/DSH Desktop.app` 上运行 `DSH_NATIVE_HOST_TIMEOUT_MS=20000 node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-native-host.mjs release/native-host-smoke/mac-arm64/'DSH Desktop.app'`，结果为 PASS。测试先用随包 DSH CLI 通过官方 `dsh plugin --profile web add -w` 安装测试 Bundle，再用官方 Web Session 和 loopback SSE 测试模型让模型真实调用 `native_host_window_smoke`；调用链完成 `windowGetState`、`windowFocus`、`windowMinimize`、`windowMaximize` 和 `windowRestore`，工具结果回到官方 Web 后，测试又通过官方 `dsh plugin --profile web remove` 离线卸载 Bundle。该证据覆盖的是 macOS arm64 窗口 Host 链路和 native-only Session 授权，不等同于文件/目录对话框或跨平台实机验收。
 
+本轮新增 `npm run smoke:native-host:dialogs` 手动模式和对应的 `native_host_file_dialog_smoke` 工具，源码回归覆盖了文件和目录方法、Session 路由、长时但有上限的交互等待和通过官方 Profile 命令卸载测试 Bundle。Computer Use 实测能打开两个 macOS 原生面板并选择测试文件；但本轮辅助功能状态在目录确认前失效，测试没有生成通过回执，因此不把这条写成真实 Electron 文件/目录对话框验收。该命令保留为后续发行环境的人工验收入口。
+
 ## 本轮安装包与性能基线
 
 2026-08-21 在 macOS arm64 目录包上运行了以下命令；同日又使用官方 Node `v24.19.0` `darwin-x64` 二进制和 Rosetta 完成 macOS x64 目录包及对应 smoke：

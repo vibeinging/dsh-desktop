@@ -42,6 +42,7 @@ import { buildProjectInstructionsMarkdown } from "../agents/workspace_context.js
 
 const MAX_ITEMS = 200;
 const DESKTOP_NATIVE_TIMEOUT_MS = 30_000;
+const DESKTOP_FILE_DIALOG_TIMEOUT_MS = 180_000;
 const DESKTOP_NATIVE_METHODS = new Set([
   "browserWorkspaceGetState",
   "browserWorkspaceSetVisible",
@@ -139,10 +140,13 @@ export function createDesktopNativeHostTransport(channel = process) {
           request.onAbort();
           return;
         }
+        const timeoutMs = method.startsWith("fileDialog")
+          ? DESKTOP_FILE_DIALOG_TIMEOUT_MS
+          : DESKTOP_NATIVE_TIMEOUT_MS;
         request.timer = setTimeout(() => {
           cancel(request);
-          finish(Object.assign(new Error("Browser Workspace 请求超时"), { code: "desktop-native-timeout" }));
-        }, DESKTOP_NATIVE_TIMEOUT_MS);
+          finish(Object.assign(new Error(`Desktop Native 请求超时：${method}`), { code: "desktop-native-timeout" }));
+        }, timeoutMs);
         request.timer.unref?.();
         signal?.addEventListener("abort", request.onAbort, { once: true });
         pending.set(id, request);

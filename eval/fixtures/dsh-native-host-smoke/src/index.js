@@ -21,7 +21,7 @@ export function apply(ctx) {
   ctx.on("agent/created", ({ agent }) => {
     const tools = agent.ctx.get("tools");
     if (!tools) throw new Error(`native Host smoke tool registry is missing for ${agent.id}`);
-    const dispose = tools.register({
+    const disposeWindow = tools.register({
       name: "native_host_window_smoke",
       description: "Run the DSH Desktop session-bound native window Host smoke.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
@@ -49,7 +49,40 @@ export function apply(ctx) {
         return { card: "generic", title: "Native window Host smoke" };
       },
     });
-    scopes.set(agent, dispose);
+    const disposeDialogs = tools.register({
+      name: "native_host_file_dialog_smoke",
+      description: "Run the DSH Desktop session-bound native file and directory dialog smoke.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+      output: {
+        schema: { type: "object", additionalProperties: true },
+        render(_args, value) {
+          return [{ type: "text", text: JSON.stringify(value) }];
+        },
+      },
+      async execute(_args, exec) {
+        const context = contextFor(agent, exec);
+        const files = await fileDialogHost.openFiles({
+          title: "DSH Desktop file dialog smoke",
+          multiple: false,
+          filters: [{ name: "Text", extensions: ["txt"] }],
+        }, context);
+        const directory = await fileDialogHost.openDirectory({
+          title: "DSH Desktop directory dialog smoke",
+        }, context);
+        return { files, directory };
+      },
+      timeoutMs: 180_000,
+      presentCall() {
+        return { card: "generic", title: "Native file dialog smoke", kind: "execute" };
+      },
+      presentResult() {
+        return { card: "generic", title: "Native file dialog smoke" };
+      },
+    });
+    scopes.set(agent, () => {
+      disposeWindow();
+      disposeDialogs();
+    });
   });
   ctx.on("agent/disposed", ({ agent }) => {
     scopes.get(agent)?.();

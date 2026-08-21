@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
@@ -10,20 +10,31 @@ import { resolvePackagedLayout } from './packaged-layout.mjs'
 import { pathWithPackagedBin, systemOnlyPath } from './packaged-smoke-environment.mjs'
 
 const APP_ROOT = resolve(new URL('../..', import.meta.url).pathname)
-const appInput = process.argv[2] || (process.platform === 'win32'
+const smokeArgs = process.argv.slice(2)
+const dialogMode = smokeArgs.includes('--dialogs') || process.env.DSH_NATIVE_HOST_MODE === 'dialogs'
+const appInput = smokeArgs.find((argument) => !argument.startsWith('--')) || (process.platform === 'win32'
   ? '../release/win-unpacked'
   : '../release/mac-arm64/DSH Desktop.app')
 const { executable, resourcesDir } = resolvePackagedLayout(appInput)
 const fixture = join(APP_ROOT, 'eval', 'fixtures', 'dsh-native-host-smoke')
 const pluginName = '@vibeinging/dsh-native-host-smoke'
-const promptText = 'DSH Desktop session-bound native window Host smoke'
-const resultText = 'DSH Desktop native window Host smoke passed'
+const toolName = dialogMode ? 'native_host_file_dialog_smoke' : 'native_host_window_smoke'
+const promptText = dialogMode
+  ? 'DSH Desktop session-bound native file and directory dialog smoke'
+  : 'DSH Desktop session-bound native window Host smoke'
+const resultText = dialogMode
+  ? 'DSH Desktop native file and directory dialog smoke passed'
+  : 'DSH Desktop native window Host smoke passed'
 const timeoutMs = Number(process.env.DSH_NATIVE_HOST_TIMEOUT_MS || 180_000)
 const resultPath = String(process.env.DSH_NATIVE_HOST_RESULT_FILE || '').trim()
 const keepTemp = process.env.DSH_NATIVE_HOST_KEEP_TEMP === '1'
 const tempDir = await mkdtemp(join(tmpdir(), 'dsh-packaged-native-host-'))
 const dataRoot = join(tempDir, 'data')
 const userDataDir = join(tempDir, 'user-data')
+const dialogFile = join(tempDir, 'dialog-file.txt')
+const dialogDirectory = join(tempDir, 'dialog-directory')
+let expectedDialogFile = dialogFile
+let expectedDialogDirectory = dialogDirectory
 const serverDir = join(resourcesDir, 'server')
 const dshCli = join(serverDir, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
 const pnpmBinDir = join(resourcesDir, 'pnpm-bin')
@@ -164,7 +175,7 @@ async function startFakeModel() {
       roles: messages.map((message) => message?.role).filter(Boolean),
       toolMessageCount: messages.filter((message) => message?.role === 'tool').length,
     })
-    const hasTool = tools.some((tool) => tool?.function?.name === 'native_host_window_smoke')
+    const hasTool = tools.some((tool) => tool?.function?.name === toolName)
     const toolMessages = messages.filter((message) => message?.role === 'tool')
     const toolResultMessage = toolMessages.at(-1)?.content || ''
     response.writeHead(200, {
@@ -191,7 +202,7 @@ async function startFakeModel() {
             index: 0,
             id: 'call-dsh-native-host-smoke',
             type: 'function',
-            function: { name: 'native_host_window_smoke', arguments: '{}' },
+            function: { name: toolName, arguments: '{}' },
           }],
         },
       }))
@@ -330,6 +341,7 @@ async function rpc(method, payload = {}) {
 }
 
 async function clickByAria(labels) {
+  await waitFor(`Boolean([...document.querySelectorAll('button,[role="button"]')].some((button) => ${JSON.stringify(labels)}.includes(button.getAttribute('aria-label'))))`, `按钮 ${labels.join(' / ')}`)
   const clicked = await evaluate(`(() => {
     const labels = ${JSON.stringify(labels)};
     const target = [...document.querySelectorAll('button')].find((button) => labels.includes(button.getAttribute('aria-label')));
@@ -367,6 +379,12 @@ async function fillAndSend(text) {
 try {
   if (!existsSync(fixture)) throw new Error(`缺少测试 Bundle：${fixture}`)
   if (!existsSync(dshCli)) throw new Error(`随包 DSH CLI 不存在：${dshCli}`)
+  if (dialogMode) {
+    await mkdir(dialogDirectory, { recursive: true })
+    await writeFile(dialogFile, 'DSH Desktop native dialog smoke\n', { mode: 0o600 })
+    expectedDialogFile = await realpath(dialogFile)
+    expectedDialogDirectory = await realpath(dialogDirectory)
+  }
   await runPackagedInit()
   await runOfficial(['plugin', '--profile', 'web', 'add', '-w', fixture, '--save-exact', '--ignore-scripts'], `官方安装 ${pluginName}`)
   const manifestPath = join(dataRoot, 'profiles', 'web', 'package.json')
@@ -405,12 +423,28 @@ try {
   await waitFor(`(document.body.innerText || '').includes(${JSON.stringify(promptText)})`, '用户消息')
   await fakeModel.waitForToolResult()
   await waitFor(`(document.body.innerText || '').includes(${JSON.stringify(resultText)})`, '原生窗口 Host 结果')
-  if (!toolResult || !toolResult.includes('"initial"') || !toolResult.includes('"final"')) {
+  if (dialogMode) {
+    let parsed
+    try {
+      parsed = JSON.parse(toolResult || '')
+    } catch (error) {
+      throw new Error(`原生文件对话框工具结果不是 JSON：${error.message}`)
+    }
+    if (!parsed.files?.filePaths?.includes(expectedDialogFile)
+      || !parsed.directory?.filePaths?.includes(expectedDialogDirectory)) {
+      throw new Error(`原生文件/目录对话框没有返回测试目标：${JSON.stringify({
+        parsed,
+        expected: { dialogFile: expectedDialogFile, dialogDirectory: expectedDialogDirectory },
+        modelObservations,
+        output: output.join('').slice(-4000),
+      })}`)
+    }
+  } else if (!toolResult || !toolResult.includes('"initial"') || !toolResult.includes('"final"')) {
     throw new Error(`原生窗口 Host 工具没有返回完整状态：${JSON.stringify({
-      toolResult: toolResult || null,
-      modelObservations,
-      output: output.join('').slice(-4000),
-    })}`)
+        toolResult: toolResult || null,
+        modelObservations,
+        output: output.join('').slice(-4000),
+      })}`)
   }
   await cdp.send('Page.enable')
   const screenshot = await cdp.send('Page.captureScreenshot', { format: 'png' })
@@ -440,16 +474,20 @@ try {
     await writeFile(resultPath, `${JSON.stringify({
       schema_version: 1,
       status: 'passed',
-      evidence_level: 'packaged-electron-native-host',
+      evidence_level: dialogMode ? 'packaged-electron-native-host-dialogs' : 'packaged-electron-native-host',
       platform: process.platform,
       arch: process.arch,
       plugin: pluginName,
-      checks: ['profile-install', 'official-web-tool', 'session-bound-window-get-state', 'focus', 'minimize', 'maximize', 'restore', 'profile-uninstall'],
+      checks: dialogMode
+        ? ['profile-install', 'official-web-tool', 'session-bound-file-dialog-open', 'session-bound-directory-dialog-open', 'profile-uninstall']
+        : ['profile-install', 'official-web-tool', 'session-bound-window-get-state', 'focus', 'minimize', 'maximize', 'restore', 'profile-uninstall'],
       screenshot: screenshotPath || null,
     }, null, 2)}\n`, { mode: 0o600 })
   }
   passed = true
-  console.log(`[native-host-smoke] PASS 官方 Web Session 经 DSH Tool 真实调用 Electron window Host，完成状态/聚焦/最小化/最大化/恢复并官方卸载 ${pluginName}`)
+  console.log(dialogMode
+    ? `[native-host-smoke] PASS 官方 Web Session 经 DSH Tool 真实调用 Electron file/directory dialog Host，选择测试文件和目录并官方卸载 ${pluginName}`
+    : `[native-host-smoke] PASS 官方 Web Session 经 DSH Tool 真实调用 Electron window Host，完成状态/聚焦/最小化/最大化/恢复并官方卸载 ${pluginName}`)
 } finally {
   cdp?.close()
   try { appProcess?.kill() } catch { /* ignore */ }
