@@ -172,6 +172,6 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 - macOS x64 当前已通过官方 Node `v24.19.0` x64 依赖准备、Developer ID 签名目录包/未公证安装器结构、Server/App、默认退出路径、恢复、断网 Profile、Profile authority 和官方 Web smoke；仍尚缺原生 x64 主机或发行 CI 上的安装器和性能验收，不能把 Rosetta 结果写成原生 x64 发布证据。
 - 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化，README 也已换成当前官方 Web 与社区候选截图。现在提供显式的 `npm run smoke:official-web:live` 入口；无 `DEEPSEEK_API_KEY` 时会 fail closed，本轮只验证了这个保护，不把 loopback 模型或未执行的 live 命令写成真实 DeepSeek 证据。公开安装录制和真实 DeepSeek 服务验收仍需在发行环境完成。
 - `.github/workflows/macos-release-evidence.yml` 现在提供手动的 arm64 签名、公证、打包 smoke、社区三帧和可选 live-model 证据入口；live-model 步骤同时上传截图和 `result.json` 成功回执。`.github/workflows/windows-release-evidence.yml` 提供 Windows 签名、安装器验收和 Authenticode 证据入口。两者都要求发行环境提供对应 secrets，本机未触发这些 workflow，因此不把 workflow 或回执契约存在写成 Apple、Windows、公开安装器或真实服务验收通过。
-- macOS workflow 现在还会在打包后挂载 DMG，执行 `xcrun stapler validate`、`spctl --assess --type execute`，再运行 `smoke:macos:installer` 并上传安装器回执和截图；本机当前 DMG 容器请求仍在 Apple 处理中，所以该 workflow 契约已就绪但最终 DMG 公证结果仍以发行环境回执为准。
+- macOS 正式 arm64/x64 打包脚本现在在 Electron Builder 之后对当前版本和架构的 DMG 单独执行 `xcrun notarytool submit --wait`，随后附加并验证 DMG 票据、执行 `spctl --assess --type open`，再挂载并验证 App 载荷的 stapler/Gatekeeper；手动发行 workflow 会上传无凭据回执，之后再运行 `smoke:macos:installer` 并上传安装器回执和截图。本机当前 DMG 容器请求仍在 Apple 处理中，所以该代码和 workflow 契约已就绪但最终 DMG 公证结果仍以发行环境回执为准。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。

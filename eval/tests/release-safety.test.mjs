@@ -31,6 +31,10 @@ import {
   pathWithPackagedBin,
   systemOnlyPath,
 } from '../../electron/scripts/packaged-smoke-environment.mjs';
+import {
+  parseNotaryResult,
+  resolveDmgPath,
+} from '../../electron/scripts/notarize-macos-dmg.mjs';
 import { BUNDLED_PNPM_FILES } from '../../electron/scripts/prepare-package.mjs';
 
 test('release safety rejects adhoc macOS signatures and accepts Developer ID signatures', () => {
@@ -294,8 +298,25 @@ test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   assert.match(workflow, /macos-installer-evidence/);
   assert.match(workflow, /xcrun notarytool history/);
   assert.match(workflow, /apple-notary-history\.json/);
+  assert.match(workflow, /DSH_MACOS_DMG_NOTARY_RESULT_FILE/);
+  assert.match(workflow, /macos-dmg-evidence\/result\.json/);
   assert.match(workflow, /xcrun stapler validate/);
   assert.match(workflow, /spctl --assess --type execute/);
+});
+
+test('macOS DMG notarization selects the current architecture and keeps the receipt credential-free', () => {
+  assert.equal(
+    resolveDmgPath('/workspace', '0.0.1', 'arm64', (candidate) => candidate.endsWith('dsh-desktop-0.0.1-mac-arm64.dmg')),
+    '/workspace/release/dsh-desktop-0.0.1-mac-arm64.dmg',
+  );
+  assert.deepEqual(parseNotaryResult('{"status":"Accepted","id":"submission-1"}'), {
+    status: 'Accepted',
+    id: 'submission-1',
+  });
+  assert.deepEqual(parseNotaryResult('{"notarizationStatus":"Invalid"}'), {
+    status: 'Invalid',
+    id: null,
+  });
 });
 
 test('Windows release evidence workflow requires signing, installer acceptance, and signature verification', () => {

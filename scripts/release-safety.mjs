@@ -240,6 +240,8 @@ function staticChecks(root, scope) {
       'APPLE_APP_SPECIFIC_PASSWORD:',
       'CSC_LINK:',
       'npm run package:mac',
+      'DSH_MACOS_DMG_NOTARY_RESULT_FILE',
+      'macos-dmg-evidence',
       'npm run smoke:updater',
       'npm run smoke:community:packaged',
       'npm run smoke:macos:installer',
@@ -250,9 +252,11 @@ function staticChecks(root, scope) {
       'DSH_LIVE_MODEL_RESULT_FILE=',
       'live-model-evidence/result.json',
     ];
+    const macPackageScripts = `${scripts['package:mac:project'] || ''}\n${scripts['package:mac:x64:project'] || ''}`;
     checks.push(check(
       'mac_release_evidence_workflow',
-      macWorkflowRequirements.every((fragment) => macEvidenceWorkflow.includes(fragment)) ? 'pass' : 'block',
+      macWorkflowRequirements.every((fragment) => macEvidenceWorkflow.includes(fragment))
+        && macPackageScripts.includes('scripts/notarize-macos-dmg.mjs') ? 'pass' : 'block',
       'macOS 发行证据 workflow 必须覆盖签名、公证、更新器和社区打包 smoke',
       '.github/workflows/macos-release-evidence.yml',
     ));

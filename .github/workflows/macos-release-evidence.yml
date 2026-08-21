@@ -61,6 +61,8 @@ jobs:
         run: npm run test:release
 
       - name: Build signed and notarized package
+        env:
+          DSH_MACOS_DMG_NOTARY_RESULT_FILE: ${{ runner.temp }}/macos-dmg-evidence/result.json
         run: npm run package:mac
 
       - name: Record Apple notarization history
@@ -135,6 +137,7 @@ jobs:
             release/*.dmg
             release/*.zip
             ${{ runner.temp }}/apple-notary-history.json
+            ${{ runner.temp }}/macos-dmg-evidence
             ${{ runner.temp }}/community-evidence
             ${{ runner.temp }}/macos-installer-evidence
             ${{ runner.temp }}/browser-workspace-evidence
