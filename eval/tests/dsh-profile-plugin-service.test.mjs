@@ -625,6 +625,13 @@ test("the Profile catalog is projected from the official Web Profile order", {
     }
     const productBridge = catalog.plugins.find((plugin) => plugin.id.endsWith("/dsh-product-bridge"));
     assert.equal(productBridge.can_uninstall, true);
+    const productHost = catalog.plugins.find((plugin) => plugin.id === "@vibeinging/dsh-work-product-host-ipc");
+    assert.equal(productHost.can_uninstall, false);
+    assert.equal(productHost.readonly, true);
+    await assert.rejects(
+      () => service.uninstall("@vibeinging/dsh-work-product-host-ipc"),
+      { code: "PLUGIN_UNINSTALL_NOT_ALLOWED" },
+    );
     assert.equal(productBridge.product, null);
     assert.equal(catalog.recommended_plugins_updated_at, "2026-08-21");
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");

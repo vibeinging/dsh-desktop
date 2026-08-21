@@ -6,7 +6,7 @@
       "name": "@vibeinging/dsh-work-product-host-ipc",
       "package_path": "packages/dsh-work-product-host-ipc",
       "default": true,
-      "user_manageable": true,
+      "user_manageable": false,
       "portability": "desktop-adapter",
       "permissions": ["dsh-work-parent-ipc", "browser-workspace-host"],
       "license": "BSD-3-Clause",
@@ -22,6 +22,7 @@
         "client": false,
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
+        "desktop_runtime_required": true,
         "regression": {
           "unit": ["eval/tests/dsh-product-host.test.mjs", "eval/tests/browser-workspace.test.mjs"],
           "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],

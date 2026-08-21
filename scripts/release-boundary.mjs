@@ -157,8 +157,12 @@ function inspectFeaturedPluginDocs(root, featured) {
     }
     for (const plugin of featured.plugins || []) {
       const command = `dsh plugin --profile ${featured.profile} remove ${plugin.name}`;
-      if (!section.includes(plugin.name) || !section.includes(command)) {
-        errors.push(`${file} 缺少精选插件或卸载命令：${plugin.name}`);
+      const foundationText = file === "README.en.md"
+        ? "desktop foundation; uninstall is not offered"
+        : "桌面基础服务，不提供卸载";
+      const managementText = plugin.user_manageable === false ? foundationText : command;
+      if (!section.includes(plugin.name) || !section.includes(managementText)) {
+        errors.push(`${file} 缺少精选插件或官方管理方式：${plugin.name}`);
       }
       for (const permission of plugin.permissions || []) {
         if (!section.includes(permission)) errors.push(`${file} 缺少插件权限：${plugin.name}/${permission}`);
@@ -259,19 +263,21 @@ export function inspectFeaturedArtifacts(root = ROOT, { required = false } = {})
   }
   if (existsSync(join(artifactRoot, "permissions.json"))) {
     const permissions = readJson(join(artifactRoot, "permissions.json"));
-    const permissionRows = (permissions.plugins || []).map(({ name, version, permissions: declared, host_requirements, portability }) => ({
+    const permissionRows = (permissions.plugins || []).map(({ name, version, permissions: declared, host_requirements, portability, user_manageable }) => ({
       name,
       version,
       permissions: declared,
       host_requirements,
       portability,
+      user_manageable,
     }));
-    const actualPermissionRows = (generated.plugins || []).map(({ name, version, permissions: declared, host_requirements, portability }) => ({
+    const actualPermissionRows = (generated.plugins || []).map(({ name, version, permissions: declared, host_requirements, portability, user_manageable }) => ({
       name,
       version,
       permissions: declared,
       host_requirements,
       portability,
+      user_manageable,
     }));
     if (JSON.stringify(permissionRows) !== JSON.stringify(actualPermissionRows)) {
       errors.push("permissions.json 与精选插件 manifest 不一致");

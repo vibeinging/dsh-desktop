@@ -41,6 +41,9 @@ function validateEvidence(plugin) {
     throw new Error(`${plugin.name} 的 native_dependencies 必须是字符串数组`);
   }
   if (typeof evidence.client !== "boolean") throw new Error(`${plugin.name} 的 client 评估必须是布尔值`);
+  if (evidence.desktop_runtime_required !== undefined && typeof evidence.desktop_runtime_required !== "boolean") {
+    throw new Error(`${plugin.name} 的 desktop_runtime_required 必须是布尔值`);
+  }
   if (!Array.isArray(evidence.regression?.unit) || !Array.isArray(evidence.regression?.profile)
     || !Array.isArray(evidence.regression?.electron)
     || [evidence.regression.unit, evidence.regression.profile, evidence.regression.electron]
@@ -77,10 +80,13 @@ function validateManifest(value) {
     if (!Array.isArray(plugin.permissions) || plugin.permissions.some((item) => typeof item !== "string")) {
       throw new Error(`${plugin.name} 的 permissions 必须是字符串数组`);
     }
-    if (plugin.default !== true || plugin.user_manageable !== true) {
-      throw new Error(`${plugin.name} 必须明确声明为默认且可由用户管理`);
+    if (plugin.default !== true || typeof plugin.user_manageable !== "boolean") {
+      throw new Error(`${plugin.name} 必须明确声明为默认，并声明是否可由用户管理`);
     }
     validateEvidence(plugin);
+    if (!plugin.user_manageable && plugin.evidence.desktop_runtime_required !== true) {
+      throw new Error(`${plugin.name} 不可由用户管理时必须声明 desktop_runtime_required`);
+    }
     names.add(plugin.name);
   }
   return Object.freeze({

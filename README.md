@@ -47,12 +47,12 @@ DSH Profile 是插件状态的唯一权威。已有 Profile 的启动、状态�
 
 默认精选输入只有一份：[featured_plugins.json](server/src/engine/dsh_runtime/featured_plugins.json)。它生成随包 tarball、Profile 初始化输入、权限摘要、第三方公告和测试预期；其他代码和文档不维护第二份默认包名列表。
 
-当前默认精选如下；它们都是非 UI Bundle，Host、portable 或 desktop-adapter 能力均通过官方 Profile 接入，不替换官方 Web 页面。每个条目的来源、权限和官方卸载命令由 [精选清单](server/src/engine/dsh_runtime/featured_plugins.json) 生成；应用更新不会重新安装用户已卸载的条目。自研包使用 `@vibeinging/*` scope；官方 DSH SDK 仍使用 `@deepseek-ai/*` scope。
+当前默认精选如下；它们都是非 UI Bundle，Host、portable 或 desktop-adapter 能力均通过官方 Profile 接入，不替换官方 Web 页面。每个条目的来源、权限和官方管理方式由 [精选清单](server/src/engine/dsh_runtime/featured_plugins.json) 生成；应用更新不会重新安装用户已卸载的条目。自研包使用 `@vibeinging/*` scope；官方 DSH SDK 仍使用 `@deepseek-ai/*` scope。
 
 <!-- featured-plugins:start -->
-| 默认 Bundle | 类型 | 声明权限 | 官方卸载命令 | 来源 |
+| 默认 Bundle | 类型 | 声明权限 | 官方管理方式 | 来源 |
 |---|---|---|---|---|
-| `@vibeinging/dsh-work-product-host-ipc` | desktop-adapter | dsh-work-parent-ipc、browser-workspace-host | `dsh plugin --profile web remove @vibeinging/dsh-work-product-host-ipc` | [本地包](packages/dsh-work-product-host-ipc) |
+| `@vibeinging/dsh-work-product-host-ipc` | desktop-adapter | dsh-work-parent-ipc、browser-workspace-host | 桌面基础服务，不提供卸载 | [本地包](packages/dsh-work-product-host-ipc) |
 | `@vibeinging/dsh-project-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-project-tools` | [本地包](packages/dsh-project-tools) |
 | `@vibeinging/dsh-canvas-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-canvas-tools` | [本地包](packages/dsh-canvas-tools) |
 | `@vibeinging/dsh-structured-ui-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-structured-ui-tools` | [本地包](packages/dsh-structured-ui-tools) |

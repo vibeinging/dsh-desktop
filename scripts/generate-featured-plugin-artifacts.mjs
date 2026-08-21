@@ -157,12 +157,13 @@ export async function generateFeaturedPluginArtifacts({
   }))
   await writeFile(join(output, "permissions.json"), json({
     schema_version: 1,
-    plugins: records.map(({ name, version, permissions, host_requirements, portability }) => ({
+    plugins: records.map(({ name, version, permissions, host_requirements, portability, user_manageable }) => ({
       name,
       version,
       permissions,
       host_requirements,
       portability,
+      user_manageable,
     })),
   }))
   const notices = [

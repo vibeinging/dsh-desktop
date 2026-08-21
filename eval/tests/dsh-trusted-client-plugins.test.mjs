@@ -147,7 +147,7 @@ test("only audited community Client releases may enter the product Client graph"
   });
 });
 
-test("the curated Profile input has one authoritative, user-manageable list", () => {
+test("the curated Profile input has one authoritative list with explicit manageability", () => {
   const manifest = featuredPluginManifest();
   const plugins = featuredPlugins();
   assert.equal(manifest.schema_version, 1);
@@ -155,7 +155,9 @@ test("the curated Profile input has one authoritative, user-manageable list", ()
   assert.ok(plugins.length > 0);
   assert.equal(new Set(plugins.map((plugin) => plugin.name)).size, plugins.length);
   assert.deepEqual(plugins, manifest.plugins);
-  assert.equal(plugins.every((plugin) => plugin.default && plugin.user_manageable), true);
+  assert.equal(plugins.every((plugin) => plugin.default && typeof plugin.user_manageable === "boolean"), true);
+  assert.equal(plugins.find((plugin) => plugin.name === "@vibeinging/dsh-work-product-host-ipc")?.user_manageable, false);
+  assert.equal(plugins.filter((plugin) => plugin.user_manageable).length, plugins.length - 1);
   assert.equal(plugins.some((plugin) => plugin.name.includes("web-ui-task-board")), false);
   for (const plugin of plugins) {
     assert.equal(plugin.evidence.source_kind, "workspace-package");
@@ -206,7 +208,12 @@ test("public README tables are generated from the curated list", () => {
     assert.equal(rows.length, manifest.plugins.length, `${file} 精选插件表行数不一致`);
     for (const plugin of manifest.plugins) {
       assert.equal(section.includes(plugin.name), true, `${file} 缺少 ${plugin.name}`);
-      assert.equal(section.includes(`dsh plugin --profile ${manifest.profile} remove ${plugin.name}`), true);
+      assert.equal(
+        plugin.user_manageable
+          ? section.includes(`dsh plugin --profile ${manifest.profile} remove ${plugin.name}`)
+          : section.includes("桌面基础服务，不提供卸载") || section.includes("desktop foundation; uninstall is not offered"),
+        true,
+      );
       for (const permission of plugin.permissions) assert.equal(section.includes(permission), true);
     }
   }

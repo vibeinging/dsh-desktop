@@ -160,12 +160,10 @@ async function measurePlugin(plugin, artifact) {
     tarball_bytes: tarballBytes.length,
     sha256: sha256(tarballBytes),
     scope: 'source-dsh-cli',
+    desktop_runtime_required: plugin.evidence.desktop_runtime_required === true,
     client_activation: plugin.evidence.client ? 'required' : 'not-applicable',
   }
-  const supportBundles = plugin.permissions.some((permission) => permission === 'product-host' || permission === 'office-artifact-host')
-    && plugin.name !== PRODUCT_HOST_PROVIDER
-    ? [PRODUCT_HOST_PROVIDER]
-    : []
+  const supportBundles = plugin.name !== PRODUCT_HOST_PROVIDER ? [PRODUCT_HOST_PROVIDER] : []
   result.support_bundles = supportBundles
   let server
   try {
@@ -205,6 +203,23 @@ async function measurePlugin(plugin, artifact) {
     }
     await stopServer(server)
     server = null
+
+    if (plugin.evidence.desktop_runtime_required === true) {
+      result.status = 'passed'
+      result.profile_storage_bytes_before = beforeBytes
+      result.profile_storage_bytes_after_install = afterInstallBytes
+      result.profile_cold_web_ms = firstStart.coldWebMs
+      result.lifecycle = {
+        install: true,
+        start: true,
+        disable: 'not-applicable-foundation-bundle',
+        uninstall: 'blocked-by-desktop-runtime-contract',
+        restart_after_uninstall: 'not-applicable-foundation-bundle',
+        manifest_unchanged_while_disabled: 'not-applicable-foundation-bundle',
+        stable_tarball_library_retained: true,
+      }
+      return result
+    }
 
     const disabledManifestText = afterInstall.text
     await writeFile(join(home, 'cordis.patch.yml'), `- id: ${plugin.evidence.patch_id}\n  disabled: true\n`)
@@ -290,7 +305,7 @@ async function main() {
   }, null, 2)}\n`)
   const failures = measurements.filter((measurement) => measurement.status !== 'passed')
   if (failures.length > 0) throw new Error(`${failures.length} 个精选插件逐包测量失败；详情见 ${outputPath}`)
-  console.log(`[measure] PASS ${measurements.length} 个精选插件逐包安装/启动/停用/卸载/重启测量 -> ${outputPath}`)
+  console.log(`[measure] PASS ${measurements.length} 个精选插件逐包 Profile 管理边界测量（基础服务卸载受桌面契约阻止） -> ${outputPath}`)
 }
 
 if (resolve(process.argv[1] || '') === fileURLToPath(import.meta.url)) await main()

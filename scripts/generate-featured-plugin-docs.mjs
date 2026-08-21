@@ -21,12 +21,14 @@ function renderTable(manifest, language) {
     `\`${plugin.name}\``,
     plugin.portability,
     permissions(plugin, language),
-    `\`dsh plugin --profile ${manifest.profile} remove ${plugin.name}\``,
+    plugin.user_manageable
+      ? `\`dsh plugin --profile ${manifest.profile} remove ${plugin.name}\``
+      : language === "zh" ? "桌面基础服务，不提供卸载" : "desktop foundation; uninstall is not offered",
     sourceLink(plugin, language),
   ])
   const headers = language === "zh"
-    ? ["默认 Bundle", "类型", "声明权限", "官方卸载命令", "来源"]
-    : ["Default Bundle", "Type", "Declared permissions", "Official uninstall command", "Source"]
+    ? ["默认 Bundle", "类型", "声明权限", "官方管理方式", "来源"]
+    : ["Default Bundle", "Type", "Declared permissions", "Official management", "Source"]
   const lines = [
     START_MARKER,
     `| ${headers.join(" | ")} |`,
