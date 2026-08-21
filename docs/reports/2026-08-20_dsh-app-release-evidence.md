@@ -39,6 +39,8 @@
 
 同一回归的真实 Electron fixture 还检查了官方 Web 内的 task-board 入口、五列看板、`#root` 容器归属、停用时 Client 不加载、恢复后重新激活和无旧产品 Shell；使用 `DSH_COMMUNITY_SCREENSHOT_DIR=.desktop-build/evidence/community-task-board npm run test:release:community` 已保存看板截图。截图是当前本机 Electron 的可见界面证据，不把它扩大为聚合包、皮肤中心或默认精选采用证据。
 
+公开 README 当前只保留两张从真实 Electron smoke 产出的截图：官方 Web Session/轨迹的 loopback SSE 截图，以及官方 Web 根节点内的 task-board 候选截图；旧首页、旧 Chat、旧 Profile 中心、旧主题和旧工作台图片已从公开素材目录移除。第一张不是真实 DeepSeek live-model 证据，第二张不代表默认精选采用；真实安装录制仍需在有凭据的发行环境完成。
+
 本轮新增 `npm run smoke:community:packaged`。它在临时用户目录和仅含系统目录加随包 pnpm 的 PATH 下，先由打包版 App 创建精选 Profile，再用打包版 Electron Node 执行官方 `dsh plugin --profile web add` 安装 task-board；候选启动回归检查官方 Web、task-board 入口和五列看板，随后用官方 remove 命令离线卸载并重启，确认入口消失。该回归还覆盖了 Electron 内嵌 Node 对 Profile `node_modules` 的解析修复（提交 `2f1b119`）；命令通过，证明的是当前 arm64 打包版的真实 Electron Client 激活和卸载保持，不把它扩大为默认精选采用或公开安装器证据。
 
 社区 Client 的固定完整性现在由官方 CLI 安装生成的 Profile `pnpm-lock.yaml` 读取并与目录中的审查值逐字比较；有审查哈希的版本缺少 lockfile 记录或发生漂移时，预检返回明确阻塞，不进入官方 Client 图。该规则同时覆盖 task-board、Chat recovery 和仅用于实验的聚合包；已由 lockfile 单元夹具和上述真实 task-board 安装回归覆盖。
@@ -132,6 +134,6 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
 - 当前证据已经包含 Developer ID 签名目录包、明确关闭公证生成的 arm64 DMG/ZIP 安装器结构、断网初始化、Profile authority、损坏 Bundle 恢复和真实签名 updater 替换回归；DMG 的 UDZO 结构、ZIP 内 `DSH Desktop.app` 资源和 App 严格签名校验均通过，但仍不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终公开安装器证据。最新 arm64 目录包上的断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和预算门禁已通过。
 - macOS x64 当前已通过官方 Node `v24.19.0` x64 依赖准备、Developer ID 签名目录包/未公证安装器结构、Server/App、默认退出路径、恢复、断网 Profile、Profile authority 和官方 Web smoke；仍尚缺原生 x64 主机或发行 CI 上的安装器和性能验收，不能把 Rosetta 结果写成原生 x64 发布证据。
-- 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化；公开截图和安装录制仍需在发行环境重新采集，loopback 模型也不替代真实 DeepSeek 服务验收。
+- 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化，README 也已换成当前官方 Web 与社区候选截图；公开安装录制和真实 DeepSeek 服务验收仍需在发行环境完成，loopback 模型不能替代它们。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。

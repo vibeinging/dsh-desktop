@@ -87,6 +87,16 @@ dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
 
 皮肤中心和它依赖的 `@linxin666/dsh-skins` 当前不随包分发。上游包级 Apache-2.0 许可证不自动覆盖所有内建视觉资产；上游说明 Maid Atelier 资产使用 CC BY-NC-SA 4.0，不能在没有单独再分发授权的情况下进入发行包。许可结论记录在 [社区插件目录](server/src/engine/dsh_runtime/community_plugin_registry.json) 中，发行边界会阻止未批准的视觉资产进入精选清单。只有逐项资产许可证、署名和再分发条件都通过后，皮肤中心才可重新评估。
 
+## 当前验证截图
+
+![官方 DSH Web Session 与轨迹](docs/images/readme/dsh-official-web-session-loopback.png)
+
+上图来自当前打包 Electron 的 loopback SSE 交互 smoke，证明官方 Web 的 Session、轨迹和工具结果投影；它不是真实 DeepSeek live-model 证据。
+
+![官方 Web 中的社区 task-board 候选](docs/images/readme/dsh-community-task-board.png)
+
+上图来自固定版本社区 Bundle 的真实 Electron 回归，证明 task-board 在官方 Web 根节点内激活并显示五列；它是可选候选，不是默认精选。
+
 ## Electron 原生边界
 
 官方 Web 所在的 `webContents` 没有产品 preload、Node 或通用 IPC。Electron 主进程只保留受限的原生 Host：窗口、更新、文件授权和 Browser Workspace。Browser Workspace 的导航、标签、下载、历史、查找、缩放、页面抓取和权限请求都通过方法白名单、Session 绑定和边界校验完成；第三方 Client 不能取得 Electron 对象或 Node 文件系统。

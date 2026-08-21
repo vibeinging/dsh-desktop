@@ -87,6 +87,16 @@ dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
 
 The Skin Center and its `@linxin666/dsh-skins` dependency are not distributed with the app. A package-level Apache-2.0 license does not automatically cover every built-in visual asset; the upstream package identifies Maid Atelier assets as CC BY-NC-SA 4.0, so they cannot enter the release package without separate redistribution permission. The decision is recorded in the [community plugin registry](server/src/engine/dsh_runtime/community_plugin_registry.json), and the release boundary rejects unapproved visual assets from the curated set. The Skin Center can be reconsidered only after every asset has a verified license, attribution, and redistribution condition.
 
+## Verified screenshots
+
+![Official DSH Web Session and trajectory](docs/images/readme/dsh-official-web-session-loopback.png)
+
+This image comes from the current packaged Electron loopback SSE interaction smoke and shows the official Web Session, trajectory, and tool-result projection; it is not evidence from a live DeepSeek model.
+
+![Community task-board candidate inside official Web](docs/images/readme/dsh-community-task-board.png)
+
+This image comes from the fixed-version community Bundle's real Electron regression and shows the task-board activated inside the official Web root with five columns; it is optional and not part of the default curated set.
+
 ## Electron native boundary
 
 The `webContents` that hosts the official Web has no product preload, Node access, or general IPC. The Electron main process retains only narrow native Host services for windows, updates, file authorization, and Browser Workspace. Browser navigation, tabs, downloads, history, find-in-page, zoom, page capture, and permission requests use an allowlisted method set, Session binding, and boundary validation. A third-party Client cannot access Electron objects or the Node filesystem.
