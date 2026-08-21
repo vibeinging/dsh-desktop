@@ -21,7 +21,7 @@
 
 2026-08-21 将生成器运行到两个独立临时目录，manifest 与 7 个 tarball 均逐字节一致，复现检查通过；这证明的是精选产物生成链路，不替代干净发行环境的完整安装验证。
 
-公开 README 的默认 Bundle 明细不再维护第二份手写名单。`scripts/generate-featured-plugin-docs.mjs` 从同一精选 JSON 生成中英文表格中的包名、类型、权限、来源和官方卸载命令；`dsh-trusted-client-plugins.test.mjs` 与 `release-boundary` 会检查表格行数和字段是否仍与精选输入一致。本轮 `npm run docs:featured-plugins`、`npm run test:release`（136 项中 134 项通过、2 项按条件跳过、0 项失败）和 `npm run release:check:static`（12/12）均通过。
+公开 README 的默认 Bundle 明细不再维护第二份手写名单。`scripts/generate-featured-plugin-docs.mjs` 从同一精选 JSON 生成中英文表格中的包名、类型、权限、来源和官方卸载命令；`dsh-trusted-client-plugins.test.mjs` 与 `release-boundary` 会检查表格行数和字段是否仍与精选输入一致。本轮 `npm run docs:featured-plugins`、`npm run test:release`（137 项中 135 项通过、2 项按条件跳过、0 项失败）和 `npm run release:check:static`（12/12）均通过。
 
 精选产物生成器现在还会在 `npm pack` 前校验包 manifest 的 `dshWork.portability.level`、有序 `hostRequirements` 与精选清单的 portability、permissions 完全一致；漂移会阻止 tarball、权限摘要和第三方公告生成。定向回归覆盖有效契约和两类漂移，临时目录生成全部 7 个精选 Bundle 成功。
 
@@ -109,7 +109,7 @@
 
 当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-21 的 macOS arm64 结果如下：
 
-本轮在提交 `a30c263` 建立了临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：136 项中 134 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果证明了干净源码和全新依赖安装的基线，不替代平台安装器、签名和公证验证。
+本轮在提交 `a30c263` 建立了临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：当前 HEAD 的 137 项中 135 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果证明了干净源码和全新依赖安装的基线，不替代平台安装器、签名和公证验证。
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
