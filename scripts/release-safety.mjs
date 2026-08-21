@@ -242,6 +242,8 @@ function staticChecks(root, scope) {
       'npm run package:mac',
       'npm run smoke:updater',
       'npm run smoke:community:packaged',
+      'DSH_LIVE_MODEL_RESULT_FILE=',
+      'live-model-evidence/result.json',
     ];
     checks.push(check(
       'mac_release_evidence_workflow',
