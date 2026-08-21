@@ -233,6 +233,22 @@ function staticChecks(root, scope) {
       '正式 macOS 构建强制 Developer ID 签名、Hardened Runtime 和公证',
       'electron/package.json',
     ));
+    const macEvidenceWorkflow = readText(join(root, '.github', 'workflows', 'macos-release-evidence.yml'));
+    const macWorkflowRequirements = [
+      'workflow_dispatch:',
+      'APPLE_ID:',
+      'APPLE_APP_SPECIFIC_PASSWORD:',
+      'CSC_LINK:',
+      'npm run package:mac',
+      'npm run smoke:updater',
+      'npm run smoke:community:packaged',
+    ];
+    checks.push(check(
+      'mac_release_evidence_workflow',
+      macWorkflowRequirements.every((fragment) => macEvidenceWorkflow.includes(fragment)) ? 'pass' : 'block',
+      'macOS 发行证据 workflow 必须覆盖签名、公证、更新器和社区打包 smoke',
+      '.github/workflows/macos-release-evidence.yml',
+    ));
   }
   if (scope === 'all' || scope === 'windows') {
     checks.push(check(
@@ -240,6 +256,21 @@ function staticChecks(root, scope) {
       String(scripts['package:win:project'] || '').includes('forceCodeSigning=true') ? 'pass' : 'block',
       '正式 Windows 构建强制代码签名',
       'electron/package.json',
+    ));
+    const windowsEvidenceWorkflow = readText(join(root, '.github', 'workflows', 'windows-release-evidence.yml'));
+    const windowsWorkflowRequirements = [
+      'workflow_dispatch:',
+      'WIN_CSC_LINK:',
+      'WIN_CSC_KEY_PASSWORD:',
+      'npm run package:win',
+      'smoke:win:acceptance',
+      'release:verify:win',
+    ];
+    checks.push(check(
+      'windows_release_evidence_workflow',
+      windowsWorkflowRequirements.every((fragment) => windowsEvidenceWorkflow.includes(fragment)) ? 'pass' : 'block',
+      'Windows 发行证据 workflow 必须覆盖签名、安装器验收和 Authenticode 校验',
+      '.github/workflows/windows-release-evidence.yml',
     ));
   }
   return checks;
