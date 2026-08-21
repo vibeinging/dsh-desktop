@@ -23,6 +23,11 @@ import {
   isWindowsAcceptanceReceipt,
 } from '../../scripts/windows-acceptance-receipt.mjs';
 import {
+  LIVE_MODEL_EVIDENCE_CHECKS,
+  createLiveModelEvidenceReceipt,
+  isLiveModelEvidenceReceipt,
+} from '../../scripts/live-model-evidence.mjs';
+import {
   pathWithPackagedBin,
   systemOnlyPath,
 } from '../../electron/scripts/packaged-smoke-environment.mjs';
@@ -260,6 +265,26 @@ test('Windows acceptance receipt requires every real install lifecycle check', (
   assert.equal(isWindowsAcceptanceReceipt(receipt), true);
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, checks: receipt.checks.slice(1) }), false);
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, passed: false }), false);
+});
+
+test('live-model evidence receipt is credential-free and complete', () => {
+  const receipt = createLiveModelEvidenceReceipt({
+    app: 'release/mac-arm64/DSH Desktop.app',
+    screenshot: '/tmp/live-model/official-web-session-flow.png',
+    startedAt: '2026-08-21T00:00:00.000Z',
+    completedAt: '2026-08-21T00:01:00.000Z',
+  });
+  assert.equal(isLiveModelEvidenceReceipt(receipt), true);
+  assert.equal(receipt.credentials_persisted, false);
+  assert.equal(receipt.checks.length, LIVE_MODEL_EVIDENCE_CHECKS.length);
+  assert.equal(isLiveModelEvidenceReceipt({ ...receipt, credentials_persisted: true }), false);
+  assert.equal(isLiveModelEvidenceReceipt({ ...receipt, checks: receipt.checks.slice(1) }), false);
+});
+
+test('macOS release workflow persists the real live-model receipt', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /DSH_LIVE_MODEL_RESULT_FILE=/);
+  assert.match(workflow, /live-model-evidence\/result\.json/);
 });
 
 test('Windows release evidence workflow requires signing, installer acceptance, and signature verification', () => {

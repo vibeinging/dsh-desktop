@@ -123,7 +123,7 @@
 - `arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-profile-authority.mjs "release/mac/DSH Desktop.app"`
 - `DSH_SCREENSHOT_DIR=.desktop-build/evidence/official-web-x64.Ev0qMl arch -x86_64 /tmp/dsh-node-x64.f8KWLi/node-v24.19.0-darwin-x64/bin/node electron/scripts/smoke-packaged-official-web-flow.mjs "release/mac/DSH Desktop.app"`
 
-官方 Web CDP 流程 smoke 使用临时用户目录和不继承用户环境的系统 PATH，主动清除 `DEEPSEEK_API_KEY`，通过真实随包 Electron 页面完成首次提示、官方 `workspace.create` 测试夹具、官方 Web 新建 Session、输入并发送消息、可见的 Session log、`session.list` 和 `session.history` 回读，再检查页面没有 `window.electronAPI` 或 Node 全局。无密钥时模型请求按预期显示 `MISSING_CREDENTIAL`，这条失败也属于官方 Web 的可见 Session 结果，不把它写成模型成功。命令支持 `DSH_SCREENSHOT_DIR=/path` 持久化官方 Web 截图；本次 smoke 的审批和队列没有伪造覆盖，必须在有工具调用的 live-model 环境单独验证。
+官方 Web CDP 流程 smoke 使用临时用户目录和不继承用户环境的系统 PATH，主动清除 `DEEPSEEK_API_KEY`，通过真实随包 Electron 页面完成首次提示、官方 `workspace.create` 测试夹具、官方 Web 新建 Session、输入并发送消息、可见的 Session log、`session.list` 和 `session.history` 回读，再检查页面没有 `window.electronAPI` 或 Node 全局。无密钥时模型请求按预期显示 `MISSING_CREDENTIAL`，这条失败也属于官方 Web 的可见 Session 结果，不把它写成模型成功。命令支持 `DSH_SCREENSHOT_DIR=/path` 持久化官方 Web 截图；带 `--live-model` 且成功时，额外用 `DSH_LIVE_MODEL_RESULT_FILE=/path/result.json` 写入不含凭据的 `dsh.live-model.evidence.v1` 回执，失败或无密钥会删除旧回执；本次 smoke 的审批和队列没有伪造覆盖，必须在有工具调用的 live-model 环境单独验证。
 
 官方 Web 交互 smoke 使用同一 macOS arm64 打包 Electron，但把 DSH 官方 DeepSeek 适配器的 loopback endpoint 指向脚本内的确定性 SSE 测试服务，并设置 `DEEPSEEK_API_KEY` 仅作为测试凭据；它没有访问外网或真实模型。第一轮由测试模型发起 `ask_user_question`，官方 Web 问题卡片显示选项，脚本选择并提交“继续执行”；随后 bash 写入 Profile 工作区之外的临时 marker，真实沙箱返回拒绝；第二轮由测试模型提交相同命令及 `danger-full-access` 与 justification，官方审批服务向官方 Web 发布审批卡片，点击 `Allow once` 后真实写入 marker。此期间通过官方 `session.prompt({ mode: "queue" })` 接受第二条消息，官方 `session/queue` 投影渲染 QueueDock，首轮完成后排队消息再次经过官方 LLM 和 Session history。脚本还检查了实际 marker 内容为 `approved\n`，所以没有把模型文本当成工具成功证据。本次截图保存在 `electron/.desktop-build/evidence/official-web-interactions/official-web-approval-queue.png`、`official-web-question-pending.png`、`official-web-approval-pending.png` 和 `official-web-session-flow.png`；这是本机 smoke 归档，不等同于公开安装录制或真实 DeepSeek 服务验收。
 
@@ -141,7 +141,7 @@
 
 此前在提交 `a30c263` 建立的临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：当时的 HEAD 为 137 项中 135 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果是历史干净源码和全新依赖安装基线，不替代当前提交、平台安装器、签名和公证验证。
 
-在本次精选清单组合字段、基础服务管理边界和打包 smoke 入口提交后，当前 `dev` 工作区重新运行 `npm run test:release` 为 141 项中 139 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过，当前静态门禁为 14/14。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows 或 Apple 公证验收。
+在本次精选清单组合字段、基础服务管理边界、打包 smoke 和 live-model 回执契约提交后，当前 `dev` 工作区重新运行 `npm run test:release` 为 143 项中 141 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过，当前静态门禁为 14/14。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows、真实 live-model 或 Apple 公证验收。
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
@@ -169,6 +169,6 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 - 当前证据已经包含 Developer ID 签名目录包、明确关闭公证生成的 arm64 DMG/ZIP 安装器结构、断网初始化、Profile authority、损坏 Bundle 恢复和真实签名 updater 替换回归；DMG 的 UDZO 结构、ZIP 内 `DSH Desktop.app` 资源和 App 严格签名校验均通过，但仍不是 Apple 公证、Gatekeeper 接受、Windows 实机和最终公开安装器证据。最新 arm64 目录包上的断网干净用户首启、官方卸载后重启/更新记录回放、破坏插件恢复页和预算门禁已通过。
 - macOS x64 当前已通过官方 Node `v24.19.0` x64 依赖准备、Developer ID 签名目录包/未公证安装器结构、Server/App、默认退出路径、恢复、断网 Profile、Profile authority 和官方 Web smoke；仍尚缺原生 x64 主机或发行 CI 上的安装器和性能验收，不能把 Rosetta 结果写成原生 x64 发布证据。
 - 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化，README 也已换成当前官方 Web 与社区候选截图。现在提供显式的 `npm run smoke:official-web:live` 入口；无 `DEEPSEEK_API_KEY` 时会 fail closed，本轮只验证了这个保护，不把 loopback 模型或未执行的 live 命令写成真实 DeepSeek 证据。公开安装录制和真实 DeepSeek 服务验收仍需在发行环境完成。
-- `.github/workflows/macos-release-evidence.yml` 现在提供手动的 arm64 签名、公证、打包 smoke、社区三帧和可选 live-model 证据入口；`.github/workflows/windows-release-evidence.yml` 提供 Windows 签名、安装器验收和 Authenticode 证据入口。两者都要求发行环境提供对应 secrets，本机未触发这些 workflow，因此不把 workflow 存在写成 Apple、Windows、公开安装器或真实服务验收通过。
+- `.github/workflows/macos-release-evidence.yml` 现在提供手动的 arm64 签名、公证、打包 smoke、社区三帧和可选 live-model 证据入口；live-model 步骤同时上传截图和 `result.json` 成功回执。`.github/workflows/windows-release-evidence.yml` 提供 Windows 签名、安装器验收和 Authenticode 证据入口。两者都要求发行环境提供对应 secrets，本机未触发这些 workflow，因此不把 workflow 或回执契约存在写成 Apple、Windows、公开安装器或真实服务验收通过。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。

@@ -92,7 +92,9 @@ jobs:
         run: |
           test -n "$DEEPSEEK_API_KEY"
           mkdir -p "$RUNNER_TEMP/live-model-evidence"
-          DSH_SCREENSHOT_DIR="$RUNNER_TEMP/live-model-evidence" npm run smoke:official-web:live
+          DSH_SCREENSHOT_DIR="$RUNNER_TEMP/live-model-evidence" \
+          DSH_LIVE_MODEL_RESULT_FILE="$RUNNER_TEMP/live-model-evidence/result.json" \
+          npm run smoke:official-web:live
 
       - name: Upload release and smoke evidence
         if: always()
