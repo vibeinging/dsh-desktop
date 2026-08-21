@@ -88,7 +88,7 @@ dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
 To include the installer source in the community regression, on macOS mount the DMG read-only, copy the App from it, and run the same official install, activation, removal, and restart checks:
 
 ```bash
-DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg
+DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence DSH_MACOS_INSTALLER_RESULT_FILE=/path/to/evidence/macos-installer.json npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg
 ```
 
 `@linxin666/dsh-web-ui-all` is used only for conflict experiments and is not a release input. Better Sidebar, remote Web, SSH, image understanding, Agent presets, and community plugin managers are not in the default Profile. A community package does not enter the curated set without a fixed source, dependency review, real Electron evidence, and uninstall evidence.

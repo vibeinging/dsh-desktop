@@ -67,6 +67,7 @@ test("macOS installer smoke records the DMG-to-App installation boundary", async
   assert.match(script, /ditto/);
   assert.match(script, /smoke-packaged-community\.mjs/);
   assert.match(script, /DSH_INSTALLER_SOURCE/);
+  assert.match(script, /DSH_MACOS_INSTALLER_RESULT_FILE/);
 });
 
 test("the independent task-board Bundle installs, runs, uninstalls, and restarts through the official Profile", {

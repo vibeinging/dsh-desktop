@@ -1,14 +1,17 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { basename, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ELECTRON_DIR = resolve(resolve(fileURLToPath(import.meta.url), '..'), '..')
 const APP_ROOT = resolve(ELECTRON_DIR, '..')
 const DEFAULT_DMG = join(APP_ROOT, 'release', 'dsh-desktop-0.0.1-mac-arm64.dmg')
 const communitySmoke = join(ELECTRON_DIR, 'scripts', 'smoke-packaged-community.mjs')
+const resultPath = String(process.env.DSH_MACOS_INSTALLER_RESULT_FILE || '').trim()
+  ? resolve(String(process.env.DSH_MACOS_INSTALLER_RESULT_FILE).trim())
+  : ''
 
 function resolveDmg(input) {
   if (!input) return DEFAULT_DMG
@@ -58,6 +61,7 @@ async function main() {
   const installedDir = join(tempDir, 'installed')
   const installedApp = join(installedDir, 'DSH Desktop.app')
   let mounted = false
+  let passed = false
   try {
     await mkdir(mountPoint, { recursive: true })
     await mkdir(installedDir, { recursive: true })
@@ -78,6 +82,20 @@ async function main() {
       },
     )
     if (!output.includes('[smoke] PASS')) throw new Error(`DMG 安装 smoke 缺少成功标记\n${output}`)
+    if (resultPath) {
+      await mkdir(dirname(resultPath), { recursive: true })
+      await writeFile(resultPath, `${JSON.stringify({
+        schema_version: 1,
+        status: 'passed',
+        evidence_level: 'macos-dmg-installer-electron',
+        source_dmg: basename(dmgPath),
+        copied_app: 'DSH Desktop.app',
+        runtime: { platform: process.platform, arch: process.arch },
+        community_candidate: '@linxin666/dsh-client-ui-task-board@0.1.20',
+        lifecycle: ['mount', 'copy', 'install', 'activate', 'uninstall', 'restart', 'detach'],
+      }, null, 2)}\n`)
+    }
+    passed = true
     console.log(`[installer-smoke] PASS 从 ${basename(dmgPath)} 挂载、复制并运行签名 DSH Desktop；官方 Profile 社区安装/激活/卸载/重启通过`)
   } finally {
     if (mounted) {
@@ -85,6 +103,7 @@ async function main() {
         .catch((error) => console.warn(`[installer-smoke] DMG 卸载失败(已忽略): ${error.message}`))
     }
     await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })
+    if (!passed && resultPath) await rm(resultPath, { force: true })
   }
 }
 

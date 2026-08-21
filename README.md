@@ -88,7 +88,7 @@ dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
 要把安装包来源也纳入社区回归，可在 macOS 上只读挂载 DMG、复制其中的 App，再运行同一套官方安装/激活/卸载/重启检查：
 
 ```bash
-DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg
+DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence DSH_MACOS_INSTALLER_RESULT_FILE=/path/to/evidence/macos-installer.json npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg
 ```
 
 `@linxin666/dsh-web-ui-all` 是聚合包，只用于冲突实验，不是发行输入。Better Sidebar、远程 Web、SSH、图像理解、Agent 预设和社区插件管理器没有进入默认 Profile。没有固定来源、完整依赖审查、真实 Electron 回归和卸载证据的社区包不会写入精选清单。
