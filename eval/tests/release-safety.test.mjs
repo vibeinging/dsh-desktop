@@ -15,6 +15,7 @@ import {
 import {
   inspectCommunityAssetLicenseBoundary,
   inspectFeaturedArtifacts,
+  inspectFeaturedMeasurement,
   inspectPublicReleaseAssets,
 } from '../../scripts/release-boundary.mjs';
 import {
@@ -27,6 +28,7 @@ import {
   createLiveModelEvidenceReceipt,
   isLiveModelEvidenceReceipt,
 } from '../../scripts/live-model-evidence.mjs';
+import { validateReleaseEvidenceReceipt } from '../../scripts/release-evidence-receipt.mjs';
 import {
   pathWithPackagedBin,
   systemOnlyPath,
@@ -258,6 +260,46 @@ test('release boundary consumes every generated curated-plugin projection', asyn
   }
 });
 
+test('featured-plugin measurement rejects source and artifact drift', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-featured-measurement-'));
+  const artifactRoot = join(root, '.desktop-build', 'featured-plugins');
+  const reportRoot = join(root, '.desktop-build', 'reports');
+  const runtimeRoot = join(root, 'server', 'src', 'engine', 'dsh_runtime');
+  const sourcePath = join(runtimeRoot, 'featured_plugins.json');
+  const artifactPath = join(artifactRoot, 'manifest.json');
+  const source = JSON.stringify({ profile: 'web', plugins: [] });
+  const artifact = JSON.stringify({ profile: 'web', plugins: [] });
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  try {
+    mkdirSync(artifactRoot, { recursive: true });
+    mkdirSync(reportRoot, { recursive: true });
+    mkdirSync(runtimeRoot, { recursive: true });
+    writeFileSync(sourcePath, source);
+    writeFileSync(artifactPath, artifact);
+    writeFileSync(join(reportRoot, 'featured-plugin-evaluation.json'), JSON.stringify({
+      schema_version: 2,
+      git_commit_sha: 'not-a-git-checkout',
+      featured_source: {
+        reference: 'server/src/engine/dsh_runtime/featured_plugins.json',
+        sha256: hash(source),
+      },
+      artifact_manifest: {
+        reference: 'featured-plugins/manifest.json',
+        sha256: hash(artifact),
+      },
+      plugins: [],
+    }));
+    assert.deepEqual(inspectFeaturedMeasurement(root, { required: true }), []);
+    writeFileSync(sourcePath, JSON.stringify({ profile: 'web', plugins: [], drift: true }));
+    assert.match(inspectFeaturedMeasurement(root, { required: true }).join('\n'), /源 manifest SHA-256/);
+    writeFileSync(sourcePath, source);
+    writeFileSync(artifactPath, JSON.stringify({ profile: 'web', plugins: [], drift: true }));
+    assert.match(inspectFeaturedMeasurement(root, { required: true }).join('\n'), /产物 manifest SHA-256/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('Windows acceptance receipt requires every real install lifecycle check', () => {
   const receipt = createWindowsAcceptanceReceipt({
     installer: 'release/dsh-desktop-0.0.1-win-x64.exe',
@@ -271,24 +313,91 @@ test('Windows acceptance receipt requires every real install lifecycle check', (
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, passed: false }), false);
 });
 
-test('live-model evidence receipt is credential-free and complete', () => {
-  const receipt = createLiveModelEvidenceReceipt({
-    app: 'release/mac-arm64/DSH Desktop.app',
-    screenshot: '/tmp/live-model/official-web-session-flow.png',
-    startedAt: '2026-08-21T00:00:00.000Z',
-    completedAt: '2026-08-21T00:01:00.000Z',
-  });
-  assert.equal(isLiveModelEvidenceReceipt(receipt), true);
-  assert.equal(receipt.credentials_persisted, false);
-  assert.equal(receipt.checks.length, LIVE_MODEL_EVIDENCE_CHECKS.length);
-  assert.equal(isLiveModelEvidenceReceipt({ ...receipt, credentials_persisted: true }), false);
-  assert.equal(isLiveModelEvidenceReceipt({ ...receipt, checks: receipt.checks.slice(1) }), false);
+test('live-model evidence receipt binds the current artifacts and rejects drift', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-live-model-receipt-'));
+  const app = join(root, 'DSH Desktop.app');
+  const featuredManifest = join(app, 'Contents', 'Resources', 'featured-plugins', 'manifest.json');
+  mkdirSync(join(app, 'Contents', 'MacOS'), { recursive: true });
+  mkdirSync(join(app, 'Contents', 'Resources', 'featured-plugins'), { recursive: true });
+  mkdirSync(join(root, 'server', 'src', 'engine', 'dsh_runtime'), { recursive: true });
+  writeFileSync(join(app, 'Contents', 'MacOS', 'DSH Desktop'), 'app');
+  writeFileSync(join(root, 'server', 'src', 'engine', 'dsh_runtime', 'featured_plugins.json'), '{}');
+  writeFileSync(featuredManifest, '{}');
+  try {
+    const receipt = createLiveModelEvidenceReceipt({
+      root,
+      appPath: app,
+      screenshot: '/tmp/live-model/official-web-session-flow.png',
+      featuredManifestPath: featuredManifest,
+      commitSha: 'a'.repeat(40),
+      signerIdentity: 'Developer ID Application: DSH Desktop (TEAM123)',
+      startedAt: '2026-08-21T00:00:00.000Z',
+      completedAt: '2026-08-21T00:01:00.000Z',
+    });
+    assert.equal(isLiveModelEvidenceReceipt(receipt), true);
+    assert.equal(receipt.credentials_persisted, false);
+    assert.equal(receipt.checks.length, LIVE_MODEL_EVIDENCE_CHECKS.length);
+    assert.deepEqual(receipt.screenshot_refs, ['live-model-evidence/official-web-session-flow.png']);
+    assert.deepEqual(validateReleaseEvidenceReceipt(receipt, {
+      root,
+      kind: 'live-model',
+      appPath: app,
+      featuredManifestPath: featuredManifest,
+      commitSha: 'a'.repeat(40),
+      platform: 'darwin',
+      arch: 'arm64',
+      signerIdentity: 'Developer ID Application: DSH Desktop (TEAM123)',
+    }), []);
+    assert.equal(isLiveModelEvidenceReceipt({ ...receipt, credentials_persisted: true }), false);
+    assert.equal(isLiveModelEvidenceReceipt({ ...receipt, checks: receipt.checks.slice(1) }), false);
+    assert.equal(isLiveModelEvidenceReceipt({
+      ...receipt,
+      featured_manifest: {
+        ...receipt.featured_manifest,
+        source: { ...receipt.featured_manifest.source, reference: 'elsewhere/featured_plugins.json' },
+      },
+    }), false);
+    assert.match(validateReleaseEvidenceReceipt({
+      ...receipt,
+      git_commit_sha: 'b'.repeat(40),
+    }, {
+      root,
+      kind: 'live-model',
+      appPath: app,
+      featuredManifestPath: featuredManifest,
+      commitSha: 'a'.repeat(40),
+    }).join('\n'), /git_commit_sha/);
+    assert.match(validateReleaseEvidenceReceipt({
+      ...receipt,
+      artifacts: { ...receipt.artifacts, app: { ...receipt.artifacts.app, sha256: '0'.repeat(64) } },
+    }, {
+      root,
+      kind: 'live-model',
+      appPath: app,
+      featuredManifestPath: featuredManifest,
+      commitSha: 'a'.repeat(40),
+    }).join('\n'), /App SHA-256/);
+    rmSync(featuredManifest);
+    assert.match(validateReleaseEvidenceReceipt(receipt, {
+      root,
+      kind: 'live-model',
+      appPath: app,
+      featuredManifestPath: featuredManifest,
+      commitSha: 'a'.repeat(40),
+    }).join('\n'), /当前精选产物 manifest 不存在/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('macOS release workflow persists the real live-model receipt', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
   assert.match(workflow, /DSH_LIVE_MODEL_RESULT_FILE=/);
   assert.match(workflow, /live-model-evidence\/result\.json/);
+  assert.match(workflow, /DEEPSEEK_API_KEY:/);
+  assert.match(workflow, /test -n "\$DEEPSEEK_API_KEY"/);
+  assert.match(workflow, /npm run release:verify:mac -- --require-evidence/);
+  assert.doesNotMatch(workflow, /inputs:\s*[\s\S]*live_model:/);
 });
 
 test('macOS release workflow runs the DMG installer lifecycle smoke', () => {

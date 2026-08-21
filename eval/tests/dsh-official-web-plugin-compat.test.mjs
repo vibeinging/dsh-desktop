@@ -189,6 +189,17 @@ test("the real dsh-web-ui aggregate compat Client installs, stamps the official 
       "--save-exact", "--ignore-scripts",
     ], { cwd: APP_ROOT, env, timeoutMs: 240_000 });
     const installedManifest = JSON.parse(await readFile(join(profileDir, "package.json"), "utf8"));
+    const compatPackageManifest = JSON.parse(await readFile(join(
+      profileDir,
+      "node_modules",
+      "@linxin666",
+      "dsh-web-ui-all",
+      "package.json",
+    ), "utf8"));
+    assert.equal(compatPackageManifest.name, COMPAT_PACKAGE_NAME);
+    assert.equal(compatPackageManifest.version, "0.1.20");
+    assert.equal(compatPackageManifest.exports?.["./client"], "./lib/client.js");
+    assert.equal(compatPackageManifest.dsh?.client?.platform, "web");
     assert.equal(installedManifest.dsh?.profile?.bundles?.includes(COMPAT_PACKAGE_NAME), true);
     assert.equal(Object.hasOwn(installedManifest.dependencies || {}, COMPAT_PACKAGE_NAME), true);
 

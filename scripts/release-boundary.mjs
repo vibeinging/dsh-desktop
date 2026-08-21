@@ -356,6 +356,40 @@ export function inspectFeaturedArtifacts(root = ROOT, { required = false } = {})
   return errors;
 }
 
+/** Check that the measured featured-plugin report matches the current source and artifact manifest. */
+export function inspectFeaturedMeasurement(root = ROOT, { required = false } = {}) {
+  const appRoot = resolve(root);
+  const reportPath = join(appRoot, '.desktop-build', 'reports', 'featured-plugin-evaluation.json');
+  const sourcePath = join(appRoot, 'server', 'src', 'engine', 'dsh_runtime', 'featured_plugins.json');
+  const artifactPath = join(appRoot, '.desktop-build', 'featured-plugins', 'manifest.json');
+  if (!existsSync(reportPath)) return required ? ['缺少精选插件逐包测量报告'] : [];
+  if (!existsSync(sourcePath) || !existsSync(artifactPath)) return ['精选插件测量报告缺少当前源或产物 manifest'];
+  const report = readJson(reportPath);
+  const artifact = readJson(artifactPath);
+  const errors = [];
+  if (report.schema_version !== 2) errors.push('精选插件测量报告 schema_version 不是 2');
+  if (report.featured_source?.sha256 !== sha256(sourcePath)) errors.push('精选插件测量报告与当前源 manifest SHA-256 不一致');
+  if (report.artifact_manifest?.sha256 !== sha256(artifactPath)) errors.push('精选插件测量报告与当前产物 manifest SHA-256 不一致');
+  const commit = spawnSync('git', ['-C', appRoot, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
+  const currentCommit = String(commit.stdout || '').trim().toLowerCase();
+  if (/^[0-9a-f]{40}$/.test(currentCommit) && report.git_commit_sha !== currentCommit) {
+    errors.push('精选插件测量报告 git_commit_sha 与当前提交不一致');
+  }
+  const measured = new Map((report.plugins || []).map((plugin) => [plugin.name, plugin]));
+  for (const plugin of artifact.plugins || []) {
+    const measurement = measured.get(plugin.name);
+    if (!measurement) {
+      errors.push(`精选插件测量报告缺少 ${plugin.name}`);
+      continue;
+    }
+    if (measurement.tarball !== plugin.tarball || measurement.sha256 !== plugin.sha256) {
+      errors.push(`精选插件测量报告与 ${plugin.name} 当前 tarball/hash 不一致`);
+    }
+  }
+  if (measured.size !== (artifact.plugins || []).length) errors.push('精选插件测量报告包含未生成的插件');
+  return errors;
+}
+
 /** Run Node syntax checks over the source plane used by the release. */
 export function checkReleaseJavaScript(root = ROOT) {
   const appRoot = resolve(root);

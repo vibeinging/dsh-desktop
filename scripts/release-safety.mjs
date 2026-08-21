@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
   inspectCommunityAssetLicenseBoundary,
   inspectFeaturedArtifacts,
+  inspectFeaturedMeasurement,
   inspectOfficialWebReleaseBoundary,
 } from './release-boundary.mjs';
+import {
+  readSignerIdentity,
+  resolveCommitSha,
+  validateReleaseEvidenceReceipt,
+} from './release-evidence-receipt.mjs';
 import { isWindowsAcceptanceReceipt } from './windows-acceptance-receipt.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -126,7 +132,71 @@ function run(command, args) {
   };
 }
 
-function staticChecks(root, scope) {
+function readReceipt(path) {
+  const value = readJson(path);
+  return value && typeof value === 'object' ? value : null;
+}
+
+function resolveMacDmg(root, appPath) {
+  const packageJson = readJson(join(root, 'package.json')) || {};
+  const arch = String(appPath || '').includes(`${sep}mac${sep}`) ? 'x64' : 'arm64';
+  const candidate = join(root, 'release', `dsh-desktop-${packageJson.version}-mac-${arch}.dmg`);
+  return existsSync(candidate) ? candidate : null;
+}
+
+function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } = {}) {
+  const app = resolve(appPath);
+  const resourcesManifest = join(app, 'Contents', 'Resources', 'featured-plugins', 'manifest.json');
+  const dmg = resolveMacDmg(root, app);
+  const arch = String(app).includes(`${sep}mac${sep}`) ? 'x64' : 'arm64';
+  let commit;
+  try {
+    commit = resolveCommitSha(root);
+  } catch (error) {
+    return [check('release_receipt_commit', 'block', error.message, root)];
+  }
+  const rows = [
+    ['mac_live_model_receipt', 'DSH_LIVE_MODEL_RESULT_FILE', 'live-model'],
+    ['mac_dmg_notarization_receipt', 'DSH_MACOS_DMG_NOTARY_RESULT_FILE', 'macos-dmg-notarization'],
+    ['macos_installer_receipt', 'DSH_MACOS_INSTALLER_RESULT_FILE', 'macos-dmg-installer'],
+    ['mac_native_host_receipt', 'DSH_NATIVE_HOST_RESULT_FILE', 'native-host'],
+  ];
+  return rows.map(([id, environmentName, kind]) => {
+    const receiptPath = String(process.env[environmentName] || '').trim();
+    if (!receiptPath) {
+      return check(
+        id,
+        requireEvidence ? 'block' : 'manual',
+        requireEvidence
+          ? `缺少 ${environmentName}；正式发行需要真实回执（无 API key 或 smoke 失败均不得放行）`
+          : `未提供 ${environmentName}；正式发行请使用 --require-evidence`,
+        environmentName,
+      );
+    }
+    if (!existsSync(receiptPath)) return check(id, 'block', `找不到回执：${receiptPath}`, receiptPath);
+    const receipt = readReceipt(receiptPath);
+    if (!receipt) return check(id, 'block', `回执不是有效 JSON：${receiptPath}`, receiptPath);
+    const errors = validateReleaseEvidenceReceipt(receipt, {
+      root,
+      kind,
+      appPath: app,
+      dmgPath: kind === 'macos-dmg-notarization' || kind === 'macos-dmg-installer' ? dmg : null,
+      featuredManifestPath: resourcesManifest,
+      commitSha: commit,
+      platform: 'darwin',
+      arch,
+      signerIdentity: readSignerIdentity(app),
+    });
+    return check(
+      id,
+      errors.length === 0 ? 'pass' : 'block',
+      errors.length === 0 ? `回执绑定当前 ${arch} App、精选 manifest 和 commit ${commit}` : errors.join('；'),
+      receiptPath,
+    );
+  });
+}
+
+function staticChecks(root, scope, { requireMeasurement = false } = {}) {
   const checks = [];
   const privacy = readText(join(root, 'PRIVACY.md'));
   const security = readText(join(root, 'SECURITY.md'));
@@ -222,6 +292,18 @@ function staticChecks(root, scope) {
       : artifactErrors.join('；'),
     '.desktop-build/featured-plugins',
   ));
+  const measurementPath = join(root, '.desktop-build', 'reports', 'featured-plugin-evaluation.json');
+  const measurementErrors = inspectFeaturedMeasurement(root, { required: requireMeasurement });
+  checks.push(check(
+    'featured_plugin_measurement',
+    measurementErrors.length > 0 ? 'block' : (requireMeasurement || existsSync(measurementPath) ? 'pass' : 'pass'),
+    measurementErrors.length > 0
+      ? measurementErrors.join('；')
+      : requireMeasurement
+        ? '精选插件测量报告与当前源/产物 manifest 一致'
+        : '静态阶段不要求逐包测量报告；若存在则校验 hash',
+    measurementPath,
+  ));
 
   if (scope === 'all' || scope === 'macos') {
     checks.push(check(
@@ -245,6 +327,7 @@ function staticChecks(root, scope) {
       'npm run smoke:updater',
       'npm run smoke:community:packaged',
       'npm run smoke:macos:installer',
+      'npm run measure:featured-plugins',
       'macos-installer-evidence',
       'npm run smoke:native-host',
       'native-host-evidence',
@@ -253,6 +336,12 @@ function staticChecks(root, scope) {
       'apple-notary-history.json',
       'DSH_LIVE_MODEL_RESULT_FILE=',
       'live-model-evidence/result.json',
+      'DSH_RELEASE_COMMIT_SHA:',
+      'DSH_MACOS_INSTALLER_RESULT_FILE',
+      'DSH_NATIVE_HOST_RESULT_FILE',
+      'DEEPSEEK_API_KEY',
+      'test -n "$DEEPSEEK_API_KEY"',
+      'npm run release:verify:mac -- --require-evidence',
     ];
     const macPackageScripts = `${scripts['package:mac:project'] || ''}\n${scripts['package:mac:x64:project'] || ''}`;
     checks.push(check(
@@ -291,7 +380,7 @@ function staticChecks(root, scope) {
   return checks;
 }
 
-function inspectMacBundle(appPath) {
+function inspectMacBundle(appPath, { root = DEFAULT_ROOT, requireEvidence = false } = {}) {
   if (!appPath || !existsSync(appPath)) {
     return [check('mac_artifact', 'block', '找不到待发布 macOS .app', appPath || null)];
   }
@@ -312,6 +401,7 @@ function inspectMacBundle(appPath) {
     check('mac_signature_integrity', strict.ok ? 'pass' : 'block', 'codesign 严格校验', strict.output.slice(0, 1_000)),
     check('mac_gatekeeper', gatekeeper.ok ? 'pass' : 'block', 'Gatekeeper 接受待发布 App', gatekeeper.output.slice(0, 1_000)),
     check('mac_notarization_ticket', stapler.ok ? 'pass' : 'block', 'Apple 公证票据已附加或可验证', stapler.output.slice(0, 1_000)),
+    ...inspectMacEvidenceReceipts(root, appPath, { requireEvidence }),
   ];
 }
 
@@ -348,11 +438,15 @@ export function inspectReleaseSafety({
   scope = 'all',
   staticOnly = false,
   appPath = null,
+  requireEvidence = false,
 } = {}) {
   const normalizedRoot = resolve(root);
-  const checks = staticChecks(normalizedRoot, scope);
+  const checks = staticChecks(normalizedRoot, scope, { requireMeasurement: requireEvidence && !staticOnly });
   if (!staticOnly && (scope === 'all' || scope === 'macos')) {
-    checks.push(...inspectMacBundle(resolve(appPath || join(normalizedRoot, 'release', 'mac-arm64', 'DSH Desktop.app'))));
+    checks.push(...inspectMacBundle(resolve(appPath || join(normalizedRoot, 'release', 'mac-arm64', 'DSH Desktop.app')), {
+      root: normalizedRoot,
+      requireEvidence,
+    }));
   }
   if (!staticOnly && (scope === 'all' || scope === 'windows')) {
     checks.push(...inspectWindowsBundle(normalizedRoot, appPath ? resolve(appPath) : null));
@@ -383,6 +477,7 @@ if (isMain) {
     scope,
     staticOnly: hasFlag('static'),
     appPath: arg('app'),
+    requireEvidence: hasFlag('require-evidence'),
   });
   console.log(JSON.stringify(report, null, 2));
   if (!report.ready && !hasFlag('allow-blockers')) process.exitCode = 1;

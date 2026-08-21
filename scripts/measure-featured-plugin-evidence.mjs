@@ -6,9 +6,12 @@ import { delimiter, dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
+import { resolveCommitSha } from './release-evidence-receipt.mjs'
+
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const FEATURED_ARTIFACT_DIR = join(APP_ROOT, '.desktop-build', 'featured-plugins')
 const FEATURED_ARTIFACT_MANIFEST = join(FEATURED_ARTIFACT_DIR, 'manifest.json')
+const FEATURED_SOURCE_MANIFEST = join(APP_ROOT, 'server/src/engine/dsh_runtime/featured_plugins.json')
 const DSH_CLI = join(APP_ROOT, 'server', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
 const PNPM_BIN_DIR = join(APP_ROOT, '.desktop-build', 'pnpm-bin')
 const DEFAULT_OUTPUT = join(APP_ROOT, '.desktop-build', 'reports', 'featured-plugin-evaluation.json')
@@ -280,6 +283,9 @@ async function main() {
   }
   const featured = JSON.parse(await readFile(join(APP_ROOT, 'server/src/engine/dsh_runtime/featured_plugins.json'), 'utf8'))
   const artifacts = JSON.parse(await readFile(FEATURED_ARTIFACT_MANIFEST, 'utf8'))
+  const featuredSourceSha256 = sha256(await readFile(FEATURED_SOURCE_MANIFEST))
+  const artifactManifestSha256 = sha256(await readFile(FEATURED_ARTIFACT_MANIFEST))
+  const gitCommitSha = resolveCommitSha(APP_ROOT)
   const artifactByName = new Map(artifacts.plugins.map((plugin) => [plugin.name, plugin]))
   const requested = String(argument('only', '') || '').split(',').map((name) => name.trim()).filter(Boolean)
   const names = requested.length > 0 ? new Set(requested) : null
@@ -296,8 +302,17 @@ async function main() {
   const outputPath = resolve(argument('output', DEFAULT_OUTPUT))
   await mkdir(dirname(outputPath), { recursive: true })
   await writeFile(outputPath, `${JSON.stringify({
-    schema_version: 1,
+    schema_version: 2,
     profile: featured.profile,
+    git_commit_sha: gitCommitSha,
+    featured_source: {
+      reference: 'server/src/engine/dsh_runtime/featured_plugins.json',
+      sha256: featuredSourceSha256,
+    },
+    artifact_manifest: {
+      reference: 'featured-plugins/manifest.json',
+      sha256: artifactManifestSha256,
+    },
     measured_at: new Date().toISOString(),
     runtime: { node: process.version, platform: process.platform, arch: process.arch },
     evidence_level: 'source-profile-integration',

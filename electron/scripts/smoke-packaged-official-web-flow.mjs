@@ -3,14 +3,17 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promise
 import { createServer } from 'node:http'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 import { systemOnlyPath } from './packaged-smoke-environment.mjs'
 import { createLiveModelEvidenceReceipt } from '../../scripts/live-model-evidence.mjs'
 
 const appInput = process.argv[2] || '../release/mac-arm64/DSH Desktop.app'
-const { executable } = resolvePackagedLayout(appInput)
+const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const { executable, resourcesDir } = resolvePackagedLayout(appInput)
+const featuredManifestPath = join(resourcesDir, 'featured-plugins', 'manifest.json')
 const tempDir = await mkdtemp(join(tmpdir(), 'dsh-packaged-official-web-flow-'))
 const workspaceDir = join(tempDir, 'workspace')
 const approvalMarkerPath = join(tempDir, 'approval-marker')
@@ -577,8 +580,10 @@ try {
   if (liveModelEnabled && liveModelResultPath) {
     await mkdir(dirname(liveModelResultPath), { recursive: true })
     await writeFile(liveModelResultPath, `${JSON.stringify(createLiveModelEvidenceReceipt({
-      app: appInput,
+      root: APP_ROOT,
+      appPath: appInput,
       screenshot,
+      featuredManifestPath,
       startedAt: smokeStartedAt,
       completedAt: new Date().toISOString(),
     }), null, 2)}\n`, { mode: 0o600 })

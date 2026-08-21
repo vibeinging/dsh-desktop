@@ -1,9 +1,16 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { resolvePackagedLayout } from './packaged-layout.mjs'
+import {
+  artifactReference,
+  createReleaseEvidenceReceipt,
+  readSignerIdentity,
+} from '../../scripts/release-evidence-receipt.mjs'
 
 const ELECTRON_DIR = resolve(resolve(fileURLToPath(import.meta.url), '..'), '..')
 const APP_ROOT = resolve(ELECTRON_DIR, '..')
@@ -60,6 +67,7 @@ async function main() {
   const mountPoint = join(tempDir, 'mounted')
   const installedDir = join(tempDir, 'installed')
   const installedApp = join(installedDir, 'DSH Desktop.app')
+  const startedAt = new Date().toISOString()
   let mounted = false
   let passed = false
   try {
@@ -83,17 +91,36 @@ async function main() {
     )
     if (!output.includes('[smoke] PASS')) throw new Error(`DMG 安装 smoke 缺少成功标记\n${output}`)
     if (resultPath) {
-      await mkdir(dirname(resultPath), { recursive: true })
-      await writeFile(resultPath, `${JSON.stringify({
-        schema_version: 1,
-        status: 'passed',
-        evidence_level: 'macos-dmg-installer-electron',
+      const installedLayout = resolvePackagedLayout(installedApp)
+      const screenshotDir = String(process.env.DSH_COMMUNITY_SCREENSHOT_DIR || '').trim()
+      const screenshotRefs = screenshotDir && existsSync(screenshotDir)
+        ? (await readdir(screenshotDir)).map((name) => artifactReference(join(screenshotDir, name), 'macos-installer-evidence'))
+        : []
+      const receipt = {
+        ...createReleaseEvidenceReceipt({
+          kind: 'macos-dmg-installer',
+          evidenceLevel: 'macos-dmg-installer-electron',
+          root: APP_ROOT,
+          appPath: installedApp,
+          dmgPath,
+          featuredManifestPath: join(installedLayout.resourcesDir, 'featured-plugins', 'manifest.json'),
+          platform: process.platform,
+          arch: process.arch,
+          signerIdentity: readSignerIdentity(installedLayout.executable),
+          startedAt,
+          completedAt: new Date().toISOString(),
+          checks: ['mount', 'copy', 'install', 'activate', 'uninstall', 'restart', 'detach']
+            .map((name) => ({ name, passed: true })),
+          screenshotRefs,
+        }),
         source_dmg: basename(dmgPath),
         copied_app: 'DSH Desktop.app',
         runtime: { platform: process.platform, arch: process.arch },
         community_candidate: '@linxin666/dsh-client-ui-task-board@0.1.20',
         lifecycle: ['mount', 'copy', 'install', 'activate', 'uninstall', 'restart', 'detach'],
-      }, null, 2)}\n`)
+      }
+      await mkdir(dirname(resultPath), { recursive: true })
+      await writeFile(resultPath, `${JSON.stringify(receipt, null, 2)}\n`)
     }
     passed = true
     console.log(`[installer-smoke] PASS 从 ${basename(dmgPath)} 挂载、复制并运行签名 DSH Desktop；官方 Profile 社区安装/激活/卸载/重启通过`)

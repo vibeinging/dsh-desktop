@@ -6,6 +6,11 @@ import { dirname, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 import { fileURLToPath } from 'node:url'
 
+import {
+  createReleaseEvidenceReceipt,
+  readSignerIdentity,
+} from '../../scripts/release-evidence-receipt.mjs'
+
 const execFileAsync = promisify(execFile)
 const ELECTRON_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const APP_ROOT = resolve(ELECTRON_DIR, '..')
@@ -73,6 +78,7 @@ async function main() {
   const arch = readOption('--arch', process.arch === 'x64' ? 'x64' : 'arm64')
   const packageJson = JSON.parse(await readFile(join(APP_ROOT, 'package.json'), 'utf8'))
   const dmgPath = resolveDmgPath(APP_ROOT, packageJson.version, arch)
+  const startedAt = new Date().toISOString()
   const appleId = requireCredential('APPLE_ID')
   const teamId = requireCredential('APPLE_TEAM_ID')
   const password = requireCredential('APPLE_APP_SPECIFIC_PASSWORD')
@@ -107,13 +113,24 @@ async function main() {
     await run('验证 DMG 载荷公证票据', 'xcrun', ['stapler', 'validate', appPath], { timeoutMs: 120_000 })
     await run('验证 DMG 载荷 Gatekeeper', 'spctl', ['--assess', '--type', 'execute', '--verbose=4', appPath], { timeoutMs: 120_000 })
     await writeReceipt(resultPath, {
-      schema_version: 1,
-      status: 'passed',
-      evidence_level: 'macos-dmg-notarization',
+      ...createReleaseEvidenceReceipt({
+        kind: 'macos-dmg-notarization',
+        evidenceLevel: 'macos-dmg-notarization',
+        root: APP_ROOT,
+        appPath,
+        dmgPath,
+        featuredManifestPath: join(appPath, 'Contents', 'Resources', 'featured-plugins', 'manifest.json'),
+        platform: 'darwin',
+        arch,
+        signerIdentity: readSignerIdentity(appPath),
+        startedAt,
+        completedAt: new Date().toISOString(),
+        checks: ['notarytool-accepted', 'dmg-stapled', 'dmg-stapler-validate', 'dmg-gatekeeper-open', 'payload-stapler-validate', 'payload-gatekeeper-execute']
+          .map((name) => ({ name, passed: true })),
+      }),
       dmg: dmgPath.replace(`${APP_ROOT}/`, ''),
       arch,
       submission_id: submission.id,
-      checks: ['notarytool-accepted', 'dmg-stapled', 'dmg-stapler-validate', 'dmg-gatekeeper-open', 'payload-stapler-validate', 'payload-gatekeeper-execute'],
     })
     console.log(`[macos-notary] PASS ${dmgPath.split('/').pop()} 容器和 App 载荷均已公证并通过 Gatekeeper`)
   } finally {

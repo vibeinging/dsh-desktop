@@ -8,6 +8,11 @@ import { dirname, join, resolve } from 'node:path'
 
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 import { pathWithPackagedBin, systemOnlyPath } from './packaged-smoke-environment.mjs'
+import {
+  artifactReference,
+  createReleaseEvidenceReceipt,
+  readSignerIdentity,
+} from '../../scripts/release-evidence-receipt.mjs'
 
 const APP_ROOT = resolve(new URL('../..', import.meta.url).pathname)
 const smokeArgs = process.argv.slice(2)
@@ -15,7 +20,10 @@ const dialogMode = smokeArgs.includes('--dialogs') || process.env.DSH_NATIVE_HOS
 const appInput = smokeArgs.find((argument) => !argument.startsWith('--')) || (process.platform === 'win32'
   ? '../release/win-unpacked'
   : '../release/mac-arm64/DSH Desktop.app')
-const { executable, resourcesDir } = resolvePackagedLayout(appInput)
+const packagedLayout = resolvePackagedLayout(appInput)
+const { executable, resourcesDir } = packagedLayout
+const packagedArtifactPath = resolve(appInput)
+const featuredManifestPath = join(resourcesDir, 'featured-plugins', 'manifest.json')
 const fixture = join(APP_ROOT, 'eval', 'fixtures', 'dsh-native-host-smoke')
 const pluginName = '@vibeinging/dsh-native-host-smoke'
 const toolName = dialogMode ? 'native_host_file_dialog_smoke' : 'native_host_window_smoke'
@@ -44,6 +52,7 @@ const pnpmBinDir = join(resourcesDir, 'pnpm-bin')
 const featuredArtifactDir = join(resourcesDir, 'featured-plugins')
 const output = []
 const modelObservations = []
+const smokeStartedAt = new Date().toISOString()
 let appProcess
 let cdp
 let fakeModel
@@ -474,17 +483,26 @@ try {
     throw new Error(`卸载测试 Bundle 后 Profile 仍包含 ${pluginName}`)
   }
   if (resultPath) {
+    const checks = dialogMode
+      ? ['profile-install', 'official-web-tool', 'session-bound-file-dialog-open', 'session-bound-directory-dialog-open', 'profile-uninstall']
+      : ['profile-install', 'official-web-tool', 'session-bound-window-get-state', 'focus', 'minimize', 'maximize', 'restore', 'profile-uninstall']
     await writeFile(resultPath, `${JSON.stringify({
-      schema_version: 1,
-      status: 'passed',
-      evidence_level: dialogMode ? 'packaged-electron-native-host-dialogs' : 'packaged-electron-native-host',
-      platform: process.platform,
-      arch: process.arch,
+      ...createReleaseEvidenceReceipt({
+        kind: 'native-host',
+        evidenceLevel: dialogMode ? 'packaged-electron-native-host-dialogs' : 'packaged-electron-native-host',
+        root: APP_ROOT,
+        appPath: packagedArtifactPath,
+        featuredManifestPath,
+        platform: packagedLayout.platform,
+        arch: process.arch,
+        signerIdentity: readSignerIdentity(executable),
+        startedAt: smokeStartedAt,
+        completedAt: new Date().toISOString(),
+        checks: checks.map((name) => ({ name, passed: true })),
+        screenshotRefs: screenshotPath ? [artifactReference(screenshotPath, 'native-host-evidence')] : [],
+      }),
       plugin: pluginName,
-      checks: dialogMode
-        ? ['profile-install', 'official-web-tool', 'session-bound-file-dialog-open', 'session-bound-directory-dialog-open', 'profile-uninstall']
-        : ['profile-install', 'official-web-tool', 'session-bound-window-get-state', 'focus', 'minimize', 'maximize', 'restore', 'profile-uninstall'],
-      screenshot: screenshotPath || null,
+      checks,
     }, null, 2)}\n`, { mode: 0o600 })
   }
   passed = true
