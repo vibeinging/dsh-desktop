@@ -246,6 +246,8 @@ function staticChecks(root, scope) {
       'npm run smoke:community:packaged',
       'npm run smoke:macos:installer',
       'macos-installer-evidence',
+      'npm run smoke:native-host',
+      'native-host-evidence',
       'xcrun stapler validate',
       'spctl --assess --type execute',
       'apple-notary-history.json',
@@ -275,6 +277,8 @@ function staticChecks(root, scope) {
       'WIN_CSC_KEY_PASSWORD:',
       'npm run package:win',
       'smoke:win:acceptance',
+      'npm run smoke:native-host',
+      'native-host-evidence',
       'release:verify:win',
     ];
     checks.push(check(

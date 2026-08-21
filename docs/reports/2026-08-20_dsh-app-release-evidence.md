@@ -90,8 +90,12 @@
 | 源码检查 | `node scripts/release-boundary.mjs --syntax`、Node syntax check、包清单和权限投影检查 | 官方 Web、恢复页、窄 Native Host、精选清单和退役包边界可检查 |
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
 | Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试；`npm run measure:featured-plugins` 对 7 个精选包逐包完成安装和启动，6 个可管理包完成停用、卸载和重启；基础服务卸载被契约阻止 | 新 Profile 与已有 Profile 的状态边界已验证；逐包源码 Profile 生命周期通过，并有逐包打包版 Electron 证据 |
-| 真实 Electron | 官方 Web 无 preload 启动、逐精选包 arm64 打包版 Profile 安装/启动/停用/卸载/重启、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选、打包版社区插件安装/激活/卸载/重启和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；文件/目录对话框和窗口 Host 已完成 session-bound 服务契约、白名单和单元回归，仍缺用户交互型的跨平台实机验收；loopback 模型不替代真实 DeepSeek live-model 证据 |
-| 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；当前 arm64/x64 目录包均完成 Developer ID 签名和严格完整性检查；Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态仍是发布门槛 |
+| 真实 Electron | 官方 Web 无 preload 启动、逐精选包 arm64 打包版 Profile 安装/启动/停用/卸载/重启、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选、打包版社区插件安装/激活/卸载/重启和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放；独立 arm64 打包包又通过官方 Web Tool 到 Electron 窗口 Host 的真实状态、聚焦、最小化、最大化、恢复链路 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径、macOS 窗口 Host 和 macOS 签名更新链路已验证；文件/目录对话框和窗口 Host 的跨平台用户交互验收仍缺；loopback 模型不替代真实 DeepSeek live-model 证据 |
+| 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放；独立 arm64 打包 Electron 的 session-bound 窗口 Host smoke | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；当前 arm64/x64 目录包均完成 Developer ID 签名和严格完整性检查；文件/目录对话框、跨平台窗口、Apple 公证容器、Gatekeeper、Windows 实机和最终安装器形态仍是发布门槛 |
+
+## Session-bound Native Host 实机证据
+
+在独立的未签名 macOS arm64 打包目录 `release/native-host-smoke/mac-arm64/DSH Desktop.app` 上运行 `DSH_NATIVE_HOST_TIMEOUT_MS=20000 node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-native-host.mjs release/native-host-smoke/mac-arm64/'DSH Desktop.app'`，结果为 PASS。测试先用随包 DSH CLI 通过官方 `dsh plugin --profile web add -w` 安装测试 Bundle，再用官方 Web Session 和 loopback SSE 测试模型让模型真实调用 `native_host_window_smoke`；调用链完成 `windowGetState`、`windowFocus`、`windowMinimize`、`windowMaximize` 和 `windowRestore`，工具结果回到官方 Web 后，测试又通过官方 `dsh plugin --profile web remove` 离线卸载 Bundle。该证据覆盖的是 macOS arm64 窗口 Host 链路和 native-only Session 授权，不等同于文件/目录对话框或跨平台实机验收。
 
 ## 本轮安装包与性能基线
 
@@ -141,7 +145,7 @@
 
 此前在提交 `a30c263` 建立的临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：当时的 HEAD 为 137 项中 135 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果是历史干净源码和全新依赖安装基线，不替代当前提交、平台安装器、签名和公证验证。
 
-在本次精选清单组合字段、基础服务管理边界、live-model 回执契约和 macOS DMG 安装器 workflow 提交后，当前 `dev` 工作区重新运行 `npm run test:release` 为 145 项中 143 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过，当前静态门禁为 14/14。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows、真实 live-model 或其他平台安装器验收。
+在原生 Host Session 授权、窗口 Host 打包烟测和发布 workflow 接入后，当前 `dev` 工作区重新运行 `npm run test:release` 为 146 项中 144 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过，当前静态门禁为 14/14。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows、真实 live-model 或其他平台安装器验收。
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |

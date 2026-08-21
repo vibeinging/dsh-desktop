@@ -300,6 +300,8 @@ test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   assert.match(workflow, /apple-notary-history\.json/);
   assert.match(workflow, /DSH_MACOS_DMG_NOTARY_RESULT_FILE/);
   assert.match(workflow, /macos-dmg-evidence\/result\.json/);
+  assert.match(workflow, /npm run smoke:native-host/);
+  assert.match(workflow, /native-host-evidence/);
   assert.match(workflow, /xcrun stapler validate/);
   assert.match(workflow, /spctl --assess --type execute/);
 });
@@ -325,6 +327,8 @@ test('Windows release evidence workflow requires signing, installer acceptance, 
   assert.match(workflow, /WIN_CSC_KEY_PASSWORD:/);
   assert.match(workflow, /npm run package:win\b/);
   assert.match(workflow, /smoke:win:acceptance/);
+  assert.match(workflow, /npm run smoke:native-host/);
+  assert.match(workflow, /native-host-evidence/);
   assert.match(workflow, /release:verify:win/);
   assert.match(workflow, /windows-x64-acceptance\.json/);
 });

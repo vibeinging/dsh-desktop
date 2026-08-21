@@ -65,6 +65,14 @@ jobs:
       - name: Run installed Windows acceptance
         run: npm --prefix electron run smoke:win:acceptance
 
+      - name: Smoke session-bound native window Host
+        shell: pwsh
+        env:
+          DSH_NATIVE_HOST_RESULT_FILE: ${{ runner.temp }}\native-host-evidence\result.json
+        run: |
+          New-Item -ItemType Directory -Force (Split-Path -Parent $env:DSH_NATIVE_HOST_RESULT_FILE) | Out-Null
+          npm run smoke:native-host
+
       - name: Verify signed release
         run: npm run release:verify:win -- --app "release/win-unpacked/DSH Desktop.exe"
 
@@ -76,5 +84,6 @@ jobs:
           path: |
             release/*.exe
             release/windows-x64-acceptance.json
+            ${{ runner.temp }}/native-host-evidence
           if-no-files-found: ignore
           retention-days: 14

@@ -117,6 +117,11 @@ jobs:
           mkdir -p "$RUNNER_TEMP/browser-workspace-evidence"
           DSH_BROWSER_SCREENSHOT_DIR="$RUNNER_TEMP/browser-workspace-evidence" npm run smoke:browser-workspace
 
+      - name: Smoke session-bound native window Host
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-host-evidence"
+          DSH_NATIVE_HOST_RESULT_FILE="$RUNNER_TEMP/native-host-evidence/result.json" npm run smoke:native-host
+
       - name: Smoke real DeepSeek live-model
         if: ${{ inputs.live_model }}
         env:
@@ -141,6 +146,7 @@ jobs:
             ${{ runner.temp }}/community-evidence
             ${{ runner.temp }}/macos-installer-evidence
             ${{ runner.temp }}/browser-workspace-evidence
+            ${{ runner.temp }}/native-host-evidence
             ${{ runner.temp }}/live-model-evidence
           if-no-files-found: ignore
           retention-days: 14
