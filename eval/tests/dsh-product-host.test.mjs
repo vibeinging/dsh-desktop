@@ -67,7 +67,7 @@ test("product bridge IPC treats parent shutdown as a normal lifecycle edge", () 
   assert.equal(sendRuntimeParentMessage({ connected: false }, { type: "ready" }), false);
 });
 
-test("the IPC adapter exposes narrow product and Office Host services", async () => {
+test("the IPC adapter exposes narrow product, file-dialog, window, and Office Host services", async () => {
   const calls = [];
   const services = createProductHostServices({
     async request(sessionId, method, payload, signal) {
@@ -83,6 +83,16 @@ test("the IPC adapter exposes narrow product and Office Host services", async ()
     { artifact_id: "artifact-1" },
     { sessionId: "dsh-office", signal },
   );
+  await services.fileDialogHost.openFiles(
+    { multiple: true, filters: [{ name: "Text", extensions: ["txt"] }] },
+    { sessionId: "dsh-file", signal },
+  );
+  await services.fileDialogHost.openDirectory(
+    {},
+    { sessionId: "dsh-file", signal },
+  );
+  await services.windowHost.maximize({ sessionId: "dsh-window", signal });
+  await services.windowHost.restore({ sessionId: "dsh-window", signal });
   assert.deepEqual(calls, [{
     sessionId: "dsh-product",
     method: "projectList",
@@ -102,6 +112,26 @@ test("the IPC adapter exposes narrow product and Office Host services", async ()
     sessionId: "dsh-office",
     method: "artifactOfficeEdit",
     payload: { artifact_id: "artifact-1" },
+    signal,
+  }, {
+    sessionId: "dsh-file",
+    method: "fileDialogOpenFiles",
+    payload: { multiple: true, filters: [{ name: "Text", extensions: ["txt"] }] },
+    signal,
+  }, {
+    sessionId: "dsh-file",
+    method: "fileDialogOpenDirectory",
+    payload: {},
+    signal,
+  }, {
+    sessionId: "dsh-window",
+    method: "windowMaximize",
+    payload: {},
+    signal,
+  }, {
+    sessionId: "dsh-window",
+    method: "windowRestore",
+    payload: {},
     signal,
   }]);
   await assert.rejects(

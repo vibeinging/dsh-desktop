@@ -8,7 +8,7 @@
       "default": true,
       "user_manageable": false,
       "portability": "desktop-adapter",
-      "permissions": ["dsh-work-parent-ipc", "browser-workspace-host"],
+      "permissions": ["dsh-work-parent-ipc", "browser-workspace-host", "file-dialog-host", "window-host"],
       "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "workspace-package",
@@ -23,7 +23,7 @@
         "composition": {
           "plugin_id": "dsh-work-product-host-ipc",
           "requires": ["webServer"],
-          "provides": ["productHost", "officeArtifactHost", "browserWorkspaceHost"],
+          "provides": ["productHost", "officeArtifactHost", "browserWorkspaceHost", "fileDialogHost", "windowHost"],
           "routes": [],
           "slots": [],
           "conflicts": []

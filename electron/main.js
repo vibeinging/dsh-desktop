@@ -190,6 +190,37 @@ function nativeTabId(payload) {
   return nativeOptionalString(payload, 'tabId', 120);
 }
 
+function nativeDialogFilters(payload) {
+  const filters = payload?.filters;
+  if (filters == null) return undefined;
+  if (!Array.isArray(filters) || filters.length > 12) {
+    throw Object.assign(new Error('Native Host filters 无效'), { code: 'desktop-native-rejected' });
+  }
+  return filters.map((filter) => {
+    if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
+      throw Object.assign(new Error('Native Host 文件过滤器无效'), { code: 'desktop-native-rejected' });
+    }
+    const name = nativeRequiredString(filter, 'name', 80);
+    const extensions = filter.extensions;
+    if (!Array.isArray(extensions) || extensions.length === 0 || extensions.length > 32
+      || extensions.some((extension) => typeof extension !== 'string' || !/^[a-z0-9][a-z0-9+._-]{0,31}$/i.test(extension))) {
+      throw Object.assign(new Error('Native Host 文件扩展名无效'), { code: 'desktop-native-rejected' });
+    }
+    return { name, extensions: extensions.map((extension) => extension.toLowerCase()) };
+  });
+}
+
+function nativeDialogTitle(payload) {
+  return nativeOptionalString(payload, 'title', 120) || undefined;
+}
+
+function ensureMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    throw Object.assign(new Error('DSH Desktop 主窗口不可用'), { code: 'desktop-native-unavailable' });
+  }
+  return mainWindow;
+}
+
 function nativeBounds(payload) {
   const value = nativePayloadObject(payload).bounds;
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -291,6 +322,69 @@ const BROWSER_NATIVE_HANDLERS = Object.freeze({
       decision,
     );
   },
+});
+
+const FILE_DIALOG_NATIVE_HANDLERS = Object.freeze({
+  fileDialogOpenFiles: async (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    const properties = ['openFile'];
+    if (nativeOptionalBoolean(payload, 'multiple')) properties.push('multiSelections');
+    const result = await dialog.showOpenDialog(ensureMainWindow(), {
+      title: nativeDialogTitle(payload),
+      properties,
+      filters: nativeDialogFilters(payload),
+    });
+    return { canceled: Boolean(result.canceled), filePaths: result.canceled ? [] : result.filePaths };
+  },
+  fileDialogOpenDirectory: async (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    const result = await dialog.showOpenDialog(ensureMainWindow(), {
+      title: nativeDialogTitle(payload),
+      properties: ['openDirectory'],
+      filters: nativeDialogFilters(payload),
+    });
+    return { canceled: Boolean(result.canceled), filePaths: result.canceled ? [] : result.filePaths };
+  },
+});
+
+const WINDOW_NATIVE_HANDLERS = Object.freeze({
+  windowGetState: () => {
+    const win = ensureMainWindow();
+    return {
+      focused: win.isFocused(),
+      maximized: win.isMaximized(),
+      minimized: win.isMinimized(),
+      fullScreen: win.isFullScreen(),
+      bounds: win.getBounds(),
+    };
+  },
+  windowFocus: () => {
+    const win = ensureMainWindow();
+    win.show();
+    win.focus();
+    return { focused: win.isFocused() };
+  },
+  windowMinimize: () => {
+    const win = ensureMainWindow();
+    win.minimize();
+    return { minimized: true };
+  },
+  windowMaximize: () => {
+    const win = ensureMainWindow();
+    if (!win.isMaximized()) win.maximize();
+    return { maximized: win.isMaximized() };
+  },
+  windowRestore: () => {
+    const win = ensureMainWindow();
+    if (win.isMinimized() || win.isMaximized()) win.restore();
+    return { minimized: win.isMinimized(), maximized: win.isMaximized() };
+  },
+});
+
+const DESKTOP_NATIVE_HANDLERS = Object.freeze({
+  ...BROWSER_NATIVE_HANDLERS,
+  ...FILE_DIALOG_NATIVE_HANDLERS,
+  ...WINDOW_NATIVE_HANDLERS,
 });
 
 function networkSettingsPath() {
@@ -687,7 +781,7 @@ async function handleDesktopNativeRequest(child, message) {
   const id = typeof message?.id === 'string' ? message.id.slice(0, 160) : '';
   const sessionId = typeof message?.sessionId === 'string' ? message.sessionId.trim().slice(0, 160) : '';
   const method = typeof message?.method === 'string' ? message.method : '';
-  if (!id || !sessionId || !Object.hasOwn(BROWSER_NATIVE_HANDLERS, method)) {
+  if (!id || !sessionId || !Object.hasOwn(DESKTOP_NATIVE_HANDLERS, method)) {
     sendDesktopNativeResponse(child, id, {
       ok: false,
       error: { code: 'desktop-native-rejected', message: 'Native Host 请求缺少 Session、请求 ID 或使用了未知方法' },
@@ -697,7 +791,7 @@ async function handleDesktopNativeRequest(child, message) {
   const request = { sessionId, canceled: false };
   desktopNativeInFlight.set(id, request);
   try {
-    const value = await BROWSER_NATIVE_HANDLERS[method](message.payload || {});
+    const value = await DESKTOP_NATIVE_HANDLERS[method](message.payload || {});
     if (!request.canceled) sendDesktopNativeResponse(child, id, { ok: true, value });
   } catch (error) {
     if (!request.canceled) {

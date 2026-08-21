@@ -7,7 +7,7 @@
 ## 已实施的运行边界
 
 - Electron 主窗口只加载官方 `dsh-web-app` loopback surface，不再向官方 Web 注入产品 preload、Node 或通用 IPC。
-- Browser Workspace 保留在主进程，通过方法白名单、Session 请求关联、目标 URL、路径和权限校验提供窄 Native Host 服务。
+- Browser Workspace 保留在主进程，通过方法白名单、Session 请求关联、目标 URL、路径和权限校验提供窄 Native Host 服务；同一个 session-bound Desktop Adapter 现在还提供用户可见的文件/目录打开对话框和有限窗口状态、聚焦、最小化、最大化、恢复操作，不提供任意路径写入、关闭应用、shell 或通用 IPC。
 - 启动失败进入本地恢复页；重试、安全 Profile、打开 Profile、用户确认移除插件和隐私过滤诊断都是独立动作，原 Profile 不因恢复而被改写。
 - Profile 初始化只在新 Profile 上执行。已有 Profile 的启动和状态查询读取官方清单、依赖和最终图，不补回或隔离用户 Bundle；用户 patch 停用的 Bundle 也保持在官方配置图之外，不被应用改写。
 - 应用更新安装前执行当前 Profile 和 `--dump-config` 只读预检；预检失败不会创建待安装记录或调用 `quitAndInstall`。
@@ -90,7 +90,7 @@
 | 源码检查 | `node scripts/release-boundary.mjs --syntax`、Node syntax check、包清单和权限投影检查 | 官方 Web、恢复页、窄 Native Host、精选清单和退役包边界可检查 |
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
 | Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试；`npm run measure:featured-plugins` 对 7 个精选包逐包完成安装和启动，6 个可管理包完成停用、卸载和重启；基础服务卸载被契约阻止 | 新 Profile 与已有 Profile 的状态边界已验证；逐包源码 Profile 生命周期通过，并有逐包打包版 Electron 证据 |
-| 真实 Electron | 官方 Web 无 preload 启动、逐精选包 arm64 打包版 Profile 安装/启动/停用/卸载/重启、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选、打包版社区插件安装/激活/卸载/重启和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；loopback 模型不替代真实 DeepSeek live-model 证据 |
+| 真实 Electron | 官方 Web 无 preload 启动、逐精选包 arm64 打包版 Profile 安装/启动/停用/卸载/重启、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选、打包版社区插件安装/激活/卸载/重启和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；文件/目录对话框和窗口 Host 已完成 session-bound 服务契约、白名单和单元回归，仍缺用户交互型的跨平台实机验收；loopback 模型不替代真实 DeepSeek live-model 证据 |
 | 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；当前 arm64/x64 目录包均完成 Developer ID 签名和严格完整性检查；Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态仍是发布门槛 |
 
 ## 本轮安装包与性能基线

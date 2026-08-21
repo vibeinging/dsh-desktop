@@ -42,7 +42,7 @@ import { buildProjectInstructionsMarkdown } from "../agents/workspace_context.js
 
 const MAX_ITEMS = 200;
 const DESKTOP_NATIVE_TIMEOUT_MS = 30_000;
-const BROWSER_WORKSPACE_METHODS = new Set([
+const DESKTOP_NATIVE_METHODS = new Set([
   "browserWorkspaceGetState",
   "browserWorkspaceSetVisible",
   "browserWorkspaceSetBounds",
@@ -61,6 +61,13 @@ const BROWSER_WORKSPACE_METHODS = new Set([
   "browserWorkspaceListPermissions",
   "browserWorkspaceRemovePermission",
   "browserWorkspaceResolvePermissionRequest",
+  "fileDialogOpenFiles",
+  "fileDialogOpenDirectory",
+  "windowGetState",
+  "windowFocus",
+  "windowMinimize",
+  "windowMaximize",
+  "windowRestore",
 ]);
 
 function isDesktopNativeResponse(message) {
@@ -104,8 +111,8 @@ export function createDesktopNativeHostTransport(channel = process) {
   return Object.freeze({
     request(sessionId, method, payload = {}, signal) {
       const sessionKey = String(sessionId || "").trim();
-      if (!sessionKey || !BROWSER_WORKSPACE_METHODS.has(method)) {
-        const error = new Error("Browser Workspace 请求缺少已绑定 Session 或使用了未知方法");
+      if (!sessionKey || !DESKTOP_NATIVE_METHODS.has(method)) {
+        const error = new Error("Desktop Native Host 请求缺少已绑定 Session 或使用了未知方法");
         error.code = "desktop-native-rejected";
         return Promise.reject(error);
       }
@@ -221,11 +228,11 @@ const HANDLERS = Object.freeze({
   canvasEdit: handleCanvasEdit,
   canvasSuggest: handleCanvasSuggest,
   uiRender: handleUiRender,
-  ...Object.fromEntries([...BROWSER_WORKSPACE_METHODS].map((method) => [method, handleBrowserWorkspace])),
+  ...Object.fromEntries([...DESKTOP_NATIVE_METHODS].map((method) => [method, handleDesktopNative])),
 });
 
-async function handleBrowserWorkspace({ nativeHost, sessionId, method, payload, signal }) {
-  if (!nativeHost) throw productRejected("Browser Workspace Native Host 不可用");
+async function handleDesktopNative({ nativeHost, sessionId, method, payload, signal }) {
+  if (!nativeHost) throw productRejected("Desktop Native Host 不可用");
   return nativeHost.request(sessionId, method, payload, signal);
 }
 

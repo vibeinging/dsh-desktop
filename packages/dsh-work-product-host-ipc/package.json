@@ -23,7 +23,7 @@
     "portability": {
       "level": "desktop-adapter",
       "surfaces": ["dsh-desktop"],
-      "hostRequirements": ["dsh-work-parent-ipc", "browser-workspace-host"]
+      "hostRequirements": ["dsh-work-parent-ipc", "browser-workspace-host", "file-dialog-host", "window-host"]
     }
   },
   "files": [

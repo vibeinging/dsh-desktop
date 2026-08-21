@@ -1,4 +1,4 @@
-/** Desktop Host providers for session-addressed product and browser services. */
+/** Desktop Host providers for session-addressed product and native services. */
 
 import { randomUUID } from "node:crypto";
 
@@ -186,16 +186,29 @@ export function createProductHostServices(transport) {
     removePermission: (request, context) => call(transport, "browserWorkspaceRemovePermission", request, context),
     resolvePermissionRequest: (request, context) => call(transport, "browserWorkspaceResolvePermissionRequest", request, context),
   });
-  return Object.freeze({ productHost, officeArtifactHost, browserWorkspaceHost });
+  const fileDialogHost = Object.freeze({
+    openFiles: (request, context) => call(transport, "fileDialogOpenFiles", request, context),
+    openDirectory: (request, context) => call(transport, "fileDialogOpenDirectory", request, context),
+  });
+  const windowHost = Object.freeze({
+    getState: (context) => call(transport, "windowGetState", {}, context),
+    focus: (context) => call(transport, "windowFocus", {}, context),
+    minimize: (context) => call(transport, "windowMinimize", {}, context),
+    maximize: (context) => call(transport, "windowMaximize", {}, context),
+    restore: (context) => call(transport, "windowRestore", {}, context),
+  });
+  return Object.freeze({ productHost, officeArtifactHost, browserWorkspaceHost, fileDialogHost, windowHost });
 }
 
 /** Register the desktop Host services and publish runtime readiness. */
 export function apply(ctx) {
   const transport = createProductHostTransport(ctx);
-  const { productHost, officeArtifactHost, browserWorkspaceHost } = createProductHostServices(transport);
+  const { productHost, officeArtifactHost, browserWorkspaceHost, fileDialogHost, windowHost } = createProductHostServices(transport);
   ctx.provide("productHost", productHost);
   ctx.provide("officeArtifactHost", officeArtifactHost);
   ctx.provide("browserWorkspaceHost", browserWorkspaceHost);
+  ctx.provide("fileDialogHost", fileDialogHost);
+  ctx.provide("windowHost", windowHost);
 
   let stopping = false;
   const stopRuntime = () => {

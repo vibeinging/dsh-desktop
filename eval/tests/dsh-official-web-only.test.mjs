@@ -37,6 +37,11 @@ test("the release package does not ship a product preload bridge", () => {
   assert.match(electronMain, /BrowserWorkspaceController/);
   assert.match(electronMain, /desktop-native-request/);
   assert.match(electronMain, /BROWSER_NATIVE_HANDLERS/);
+  assert.match(electronMain, /FILE_DIALOG_NATIVE_HANDLERS/);
+  assert.match(electronMain, /WINDOW_NATIVE_HANDLERS/);
+  assert.match(electronMain, /fileDialogOpenFiles/);
+  assert.match(electronMain, /windowRestore/);
+  assert.doesNotMatch(electronMain, /showSaveDialog/);
   assert.doesNotMatch(electronMain, /artifact-context-menu|attachment-grants/);
 });
 
