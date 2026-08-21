@@ -129,7 +129,7 @@
 
  Developer ID arm64 目录包上又生成了四帧本地 GIF `electron/.desktop-build/evidence/official-web-interactions-signed/dsh-official-web-loopback.gif`（1200x772、9 秒、168497 字节），覆盖已完成、问题等待、审批等待和审批/队列结果；它的真实来源是当前签名 Electron 与 loopback SSE 测试模型，不能替代公开安装录制或真实 DeepSeek live-model 证据。
 
-断网新用户 smoke 使用不继承用户环境的系统 PATH、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 Developer ID arm64 目录包预算门禁观测的 `cold_web_ms` 为 `6301`，初始化后数据目录大小为 `2708191` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
+断网新用户 smoke 使用不继承用户环境的系统 PATH、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 Developer ID arm64 目录包预算门禁观测的 `cold_web_ms` 为 `6242`，初始化后数据目录大小为 `2710670` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
 
 此前在同一台 Apple Silicon 主机上，使用官方 Node `v24.19.0` `darwin-x64` 二进制并通过 Rosetta 准备依赖后，x64 目录包的随包 Server、断网新用户 Profile、损坏 Bundle 恢复、Profile authority 和官方 Web Session/log/history 流程均通过；x64 目录包随包 pnpm runtime 也确认为 `11.22.0`，官方 Web smoke 截图为 `.desktop-build/evidence/official-web-x64.Ev0qMl/official-web-session-flow.png`，最新串行断网 smoke 的 Rosetta 冷启动观测为 `121710` ms。该观测明显包含 Rosetta 成本，不替代原生 x64 机器的性能验收；当时的 x64 目录包未签名，不能替代 Windows、Developer ID、公证或 Gatekeeper 证据。
 
@@ -145,12 +145,12 @@
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
-| `DSH Desktop.app` | `1,197,068,048` bytes | `1,400,000,000` bytes |
-| 随包 Server 资源 | `845,803,137` bytes | `1,000,000,000` bytes |
+| `DSH Desktop.app` | `1,197,072,277` bytes | `1,400,000,000` bytes |
+| 随包 Server 资源 | `845,803,331` bytes | `1,000,000,000` bytes |
 | 随包 pnpm runtime | `19,768,614` bytes | `20,000,000` bytes |
-| 7 个精选插件 tarball | `21,999` bytes | `64,000` bytes |
-| 断网新 Profile 数据目录 | `2,708,191` bytes | `4,000,000` bytes |
-| 官方 Web 冷启动 | `6,301` ms | `10,000` ms |
+| 7 个精选插件 tarball | `22,246` bytes | `64,000` bytes |
+| 断网新 Profile 数据目录 | `2,710,670` bytes | `4,000,000` bytes |
+| 官方 Web 冷启动 | `6,242` ms | `10,000` ms |
 
 Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/manifest.json`、`permissions.json`、`THIRD_PARTY_NOTICES.md` 和 `test-expected.json` 为准；预算门禁只接受重新生成的产物和新一轮 smoke 结果。
 
@@ -163,6 +163,8 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 本轮新增 `npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg`：它在 macOS 上只读挂载 DMG，复制其中的 `DSH Desktop.app`，再调用现有官方 Profile 社区安装/激活/卸载/重启 smoke，最后卸载 DMG；设置 `DSH_MACOS_INSTALLER_RESULT_FILE` 会生成 `evidence_level=macos-dmg-installer-electron` 的 JSON 回执。本轮使用现有 arm64 公证前 DMG 已通过完整生命周期，回执保存在 `electron/.desktop-build/evidence/macos-installer-dmg-pre-notary/result.json`；这补充了“安装包来源”证据，但不替代当前新公证 DMG、Gatekeeper 或公开安装录制。
 
 ## 尚未满足的公开发行门槛
+
+公证状态补充：本轮当前签名 arm64 目录包对应的 `DSH Desktop.zip` 已提交 Apple 公证请求 `dc766028-4ac4-4736-927a-e4852de125f2`；截至 `2026-08-21T04:58:05Z` 仍为 `In Progress`。本地等待进程已停止但提交未取消；当前 App 的 macOS 发行复核为 14 项通过、Gatekeeper 和公证票据 2 项阻塞，仍没有 stapled ticket。
 
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
