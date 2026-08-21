@@ -8,6 +8,9 @@ const electronPackage = JSON.parse(readFileSync(new URL("electron/package.json",
 const featured = JSON.parse(readFileSync(new URL("server/src/engine/dsh_runtime/featured_plugins.json", appRoot), "utf8"));
 const officialWebFlowSmoke = readFileSync(new URL("electron/scripts/smoke-packaged-official-web-flow.mjs", appRoot), "utf8");
 const defaultDevScript = readFileSync(new URL("scripts/dev.mjs", appRoot), "utf8");
+const bootstrapScript = readFileSync(new URL("scripts/bootstrap.mjs", appRoot), "utf8");
+const doctorScript = readFileSync(new URL("scripts/doctor.mjs", appRoot), "utf8");
+const auditScript = readFileSync(new URL("scripts/audit-production.mjs", appRoot), "utf8");
 
 test("Electron's main window has one official DSH Web surface", () => {
   const createWindowStart = electronMain.indexOf("function createWindow(");
@@ -40,6 +43,12 @@ test("the release package does not ship a product preload bridge", () => {
 test("the default development entry does not rebuild the retired Renderer", () => {
   assert.doesNotMatch(defaultDevScript, /buildDshClientPlugin|build:dsh-client|dsh-work Client Plugin/);
   assert.match(defaultDevScript, /默认开发入口使用官方 DSH Web/);
+});
+
+test("legacy Renderer is not a default desktop dependency", () => {
+  assert.doesNotMatch(bootstrapScript, /name:\s*['"]Renderer['"]/);
+  assert.doesNotMatch(doctorScript, /renderer\/node_modules/);
+  assert.match(auditScript, /const targets = \['server', 'electron'\]/);
 });
 
 test("the recovery page is a local, non-product surface", () => {

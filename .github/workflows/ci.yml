@@ -71,7 +71,7 @@ jobs:
 
       - name: Test Windows renderer
         if: runner.os == 'Windows'
-        run: npm --prefix renderer run typecheck && npm --prefix renderer test
+        run: npm --prefix renderer ci --no-audit --no-fund && npm --prefix renderer run typecheck && npm --prefix renderer test
 
       - name: Run deterministic UI Eval
         if: runner.os == 'macOS'

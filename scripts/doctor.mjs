@@ -29,7 +29,6 @@ assertReady(supportedNode(), 'Node 版本太旧，请安装 Node 24 后重新执
 assertReady(SUPPORTED.has(process.arch), `桌面端暂不支持 ${process.platform}/${process.arch}`);
 
 for (const relativePath of [
-  'renderer/node_modules/vite/package.json',
   'server/node_modules/better-sqlite3/package.json',
   'server/node_modules/@duckdb/node-api/package.json',
   'server/node_modules/@yitrace/db/package.json',

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveNpmCli } from './project-runtime.mjs';
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const targets = ['server', 'renderer', 'electron'];
+const targets = ['server', 'electron'];
 const npmCli = resolveNpmCli(process.execPath);
 
 // React Router 7.18.1 only reports this issue for RSC server actions. This app

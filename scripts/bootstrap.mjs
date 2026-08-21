@@ -10,7 +10,6 @@ const MARKER_PATH = join(APP_DIR, '.desktop-deps.json');
 const FORCE = process.argv.includes('--force');
 const CHECK_ONLY = process.argv.includes('--check');
 const PACKAGES = [
-  { name: 'Renderer', dir: 'renderer', probe: 'node_modules/vite/package.json' },
   { name: 'Server', dir: 'server', probe: 'node_modules/better-sqlite3/package.json' },
   { name: 'Electron', dir: 'electron', probe: 'node_modules/electron/package.json' },
 ];
