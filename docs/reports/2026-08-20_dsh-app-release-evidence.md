@@ -141,7 +141,7 @@
 
 此前在提交 `a30c263` 建立的临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：当时的 HEAD 为 137 项中 135 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果是历史干净源码和全新依赖安装基线，不替代当前提交、平台安装器、签名和公证验证。
 
-在本次精选清单组合字段、基础服务管理边界、打包 smoke 和 live-model 回执契约提交后，当前 `dev` 工作区重新运行 `npm run test:release` 为 143 项中 141 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过，当前静态门禁为 14/14。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows、真实 live-model 或 Apple 公证验收。
+在本次精选清单组合字段、基础服务管理边界、live-model 回执契约和 macOS DMG 安装器 workflow 提交后，当前 `dev` 工作区重新运行 `npm run test:release` 为 144 项中 142 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过，当前静态门禁为 14/14。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows、真实 live-model 或其他平台安装器验收。
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
@@ -156,15 +156,15 @@ Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/ma
 
 Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合成器返回 `UnknownVizError` 时，Native Host 会在同一个受控 `webContents` 上回退到 DevTools `Page.captureScreenshot`，本轮真实 Electron smoke 使用 `DSH_BROWSER_SCREENSHOT_DIR=.desktop-build/evidence/browser-workspace.<run> npm run smoke:browser-workspace` 保存了 700x560 PNG 并完成可视检查。其余导航、标签、下载、历史、查找、缩放、沙箱和页面抓取也单独通过。
 
-更新器 smoke 在临时旧 App 中使用本地 HTTPS feed、真实 `electron-updater`、固定 SHA-512 zip 和真实 Profile 预检。它先用随包固定 tarball 和官方 `dsh plugin --profile` 命令建立完整 Profile，再官方卸载 portable Bundle `@vibeinging/dsh-model-inheritance`；旧 App 的精选输入随后暂时移除该项，更新归档恢复完整精选清单，但 Developer ID 签名探针更新完成后，Profile manifest、Profile patch 保持字节不变，已卸载 Bundle 没有被恢复。ad hoc 目录包按预期在 ShipIt 代码签名校验处记录 `failed-to-start`；使用 Developer ID 身份 `03587EF7C8984E0F7631EC905C26336C15C8189D` 的签名目录包则完成下载、Profile 预检、ShipIt 替换和新版本 `success` 历史回放，更新归档为 `440961625` bytes。最新正式 arm64 目录包包含 `com.vibeinging.dsh-desktop`，也使用同一身份完成签名，`codesign --verify --deep --strict` 通过；此前本机环境没有 `APPLE_APP_SPECIFIC_PASSWORD`，所以初次构建未自动公证。随后已使用已配置的 Apple 凭据提交公证请求 `fa2007f7-47c7-4266-b4c9-63193701f521`，截至本报告刷新时仍为 `In Progress`；Gatekeeper 仍返回 `source=Unnotarized Developer ID`，App 也尚无 stapled ticket，因此不把它写成公开安装器已完成。
+更新器 smoke 在临时旧 App 中使用本地 HTTPS feed、真实 `electron-updater`、固定 SHA-512 zip 和真实 Profile 预检。它先用随包固定 tarball 和官方 `dsh plugin --profile` 命令建立完整 Profile，再官方卸载 portable Bundle `@vibeinging/dsh-model-inheritance`；旧 App 的精选输入随后暂时移除该项，更新归档恢复完整精选清单，但 Developer ID 签名探针更新完成后，Profile manifest、Profile patch 保持字节不变，已卸载 Bundle 没有被恢复。ad hoc 目录包按预期在 ShipIt 代码签名校验处记录 `failed-to-start`；使用 Developer ID 身份 `03587EF7C8984E0F7631EC905C26336C15C8189D` 的签名目录包则完成下载、Profile 预检、ShipIt 替换和新版本 `success` 历史回放，更新归档为 `440961625` bytes。当前正式 arm64 目录包包含 `com.vibeinging.dsh-desktop`，使用同一身份完成签名并附加 Apple 公证票据；`npm run release:verify:mac` 的 16 项检查全部通过，Gatekeeper 返回 `source=Notarized Developer ID`。另用该目录包生成了 `release/notarized-current/dsh-desktop-0.0.1-mac-arm64.dmg` 和 ZIP；DMG 已提交 Apple 公证请求 `afefcd19-cfb8-42e8-905b-cfafcc86245d`，截至 `2026-08-21T05:14:28Z` 仍为 `In Progress`，因此暂不把 DMG 容器本身写成已公证。
 
 本轮新增 Windows x64 安装器验收自动化，但尚未把它写成 Windows 实机证据。`electron/scripts/smoke-windows-acceptance.mjs` 只允许在 `win32/x64` 执行：它从 `release/` 找到 NSIS 安装器，在独立临时目录静默安装，等待已安装的主程序和 `resources`，依次运行随包 Server、App、官方 Web 问题/沙箱/审批/队列、断网 Profile、恢复页和 Profile authority smoke，然后通过官方卸载器清理并确认临时目录消失。所有检查通过后才用原子重命名生成 `release/windows-x64-acceptance.json`；脚本失败会删除旧回执，不会留下通过状态。`scripts/windows-acceptance-receipt.mjs` 要求 9 个检查全部成功，`release-safety` 现在按该契约校验回执，`.github/workflows/windows-release.yml` 在 unsigned NSIS 构建后运行该步骤并上传安装器与回执；新增的 `.github/workflows/windows-release-evidence.yml` 还提供了使用 `WIN_CSC_LINK`、`WIN_CSC_KEY_PASSWORD` 的 signed NSIS、完整回归、实机验收和 Authenticode 校验入口。当前 macOS 工作区没有运行这两条 Windows workflow，也没有生成回执，因此 Windows 实机和签名证据仍保持阻塞。
 
-本轮新增 `npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg`：它在 macOS 上只读挂载 DMG，复制其中的 `DSH Desktop.app`，再调用现有官方 Profile 社区安装/激活/卸载/重启 smoke，最后卸载 DMG；设置 `DSH_MACOS_INSTALLER_RESULT_FILE` 会生成 `evidence_level=macos-dmg-installer-electron` 的 JSON 回执。本轮使用现有 arm64 公证前 DMG 已通过完整生命周期，回执保存在 `electron/.desktop-build/evidence/macos-installer-dmg-pre-notary/result.json`；这补充了“安装包来源”证据，但不替代当前新公证 DMG、Gatekeeper 或公开安装录制。
+本轮新增 `npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg`：它在 macOS 上只读挂载 DMG，复制其中的 `DSH Desktop.app`，再调用现有官方 Profile 社区安装/激活/卸载/重启 smoke，最后卸载 DMG；设置 `DSH_MACOS_INSTALLER_RESULT_FILE` 会生成 `evidence_level=macos-dmg-installer-electron` 的 JSON 回执，设置 `DSH_COMMUNITY_SCREENSHOT_DIR` 会保存安装前、候选激活态和卸载后官方 Web 三帧。本轮用 `release/notarized-current/dsh-desktop-0.0.1-mac-arm64.dmg` 完成了这条真实安装器 smoke，回执和截图保存在 `electron/.desktop-build/evidence/macos-installer-stapled/`，三帧另编码为 `macos-installer-community.gif`；该 DMG 容器的公证请求 `afefcd19-cfb8-42e8-905b-cfafcc86245d` 尚在 `In Progress`，因此截图和生命周期证据不替代 DMG 容器本身的公证/Gatekeeper 门禁。
 
 ## 尚未满足的公开发行门槛
 
-公证状态补充：本轮当前签名 arm64 目录包对应的 `DSH Desktop.zip` 已提交 Apple 公证请求 `dc766028-4ac4-4736-927a-e4852de125f2`；截至 `2026-08-21T04:58:05Z` 仍为 `In Progress`。本地等待进程已停止但提交未取消；当前 App 的 macOS 发行复核为 14 项通过、Gatekeeper 和公证票据 2 项阻塞，仍没有 stapled ticket。
+公证状态补充：`DSH Desktop.zip` 的 Apple 公证请求 `dc766028-4ac4-4736-927a-e4852de125f2` 已为 `Accepted`，当前 arm64 App 已附加票据并通过 16/16 项 macOS 发行复核；随后提交的 `release/notarized-current/dsh-desktop-0.0.1-mac-arm64.dmg` 请求 `afefcd19-cfb8-42e8-905b-cfafcc86245d` 截至 `2026-08-21T05:14:28Z` 仍为 `In Progress`，DMG 容器的 stapler/Gatekeeper 验证待该请求完成。
 
 - Better Sidebar 和 Chat recovery 已完成当前 npm 元数据、固定哈希、权限和 Profile 预检审查，但 Better Sidebar 的高权限与 rc.8 依赖、Chat recovery 的 rc.8 依赖都未通过当前 rc.7 发行线；二者没有晋级为随包插件，不能把候选登记写成采用完成。
 - 社区皮肤资产尚未有可再分发的许可和来源证据，发行包继续使用官方外观，不携带自研主题状态或未经审查的皮肤。
@@ -172,5 +172,6 @@ Browser Workspace smoke 先通过 Electron `capturePage` 截图；当前 Viz 合
 - macOS x64 当前已通过官方 Node `v24.19.0` x64 依赖准备、Developer ID 签名目录包/未公证安装器结构、Server/App、默认退出路径、恢复、断网 Profile、Profile authority 和官方 Web smoke；仍尚缺原生 x64 主机或发行 CI 上的安装器和性能验收，不能把 Rosetta 结果写成原生 x64 发布证据。
 - 官方 Web 的审批/队列截图和 Browser Workspace 页面截图已通过本机真实 Electron smoke 持久化，README 也已换成当前官方 Web 与社区候选截图。现在提供显式的 `npm run smoke:official-web:live` 入口；无 `DEEPSEEK_API_KEY` 时会 fail closed，本轮只验证了这个保护，不把 loopback 模型或未执行的 live 命令写成真实 DeepSeek 证据。公开安装录制和真实 DeepSeek 服务验收仍需在发行环境完成。
 - `.github/workflows/macos-release-evidence.yml` 现在提供手动的 arm64 签名、公证、打包 smoke、社区三帧和可选 live-model 证据入口；live-model 步骤同时上传截图和 `result.json` 成功回执。`.github/workflows/windows-release-evidence.yml` 提供 Windows 签名、安装器验收和 Authenticode 证据入口。两者都要求发行环境提供对应 secrets，本机未触发这些 workflow，因此不把 workflow 或回执契约存在写成 Apple、Windows、公开安装器或真实服务验收通过。
+- macOS workflow 现在还会在打包后挂载 DMG，执行 `xcrun stapler validate`、`spctl --assess --type execute`，再运行 `smoke:macos:installer` 并上传安装器回执和截图；本机当前 DMG 容器请求仍在 Apple 处理中，所以该 workflow 契约已就绪但最终 DMG 公证结果仍以发行环境回执为准。
 
 因此，当前实现可以作为“官方 Web + Profile 权威 + 离线插件基础 + 窄 Electron Host + 恢复页”的开发基线，但在上述高等级证据补齐前，不标记为最终公开发行完成。
