@@ -26,7 +26,7 @@
 | 源码语法 | 11 个发行/测试 `.mjs` 的 `node --check` | 全部退出 0 | 通过 |
 | 单元/回归 | `node --import ./eval/tests/setup.mjs --test --test-concurrency=1 eval/tests/release-safety.test.mjs` | 18 tests，18 pass，0 fail，0 skipped；含四类回执负例、live-model 错误历史和 commit 绑定负例 | 通过 |
 | 精选产物 | `node scripts/generate-featured-plugin-artifacts.mjs` | 7 个 tarball 生成 | 通过 |
-| Profile 集成测量 | `npm run measure:featured-plugins` | 最终 HEAD 重新生成 7 个 tarball 后，7/7 逐包 cold Web 测量通过：778、441、408、404、426、421、406 ms | 通过 |
+| Profile 集成测量 | `npm run measure:featured-plugins` | 最终 HEAD 重新生成 7 个 tarball 后，7/7 逐包 cold Web 测量通过：640、410、411、412、408、409、417 ms | 通过 |
 | 静态发行门禁 | `npm run release:check:mac:static` | macOS static scope：ready=true，13 pass，0 block，0 manual；历史 all-platform scope 的 14/14 不与此数字混用 | 通过 |
 | 兼容回归 | `dsh-official-web-plugin-compat.test.mjs` | 2 tests，1 pass，0 fail，1 skip；网络兼容测试需显式 `DSH_LIVE_COMPAT_TEST=1` | 未完成 |
 | 真实 App/发行证据 | `npm run release:verify:mac -- --require-evidence` | 13 pass，8 block；现有目录包是 adhoc，四类正式回执均缺失 | 未完成，且按设计阻断 |
