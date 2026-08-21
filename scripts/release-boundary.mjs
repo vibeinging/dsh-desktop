@@ -236,6 +236,62 @@ export function inspectFeaturedArtifacts(root = ROOT, { required = false } = {})
   if (expectedNames.size !== actualNames.size || [...expectedNames].some((name) => !actualNames.has(name))) {
     errors.push("随包精选插件 manifest 与源码清单不一致");
   }
+  const projectionFiles = ["profile-install.json", "permissions.json", "test-expected.json", "THIRD_PARTY_NOTICES.md"];
+  for (const file of projectionFiles) {
+    if (!existsSync(join(artifactRoot, file))) errors.push(`随包精选插件缺少清单投影：${file}`);
+  }
+  if (existsSync(join(artifactRoot, "profile-install.json"))) {
+    const profileInstall = readJson(join(artifactRoot, "profile-install.json"));
+    const installRows = (profileInstall.commands || []).map(({ name, tarball, sha256: hash }) => ({
+      name,
+      tarball,
+      sha256: hash,
+    }));
+    const actualInstallRows = (generated.plugins || []).map(({ name, tarball, sha256: hash }) => ({
+      name,
+      tarball,
+      sha256: hash,
+    }));
+    if (profileInstall.profile !== generated.profile
+      || JSON.stringify(installRows) !== JSON.stringify(actualInstallRows)) {
+      errors.push("profile-install.json 与精选插件 manifest 不一致");
+    }
+  }
+  if (existsSync(join(artifactRoot, "permissions.json"))) {
+    const permissions = readJson(join(artifactRoot, "permissions.json"));
+    const permissionRows = (permissions.plugins || []).map(({ name, version, permissions: declared, host_requirements, portability }) => ({
+      name,
+      version,
+      permissions: declared,
+      host_requirements,
+      portability,
+    }));
+    const actualPermissionRows = (generated.plugins || []).map(({ name, version, permissions: declared, host_requirements, portability }) => ({
+      name,
+      version,
+      permissions: declared,
+      host_requirements,
+      portability,
+    }));
+    if (JSON.stringify(permissionRows) !== JSON.stringify(actualPermissionRows)) {
+      errors.push("permissions.json 与精选插件 manifest 不一致");
+    }
+  }
+  if (existsSync(join(artifactRoot, "test-expected.json"))) {
+    const expected = readJson(join(artifactRoot, "test-expected.json"));
+    const expectedTarballs = expected.tarballs || [];
+    const actualTarballs = (generated.plugins || []).map(({ name, tarball, sha256: hash, size_bytes }) => ({
+      name,
+      tarball,
+      sha256: hash,
+      size_bytes,
+    }));
+    if (expected.profile !== generated.profile
+      || JSON.stringify(expected.bundles || []) !== JSON.stringify([...actualNames])
+      || JSON.stringify(expectedTarballs) !== JSON.stringify(actualTarballs)) {
+      errors.push("test-expected.json 与精选插件 manifest 不一致");
+    }
+  }
   for (const plugin of generated.plugins || []) {
     const expected = expectedPlugins.get(plugin.name);
     if (!expected) {

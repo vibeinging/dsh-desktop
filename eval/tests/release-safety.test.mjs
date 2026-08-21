@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -13,6 +14,7 @@ import {
 } from '../../scripts/release-safety.mjs';
 import {
   inspectCommunityAssetLicenseBoundary,
+  inspectFeaturedArtifacts,
   inspectPublicReleaseAssets,
 } from '../../scripts/release-boundary.mjs';
 import {
@@ -157,6 +159,67 @@ test('public README assets exclude retired Renderer screenshots', async () => {
     rmSync(join(imageRoot, 'dsh-work-home.png'));
     writeFileSync(join(imageRoot, 'dsh-official-web-session-loopback.png'), 'current');
     assert.deepEqual(inspectPublicReleaseAssets(root), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('release boundary consumes every generated curated-plugin projection', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-release-featured-projections-'));
+  const artifactRoot = join(root, '.desktop-build', 'featured-plugins');
+  const runtimeRoot = join(root, 'server', 'src', 'engine', 'dsh_runtime');
+  const name = '@vibeinging/example-bundle';
+  const tarball = 'vibeinging-example-bundle-1.0.0.tgz';
+  const bytes = Buffer.from('bundle');
+  const hash = createHash('sha256').update(bytes).digest('hex');
+  try {
+    mkdirSync(join(artifactRoot, 'licenses'), { recursive: true });
+    mkdirSync(runtimeRoot, { recursive: true });
+    writeFileSync(join(runtimeRoot, 'featured_plugins.json'), JSON.stringify({
+      schema_version: 1,
+      profile: 'web',
+      plugins: [{
+        name,
+        package_path: 'packages/example-bundle',
+        license: 'BSD-3-Clause',
+      }],
+    }));
+    writeFileSync(join(artifactRoot, tarball), bytes);
+    writeFileSync(join(artifactRoot, 'licenses', 'BSD-3-Clause.txt'), 'license');
+    writeFileSync(join(artifactRoot, 'manifest.json'), JSON.stringify({
+      schema_version: 1,
+      profile: 'web',
+      plugins: [{
+        name,
+        package_path: 'packages/example-bundle',
+        package_license: 'BSD-3-Clause',
+        license_file: 'licenses/BSD-3-Clause.txt',
+        tarball,
+        sha256: hash,
+        size_bytes: bytes.length,
+      }],
+    }));
+    writeFileSync(join(artifactRoot, 'profile-install.json'), JSON.stringify({
+      profile: 'web',
+      commands: [{ name, tarball, sha256: hash }],
+    }));
+    writeFileSync(join(artifactRoot, 'permissions.json'), JSON.stringify({
+      plugins: [{ name }],
+    }));
+    writeFileSync(join(artifactRoot, 'test-expected.json'), JSON.stringify({
+      profile: 'web',
+      bundles: [name],
+      tarballs: [{ name, tarball, sha256: hash, size_bytes: bytes.length }],
+    }));
+    writeFileSync(join(artifactRoot, 'THIRD_PARTY_NOTICES.md'), 'notice');
+    assert.deepEqual(inspectFeaturedArtifacts(root, { required: true }), []);
+
+    writeFileSync(join(artifactRoot, 'test-expected.json'), JSON.stringify({
+      profile: 'web',
+      bundles: [],
+      tarballs: [],
+    }));
+    assert.match(inspectFeaturedArtifacts(root).join('\n'), /test-expected\.json 与精选插件 manifest 不一致/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
