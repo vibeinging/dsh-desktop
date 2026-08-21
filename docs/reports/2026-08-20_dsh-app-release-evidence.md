@@ -29,6 +29,20 @@
 
 固定 tarball 通过安装包内的受控 `pnpm@11.22.0` 进入 DSH 数据目录下的稳定本地插件库。打包脚本只保留官方 pnpm Node CLI 所需的 `bin`、`dist`、package manifest 和 MIT LICENSE，不携带其他平台的 standalone executable artifacts；pnpm wrapper 必须使用 `DSH_PNPM_NODE_BIN`，发行态不回退到系统 Node。所有 Profile 安装、更新和卸载仍转发到官方 `dsh plugin --profile` 命令；本地插件库不是第二份安装状态。
 
+精选清单现在还生成逐包 `evaluation.json` 投影，记录源码入口、固定 tarball、DSH/Cordis 兼容线、生命周期脚本、原生依赖、网络声明、Client 参与、官方 Profile 安装/卸载命令和 unit/Profile/Electron 回归路径；`release-boundary` 会拒绝该投影与 manifest 漂移。`scripts/measure-featured-plugin-evidence.mjs` 用同一批固定 tarball 对每个精选包执行官方 CLI 安装、Web 启动、用户 patch 停用、官方卸载和卸载后重启，输出的是源码 Profile 集成证据，不替代真实 Electron 或安装包验收。
+
+2026-08-21 的逐包测量命令为 `npm run measure:featured-plugins -- --output .desktop-build/reports/featured-plugin-evaluation.json`，运行环境为 macOS arm64、Node `v26.5.0`。7/7 个包通过；desktop-adapter 包只额外安装清单已声明的 `@vibeinging/dsh-work-product-host-ipc` 支持 Bundle，以便验证真实的 Profile provider 依赖，不把无 Host 的 standalone Web 启动失败误判为包自身通过。表中的 Profile 数据目录大小是安装后总量（包含 DSH 官方依赖和声明的支持 Bundle），tarball 大小才是逐包随包增量；冷启动是源码 DSH CLI 到 loopback Web ready 的观测。
+
+| 精选包 | tarball bytes | 支持 Bundle | 安装后 Profile bytes | CLI cold Web ms | 生命周期 |
+| --- | ---: | --- | ---: | ---: | --- |
+| `@vibeinging/dsh-work-product-host-ipc` | 3,836 | 无 | 52,798 | 492 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-project-tools` | 2,174 | `dsh-work-product-host-ipc` | 71,480 | 494 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-canvas-tools` | 3,039 | `dsh-work-product-host-ipc` | 78,318 | 488 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-structured-ui-tools` | 2,325 | `dsh-work-product-host-ipc` | 72,032 | 492 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-model-inheritance` | 2,178 | 无 | 38,510 | 485 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-product-bridge` | 5,637 | `dsh-work-product-host-ipc` | 86,618 | 485 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-office-tools` | 2,810 | `dsh-work-product-host-ipc` | 77,260 | 491 | 安装、启动、停用、卸载、重启通过 |
+
 本轮又收紧了两个变更边界：官方 Profile 安装或卸载命令返回后，服务会重新读取权威 Profile 并执行 `--dump-config`，最终图不匹配或无法加载时不会返回成功；固定产物的 tarball 名称必须是单层 `.tgz` 文件，且来源路径不能越出产物目录。`dsh-profile-plugin-service.test.mjs` 和 `dsh-profile-initialization.test.mjs` 分别覆盖最终图失败、命令失败和路径越界。
 
 本轮生产依赖审计发现原随包 `pnpm@8.15.3` 命中 high advisories，已升级到官方修复版本 `11.22.0`；`npm run audit:prod` 现通过，electron 目标为 0 high、0 critical，server 和 renderer 仅保留已有明确不适用记录。精简后的 arm64 随包 pnpm runtime 为 `19,768,614` bytes，仍通过 20 MB 预算和真实离线安装回归。
@@ -59,7 +73,7 @@
 | --- | --- | --- |
 | 源码检查 | `node scripts/release-boundary.mjs --syntax`、Node syntax check、包清单和权限投影检查 | 官方 Web、恢复页、窄 Native Host、精选清单和退役包边界可检查 |
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
-| Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试 | 新 Profile 与已有 Profile 的状态边界已验证 |
+| Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试；`npm run measure:featured-plugins` 对 7 个精选包逐包完成安装、启动、停用、卸载和重启 | 新 Profile 与已有 Profile 的状态边界已验证；逐包源码 Profile 生命周期通过，仍不替代随包 Electron 证据 |
 | 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选、打包版社区插件安装/激活/卸载/重启和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；loopback 模型不替代真实 DeepSeek live-model 证据 |
 | 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；当前 arm64/x64 目录包均完成 Developer ID 签名和严格完整性检查；Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态仍是发布门槛 |
 
