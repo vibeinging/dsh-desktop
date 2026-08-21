@@ -15,7 +15,10 @@ import {
   featuredPlugins,
   resolveFeaturedPackageDir,
 } from "../../server/src/engine/dsh_runtime/featured_plugins.js";
-import { validateFeaturedPackageContract } from "../../scripts/generate-featured-plugin-artifacts.mjs";
+import {
+  validateFeaturedPackageComposition,
+  validateFeaturedPackageContract,
+} from "../../scripts/generate-featured-plugin-artifacts.mjs";
 
 const APP_ROOT = resolve(import.meta.dirname, "../..");
 
@@ -183,8 +186,16 @@ test("the curated Profile input has one authoritative list with explicit managea
 
 test("the curated list keeps package names, source paths, and SPDX licenses aligned", () => {
   for (const plugin of featuredPlugins()) {
-    const packageJson = JSON.parse(readFileSync(join(resolveFeaturedPackageDir(plugin), "package.json"), "utf8"));
+    const packageDir = resolveFeaturedPackageDir(plugin);
+    const packageJson = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
     assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
+    const source = readFileSync(join(packageDir, plugin.evidence.entry), "utf8");
+    const patch = readFileSync(join(packageDir, "cordis.patch.yml"), "utf8");
+    assert.doesNotThrow(() => validateFeaturedPackageComposition(plugin, source, patch));
+    assert.throws(
+      () => validateFeaturedPackageComposition(plugin, source.replace(/^export const inject = .*$/m, 'export const inject = ["wrongService"];'), patch),
+      /composition\.requires/,
+    );
     assert.match(plugin.package_path, /^packages\/dsh-[^/]+$/);
   }
 });

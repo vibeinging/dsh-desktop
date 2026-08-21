@@ -60,6 +60,26 @@ export function validateFeaturedPackageContract(plugin, manifest) {
   return portability
 }
 
+/** Validate the curated composition claim against the package's runtime entry and patch. */
+export function validateFeaturedPackageComposition(plugin, sourceText, patchText) {
+  const composition = plugin.evidence.composition
+  const name = sourceText.match(/^export const name = ["']([^"']+)["'];$/m)?.[1]
+  if (name !== composition.plugin_id) {
+    throw new Error(`精选插件 composition.plugin_id 与源码 name 不一致: ${plugin.name}`)
+  }
+  const injectText = sourceText.match(/^export const inject = (\[[^\n]+\]);$/m)?.[1]
+  const inject = injectText
+    ? [...injectText.matchAll(/["']([^"']+)["']/g)].map((match) => match[1])
+    : null
+  if (!inject || JSON.stringify(inject) !== JSON.stringify(composition.requires)) {
+    throw new Error(`精选插件 composition.requires 与源码 inject 不一致: ${plugin.name}`)
+  }
+  const patchId = patchText.match(/^\s+- id:\s*([^\s#]+)$/m)?.[1]
+  if (patchId !== composition.plugin_id) {
+    throw new Error(`精选插件 composition.plugin_id 与 cordis.patch.yml 不一致: ${plugin.name}`)
+  }
+}
+
 function evaluationRecord(record) {
   return {
     name: record.name,
@@ -106,6 +126,11 @@ export async function generateFeaturedPluginArtifacts({
     const sourceDir = resolveFeaturedPackageDir(plugin, { appRoot: root })
     const manifest = JSON.parse(await readFile(join(sourceDir, "package.json"), "utf8"))
     const portability = validateFeaturedPackageContract(plugin, manifest)
+    await validateFeaturedPackageComposition(
+      plugin,
+      await readFile(join(sourceDir, plugin.evidence.entry), "utf8"),
+      await readFile(join(sourceDir, "cordis.patch.yml"), "utf8"),
+    )
     const packed = await pack(sourceDir, output)
     const tarball = featuredPluginTarballName(plugin.name, manifest.version)
     const target = join(output, tarball)
