@@ -287,6 +287,13 @@ test('macOS release workflow persists the real live-model receipt', () => {
   assert.match(workflow, /live-model-evidence\/result\.json/);
 });
 
+test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /npm run smoke:macos:installer/);
+  assert.match(workflow, /macos-installer-evidence\/result\.json/);
+  assert.match(workflow, /macos-installer-evidence/);
+});
+
 test('Windows release evidence workflow requires signing, installer acceptance, and signature verification', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/windows-release-evidence.yml', import.meta.url), 'utf8');
   assert.match(workflow, /WIN_CSC_LINK:/);

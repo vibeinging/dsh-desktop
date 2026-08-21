@@ -242,6 +242,8 @@ function staticChecks(root, scope) {
       'npm run package:mac',
       'npm run smoke:updater',
       'npm run smoke:community:packaged',
+      'npm run smoke:macos:installer',
+      'macos-installer-evidence',
       'DSH_LIVE_MODEL_RESULT_FILE=',
       'live-model-evidence/result.json',
     ];

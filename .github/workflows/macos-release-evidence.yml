@@ -77,6 +77,15 @@ jobs:
           mkdir -p "$RUNNER_TEMP/community-evidence"
           DSH_COMMUNITY_SCREENSHOT_DIR="$RUNNER_TEMP/community-evidence" npm run smoke:community:packaged
 
+      - name: Smoke notarized macOS DMG installer
+        run: |
+          DMG_PATH="$(find release -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          test -n "$DMG_PATH"
+          mkdir -p "$RUNNER_TEMP/macos-installer-evidence"
+          DSH_COMMUNITY_SCREENSHOT_DIR="$RUNNER_TEMP/macos-installer-evidence" \
+          DSH_MACOS_INSTALLER_RESULT_FILE="$RUNNER_TEMP/macos-installer-evidence/result.json" \
+          npm run smoke:macos:installer -- "$DMG_PATH"
+
       - name: Smoke signed updater
         run: npm run smoke:updater
 
@@ -105,6 +114,7 @@ jobs:
             release/*.dmg
             release/*.zip
             ${{ runner.temp }}/community-evidence
+            ${{ runner.temp }}/macos-installer-evidence
             ${{ runner.temp }}/browser-workspace-evidence
             ${{ runner.temp }}/live-model-evidence
           if-no-files-found: ignore
