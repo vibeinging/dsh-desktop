@@ -18,6 +18,7 @@ import {
   inspectFeaturedArtifacts,
   inspectFeaturedMeasurement,
   inspectPublicReleaseAssets,
+  inspectRetiredRendererReferences,
 } from '../../scripts/release-boundary.mjs';
 import {
   WINDOWS_ACCEPTANCE_CHECKS,
@@ -181,6 +182,29 @@ test('public README assets exclude retired Renderer screenshots', async () => {
     rmSync(join(imageRoot, 'dsh-work-home.png'));
     writeFileSync(join(imageRoot, 'dsh-official-web-session-loopback.png'), 'current');
     assert.deepEqual(inspectPublicReleaseAssets(root), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('release boundary rejects retired Renderer source reads without banning current renderer concepts', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-release-retired-renderer-'));
+  const testRoot = join(root, 'eval', 'tests');
+  try {
+    mkdirSync(testRoot, { recursive: true });
+    const fixture = join(testRoot, 'fixture.test.mjs');
+    const retiredRendererDir = String.fromCharCode(114, 101, 110, 100, 101, 114, 101, 114);
+    const retiredSourceDir = String.fromCharCode(115, 114, 99);
+    writeFileSync(fixture, `
+      const currentWebContents = window.webContents;
+      const packageWasRetired = existsSync(join(root, ${JSON.stringify(retiredRendererDir)}, 'package.json'));
+    `);
+    assert.deepEqual(inspectRetiredRendererReferences(root), []);
+
+    writeFileSync(fixture, `
+      const legacySource = readFileSync(join(root, ${JSON.stringify(retiredRendererDir)}, ${JSON.stringify(retiredSourceDir)}, 'main.tsx'), 'utf8');
+    `);
+    assert.match(inspectRetiredRendererReferences(root).join('\n'), /fixture\.test\.mjs/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -35,6 +35,7 @@ const RETIRED_PUBLIC_IMAGE_NAMES = [
   "dsh-work-worktree.png",
 ];
 const JS_EXTENSIONS = new Set([".cjs", ".js", ".mjs"]);
+const RETIRED_RENDERER_SOURCE_READ = /(?:[\"'`]renderer[\"'`]\s*,\s*[\"'`]src[\"'`])|(?:renderer[\\/]src)/;
 
 function readText(path) {
   return readFileSync(path, "utf8");
@@ -64,6 +65,22 @@ function sha256(path) {
 
 function fail(message) {
   throw new Error(`[release-boundary] ${message}`);
+}
+
+/** Reject source-plane tests and scripts that still read the retired Renderer tree. */
+export function inspectRetiredRendererReferences(root = ROOT) {
+  const appRoot = resolve(root);
+  const errors = [];
+  for (const directory of ["eval/tests", "scripts"]) {
+    for (const path of walkFiles(join(appRoot, directory))) {
+      if (!JS_EXTENSIONS.has(path.slice(path.lastIndexOf(".")))) continue;
+      if (relative(appRoot, path) === "scripts/release-boundary.mjs") continue;
+      if (RETIRED_RENDERER_SOURCE_READ.test(readText(path))) {
+        errors.push(`源代码或测试仍读取退役 Renderer：${relative(appRoot, path)}`);
+      }
+    }
+  }
+  return errors;
 }
 
 /** Check that the packaged app has one official Web entry and no old product bridge. */
@@ -439,6 +456,7 @@ function main() {
   const args = new Set(process.argv.slice(2));
   const errors = [
     ...inspectOfficialWebReleaseBoundary(ROOT),
+    ...inspectRetiredRendererReferences(ROOT),
     ...inspectCommunityAssetLicenseBoundary(ROOT),
     ...inspectFeaturedArtifacts(ROOT, { required: args.has("--require-artifacts") }),
     ...(args.has("--syntax") ? checkReleaseJavaScript(ROOT) : []),

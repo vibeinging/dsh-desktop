@@ -8,7 +8,7 @@ import test from 'node:test';
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-test('production audit runs the resolved npm CLI through the current Node process', (t) => {
+test('production audit covers Server and Electron only after legacy Renderer retirement', (t) => {
   const fixtureDir = mkdtempSync(join(tmpdir(), 'dsh-audit-production-'));
   const npmCli = join(fixtureDir, 'npm-cli.js');
   const callsPath = join(fixtureDir, 'calls.jsonl');
@@ -36,11 +36,9 @@ process.stdout.write(JSON.stringify({ vulnerabilities: {}, metadata: { vulnerabi
   assert.deepEqual(calls.map((call) => call.argv), [
     ['audit', '--omit=dev', '--json'],
     ['audit', '--omit=dev', '--json'],
-    ['audit', '--omit=dev', '--json'],
   ]);
   assert.deepEqual(calls.map((call) => call.cwd), [
     join(APP_DIR, 'server'),
-    join(APP_DIR, 'renderer'),
     join(APP_DIR, 'electron'),
   ]);
 });

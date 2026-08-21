@@ -20,15 +20,3 @@ test('desktop transport uses a fixed local data owner without JWT', () => {
   assert.doesNotMatch(registry, /authRoutes|membersRoutes/)
   assert.equal(pkg.dependencies.jsonwebtoken, undefined)
 })
-
-test('renderer does not bootstrap login or attach app authorization headers', () => {
-  const guard = read('renderer', 'src', 'router', 'RouteGuard.tsx')
-  const axiosReq = read('renderer', 'src', 'utils', 'axios-req.ts')
-  const agentApi = read('renderer', 'src', 'api', 'agent.ts')
-  const basicStore = read('renderer', 'src', 'store', 'basic.ts')
-
-  assert.doesNotMatch(guard, /builtinLogin|access_token|getUserProfile|setToken/)
-  assert.doesNotMatch(axiosReq + agentApi, /Bearer\s|Authorization.*token/)
-  assert.equal(fs.existsSync(path.join(appRoot, 'renderer', 'src', 'api', 'session.ts')), false)
-  assert.match(basicStore, /const \{ token, userInfo, getUserInfo, isAdminMode, \.\.\.localState \}/)
-})
