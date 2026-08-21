@@ -18,6 +18,8 @@ npm run doctor
 npm run dev:electron
 ```
 
+The default desktop setup installs and checks only Server and Electron; the retired Renderer is not part of the official Web release path. If you need to maintain the legacy Renderer, run `npm ci` inside `renderer/` explicitly, then use `npm run dev:legacy-renderer` or `npm run test:legacy-renderer`.
+
 Build and release-boundary checks:
 
 ```bash
