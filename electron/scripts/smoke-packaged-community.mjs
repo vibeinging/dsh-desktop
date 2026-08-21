@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import net from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 import { pathWithPackagedBin, systemOnlyPath } from './packaged-smoke-environment.mjs'
 
@@ -17,6 +18,9 @@ const pnpmBinDir = join(resourcesDir, 'pnpm-bin')
 const featuredArtifactDir = join(resourcesDir, 'featured-plugins')
 const candidate = '@linxin666/dsh-client-ui-task-board@0.1.20'
 const candidateName = '@linxin666/dsh-client-ui-task-board'
+const screenshotDir = String(process.env.DSH_COMMUNITY_SCREENSHOT_DIR || '').trim()
+  ? resolve(String(process.env.DSH_COMMUNITY_SCREENSHOT_DIR).trim())
+  : ''
 
 function baseEnv() {
   const env = {
@@ -85,10 +89,25 @@ async function runOfficial(args, label, { offline = false } = {}) {
   return runProcess(label, executable, [dshCli, ...args], officialEnv({ offline }), 120_000)
 }
 
+async function freePort() {
+  const server = net.createServer()
+  await new Promise((resolvePromise, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', resolvePromise)
+  })
+  const address = server.address()
+  const port = typeof address === 'object' && address ? address.port : null
+  await new Promise((resolvePromise) => server.close(resolvePromise))
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('无法为打包 smoke 分配 loopback 端口')
+  return port
+}
+
 async function runPackagedApp(label, overrides = {}) {
   const text = await runProcess(label, executable, [], {
     ...baseEnv(),
+    DSH_DESKTOP_WEB_PORT: String(overrides.DSH_DESKTOP_WEB_PORT || await freePort()),
     DSH_SMOKE_TEST: '1',
+    DSH_SMOKE_DISMISS_ONBOARDING: '1',
     DSH_SMOKE_TIMEOUT_MS: '120000',
     ...overrides,
   })
@@ -116,6 +135,12 @@ try {
   await runPackagedApp('候选插件启动', {
     DSH_SMOKE_EXPECT_SELECTOR: '[data-dsh-taskboard-board]',
     DSH_SMOKE_CLICK_SELECTORS: JSON.stringify(['[data-dsh-taskboard-entry]']),
+    ...(screenshotDir
+      ? {
+          DSH_SMOKE_SCREENSHOT_DIR: screenshotDir,
+          DSH_SMOKE_SCREENSHOT_NAME: 'task-board-packaged.png',
+        }
+      : {}),
   })
 
   await runOfficial(['plugin', '--profile', 'web', 'remove', candidateName], `官方卸载 ${candidateName}`, { offline: true })
@@ -127,6 +152,12 @@ try {
 
   await runPackagedApp('卸载后重启', {
     DSH_SMOKE_REJECT_SELECTOR: '[data-dsh-taskboard-entry]',
+    ...(screenshotDir
+      ? {
+          DSH_SMOKE_SCREENSHOT_DIR: screenshotDir,
+          DSH_SMOKE_SCREENSHOT_NAME: 'official-web-after-uninstall.png',
+        }
+      : {}),
   })
   console.log(`[smoke] PASS 打包版先初始化精选 Profile，再通过官方命令安装/激活/卸载/重启 ${candidateName}`)
 } finally {

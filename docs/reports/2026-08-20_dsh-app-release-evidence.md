@@ -37,9 +37,9 @@
 
 2026-08-21 通过 `npm run test:release:community` 重新运行了 task-board 的真实网络回归；临时 DSH Profile 完成固定版本预检、官方命令安装、官方 Web 激活、用户 patch 停用后保持依赖但不加载 Client、移除 patch 后重新激活、官方卸载、重启后 Client 消失和最终 Profile 状态检查，1 项通过，0 项失败。该命令不会使用用户现有的 DSH_HOME。
 
-同一回归的真实 Electron fixture 还检查了官方 Web 内的 task-board 入口、五列看板、`#root` 容器归属、停用时 Client 不加载、恢复后重新激活和无旧产品 Shell；使用 `DSH_COMMUNITY_SCREENSHOT_DIR=.desktop-build/evidence/community-task-board npm run test:release:community` 已保存看板截图。截图是当前本机 Electron 的可见界面证据，不把它扩大为聚合包、皮肤中心或默认精选采用证据。
+同一回归的真实 Electron fixture 还检查了官方 Web 内的 task-board 入口、五列看板、`#root` 容器归属、停用时 Client 不加载、恢复后重新激活和无旧产品 Shell；使用 `DSH_COMMUNITY_SCREENSHOT_DIR=.desktop-build/evidence/community-task-board npm run test:release:community` 已保存开发态看板截图。本轮又在独立的当前 arm64 目录包中运行 `node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-community.mjs <独立 .app>`，通过受控 loopback 端口、首次提示关闭和真实官方命令安装/卸载，保存了 `task-board-packaged.png` 与 `official-web-after-uninstall.png`；前者是当前公开 README 的候选激活图，后者证明卸载后官方 Web 基线恢复。截图是当前本机 Electron 的可见界面证据，不把它扩大为聚合包、皮肤中心或默认精选采用证据。
 
-公开 README 当前只保留两张从真实 Electron smoke 产出的截图：官方 Web Session/轨迹的 loopback SSE 截图，以及官方 Web 根节点内的 task-board 候选截图；旧首页、旧 Chat、旧 Profile 中心、旧主题和旧工作台图片已从公开素材目录移除。第一张不是真实 DeepSeek live-model 证据，第二张不代表默认精选采用；真实安装录制仍需在有凭据的发行环境完成。
+公开 README 当前只保留两张从真实 Electron smoke 产出的截图：官方 Web Session/轨迹的 loopback SSE 截图，以及当前 arm64 打包版官方 Web 根节点内的 task-board 候选截图；旧首页、旧 Chat、旧 Profile 中心、旧主题和旧工作台图片已从公开素材目录移除。第一张不是真实 DeepSeek live-model 证据，第二张不代表默认精选采用；真实 DeepSeek 安装录制仍需在有凭据的发行环境完成。
 
 本轮新增 `npm run smoke:community:packaged`。它在临时用户目录和仅含系统目录加随包 pnpm 的 PATH 下，先由打包版 App 创建精选 Profile，再用打包版 Electron Node 执行官方 `dsh plugin --profile web add` 安装 task-board；候选启动回归检查官方 Web、task-board 入口和五列看板，随后用官方 remove 命令离线卸载并重启，确认入口消失。该回归还覆盖了 Electron 内嵌 Node 对 Profile `node_modules` 的解析修复（提交 `2f1b119`）；命令通过，证明的是当前 arm64 打包版的真实 Electron Client 激活和卸载保持，不把它扩大为默认精选采用或公开安装器证据。
 

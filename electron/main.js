@@ -66,6 +66,11 @@ const SMOKE_UPDATE = process.env.DSH_SMOKE_UPDATE === '1';
 const SMOKE_EXPECT_SELECTOR = String(process.env.DSH_SMOKE_EXPECT_SELECTOR || '').trim();
 const SMOKE_REJECT_SELECTOR = String(process.env.DSH_SMOKE_REJECT_SELECTOR || '').trim();
 const SMOKE_CLICK_SELECTORS = parseSmokeClickSelectors(process.env.DSH_SMOKE_CLICK_SELECTORS);
+const SMOKE_SCREENSHOT_DIR = String(process.env.DSH_SMOKE_SCREENSHOT_DIR || '').trim();
+const SMOKE_SCREENSHOT_NAME = /^[A-Za-z0-9._-]+$/.test(String(process.env.DSH_SMOKE_SCREENSHOT_NAME || '').trim())
+  ? String(process.env.DSH_SMOKE_SCREENSHOT_NAME).trim()
+  : 'dsh-smoke.png';
+const SMOKE_DISMISS_ONBOARDING = process.env.DSH_SMOKE_DISMISS_ONBOARDING === '1';
 const UPDATE_API_BASE_URL = String(process.env.DSH_UPDATE_API_BASE_URL || '').trim();
 const RECOVERY_PAGE = path.join(__dirname, 'recovery.html');
 
@@ -77,6 +82,33 @@ function parseSmokeClickSelectors(raw) {
     throw new Error('DSH_SMOKE_CLICK_SELECTORS 必须是非空 CSS selector 字符串数组');
   }
   return parsed.map((selector) => selector.trim());
+}
+
+async function captureSmokeScreenshot(name = SMOKE_SCREENSHOT_NAME) {
+  if (!SMOKE_SCREENSHOT_DIR || !mainWindow || mainWindow.isDestroyed()) return null;
+  const targetDir = path.resolve(SMOKE_SCREENSHOT_DIR);
+  const targetPath = path.join(targetDir, name);
+  fs.mkdirSync(targetDir, { recursive: true });
+  const image = await mainWindow.webContents.capturePage();
+  fs.writeFileSync(targetPath, image.toPNG());
+  console.log(`[smoke] screenshot=${targetPath}`);
+  return targetPath;
+}
+
+async function smokeOnboardingState(win) {
+  if (!SMOKE_DISMISS_ONBOARDING || !win || win.isDestroyed()) return { visible: false, dismissed: false };
+  return win.webContents.executeJavaScript(`(() => {
+    const body = document.body?.innerText || '';
+    const visible = body.includes('内测声明') || body.includes('Internal testing')
+      || body.includes('添加一个 API Key 开始使用') || body.includes('Add an API Key to get started');
+    if (!visible) return { visible: false, dismissed: false };
+    const labels = new Set(['继续', 'Continue', '稍后配置', 'Later']);
+    const button = [...document.querySelectorAll('button,[role="button"]')]
+      .find((element) => labels.has((element.innerText || element.textContent || '').trim()));
+    if (!button) return { visible: true, dismissed: false };
+    button.click();
+    return { visible: true, dismissed: true };
+  })()`);
 }
 
 function getUserDataPath() {
@@ -1249,6 +1281,13 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
         let nextClickIndex = 0;
         while (Date.now() < deadline) {
           state = await mainWindow.webContents.executeJavaScript(`({ title: document.title, officialWeb: Boolean(document.querySelector('#root') && globalThis.__DSH_BOOT__), bodyText: document.body?.innerText?.slice(0, 500) || '', expectedSurface: ${JSON.stringify(SMOKE_EXPECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_EXPECT_SELECTOR)}) !== null, rejectedSurfaceAbsent: ${JSON.stringify(SMOKE_REJECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_REJECT_SELECTOR)}) === null })`);
+          if (SMOKE_DISMISS_ONBOARDING && state.officialWeb) {
+            const onboarding = await smokeOnboardingState(mainWindow);
+            if (onboarding.dismissed || onboarding.visible) {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              continue;
+            }
+          }
           if (state.officialWeb && nextClickIndex < SMOKE_CLICK_SELECTORS.length) {
             const selector = SMOKE_CLICK_SELECTORS[nextClickIndex];
             const clicked = await mainWindow.webContents.executeJavaScript(`(() => { const target = document.querySelector(${JSON.stringify(selector)}); if (!target) return false; target.click(); return true })()`);
@@ -1259,9 +1298,19 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
         }
         if (SMOKE_REJECT_SELECTOR && state?.officialWeb) {
           await new Promise((resolve) => setTimeout(resolve, 2_500));
+          if (SMOKE_DISMISS_ONBOARDING) {
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+              const onboarding = await smokeOnboardingState(mainWindow);
+              if (!onboarding.visible) break;
+              await new Promise((resolve) => setTimeout(resolve, onboarding.dismissed ? 150 : 250));
+            }
+          }
           state = await mainWindow.webContents.executeJavaScript(`({ title: document.title, officialWeb: Boolean(document.querySelector('#root') && globalThis.__DSH_BOOT__), expectedSurface: true, rejectedSurfaceAbsent: document.querySelector(${JSON.stringify(SMOKE_REJECT_SELECTOR)}) === null })`);
         }
         const clicksCompleted = nextClickIndex === SMOKE_CLICK_SELECTORS.length;
+        if (state?.officialWeb && clicksCompleted && state.expectedSurface && state.rejectedSurfaceAbsent) {
+          await captureSmokeScreenshot();
+        }
         console.log(`[smoke] 官方 DSH Web 已加载 title=${state.title} officialWeb=${state.officialWeb} clicks=${nextClickIndex}/${SMOKE_CLICK_SELECTORS.length}`);
         if (!state.officialWeb) console.error(`[smoke] 官方 Web 页面摘要: ${String(state.bodyText || '').replace(/\s+/g, ' ').trim()}`);
         if (rendererErrors.length) console.error(`[smoke] Renderer 控制台错误: ${rendererErrors.join(' | ')}`);
