@@ -141,7 +141,7 @@
 
 本轮在提交 `a30c263` 建立了临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：当前 HEAD 的 137 项中 135 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果证明了干净源码和全新依赖安装的基线，不替代平台安装器、签名和公证验证。
 
-在本次精选清单组合字段、基础服务管理边界和打包 smoke 入口提交后，当前 `dev` 工作区重新运行 `npm run test:release` 为 140 项中 138 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过，当前静态门禁为 14/14。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows 或 Apple 公证验收。
+在本次精选清单组合字段、基础服务管理边界和打包 smoke 入口提交后，当前 `dev` 工作区重新运行 `npm run test:release` 为 141 项中 139 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过，当前静态门禁为 14/14。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows 或 Apple 公证验收。
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
