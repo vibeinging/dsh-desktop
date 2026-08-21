@@ -45,17 +45,17 @@
 | `@vibeinging/dsh-product-bridge` | 5,637 | `dsh-work-product-host-ipc` | 86,618 | 524 | 安装、启动、停用、卸载、重启通过 |
 | `@vibeinging/dsh-office-tools` | 2,810 | `dsh-work-product-host-ipc` | 77,260 | 499 | 安装、启动、停用、卸载、重启通过 |
 
-同日对重新生成的 macOS arm64 目录包执行 `npm run package:mac:dir`，再运行 `electron/scripts/smoke-packaged-featured-plugins.mjs`。7/7 个精选包通过打包版 Electron Profile 集成：基础服务安装/启动通过且卸载被契约阻止；其余 6 个包均完成随包 tarball 安装、Electron 启动、只读停用、官方卸载和重启，模型继承也在带基础服务支持 Bundle 的真实打包环境中通过。该结果是当前 arm64 目录包的真实 Electron 证据，不等同于公证、Gatekeeper 或最终安装器验收。
+同日对重新生成并使用 Developer ID 签名的 macOS arm64 目录包执行 `npm run smoke:featured-plugins:packaged`（本次显式关闭公证）。7/7 个精选包通过打包版 Electron Profile 集成：基础服务安装/启动通过且卸载被契约阻止；其余 6 个包均完成随包 tarball 安装、Electron 启动、只读停用、官方卸载和重启，模型继承也在带基础服务支持 Bundle 的真实打包环境中通过。该结果是当前签名 arm64 目录包的真实 Electron 证据，不等同于公证、Gatekeeper 或最终安装器验收。
 
 | 精选包 | 支持 Bundle | 安装后 Profile bytes | Electron cold Web ms | 卸载后 cold Web ms | 生命周期 |
 | --- | --- | ---: | ---: | ---: | --- |
-| `@vibeinging/dsh-work-product-host-ipc` | 无 | 48,606 | 3,614 | — | 安装、启动通过；基础服务卸载被桌面契约阻止 |
-| `@vibeinging/dsh-project-tools` | `dsh-work-product-host-ipc` | 67,106 | 3,113 | 2,960 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-canvas-tools` | `dsh-work-product-host-ipc` | 73,942 | 3,121 | 2,993 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-structured-ui-tools` | `dsh-work-product-host-ipc` | 67,670 | 3,054 | 2,889 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-model-inheritance` | `dsh-work-product-host-ipc` | 68,014 | 3,105 | 2,897 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-product-bridge` | `dsh-work-product-host-ipc` | 82,246 | 3,054 | 3,217 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-office-tools` | `dsh-work-product-host-ipc` | 72,884 | 3,074 | 2,953 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-work-product-host-ipc` | 无 | 48,606 | 3,669 | — | 安装、启动通过；基础服务卸载被桌面契约阻止 |
+| `@vibeinging/dsh-project-tools` | `dsh-work-product-host-ipc` | 67,106 | 3,176 | 3,152 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-canvas-tools` | `dsh-work-product-host-ipc` | 73,942 | 3,235 | 3,446 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-structured-ui-tools` | `dsh-work-product-host-ipc` | 67,670 | 3,227 | 3,089 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-model-inheritance` | `dsh-work-product-host-ipc` | 68,014 | 3,105 | 3,196 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-product-bridge` | `dsh-work-product-host-ipc` | 82,246 | 3,285 | 3,075 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-office-tools` | `dsh-work-product-host-ipc` | 72,884 | 3,265 | 3,178 | 安装、启动、停用、卸载、重启通过 |
 
 本轮又收紧了两个变更边界：官方 Profile 安装或卸载命令返回后，服务会重新读取权威 Profile 并执行 `--dump-config`，最终图不匹配或无法加载时不会返回成功；固定产物的 tarball 名称必须是单层 `.tgz` 文件，且来源路径不能越出产物目录。`dsh-profile-plugin-service.test.mjs` 和 `dsh-profile-initialization.test.mjs` 分别覆盖最终图失败、命令失败和路径越界。
 
@@ -127,7 +127,7 @@
 
  Developer ID arm64 目录包上又生成了四帧本地 GIF `electron/.desktop-build/evidence/official-web-interactions-signed/dsh-official-web-loopback.gif`（1200x772、9 秒、168497 字节），覆盖已完成、问题等待、审批等待和审批/队列结果；它的真实来源是当前签名 Electron 与 loopback SSE 测试模型，不能替代公开安装录制或真实 DeepSeek live-model 证据。
 
-断网新用户 smoke 使用不继承用户环境的系统 PATH、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 Developer ID arm64 目录包预算门禁观测的 `cold_web_ms` 为 `4480`（同一签名包的独立 smoke 曾观测 `4965`、`8928`、`4349`、`8688`；此前观测为 `8184`、`7327`、`4201`、`5053`、`5147`、`4718`、`7727`、`4967`、`4492`、`7754`），初始化后数据目录大小为 `2708180` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
+断网新用户 smoke 使用不继承用户环境的系统 PATH、临时 HOME、`npm_config_offline=true` 和 `pnpm_config_offline=true`；它通过了官方 Web 启动、7 个固定 tarball 的 SHA-256 校验和稳定本地插件库检查，最新 Developer ID arm64 目录包预算门禁观测的 `cold_web_ms` 为 `7535`，初始化后数据目录大小为 `2708191` 字节。最新目录包上的 Profile authority smoke 在同一套无系统 Node/pnpm、离线、`auto-install-peers=false` 的受控环境中，先通过用户级 patch 和官方 `--dump-config` 停用了 portable Bundle `@vibeinging/dsh-model-inheritance`，验证停用后的重启和更新回放均不改写 Profile；随后用随包 DSH CLI 官方 remove 命令卸载它，验证卸载后的重启和更新回放也不恢复 Bundle。该 smoke 还确认精选默认输入不会覆盖上述用户选择；Developer ID 签名探针上的离线初始化、损坏 Bundle 恢复和同一 Profile authority 回归也均通过。
 
 此前在同一台 Apple Silicon 主机上，使用官方 Node `v24.19.0` `darwin-x64` 二进制并通过 Rosetta 准备依赖后，x64 目录包的随包 Server、断网新用户 Profile、损坏 Bundle 恢复、Profile authority 和官方 Web Session/log/history 流程均通过；x64 目录包随包 pnpm runtime 也确认为 `11.22.0`，官方 Web smoke 截图为 `.desktop-build/evidence/official-web-x64.Ev0qMl/official-web-session-flow.png`，最新串行断网 smoke 的 Rosetta 冷启动观测为 `121710` ms。该观测明显包含 Rosetta 成本，不替代原生 x64 机器的性能验收；当时的 x64 目录包未签名，不能替代 Windows、Developer ID、公证或 Gatekeeper 证据。
 
@@ -139,14 +139,16 @@
 
 本轮在提交 `a30c263` 建立了临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：当前 HEAD 的 137 项中 135 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果证明了干净源码和全新依赖安装的基线，不替代平台安装器、签名和公证验证。
 
+在本次精选清单组合字段、基础服务管理边界和打包 smoke 入口提交后，当前 `dev` 工作区重新运行 `npm run test:release` 为 138 项中 136 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows 或 Apple 公证验收。
+
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
-| `DSH Desktop.app` | `1,197,028,167` bytes | `1,400,000,000` bytes |
-| 随包 Server 资源 | `845,789,175` bytes | `1,000,000,000` bytes |
+| `DSH Desktop.app` | `1,197,068,048` bytes | `1,400,000,000` bytes |
+| 随包 Server 资源 | `845,803,137` bytes | `1,000,000,000` bytes |
 | 随包 pnpm runtime | `19,768,614` bytes | `20,000,000` bytes |
-| 7 个精选插件 tarball | `22,002` bytes | `64,000` bytes |
-| 断网新 Profile 数据目录 | `2,708,180` bytes | `4,000,000` bytes |
-| 官方 Web 冷启动 | `4,397` ms | `10,000` ms |
+| 7 个精选插件 tarball | `21,999` bytes | `64,000` bytes |
+| 断网新 Profile 数据目录 | `2,708,191` bytes | `4,000,000` bytes |
+| 官方 Web 冷启动 | `7,535` ms | `10,000` ms |
 
 Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/manifest.json`、`permissions.json`、`THIRD_PARTY_NOTICES.md` 和 `test-expected.json` 为准；预算门禁只接受重新生成的产物和新一轮 smoke 结果。
 
