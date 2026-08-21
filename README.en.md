@@ -85,6 +85,12 @@ dsh plugin --profile web add -w @linxin666/dsh-client-ui-task-board@0.1.20 --sav
 dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
 ```
 
+To include the installer source in the community regression, on macOS mount the DMG read-only, copy the App from it, and run the same official install, activation, removal, and restart checks:
+
+```bash
+DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg
+```
+
 `@linxin666/dsh-web-ui-all` is used only for conflict experiments and is not a release input. Better Sidebar, remote Web, SSH, image understanding, Agent presets, and community plugin managers are not in the default Profile. A community package does not enter the curated set without a fixed source, dependency review, real Electron evidence, and uninstall evidence.
 
 The Skin Center and its `@linxin666/dsh-skins` dependency are not distributed with the app. A package-level Apache-2.0 license does not automatically cover every built-in visual asset; the upstream package identifies Maid Atelier assets as CC BY-NC-SA 4.0, so they cannot enter the release package without separate redistribution permission. The decision is recorded in the [community plugin registry](server/src/engine/dsh_runtime/community_plugin_registry.json), and the release boundary rejects unapproved visual assets from the curated set. The Skin Center can be reconsidered only after every asset has a verified license, attribution, and redistribution condition.
