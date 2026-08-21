@@ -21,7 +21,7 @@
 
 2026-08-21 将生成器运行到两个独立临时目录，manifest 与 7 个 tarball 均逐字节一致，复现检查通过；这证明的是精选产物生成链路，不替代干净发行环境的完整安装验证。
 
-公开 README 的默认 Bundle 明细不再维护第二份手写名单。`scripts/generate-featured-plugin-docs.mjs` 从同一精选 JSON 生成中英文表格中的包名、类型、权限、来源和官方卸载命令；`dsh-trusted-client-plugins.test.mjs` 与 `release-boundary` 会检查表格行数和字段是否仍与精选输入一致。本轮 `npm run docs:featured-plugins`、`npm run test:release`（137 项中 135 项通过、2 项按条件跳过、0 项失败）和 `npm run release:check:static`（12/12）均通过。
+公开 README 的默认 Bundle 明细不再维护第二份手写名单。`scripts/generate-featured-plugin-docs.mjs` 从同一精选 JSON 生成中英文表格中的包名、类型、权限、来源和官方管理方式；`dsh-trusted-client-plugins.test.mjs` 与 `release-boundary` 会检查表格行数和字段是否仍与精选输入一致。桌面基础服务显式标记为不可由用户卸载，避免文档和 Profile 服务暗示不存在的卸载路径。
 
 精选产物生成器现在还会在 `npm pack` 前校验包 manifest 的 `dshWork.portability.level`、有序 `hostRequirements` 与精选清单的 portability、permissions 完全一致；漂移会阻止 tarball、权限摘要和第三方公告生成。定向回归覆盖有效契约和两类漂移，临时目录生成全部 7 个精选 Bundle 成功。
 
@@ -29,19 +29,31 @@
 
 固定 tarball 通过安装包内的受控 `pnpm@11.22.0` 进入 DSH 数据目录下的稳定本地插件库。打包脚本只保留官方 pnpm Node CLI 所需的 `bin`、`dist`、package manifest 和 MIT LICENSE，不携带其他平台的 standalone executable artifacts；pnpm wrapper 必须使用 `DSH_PNPM_NODE_BIN`，发行态不回退到系统 Node。所有 Profile 安装、更新和卸载仍转发到官方 `dsh plugin --profile` 命令；本地插件库不是第二份安装状态。
 
-精选清单现在还生成逐包 `evaluation.json` 投影，记录源码入口、固定 tarball、DSH/Cordis 兼容线、生命周期脚本、原生依赖、网络声明、Client 参与、官方 Profile 安装/卸载命令和 unit/Profile/Electron 回归路径；`release-boundary` 会拒绝该投影与 manifest 漂移。`scripts/measure-featured-plugin-evidence.mjs` 用同一批固定 tarball 对每个精选包执行官方 CLI 安装、Web 启动、用户 patch 停用、官方卸载和卸载后重启，输出的是源码 Profile 集成证据，不替代真实 Electron 或安装包验收。
+精选清单现在还生成逐包 `evaluation.json` 投影，记录源码入口、固定 tarball、DSH/Cordis 兼容线、生命周期脚本、原生依赖、网络声明、Client 参与、官方 Profile 安装/卸载命令和 unit/Profile/Electron 回归路径；`release-boundary` 会拒绝该投影与 manifest 漂移。桌面基础服务另外声明 `desktop_runtime_required`，源码和打包版测量均只验证安装/启动，并把卸载记录为被桌面运行时契约阻止。`scripts/measure-featured-plugin-evidence.mjs` 用同一批固定 tarball 对每个精选包执行官方 CLI 安装、Web 启动、用户 patch 停用、官方卸载和卸载后重启，输出的是源码 Profile 集成证据，不替代真实 Electron 或安装包验收。
 
-2026-08-21 的逐包测量命令为 `npm run measure:featured-plugins -- --output .desktop-build/reports/featured-plugin-evaluation.json`，运行环境为 macOS arm64、Node `v26.5.0`。7/7 个包通过；desktop-adapter 包只额外安装清单已声明的 `@vibeinging/dsh-work-product-host-ipc` 支持 Bundle，以便验证真实的 Profile provider 依赖，不把无 Host 的 standalone Web 启动失败误判为包自身通过。表中的 Profile 数据目录大小是安装后总量（包含 DSH 官方依赖和声明的支持 Bundle），tarball 大小才是逐包随包增量；冷启动是源码 DSH CLI 到 loopback Web ready 的观测。
+2026-08-21 的逐包测量命令为 `npm run measure:featured-plugins -- --output .desktop-build/reports/featured-plugin-evaluation.json`，运行环境为 macOS arm64、Node `v26.5.0`。7/7 个包通过；除桌面基础服务外的 6 个条目都额外安装清单已声明的 `@vibeinging/dsh-work-product-host-ipc` 支持 Bundle，以便验证真实的 Profile provider 依赖，不把无 Host 的 standalone Web 启动失败误判为包自身通过。表中的 Profile 数据目录大小是安装后总量（包含 DSH 官方依赖和声明的支持 Bundle），tarball 大小才是逐包随包增量；冷启动是源码 DSH CLI 到 loopback Web ready 的观测。
 
 | 精选包 | tarball bytes | 支持 Bundle | 安装后 Profile bytes | CLI cold Web ms | 生命周期 |
 | --- | ---: | --- | ---: | ---: | --- |
-| `@vibeinging/dsh-work-product-host-ipc` | 3,836 | 无 | 52,798 | 492 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-project-tools` | 2,174 | `dsh-work-product-host-ipc` | 71,480 | 494 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-canvas-tools` | 3,039 | `dsh-work-product-host-ipc` | 78,318 | 488 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-structured-ui-tools` | 2,325 | `dsh-work-product-host-ipc` | 72,032 | 492 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-model-inheritance` | 2,178 | 无 | 38,510 | 485 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-product-bridge` | 5,637 | `dsh-work-product-host-ipc` | 86,618 | 485 | 安装、启动、停用、卸载、重启通过 |
-| `@vibeinging/dsh-office-tools` | 2,810 | `dsh-work-product-host-ipc` | 77,260 | 491 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-work-product-host-ipc` | 3,836 | 无 | 52,798 | 502 | 安装、启动通过；基础服务卸载被桌面契约阻止 |
+| `@vibeinging/dsh-project-tools` | 2,174 | `dsh-work-product-host-ipc` | 71,480 | 525 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-canvas-tools` | 3,039 | `dsh-work-product-host-ipc` | 78,318 | 525 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-structured-ui-tools` | 2,325 | `dsh-work-product-host-ipc` | 72,032 | 533 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-model-inheritance` | 2,178 | `dsh-work-product-host-ipc` | 72,380 | 498 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-product-bridge` | 5,637 | `dsh-work-product-host-ipc` | 86,618 | 524 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-office-tools` | 2,810 | `dsh-work-product-host-ipc` | 77,260 | 499 | 安装、启动、停用、卸载、重启通过 |
+
+同日对重新生成的 macOS arm64 目录包执行 `npm run package:mac:dir`，再运行 `electron/scripts/smoke-packaged-featured-plugins.mjs`。7/7 个精选包通过打包版 Electron Profile 集成：基础服务安装/启动通过且卸载被契约阻止；其余 6 个包均完成随包 tarball 安装、Electron 启动、只读停用、官方卸载和重启，模型继承也在带基础服务支持 Bundle 的真实打包环境中通过。该结果是当前 arm64 目录包的真实 Electron 证据，不等同于公证、Gatekeeper 或最终安装器验收。
+
+| 精选包 | 支持 Bundle | 安装后 Profile bytes | Electron cold Web ms | 卸载后 cold Web ms | 生命周期 |
+| --- | --- | ---: | ---: | ---: | --- |
+| `@vibeinging/dsh-work-product-host-ipc` | 无 | 48,606 | 3,614 | — | 安装、启动通过；基础服务卸载被桌面契约阻止 |
+| `@vibeinging/dsh-project-tools` | `dsh-work-product-host-ipc` | 67,106 | 3,113 | 2,960 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-canvas-tools` | `dsh-work-product-host-ipc` | 73,942 | 3,121 | 2,993 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-structured-ui-tools` | `dsh-work-product-host-ipc` | 67,670 | 3,054 | 2,889 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-model-inheritance` | `dsh-work-product-host-ipc` | 68,014 | 3,105 | 2,897 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-product-bridge` | `dsh-work-product-host-ipc` | 82,246 | 3,054 | 3,217 | 安装、启动、停用、卸载、重启通过 |
+| `@vibeinging/dsh-office-tools` | `dsh-work-product-host-ipc` | 72,884 | 3,074 | 2,953 | 安装、启动、停用、卸载、重启通过 |
 
 本轮又收紧了两个变更边界：官方 Profile 安装或卸载命令返回后，服务会重新读取权威 Profile 并执行 `--dump-config`，最终图不匹配或无法加载时不会返回成功；固定产物的 tarball 名称必须是单层 `.tgz` 文件，且来源路径不能越出产物目录。`dsh-profile-plugin-service.test.mjs` 和 `dsh-profile-initialization.test.mjs` 分别覆盖最终图失败、命令失败和路径越界。
 
@@ -73,8 +85,8 @@
 | --- | --- | --- |
 | 源码检查 | `node scripts/release-boundary.mjs --syntax`、Node syntax check、包清单和权限投影检查 | 官方 Web、恢复页、窄 Native Host、精选清单和退役包边界可检查 |
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
-| Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试；`npm run measure:featured-plugins` 对 7 个精选包逐包完成安装、启动、停用、卸载和重启 | 新 Profile 与已有 Profile 的状态边界已验证；逐包源码 Profile 生命周期通过，仍不替代随包 Electron 证据 |
-| 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选、打包版社区插件安装/激活/卸载/重启和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；loopback 模型不替代真实 DeepSeek live-model 证据 |
+| Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试；`npm run measure:featured-plugins` 对 7 个精选包逐包完成安装和启动，6 个可管理包完成停用、卸载和重启；基础服务卸载被契约阻止 | 新 Profile 与已有 Profile 的状态边界已验证；逐包源码 Profile 生命周期通过，并有逐包打包版 Electron 证据 |
+| 真实 Electron | 官方 Web 无 preload 启动、逐精选包 arm64 打包版 Profile 安装/启动/停用/卸载/重启、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选、打包版社区插件安装/激活/卸载/重启和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；loopback 模型不替代真实 DeepSeek live-model 证据 |
 | 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；当前 arm64/x64 目录包均完成 Developer ID 签名和严格完整性检查；Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态仍是发布门槛 |
 
 ## 本轮安装包与性能基线
