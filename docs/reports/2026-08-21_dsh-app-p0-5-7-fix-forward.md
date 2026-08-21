@@ -4,11 +4,17 @@
 
 ## 基线和范围
 
-本地工作区位于 `dev`，本轮修复从 `7b93a20`（`fix: require native host mode evidence`）开始，主工作区仍有其他窗口的未提交改动，包括 legacy Renderer 和多个评估文件。本轮只修改发行回执/门禁脚本、Windows native Host smoke、回执测试、Windows evidence workflow、构建脚本和本报告，没有 reset、stash、clean 或覆盖 Renderer 脏文件。
+本地工作区位于 `dev`，回执合同修复从 `7b93a20`（`fix: require native host mode evidence`）开始；随后 `548e249` 收口了 legacy Renderer/主题入口，`eda9ced` 删除了漏列在 release suite 之外的旧 Renderer UI 测试并增加退役源码读取门禁。本报告保留前一轮回执整改的历史上下文，当前代码和 clean 验证以 `eda9ced` 为准。
 
 `29a113e` 已完成 portable Bundle 的官方生命周期：官方 CLI 安装、官方 Web 启动、Electron 观察、官方 CLI 卸载、重启后官方 Web 基线恢复。`@linxin666/dsh-web-ui-all@0.1.20` 仍未通过兼容验收：官方 CLI 可以写入顶层包，但启动时 Profile 根无法解析它声明的传递 Client 依赖。测试现在从安装后的真实 `package.json` 固定核对 `exports["./client"] === "./lib/client.js"` 和 `dsh.client.platform === "web"`，因此没有把聚合包误写成独立 Client 通过。
 
-此前隔离 clean worktree 在额外应用 `dsh-source-runtime.test.mjs` theme 期望修复后得到 `npm run test:release` 的 149 tests、144 pass、0 fail、5 skipped；这是 clean candidate 的分层证据，不是当前主工作区或本批最终提交的全量通过结论。
+此前的 149/144/5 是旧 candidate 的分层证据，已被后续提交覆盖，不能作为当前 HEAD 结果。`eda9ced` 的 clean worktree 重新安装依赖后得到 `npm run test:release`：159 tests、154 pass、0 fail、5 skipped；5 个 skip 都是显式网络或外部 DSH source 条件。
+
+## Legacy Renderer fix-forward
+
+`eda9ced` 删除 `agent-shell-layout.test.mjs`、`composer-layout.test.mjs`、`intermediate-result-scroll.test.mjs`、`model-chip-settings.test.mjs` 和 `thinking-collapse.test.mjs`；`app-zoom-layout.test.mjs` 仅保留官方 Web Electron Host 的 `lockPageZoom` 回归；`local-single-user.test.mjs` 仅保留 Server 的 `LOCAL_OWNER_ID`/JWT 边界；`audit-production.test.mjs` 改为只验证 Server 与 Electron，并加入 `test:release`。
+
+`scripts/release-boundary.mjs` 现在拒绝 `eval/tests` 和 `scripts` 中对退役 `renderer/src` 的读取，同时允许 `renderer/package.json` 不存在的负向断言、Electron `webContents` 和 `renderer-surface-port` 等当前概念；`release-safety.test.mjs` 提供无效 fixture 负例。主工作树中已将无跟踪的退役 `renderer/node_modules`、`renderer/dist` 和两个无 secret-like assignment 的 `.env` 文件移动到 `/tmp/dsh-app-retired-renderer-residue-2026-08-21/`；401 个无跟踪 `eval/results` 历史结果移动到 `/tmp/dsh-app-eval-results-historical-2026-08-21`，没有进入 Git，也不被 release/doc 生成器消费。
 
 ## 本批实现
 

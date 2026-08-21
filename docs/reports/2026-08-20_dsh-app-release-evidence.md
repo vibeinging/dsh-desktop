@@ -13,6 +13,7 @@
 - 应用更新安装前执行当前 Profile 和 `--dump-config` 只读预检；预检失败不会创建待安装记录或调用 `quitAndInstall`。
 - 自研替换 Shell、旧产品 Client UI、工作台目录和自研主题包已从发行包输入中移除；旧 Renderer 源码、独立依赖、测试和构建入口已从仓库删除。
 - 默认 `npm run dev` 直接启动官方 DSH Web Electron 路径；默认 `bootstrap`、`doctor`、生产依赖审计和 CI 只覆盖 Server/Electron，官方 Web 资源校验使用 `verify:official-web-assets`，不再保留 legacy Renderer 维护命令。
+- `eda9ced` 又删除了 5 个漏列在 release suite 之外、仍读取 `renderer/src` 的旧 UI 测试；`app-zoom` 仅保留官方 Web 的 Electron Host 缩放锁定，审计测试明确只覆盖 Server/Electron。`release-boundary` 现在扫描 `eval/tests` 和 `scripts` 的退役源码读取，负例回归覆盖拒绝旧路径和允许当前 Electron renderer 概念。
 - 对现存 arm64 目录包和 Developer ID 签名 arm64 目录包的 `Contents/Resources` 做了实际资源名与二进制文本扫描：只发现官方 `@deepseek-ai/dsh-client-ui-theme`、`@deepseek-ai/dsh-shell` 等运行时资源，没有 `dsh-theme-pack`、`dsh-work-shell`、`dsh-workbench-pages`、`profileThemes` 或 `skin-settings-store` 残留；这项证据补充了源码发行边界检查。
 
 ## 精选输入和插件证据
@@ -151,7 +152,7 @@
 
 此前在提交 `a30c263` 建立的临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：当时的 HEAD 为 137 项中 135 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果是历史干净源码和全新依赖安装基线，不替代当前提交、平台安装器、签名和公证验证。
 
-在原生 Host Session 授权、窗口及文件/目录对话框打包烟测和发布 workflow 接入后，当前 `dev` 工作区重新运行 `npm run test:release` 为 147 项中 145 项通过、2 项按条件跳过、0 项失败；`npm run typecheck`、`npm run check:release-artifacts` 和 `npm run release:check:static` 也通过，当前静态门禁为 14/14。此结果是当前源码提交的回归证据，不替代干净 worktree、真实 Windows、真实 live-model 或其他平台安装器验收。
+在 `eda9ced` 收口旧 UI 测试和审计引用后，独立 clean worktree `/tmp/dsh-app-cleanup-verify-eda9ced` 重新执行 `npm ci`、`npm run test:release`、`npm --prefix electron run prepare:mac`、精选 tarball 生成和 `npm run measure:featured-plugins`。最终 `test:release` 为 159 项中 154 项通过、0 项失败、5 项条件跳过；7/7 精选 Bundle 逐包测量通过；macOS static scope 和 Windows static scope 均为 13 pass、0 block、0 manual；`npm run check:release-boundary`、`npm run check:release-artifacts` 和 `npm run typecheck` 均通过。该结果仍不替代真实 Windows、真实 live-model、当前 App/DMG 公证和其他安装器证据。
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
