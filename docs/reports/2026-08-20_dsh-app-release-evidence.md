@@ -39,6 +39,8 @@
 
 同一回归的真实 Electron fixture 还检查了官方 Web 内的 task-board 入口、五列看板、`#root` 容器归属、停用时 Client 不加载、恢复后重新激活和无旧产品 Shell；使用 `DSH_COMMUNITY_SCREENSHOT_DIR=.desktop-build/evidence/community-task-board npm run test:release:community` 已保存看板截图。截图是当前本机 Electron 的可见界面证据，不把它扩大为聚合包、皮肤中心或默认精选采用证据。
 
+本轮新增 `npm run smoke:community:packaged`。它在临时用户目录和仅含系统目录加随包 pnpm 的 PATH 下，先由打包版 App 创建精选 Profile，再用打包版 Electron Node 执行官方 `dsh plugin --profile web add` 安装 task-board；候选启动回归检查官方 Web、task-board 入口和五列看板，随后用官方 remove 命令离线卸载并重启，确认入口消失。该回归还覆盖了 Electron 内嵌 Node 对 Profile `node_modules` 的解析修复（提交 `2f1b119`）；命令通过，证明的是当前 arm64 打包版的真实 Electron Client 激活和卸载保持，不把它扩大为默认精选采用或公开安装器证据。
+
 社区 Client 的固定完整性现在由官方 CLI 安装生成的 Profile `pnpm-lock.yaml` 读取并与目录中的审查值逐字比较；有审查哈希的版本缺少 lockfile 记录或发生漂移时，预检返回明确阻塞，不进入官方 Client 图。该规则同时覆盖 task-board、Chat recovery 和仅用于实验的聚合包；已由 lockfile 单元夹具和上述真实 task-board 安装回归覆盖。
 
 本轮对首批社区 UI 候选做了当前版本复核。`@linxin666/dsh-chat-recovery@0.2.5` 的固定完整性为 `sha512-vuPCcZfBgJijpVyNpb9VJgSuIB+7Zo+4RsZiDN3m6We3T7uekDcr1FlbcB4+xNKFCnxaJKCKb1ROBCoXbyCfbQ==`，其构建依赖 DSH `0.1.0-rc.8`；当前应用固定为 `0.1.0-rc.7`，真实 Profile 预检返回 `migration_required` 和 `DSH_PROFILE_CLIENT_SDK_MISMATCH`，因此记录为已审查但当前发行线阻塞的候选，不进入精选清单。`dsh-better-sidebar@0.14.0` 的固定完整性为 `sha512-bEjHvHnlNnKXkud+/A/kZ4VJvPt79ggHy/mKqEKfODPqLFpvdz7ZcoMCI3K4naPOw/0Wlqp6J3UDR9h2Wm6w4w==`，大小约 11.4 MB；真实预检报告 13 个 SDK 依赖仍属 rc.8，并检测到 node-pty、Shell、文件、Git 和浏览器能力，保持 `preflight-only-host-adapter-required`，不进入发行 Profile。
@@ -56,7 +58,7 @@
 | 源码检查 | `node scripts/release-boundary.mjs --syntax`、Node syntax check、包清单和权限投影检查 | 官方 Web、恢复页、窄 Native Host、精选清单和退役包边界可检查 |
 | 单元回归 | `npm run test:release` 中的 Profile、更新预检、恢复、权限、Browser Workspace、社区候选和运行时测试 | 关键状态和失败路径有回归；有条件的真实社区测试在无开关时会跳过 |
 | Profile 集成 | 官方 npm DSH CLI、固定 Profile Bundle、纯官方 Web Profile、tarball SHA-256、受控 pnpm 和离线初始化测试 | 新 Profile 与已有 Profile 的状态边界已验证 |
-| 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；loopback 模型不替代真实 DeepSeek live-model 证据 |
+| 真实 Electron | 官方 Web 无 preload 启动、工作区/Session/Session log/history 用户流程、portable Bundle、task-board 候选、打包版社区插件安装/激活/卸载/重启和 WebContentsView Browser Workspace smoke；另用 loopback SSE 测试模型驱动官方 LLM 适配器、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock、允许一次和排队后的 Session history；ad hoc 包和 Developer ID 签名探针都通过本地 HTTPS feed 真实走到元数据、固定哈希下载、Profile 预检、ShipIt 替换和新版本历史回放 | Electron 页面、会话持久化路径、官方问题/审批/队列运行时契约、原生浏览器主路径和 macOS 签名更新链路已验证；loopback 模型不替代真实 DeepSeek live-model 证据 |
 | 安装包 | macOS arm64 目录包、Rosetta 下真实 x64 目录包、Developer ID 签名目录包、随包 Server、官方 Web smoke、固定 tarball 和 pnpm 资源检查；子进程 `PATH=/usr/bin` 的无系统 Node/pnpm smoke；真实损坏 Bundle 恢复页；官方 CLI 卸载后重启和更新记录回放 | arm64 和 x64 目录包的断网新用户、恢复/卸载保持和官方 Web 用户流程均已建立；当前 arm64/x64 目录包均完成 Developer ID 签名和严格完整性检查；Apple 公证、Gatekeeper 接受、Windows 实机和最终安装器形态仍是发布门槛 |
 
 ## 本轮安装包与性能基线
@@ -76,6 +78,7 @@
 - `npm run release:check:static`
 - `npm run audit:prod`
 - `npm run test:release:community`
+- `npm run smoke:community:packaged`
 - `npm run smoke:updater`
 - `DSH_SMOKE_SIGN_IDENTITY=03587EF7C8984E0F7631EC905C26336C15C8189D node scripts/run-with-project-node.mjs node electron/scripts/smoke-packaged-updater.mjs ".desktop-build/signed-probe/mac-arm64/DSH Desktop.app"`
 - `(cd electron && CSC_IDENTITY_AUTO_DISCOVERY=false CSC_NAME=03587EF7C8984E0F7631EC905C26336C15C8189D ./node_modules/.bin/electron-builder --mac --arm64 --dir)`
