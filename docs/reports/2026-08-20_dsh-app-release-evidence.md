@@ -147,7 +147,7 @@
 
 随后对 `release/dsh-desktop-0.0.1-mac-x64.dmg` 运行 `smoke:macos:installer`。第一次使用旧包默认的 90 秒本地请求上限时，Rosetta 冷启动进入恢复页并失败；在保留该失败证据后，以 `DSH_API_REQUEST_TIMEOUT_MS=300000` 重新运行，结果回执 `electron/.desktop-build/evidence/macos-installer-x64-rosetta/result.json` 为 `passed`，完成 DMG 挂载、复制、官方 Profile 安装、task-board 激活、官方卸载、重启和 DMG 卸载。该结果是 Apple Silicon 上的 Rosetta x64 安装器生命周期证据，不能替代原生 x64 主机的冷启动预算、性能或 Gatekeeper 验收。
 
-当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run check:release:budgets` 重新运行断网随包 smoke 并检查。2026-08-21 的 macOS arm64 结果如下：
+当前发行预算保存在 `scripts/release-budgets.json`，由 `npm run package:mac:dir` 生成目录包后执行 `npm run check:release:budgets`，重新运行断网随包 smoke 并检查。2026-08-21 最新 macOS arm64 结果如下：
 
 此前在提交 `a30c263` 建立的临时干净 worktree，从三套 `package-lock.json` 重新安装 Renderer、Server 和 Electron 依赖，再运行 `npm run doctor`、完整 `test:release` 和 `npm run release:check:static`：当时的 HEAD 为 137 项中 135 项通过、2 项按条件跳过、0 项失败，静态门禁 12/12。此前集中在 Office/Canvas Agent scope 和产品身份的 4 项基线失败已由 `6806ed5` 的独立身份收口修复；该结果是历史干净源码和全新依赖安装基线，不替代当前提交、平台安装器、签名和公证验证。
 
@@ -155,12 +155,12 @@
 
 | 项目 | 当前观测 | 预算 |
 | --- | ---: | ---: |
-| `DSH Desktop.app` | `1,197,074,728` bytes | `1,400,000,000` bytes |
-| 随包 Server 资源 | `845,803,331` bytes | `1,000,000,000` bytes |
-| 随包 pnpm runtime | `19,768,614` bytes | `20,000,000` bytes |
-| 7 个精选插件 tarball | `22,246` bytes | `64,000` bytes |
-| 断网新 Profile 数据目录 | `2,710,670` bytes | `4,000,000` bytes |
-| 官方 Web 冷启动 | `6,016` ms | `10,000` ms |
+| `DSH Desktop.app` | `1,183,573,007` bytes | `1,400,000,000` bytes |
+| 随包 Server 资源 | `847,717,219` bytes | `1,000,000,000` bytes |
+| 随包 pnpm runtime | `19,730,990` bytes | `20,000,000` bytes |
+| 7 个精选插件 tarball | `22,777` bytes | `64,000` bytes |
+| 断网新 Profile 数据目录 | `2,714,857` bytes | `4,000,000` bytes |
+| 官方 Web 冷启动 | `8,812` ms | `10,000` ms |
 
 Tarball 的逐包体积、哈希、许可和权限以随包 `featured-plugins/manifest.json`、`permissions.json`、`THIRD_PARTY_NOTICES.md` 和 `test-expected.json` 为准；预算门禁只接受重新生成的产物和新一轮 smoke 结果。
 
