@@ -20,6 +20,14 @@
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
+        "composition": {
+          "plugin_id": "dsh-work-product-host-ipc",
+          "requires": ["webServer"],
+          "provides": ["productHost", "officeArtifactHost", "browserWorkspaceHost"],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "desktop_runtime_required": true,
@@ -49,6 +57,14 @@
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
+        "composition": {
+          "plugin_id": "dsh-work-project-tools",
+          "requires": ["agents", "tools", "productHost"],
+          "provides": [],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
@@ -77,6 +93,14 @@
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
+        "composition": {
+          "plugin_id": "dsh-work-canvas-tools",
+          "requires": ["agents", "tools", "productHost"],
+          "provides": [],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
@@ -105,6 +129,14 @@
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
+        "composition": {
+          "plugin_id": "dsh-work-structured-ui-tools",
+          "requires": ["agents", "tools", "productHost"],
+          "provides": [],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
@@ -133,6 +165,14 @@
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
+        "composition": {
+          "plugin_id": "dsh-model-inheritance",
+          "requires": ["agents"],
+          "provides": [],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
@@ -161,6 +201,14 @@
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
+        "composition": {
+          "plugin_id": "product-bridge",
+          "requires": ["agents", "productHost"],
+          "provides": [],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
@@ -189,6 +237,14 @@
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
+        "composition": {
+          "plugin_id": "dsh-work-office-tools",
+          "requires": ["agents", "tools", "officeArtifactHost"],
+          "provides": [],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {

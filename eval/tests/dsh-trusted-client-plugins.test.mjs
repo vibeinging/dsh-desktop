@@ -170,6 +170,11 @@ test("the curated Profile input has one authoritative list with explicit managea
     assert.equal(plugin.evidence.profile_install, "official-dsh-plugin-cli");
     assert.equal(plugin.evidence.profile_uninstall, "official-dsh-plugin-cli");
     assert.equal(Object.isFrozen(plugin.evidence), true);
+    assert.equal(plugin.evidence.composition.plugin_id, plugin.evidence.patch_id);
+    for (const field of ["requires", "provides", "routes", "slots", "conflicts"]) {
+      assert.equal(Array.isArray(plugin.evidence.composition[field]), true);
+      assert.equal(Object.isFrozen(plugin.evidence.composition[field]), true);
+    }
     for (const layer of ["unit", "profile", "electron"]) {
       assert.ok(plugin.evidence.regression[layer].length > 0, `${plugin.name} 缺少 ${layer} 回归证据`);
     }

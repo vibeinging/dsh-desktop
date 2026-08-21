@@ -44,6 +44,17 @@ function validateEvidence(plugin) {
   if (evidence.desktop_runtime_required !== undefined && typeof evidence.desktop_runtime_required !== "boolean") {
     throw new Error(`${plugin.name} 的 desktop_runtime_required 必须是布尔值`);
   }
+  const composition = evidence.composition;
+  if (!composition || typeof composition !== "object" || Array.isArray(composition)
+    || composition.plugin_id !== evidence.patch_id) {
+    throw new Error(`${plugin.name} 的 composition 必须声明与 patch 一致的 plugin_id`);
+  }
+  for (const field of ["requires", "provides", "routes", "slots", "conflicts"]) {
+    if (!Array.isArray(composition[field])
+      || composition[field].some((item) => typeof item !== "string" || !item.trim())) {
+      throw new Error(`${plugin.name} 的 composition.${field} 必须是字符串数组`);
+    }
+  }
   if (!Array.isArray(evidence.regression?.unit) || !Array.isArray(evidence.regression?.profile)
     || !Array.isArray(evidence.regression?.electron)
     || [evidence.regression.unit, evidence.regression.profile, evidence.regression.electron]
@@ -61,6 +72,7 @@ function validateManifest(value) {
     throw new Error("精选插件清单必须声明 web Profile 和非空插件列表");
   }
   const names = new Set();
+  const providedServices = new Map();
   for (const plugin of value.plugins) {
     if (!plugin || typeof plugin !== "object" || Array.isArray(plugin)) {
       throw new Error("精选插件清单中的插件必须是对象");
@@ -86,6 +98,11 @@ function validateManifest(value) {
     validateEvidence(plugin);
     if (!plugin.user_manageable && plugin.evidence.desktop_runtime_required !== true) {
       throw new Error(`${plugin.name} 不可由用户管理时必须声明 desktop_runtime_required`);
+    }
+    for (const service of plugin.evidence.composition.provides) {
+      const previous = providedServices.get(service);
+      if (previous) throw new Error(`${service} 由 ${previous} 和 ${plugin.name} 重复提供`);
+      providedServices.set(service, plugin.name);
     }
     names.add(plugin.name);
   }
