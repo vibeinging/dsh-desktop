@@ -26,7 +26,9 @@ npm run release:check:static
 npm run package:mac:dir
 npm run check:release-artifacts
 npm run check:release:budgets
+npm run measure:featured-plugins
 npm run smoke:official-web
+npm run smoke:featured-plugins:packaged
 npm run smoke:community:packaged
 npm run smoke:official-web:flow
 npm run smoke:official-web:interactions

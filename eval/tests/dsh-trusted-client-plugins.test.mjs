@@ -150,8 +150,13 @@ test("only audited community Client releases may enter the product Client graph"
 test("the curated Profile input has one authoritative list with explicit manageability", () => {
   const manifest = featuredPluginManifest();
   const plugins = featuredPlugins();
+  const rootPackage = JSON.parse(readFileSync(join(APP_ROOT, "package.json"), "utf8"));
+  const electronPackage = JSON.parse(readFileSync(join(APP_ROOT, "electron/package.json"), "utf8"));
   assert.equal(manifest.schema_version, 1);
   assert.equal(manifest.profile, "web");
+  assert.match(rootPackage.scripts["measure:featured-plugins"], /measure-featured-plugin-evidence/);
+  assert.match(rootPackage.scripts["smoke:featured-plugins:packaged"], /smoke:packaged-featured-plugins/);
+  assert.match(electronPackage.scripts["smoke:packaged-featured-plugins"], /smoke-packaged-featured-plugins/);
   assert.ok(plugins.length > 0);
   assert.equal(new Set(plugins.map((plugin) => plugin.name)).size, plugins.length);
   assert.deepEqual(plugins, manifest.plugins);
