@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -260,6 +260,16 @@ test('Windows acceptance receipt requires every real install lifecycle check', (
   assert.equal(isWindowsAcceptanceReceipt(receipt), true);
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, checks: receipt.checks.slice(1) }), false);
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, passed: false }), false);
+});
+
+test('Windows release evidence workflow requires signing, installer acceptance, and signature verification', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/windows-release-evidence.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /WIN_CSC_LINK:/);
+  assert.match(workflow, /WIN_CSC_KEY_PASSWORD:/);
+  assert.match(workflow, /npm run package:win\b/);
+  assert.match(workflow, /smoke:win:acceptance/);
+  assert.match(workflow, /release:verify:win/);
+  assert.match(workflow, /windows-x64-acceptance\.json/);
 });
 
 test('packaged smoke uses a platform system path without inheriting the user PATH', () => {

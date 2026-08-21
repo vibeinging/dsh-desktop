@@ -1,0 +1,79 @@
+name: Windows Release Evidence
+
+# This workflow is intentionally manual. It consumes the Windows code-signing
+# certificate and runs the real installer acceptance on a Windows x64 runner.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    name: Windows x64 signed release evidence
+    runs-on: windows-2025
+    timeout-minutes: 120
+    env:
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            renderer/package-lock.json
+            server/package-lock.json
+            electron/package-lock.json
+
+      - name: Cache Electron and builder downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\electron-builder\Cache
+          key: electron-win-x64-v1
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+        env:
+          npm_config_replace_registry_host: registry.npmjs.org
+
+      - name: Check native runtime
+        run: npm run doctor
+
+      - name: Audit production dependencies
+        run: npm run audit:prod
+
+      - name: Run release tests
+        run: npm run test:release
+
+      - name: Build signed NSIS installer
+        run: npm run package:win
+
+      - name: Run installed Windows acceptance
+        run: npm --prefix electron run smoke:win:acceptance
+
+      - name: Verify signed release
+        run: npm run release:verify:win -- --app "release/win-unpacked/DSH Desktop.exe"
+
+      - name: Upload Windows release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-windows-x64-release-evidence-${{ github.run_id }}
+          path: |
+            release/*.exe
+            release/windows-x64-acceptance.json
+          if-no-files-found: ignore
+          retention-days: 14
