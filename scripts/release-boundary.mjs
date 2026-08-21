@@ -8,6 +8,25 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const RETIRED_NAMES = ["dsh-work-shell", "dsh-theme-pack", "dsh-workbench-pages"];
+const RETIRED_PUBLIC_IMAGE_NAMES = [
+  "dsh-product-bridge.jpg",
+  "dsh-product-bridge.png",
+  "dsh-profile-bundles.jpg",
+  "dsh-profile-bundles.png",
+  "dsh-trajectory.gif",
+  "dsh-trajectory.png",
+  "dsh-web-ui-task-board.png",
+  "dsh-work-canvas.png",
+  "dsh-work-files.png",
+  "dsh-work-home-professional-dark.png",
+  "dsh-work-home-professional-light.png",
+  "dsh-work-home.png",
+  "dsh-work-project-session.png",
+  "dsh-work-site.png",
+  "dsh-work-themes.png",
+  "dsh-work-worktree.gif",
+  "dsh-work-worktree.png",
+];
 const JS_EXTENSIONS = new Set([".cjs", ".js", ".mjs"]);
 
 function readText(path) {
@@ -100,8 +119,18 @@ export function inspectOfficialWebReleaseBoundary(root = ROOT) {
   if (existsSync(join(appRoot, "server/src/engine/dsh_runtime/trusted_client_plugins.js"))) {
     errors.push("旧的重复精选插件清单仍存在");
   }
+  errors.push(...inspectPublicReleaseAssets(appRoot));
   errors.push(...inspectFeaturedPluginDocs(appRoot, featured));
   return errors;
+}
+
+/** Reject public screenshots that advertise retired Renderer surfaces. */
+export function inspectPublicReleaseAssets(root = ROOT) {
+  const appRoot = resolve(root);
+  const imageRoot = join(appRoot, "docs", "images", "readme");
+  return RETIRED_PUBLIC_IMAGE_NAMES
+    .filter((name) => existsSync(join(imageRoot, name)))
+    .map((name) => `公开素材仍包含退役 UI 图片：docs/images/readme/${name}`);
 }
 
 function packageNameFromSource(source) {

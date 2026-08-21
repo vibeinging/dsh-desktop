@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,7 +11,10 @@ import {
   hasAgentSandboxDefault,
   hasVexDistributionAuthorization,
 } from '../../scripts/release-safety.mjs';
-import { inspectCommunityAssetLicenseBoundary } from '../../scripts/release-boundary.mjs';
+import {
+  inspectCommunityAssetLicenseBoundary,
+  inspectPublicReleaseAssets,
+} from '../../scripts/release-boundary.mjs';
 import {
   WINDOWS_ACCEPTANCE_CHECKS,
   createWindowsAcceptanceReceipt,
@@ -137,6 +140,23 @@ test('community skin assets need an explicit redistribution decision before rele
       }],
     }));
     assert.deepEqual(inspectCommunityAssetLicenseBoundary(root), []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('public README assets exclude retired Renderer screenshots', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-release-public-assets-'));
+  const imageRoot = join(root, 'docs', 'images', 'readme');
+  try {
+    mkdirSync(imageRoot, { recursive: true });
+    writeFileSync(join(imageRoot, 'dsh-work-home.png'), 'retired');
+    assert.deepEqual(inspectPublicReleaseAssets(root), [
+      '公开素材仍包含退役 UI 图片：docs/images/readme/dsh-work-home.png',
+    ]);
+    rmSync(join(imageRoot, 'dsh-work-home.png'));
+    writeFileSync(join(imageRoot, 'dsh-official-web-session-loopback.png'), 'current');
+    assert.deepEqual(inspectPublicReleaseAssets(root), []);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
