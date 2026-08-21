@@ -6,6 +6,7 @@ const appRoot = new URL("../..", import.meta.url);
 const electronMain = readFileSync(new URL("electron/main.js", appRoot), "utf8");
 const electronPackage = JSON.parse(readFileSync(new URL("electron/package.json", appRoot), "utf8"));
 const featured = JSON.parse(readFileSync(new URL("server/src/engine/dsh_runtime/featured_plugins.json", appRoot), "utf8"));
+const desktopWebPatch = readFileSync(new URL("server/src/engine/dsh_runtime/desktop_web.patch.yml", appRoot), "utf8");
 const officialWebFlowSmoke = readFileSync(new URL("electron/scripts/smoke-packaged-official-web-flow.mjs", appRoot), "utf8");
 const nativeHostSmoke = readFileSync(new URL("electron/scripts/smoke-packaged-native-host.mjs", appRoot), "utf8");
 const defaultDevScript = readFileSync(new URL("scripts/dev.mjs", appRoot), "utf8");
@@ -49,6 +50,10 @@ test("the release package does not ship a product preload bridge", () => {
 test("the default development entry does not rebuild the retired Renderer", () => {
   assert.doesNotMatch(defaultDevScript, /buildDshClientPlugin|build:dsh-client|dsh-work Client Plugin/);
   assert.match(defaultDevScript, /默认开发入口使用官方 DSH Web/);
+});
+
+test("the official Web overlay does not disable the community compat shim", () => {
+  assert.doesNotMatch(desktopWebPatch, /id:\s*web-ui-compat[\s\S]{0,100}?disabled:\s*true/);
 });
 
 test("legacy Renderer is not a default desktop dependency", () => {

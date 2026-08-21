@@ -26,6 +26,7 @@ async function inspectOfficialSurface(window) {
         officialWeb: Boolean(document.querySelector("#root") && globalThis.__DSH_BOOT__),
         modelInheritanceClientLoaded: resources.some((url) => url.includes("/plugins/@vibeinging/dsh-model-inheritance/client.js")),
         taskBoardClientLoaded: resources.some((url) => url.includes("/plugins/@linxin666/dsh-client-ui-task-board/client.js")),
+        compatClientLoaded: resources.some((url) => url.includes("/plugins/@linxin666/dsh-web-ui-all/client.js")),
         productShellLoaded: resources.some((url) => url.includes("/plugins/@vibeinging/dsh-work-shell/client.js")),
         bodyChildCount: document.body.childElementCount,
       };
@@ -34,6 +35,29 @@ async function inspectOfficialSurface(window) {
     await sleep(200);
   }
   throw new Error(`official Web Client graph did not start: ${JSON.stringify(latest)}`);
+}
+
+async function inspectCompat(window) {
+  const deadline = Date.now() + 30_000;
+  let latest = null;
+  while (Date.now() < deadline) {
+    latest = await window.webContents.executeJavaScript(`(() => {
+      const panes = ['sidebar', 'conversation', 'details'];
+      return {
+        paneHooks: panes.every((pane) => Boolean(document.querySelector('[data-pane="' + pane + '"]'))),
+        frame: Boolean(document.querySelector('[data-dsh-frame]')),
+      };
+    })()`, true).catch(() => null);
+    if (latest?.paneHooks && latest.frame) break;
+    await sleep(200);
+  }
+  if (!latest?.paneHooks || !latest.frame) {
+    throw new Error(`web-ui compat Client did not stamp the official AppFrame: ${JSON.stringify(latest)}`);
+  }
+  return {
+    compatPaneHooks: latest.paneHooks,
+    compatFrame: latest.frame,
+  };
 }
 
 async function inspectTaskBoard(window) {
@@ -141,6 +165,7 @@ app.whenReady().then(async () => {
     const result = {
       ...(await inspectOfficialSurface(window)),
       ...(communityUi === "task-board" ? await inspectTaskBoard(window) : {}),
+      ...(communityUi === "compat" ? await inspectCompat(window) : {}),
     };
     process.stdout.write(`${RESULT_PREFIX}${JSON.stringify(result)}\n`);
     app.quit();

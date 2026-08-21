@@ -11,6 +11,9 @@ import { fileURLToPath } from "node:url";
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_CLI = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh/lib/bin.js");
 const MODEL_INHERITANCE_PACKAGE = resolve(APP_ROOT, "packages/dsh-model-inheritance");
+const COMPAT_PACKAGE = "@linxin666/dsh-web-ui-all@0.1.20";
+const COMPAT_PACKAGE_NAME = "@linxin666/dsh-web-ui-all";
+const RUN_COMPAT_E2E = process.env.DSH_LIVE_COMPAT_TEST === "1";
 const ELECTRON_FIXTURE = resolve(APP_ROOT, "eval/fixtures/official-web-electron.cjs");
 const requireFromElectron = createRequire(resolve(APP_ROOT, "electron/package.json"));
 const ELECTRON_EXECUTABLE = requireFromElectron("electron");
@@ -56,6 +59,12 @@ function waitForOfficialSurface(child) {
       rejectSurface(new Error(`official Web Profile exited with ${code}:\n${output}`));
     });
   });
+}
+
+async function stopServer(child) {
+  if (!child || child.exitCode !== null) return;
+  child.kill("SIGTERM");
+  await new Promise((resolveExit) => child.once("exit", resolveExit));
 }
 
 test("our portable Bundle installs and runs in an unmodified official Web Profile", {
@@ -114,11 +123,131 @@ test("our portable Bundle installs and runs in an unmodified official Web Profil
     assert.equal(result.modelInheritanceClientLoaded, false);
     assert.equal(result.productShellLoaded, false);
     assert.equal(result.bodyChildCount > 0, true);
+
+    await stopServer(server);
+    server = null;
+    await runCommand(process.execPath, [
+      DSH_CLI,
+      "plugin", "--profile", "web", "remove", "@vibeinging/dsh-model-inheritance",
+    ], { cwd: APP_ROOT, env });
+    const removedManifest = JSON.parse(await readFile(join(profileDir, "package.json"), "utf8"));
+    assert.equal(removedManifest.dsh?.profile?.bundles?.includes("@vibeinging/dsh-model-inheritance"), false);
+    assert.equal(Object.hasOwn(removedManifest.dependencies || {}, "@vibeinging/dsh-model-inheritance"), false);
+
+    server = spawn(process.execPath, [DSH_CLI, "--profile", "web", "--port", "0"], {
+      cwd: APP_ROOT,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const restoredSurface = await waitForOfficialSurface(server);
+    const restoredHtml = await fetch(restoredSurface).then((response) => {
+      assert.equal(response.ok, true);
+      return response.text();
+    });
+    assert.doesNotMatch(restoredHtml, /\/plugins\/@vibeinging\/dsh-model-inheritance\/client\.js\?rev=/);
+    const restoredOutput = await runCommand(ELECTRON_EXECUTABLE, [ELECTRON_FIXTURE], {
+      cwd: APP_ROOT,
+      env: {
+        ...process.env,
+        DSH_OFFICIAL_WEB_URL: restoredSurface,
+        DSH_OFFICIAL_WEB_USER_DATA: join(dshHome, "electron-user-data-restored"),
+      },
+    });
+    const restoredLine = restoredOutput.split(/\r?\n/).find((line) => line.startsWith("DSH_OFFICIAL_WEB_RESULT "));
+    assert.ok(restoredLine, `missing restored browser result:\n${restoredOutput}`);
+    const restoredResult = JSON.parse(restoredLine.slice("DSH_OFFICIAL_WEB_RESULT ".length));
+    assert.equal(restoredResult.officialWeb, true);
+    assert.equal(restoredResult.modelInheritanceClientLoaded, false);
+    assert.equal(restoredResult.productShellLoaded, false);
+    await stopServer(server);
+    server = null;
   } finally {
-    if (server && server.exitCode === null) {
-      server.kill("SIGTERM");
-      await new Promise((resolveExit) => server.once("exit", resolveExit));
-    }
+    await stopServer(server);
+    await rm(dshHome, { recursive: true, force: true });
+  }
+});
+
+test("the real dsh-web-ui aggregate compat Client installs, stamps the official Web, and uninstalls", {
+  timeout: 300_000,
+  skip: RUN_COMPAT_E2E
+    ? false
+    : "set DSH_LIVE_COMPAT_TEST=1 to run the network-backed compat Profile and Electron gate",
+}, async () => {
+  const dshHome = await mkdtemp(join(tmpdir(), "dsh-web-ui-compat-"));
+  let server;
+  const env = {
+    ...process.env,
+    DEEPSEEK_API_KEY: "",
+    DSH_HOME: dshHome,
+    DSH_TELEMETRY_DISABLED: "1",
+  };
+  const profileDir = join(dshHome, "profiles", "web");
+  try {
+    await runCommand(process.execPath, [
+      DSH_CLI,
+      "plugin", "--profile", "web", "add", "-w", COMPAT_PACKAGE,
+      "--save-exact", "--ignore-scripts",
+    ], { cwd: APP_ROOT, env, timeoutMs: 240_000 });
+    const installedManifest = JSON.parse(await readFile(join(profileDir, "package.json"), "utf8"));
+    assert.equal(installedManifest.dsh?.profile?.bundles?.includes(COMPAT_PACKAGE_NAME), true);
+    assert.equal(Object.hasOwn(installedManifest.dependencies || {}, COMPAT_PACKAGE_NAME), true);
+
+    server = spawn(process.execPath, [DSH_CLI, "--profile", "web", "--port", "0"], {
+      cwd: APP_ROOT,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const surface = await waitForOfficialSurface(server);
+    const browserOutput = await runCommand(ELECTRON_EXECUTABLE, [ELECTRON_FIXTURE], {
+      cwd: APP_ROOT,
+      env: {
+        ...process.env,
+        DSH_OFFICIAL_WEB_URL: surface,
+        DSH_OFFICIAL_WEB_USER_DATA: join(dshHome, "electron-user-data-compat"),
+        DSH_OFFICIAL_WEB_COMMUNITY_UI: "compat",
+      },
+      timeoutMs: 90_000,
+    });
+    const resultLine = browserOutput.split(/\r?\n/).find((line) => line.startsWith("DSH_OFFICIAL_WEB_RESULT "));
+    assert.ok(resultLine, `missing compat browser result:\n${browserOutput}`);
+    const result = JSON.parse(resultLine.slice("DSH_OFFICIAL_WEB_RESULT ".length));
+    assert.equal(result.officialWeb, true);
+    assert.equal(result.compatClientLoaded, true);
+    assert.equal(result.compatPaneHooks, true);
+    assert.equal(result.compatFrame, true);
+
+    await stopServer(server);
+    server = null;
+    await runCommand(process.execPath, [
+      DSH_CLI,
+      "plugin", "--profile", "web", "remove", COMPAT_PACKAGE_NAME,
+    ], { cwd: APP_ROOT, env, timeoutMs: 120_000 });
+    const removedManifest = JSON.parse(await readFile(join(profileDir, "package.json"), "utf8"));
+    assert.equal(removedManifest.dsh?.profile?.bundles?.includes(COMPAT_PACKAGE_NAME), false);
+    assert.equal(Object.hasOwn(removedManifest.dependencies || {}, COMPAT_PACKAGE_NAME), false);
+
+    server = spawn(process.execPath, [DSH_CLI, "--profile", "web", "--port", "0"], {
+      cwd: APP_ROOT,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const restoredSurface = await waitForOfficialSurface(server);
+    const restoredOutput = await runCommand(ELECTRON_EXECUTABLE, [ELECTRON_FIXTURE], {
+      cwd: APP_ROOT,
+      env: {
+        ...process.env,
+        DSH_OFFICIAL_WEB_URL: restoredSurface,
+        DSH_OFFICIAL_WEB_USER_DATA: join(dshHome, "electron-user-data-compat-restored"),
+      },
+      timeoutMs: 90_000,
+    });
+    const restoredLine = restoredOutput.split(/\r?\n/).find((line) => line.startsWith("DSH_OFFICIAL_WEB_RESULT "));
+    assert.ok(restoredLine, `missing restored compat browser result:\n${restoredOutput}`);
+    const restoredResult = JSON.parse(restoredLine.slice("DSH_OFFICIAL_WEB_RESULT ".length));
+    assert.equal(restoredResult.officialWeb, true);
+    assert.equal(restoredResult.compatClientLoaded, false);
+  } finally {
+    await stopServer(server);
     await rm(dshHome, { recursive: true, force: true });
   }
 });

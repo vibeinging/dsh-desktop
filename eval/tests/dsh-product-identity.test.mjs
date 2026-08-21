@@ -6,14 +6,13 @@ function read(path) {
   return readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8')
 }
 
-test('product copy and package metadata use the DSH Desktop community identity', () => {
+test('release copy and package metadata use the DSH Desktop community identity', () => {
   assert.match(read('README.md'), /^# DSH Desktop$/m)
   assert.equal(JSON.parse(read('package.json')).productName, 'DSH Desktop')
   const electronManifest = JSON.parse(read('electron/package.json'))
   assert.equal(electronManifest.build.productName, 'DSH Desktop')
   assert.equal(JSON.parse(read('electron/package.json')).build.appId, 'com.vibeinging.dsh-desktop')
   assert.equal(electronManifest.author, 'vibeinging')
-  assert.match(read('renderer/index.html'), /DSH Desktop/)
   assert.match(read('server/src/config/app_name.js'), /DSH Desktop/)
   assert.match(read('server/.agents/plugins/marketplace.json'), /DSH 内置能力/)
 })
