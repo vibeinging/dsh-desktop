@@ -1,6 +1,8 @@
 import { fork } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataRoot } from "../../config/paths.js";
 import { dshRuntimeEnabled, resolveDshRuntimeDistribution } from "./source_locator.js";
@@ -9,6 +11,7 @@ import { ensureDshWorkspaceSession } from "./session_attachment.js";
 import { ensureDshProfileInitialized } from "./profile_initialization.js";
 
 const CHILD_PATH = fileURLToPath(new URL("./source_runtime_child.mjs", import.meta.url));
+const PROFILE_MODULE_LOADER_PATH = fileURLToPath(new URL("./profile_module_loader.mjs", import.meta.url));
 const CLIENT_PATCH_PATH = fileURLToPath(new URL("./desktop_web.patch.yml", import.meta.url));
 const START_TIMEOUT_MS = 60_000;
 const CLIENT_SURFACE_TIMEOUT_MS = 60_000;
@@ -130,6 +133,14 @@ export class DshRuntimeClient extends EventEmitter {
       env: childEnv,
       appRoot: this.env.DSH_APP_ROOT,
     });
+    const profileNodeModules = join(dshHome, "profiles", "web", "node_modules");
+    const electronProfileLoader = resolved.distribution === "npm"
+      && process.versions.electron
+      && existsSync(profileNodeModules);
+    const execArgv = electronProfileLoader
+      ? [...resolved.execArgv, `--experimental-loader=${PROFILE_MODULE_LOADER_PATH}`]
+      : resolved.execArgv;
+    if (electronProfileLoader) childEnv.DSH_PROFILE_NODE_MODULES = profileNodeModules;
     let launchPath = CHILD_PATH;
     let launchArgs = [];
     if (resolved.launch === "cli") {
@@ -138,7 +149,7 @@ export class DshRuntimeClient extends EventEmitter {
     }
     const child = this.spawn(launchPath, launchArgs, {
       execPath: process.execPath,
-      execArgv: resolved.execArgv,
+      execArgv,
       cwd: resolved.root,
       env: childEnv,
       stdio: ["ignore", "inherit", "inherit", "ipc"],
