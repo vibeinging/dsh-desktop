@@ -20,6 +20,6 @@ The model receives authorized App and project instructions from this Bundle in t
 
 ## Known Limitations and Deferred Work
 
-- The published rc.7 SDK does not contain a ProductHost package. The private `@vibeinging/dsh-work-product-host-ipc` adapter therefore provides the transport-independent services for now; this Bundle owns only App instruction context. Model inheritance and memory are independent portable/community Bundles, while Project, Canvas, Structured UI, and Office tools are independent desktop consumers. It can switch to a future published DSH provider without moving IPC back into feature code.
-- The rc.7 SDK packages are publicly readable and do not require `NPM_TOKEN`, but development must explicitly pin the `next`/rc.7 release family because `latest` still points to older releases for some leaf packages. Development must not link DSH source or mix different RC families.
+- The current public SDK does not provide this App-specific ProductHost. The private `@vibeinging/dsh-work-product-host-ipc` adapter therefore provides the transport-independent services; this Bundle owns only App instruction context. Model inheritance and memory are independent portable/community Bundles, while Project, Canvas, Structured UI, and Office tools are independent desktop consumers. It can switch to a future published DSH provider without moving IPC back into feature code.
+- The `0.1.1-rc.2` SDK packages are publicly readable and do not require `NPM_TOKEN`, but development must pin the exact release because registry dist-tags may lag behind published versions. Development must not link DSH source or mix different RC families.
 - The package is private; a packaged build must include the same reviewed Bundle revision and matching official NPM SDK versions.

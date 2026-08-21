@@ -123,7 +123,7 @@
       "permissions": ["读取和写入会话工作区文件", "启动 node-pty 终端和 Git 进程", "提供内嵌浏览器与第三方 Tab 工作台"],
       "native_dependencies": ["node-pty"],
       "install_scripts": ["scripts/install.sh", "scripts/install.ps1"],
-      "preflight_blocker": "当前版本要求 DSH 0.1.0-rc.8；同时包含 node-pty、Shell、文件、Git 和浏览器高权限能力，当前发行版固定为 rc.7，不能进入发行 Profile。",
+      "preflight_blocker": "该包的 DSH peer 范围 ^0.1.0-rc.8 不接受当前固定的 0.1.1-rc.2 预发布版本；同时包含 node-pty、Shell、文件、Git 和浏览器高权限能力，不能进入发行 Profile。",
       "priority": 40
     },
     {
@@ -143,7 +143,7 @@
       "required_dsh_runtime": "0.1.0-rc.8",
       "license": "BSD-3-Clause",
       "permissions": ["读取当前会话的已完成消息", "按用户操作 fork 并重新提交文本消息", "在浏览器端监督可恢复错误的重试"],
-      "preflight_blocker": "包的当前构建线为 DSH 0.1.0-rc.8；应用固定为 rc.7，因此预检会明确阻止安装，不能把它写入精选默认清单。",
+      "preflight_blocker": "该版本仍使用旧浏览器插件 manifest，并以 0.1.0-rc.8 作为已审查运行线；当前发行版固定为 0.1.1-rc.2，重新完成 Profile、Client 和 Electron 生命周期验收前不能进入精选默认清单。",
       "priority": 41
     },
     {
@@ -236,7 +236,7 @@
       "compatibility": "sdk-migration-required",
       "checked_at": "2026-08-16",
       "checked_commit": "5d4628929aa2695cab7b4534670c0ca3c9cd7652",
-      "preflight_blocker": "Two DSH SDK dependency ranges do not match the exact 0.1.0-rc.7 release line.",
+      "preflight_blocker": "Two DSH SDK dependency ranges do not match the exact 0.1.1-rc.2 release line.",
       "priority": 100
     },
     {

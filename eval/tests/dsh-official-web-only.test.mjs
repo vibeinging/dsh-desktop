@@ -57,6 +57,10 @@ test("the official Web overlay does not disable the community compat shim", () =
   assert.doesNotMatch(desktopWebPatch, /id:\s*web-ui-compat[\s\S]{0,100}?disabled:\s*true/);
 });
 
+test("the embedded official Web never opens a second system browser", () => {
+  assert.match(desktopWebPatch, /id:\s*web-runtime[\s\S]{0,240}?openBrowser:\s*false/);
+});
+
 test("legacy Renderer source and build entrypoints are retired", () => {
   assert.equal(existsSync(new URL("renderer/package.json", appRoot)), false);
   assert.equal(existsSync(new URL("renderer/vite.config.ts", appRoot)), false);

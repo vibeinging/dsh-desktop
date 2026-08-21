@@ -14,7 +14,7 @@
 | yiTrace DB | 0.1.8 | MIT | 随包 Trace 存储模块 |
 | SheetJS Community Edition | 0.20.3 | Apache-2.0 | 表格文件读取；许可证文本随 npm 包分发 |
 | VexDB Lite | 上游发行版 v0.0.17；随包文件见来源记录 | MIT | SQLite 向量扩展；许可证与来源见 `server/vendor/vexdb_lite/LICENSE` 和 `RELEASE-PROVENANCE.md` |
-| DeepSeek Harness npm runtime | 0.1.0-rc.7 | MIT | 官方 `@deepseek-ai/dsh`、`@deepseek-ai/dsh-web-app` 和 Cordis npm 包；不修改官方源码 |
+| DeepSeek Harness npm runtime | 0.1.1-rc.2 | MIT | 官方 `@deepseek-ai/dsh`、`@deepseek-ai/dsh-web-app` 和 Cordis npm 包；不修改官方源码 |
 | DSH Desktop first-party Bundles | 当前仓库版本 | BSD-3-Clause | `@vibeinging/*` 包通过官方 Profile 组合；许可证原文随包位于 `featured-plugins/licenses/BSD-3-Clause.txt`，逐包来源、权限和 SHA-256 由精选清单生成；默认清单不包含自研主题、替换 Shell 或工作台目录 |
 | DSH task-board candidate | `@linxin666/dsh-client-ui-task-board@0.1.20` | Apache-2.0 | 可选社区 Bundle；只按精确版本安装，不属于默认发行 Profile；来源、完整性和权限见 `server/src/engine/dsh_runtime/community_plugin_registry.json` |
 

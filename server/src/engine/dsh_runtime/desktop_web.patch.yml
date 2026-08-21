@@ -9,6 +9,9 @@
 
 - id: web-runtime
   config:
+    # Electron already owns the application window; never hand the URL to the
+    # operating system browser when the official Web Profile settles.
+    openBrowser: false
     printUrl: false
     surfaceContext: false
     trustedHosts: []

@@ -20,6 +20,6 @@ portable 的独立 `@vibeinging/dsh-model-inheritance` Bundle 记录父 Agent �
 
 ## 已知限制和后续工作
 
-- 已发布的 rc.7 SDK 不包含 ProductHost 包。因此目前由私有的 `@vibeinging/dsh-work-product-host-ipc` 适配器提供与传输无关的服务；这个 Bundle 只持有应用指令上下文。模型继承和记忆是独立的 portable/社区 Bundle，而项目、Canvas、Structured UI 和 Office 工具是独立的桌面消费方。它可以在将来切换到 DSH 发布的提供方，无需把 IPC 移回功能代码。
-- rc.7 SDK 包可以公开读取，不需要 `NPM_TOKEN`，但开发时必须显式固定 `next`/rc.7 发布系列，因为部分细包的 `latest` 仍指向旧版本。开发时不能链接 DSH 源码，也不能混装不同 RC 系列。
+- 当前公开 SDK 不提供这个应用专用的 ProductHost。因此由私有的 `@vibeinging/dsh-work-product-host-ipc` 适配器提供与传输无关的服务；这个 Bundle 只持有应用指令上下文。模型继承和记忆是独立的 portable/社区 Bundle，而项目、Canvas、Structured UI 和 Office 工具是独立的桌面消费方。它可以在将来切换到 DSH 发布的提供方，无需把 IPC 移回功能代码。
+- `0.1.1-rc.2` SDK 包可以公开读取，不需要 `NPM_TOKEN`，但开发时必须固定精确版本，因为 registry dist-tag 可能落后于已经发布的版本。开发时不能链接 DSH 源码，也不能混装不同 RC 系列。
 - 本包为私有包；成品必须携带相同的审核版本和匹配的官方 NPM SDK 版本。
