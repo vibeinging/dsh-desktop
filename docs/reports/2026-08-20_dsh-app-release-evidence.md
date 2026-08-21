@@ -33,6 +33,8 @@
 
 同一证据字段还记录每个 Bundle 的 `composition.plugin_id`、依赖服务、提供服务、路由、Slot 和已知冲突；清单加载时拒绝与 patch 不一致的插件 id，并拒绝多个精选 Bundle 重复提供同一个服务。当前 7 个 Host/portable 条目没有声明路由、Slot 或冲突；基础服务唯一提供 `productHost`、`officeArtifactHost` 和 `browserWorkspaceHost`，其余条目只声明所需的官方 Agent、Tool 或 Host 服务。
 
+`generate-featured-plugin-artifacts.mjs` 生成前还会读取每个包的真实入口和 `cordis.patch.yml`，将源码 `name`、`inject` 和 patch id 与精选组合记录逐项比较；组合证据不能只靠 JSON 手写通过。
+
 2026-08-21 的逐包测量命令为 `npm run measure:featured-plugins -- --output .desktop-build/reports/featured-plugin-evaluation.json`，运行环境为 macOS arm64、Node `v26.5.0`。7/7 个包通过；除桌面基础服务外的 6 个条目都额外安装清单已声明的 `@vibeinging/dsh-work-product-host-ipc` 支持 Bundle，以便验证真实的 Profile provider 依赖，不把无 Host 的 standalone Web 启动失败误判为包自身通过。表中的 Profile 数据目录大小是安装后总量（包含 DSH 官方依赖和声明的支持 Bundle），tarball 大小才是逐包随包增量；冷启动是源码 DSH CLI 到 loopback Web ready 的观测。
 
 | 精选包 | tarball bytes | 支持 Bundle | 安装后 Profile bytes | CLI cold Web ms | 生命周期 |
