@@ -1,57 +1,105 @@
-# DSH Desktop
+<h1 align="center">DSH Desktop</h1>
 
-[中文](README.md)
+<p align="center">
+  <strong>Official DeepSeek Harness Web and its plugin ecosystem, packaged as a native desktop app.</strong><br>
+  Official Web is the only primary interface, Profile is the only source of plugin state, and desktop capabilities are composed as Bundles.
+</p>
 
-DSH Desktop is a community-maintained Electron distribution of DeepSeek Harness (DSH). It runs the official DSH Web, Profile, Session, Agent, Tool, Skill, and MCP runtime locally. The main window shows only the official `dsh-web-app`; this project does not maintain a second Chat, home, settings, or plugin-center surface.
+<p align="center"><sub>An independent, community-maintained open-source project with no affiliation, partnership, authorization, or endorsement from DeepSeek.<br>English · <a href="README.md">中文</a> · <a href="README.anime.md">Anime README</a></sub></p>
 
-Profiles, Sessions, and local runtime data are stored under `~/.dsh` by default. Opening history does not upload that data automatically.
+<p align="center">
+  <a href="https://github.com/vibeinging/deepseek-harness-desktop-app"><img src="https://img.shields.io/github/stars/vibeinging/deepseek-harness-desktop-app?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/runtime-Electron-47848F?style=flat" alt="Electron runtime">
+  <img src="https://img.shields.io/badge/interface-official%20DSH%20Web-2563EB?style=flat" alt="Official DSH Web">
+  <img src="https://img.shields.io/badge/status-preview-F59E0B?style=flat" alt="Preview status">
+</p>
 
-## Use and development
+<p align="center">
+  <img src="docs/images/readme/dsh-community-task-board.png" alt="Community task board loaded through the official Profile in DSH Desktop" width="100%">
+</p>
 
-A packaged build includes the DSH Web runtime, fixed tarballs for the curated Bundles, and a controlled pnpm runtime. A new user does not need system Node.js, pnpm, npm login, or a first-run network download.
+DSH Desktop is a community-maintained Electron desktop distribution. It pins and runs the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm runtime, bringing `dsh-web-app`, Session, Agent, Tool, Skill, MCP, and Profile Bundles into one local app. The project does not modify DSH source code or maintain a second Chat, home, settings, or plugin center.
 
-Development requires Node.js 24 or later:
+This repository has not released a signed installer. The verified artifact is an unsigned macOS Apple Silicon directory build; the Windows signed installer, macOS Developer ID and notarization, native Intel x64, and real DeepSeek live-model evidence remain release acceptance items.
+
+## Key capabilities
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Official DSH Web on desktop</h3>
+      <p>Electron starts a local DSH Web Profile and manages the window, service startup, shutdown, and recovery. The main window loads the official Client graph directly, without the legacy Renderer or a product preload.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Default plugin market</h3>
+      <p><code>dshmarket@1.17.1</code> mounts in the official settings Slot and provides discovery, compatibility diagnostics, installation, updates, and removal. The market, settings page, and command line read and write the same Profile.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Community task board</h3>
+      <p>A fixed task-board release loads through the official Profile and provides Backlog, Todo, In Progress, Done, and Failed columns. Its installation and removal have been tested in real Electron.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Narrow native Host</h3>
+      <p>Window, file authorization, Browser Workspace, and update capabilities are exposed only through method allowlists and Session binding. Third-party Clients cannot access Electron, Node, or general IPC.</p>
+    </td>
+  </tr>
+</table>
+
+## Current interface
+
+### Official Sessions, questions, and approvals
+
+![Official DSH Web Session](docs/images/readme/dsh-official-web-session-loopback.png)
+
+This screenshot comes from a local fake-model interaction smoke in the current packaged macOS arm64 Electron app. It exercises the official Session, questions, approvals, tool calls, message queue, and Session history, but does not represent live-model evidence from the real DeepSeek service.
+
+### Plugin market in official settings
+
+![Default plugin market in official Web settings](docs/images/readme/dsh-plugin-market.png)
+
+The market mounts as an independent Client Bundle in the official settings Slot. The screenshot proves that the page and community catalog load; a separate packaged lifecycle test verifies installation, disabling, official removal, and restart recovery after removal.
+
+## Quick start
+
+Local development requires Node.js 24 or later:
 
 ```bash
+git clone https://github.com/vibeinging/deepseek-harness-desktop-app.git
+cd deepseek-harness-desktop-app
 npm install
 npm run doctor
 npm run dev:electron
 ```
 
-The default desktop setup installs and checks only Server and Electron; the repository no longer maintains a second Renderer. Packaging verifies the bundled official Web assets with `npm run verify:official-web-assets`, and the main window always starts from the official DSH Web Profile.
-
-Build and release-boundary checks:
+macOS Apple Silicon directory build:
 
 ```bash
-npm run check:release-boundary
-npm run release:check:static
 npm run package:mac:dir
-npm run check:release-artifacts
-npm run check:release:budgets
-npm run measure:featured-plugins
-npm run smoke:official-web
-npm run smoke:featured-plugins:packaged
-npm run smoke:community:packaged
-npm run smoke:official-web:flow
-npm run smoke:official-web:interactions
-npm run smoke:updater
-npm run smoke:browser-workspace
-DSH_BROWSER_SCREENSHOT_DIR=/path/to/evidence npm run smoke:browser-workspace
-npm run test:release
-npm run test:release:community
-# Save the real community task-board Electron screenshot
-DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence npm run test:release:community
+open "release/mac-arm64/DSH Desktop.app"
 ```
 
-## Profile and plugin state
+This command creates an unsigned development build, not a signed installer ready for distribution.
 
-The DSH Profile is the sole authority for plugin state. Startup, status queries, and application updates read the existing `dsh.profile.bundles`, dependencies, and patches. They do not restore, isolate, delete, or rewrite the user's choices. A Bundle disabled or removed by the user stays removed across restarts, application updates, and curated-list changes.
+## Plugin ecosystem
 
-Only a new Profile is initialized in an isolated directory through the official `dsh plugin --profile web` commands. Install, update, and removal use the official DSH Profile commands with fixed tarballs, verified SHA-256 values, and the bundled pnpm runtime.
+The DSH Profile is the sole authority for plugin state. A new Profile installs the default Bundles atomically through the official `dsh plugin --profile web` command. Existing Profiles remain read-only during app updates: the app does not restore, remove, or rewrite user choices. Bundles disabled or removed by the user stay disabled or removed after restarts and upgrades.
 
-There is one curated input: [featured_plugins.json](server/src/engine/dsh_runtime/featured_plugins.json). It generates packaged tarballs, new-Profile installation input, permission summaries, third-party notices, and test expectations. Other code and documentation do not maintain another default package list.
+Most users can open **Settings → Plugin Market**. The command line uses the same Profile:
 
-The default set contains nine first-party desktop capability Bundles plus the independent community task board and plugin market, all installed through the official Profile. The task board and market mount only through standard official Web Slots; they do not replace official Chat, Sessions, the settings framework, or the application shell. The source, permissions, and official management method for each entry are generated from the [curated manifest](server/src/engine/dsh_runtime/featured_plugins.json); application updates do not reinstall an entry the user removed. First-party packages use the `@vibeinging/*` scope; official DSH SDK packages keep the `@deepseek-ai/*` scope.
+```bash
+dsh plugin --profile web add -w <package>@<exact-version> --save-exact --ignore-scripts
+dsh plugin --profile web remove <package>
+```
+
+New Profiles install the fixed `dshmarket@1.17.1` release by default. The distribution includes a reviewed fixed tarball, its complete runtime dependency closure, and SHA-256 values; default initialization needs no npm network access and runs no upstream lifecycle scripts. Browsing the market reaches the community catalog, while installation and updates may reach npm or GitHub. WebDAV and Gist are used only after explicit user configuration. A plugin appearing in the market is not necessarily bundled or approved for the distribution.
+
+On the desktop side, `@vibeinging/dsh-desktop-profile-host` exposes only two public structural services: `desktopProfiles` and `desktopPnpm`. The market delegates user-confirmed operations to the packaged pnpm runtime and the official DSH CLI; it cannot acquire Electron permissions or restart the app itself.
+
+<details>
+<summary>View the 11 Bundles installed in a new Profile</summary>
 
 <!-- featured-plugins:start -->
 | Default Bundle | Type | Declared permissions | Official management | Source |
@@ -69,81 +117,65 @@ The default set contains nine first-party desktop capability Bundles plus the in
 | `dshmarket` | portable | read and modify dependencies, Bundle order, and enabled state in the active DSH Profile, install, update, and remove user-confirmed plugins through controlled pnpm, access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services, export or import backups that contain Profile configuration | `dsh plugin --profile web remove dshmarket` | [upstream repository](https://github.com/dsh-market/dsh-market) |
 <!-- featured-plugins:end -->
 
-## Optional plugins
+</details>
 
-The app does not create a second installation state. The default market, official Web settings, and command line read and write the same DSH Profile. The market owns discovery and interaction, while the official Profile and Loader remain responsible for installation, disabling, updating, and removal.
+## Developing plugins
 
-### Default plugin market
+App capabilities are split into two boundary types:
 
-New Profiles install the fixed `dshmarket@1.17.1` release by default. It registers its page in the official Web `settings.section` Slot and provides catalog search, installed-plugin views, compatibility diagnostics, theme selection, updates, and removal without creating another desktop settings page. The distribution carries an audited fixed tarball, its complete dependency closure, and SHA-256 values. Initialization uses `--ignore-scripts`, so first launch does not require npm and does not run the upstream `prepare` or `prepack` scripts.
+- A `portable` Bundle uses only official DSH services and can be installed in a compatible official Web Profile.
+- A `desktop-adapter` Bundle uses the narrow Host contract provided by DSH Desktop and should report the missing capability directly when used outside the desktop host.
 
-The desktop-side `@vibeinging/dsh-desktop-profile-host` exposes only the public structural `desktopProfiles` and `desktopPnpm` contracts. The market reads the active `web` Profile and delegates user-confirmed operations to the packaged pnpm runtime and official `dsh plugin --profile web` command. Only one operation may run at a time, cancellation terminates the child process tree, and the market cannot restart Electron itself. Browsing reaches the community catalog; installation and updates may reach npm or GitHub; WebDAV and Gist are used only after explicit user configuration. Existing Profiles are not backfilled during upgrades, and a user-removed market stays removed.
+First-party Bundles live in [`packages/`](packages/). Prefer existing community plugins for new capabilities; add an independent Bundle only when the community has no reviewable implementation. Plugins must not modify official DSH source code directly or bypass the Profile by storing a second installation state.
 
-```bash
-dsh plugin --profile web add -w dshmarket@1.17.1 --save-exact --ignore-scripts
-dsh plugin --profile web remove dshmarket
-```
+For the plugin market integration, permissions, and offline boundary, see [Plugin market selection and desktop integration](docs/research/2026-08-22_dsh-plugin-market-selection.md). For the complete architecture and release sequence, see the [distribution migration plan](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md).
 
-The screenshot below comes from the current macOS arm64 directory build running in Electron with an isolated temporary Profile. The market is mounted in the official settings Slot. The screenshot proves page and catalog loading only; a separate packaged lifecycle test verifies installation, disabling, removal, and restart recovery.
+## Data and security
 
-![Default plugin market in official Web settings](docs/images/readme/dsh-plugin-market.png)
+- Profiles, Sessions, and local runtime data are stored under `~/.dsh` by default; opening history does not upload that data automatically.
+- Official Web `webContents` has no product preload, Node access, or general IPC.
+- If Profile or Client startup fails, the app opens a local recovery page instead of showing a blank window or silently changing the original Profile.
+- The recovery page can retry, start a safe Profile containing only the official `base` and `web-app`, open directories, remove a specified plugin after confirmation, and export filtered diagnostics.
+- Project code, third-party Bundles, and visual assets each follow their own licenses and redistribution terms.
 
-Our portable candidate:
+See the [privacy notice](PRIVACY.md), [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
 
-This package is currently maintained as a source candidate. Before it is published to npm, preflight it locally through the same official Profile commands:
+## Development and verification
 
-```bash
-dsh plugin --profile web add -w /path/to/dsh-work-references --save-exact --ignore-scripts
-dsh plugin --profile web remove @vibeinging/dsh-work-references
-```
-
-It provides bounded relative file references under the current DSH Session workspace and never accepts an absolute path from the browser.
-
-The independent community Bundle `@linxin666/dsh-client-ui-task-board@0.2.7` (upstream [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui)) is now part of the default curated set for new Profiles. The release tarball bundles `schemastery` and its dependency closure, so first initialization does not need npm access. It has passed official Web activation, the real Electron entry and five-column board, disabling, official removal, and restart-after-removal checks. It reads DSH Sessions, Workspace state, and completion history; writes its task ledger under `DSH_HOME`; can start tasks from user actions or Host cron; and exposes a fixed cross-platform sleep-prevention helper that is disabled by default. Existing Profiles are not backfilled during application updates, and a user-removed Bundle stays removed. `DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run test:release:community` saves a development real-Electron board screenshot; `DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run smoke:community:packaged` saves three packaged frames: default activation, the official baseline after removal, and activation after reinstalling from the bundled tarball:
+Common checks:
 
 ```bash
-dsh plugin --profile web add -w @linxin666/dsh-client-ui-task-board@0.2.7 --save-exact --ignore-scripts
-dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
+npm run test:release
+npm run typecheck
+npm run check:release-boundary
+npm run check:release-artifacts
+npm run check:release:budgets
+npm run measure:featured-plugins
 ```
 
-To include the installer source in the community regression, on macOS mount the DMG read-only, copy the App from it, and run the same official install, activation, removal, and restart checks:
+The latest local verification passed 170 of 173 release tests, with 3 conditional skips and no failures. All 11 default Bundles passed per-package Profile installation and lifecycle measurement. `dshmarket` and the task board also passed activation, disabling, official removal, and restart recovery in the current packaged macOS arm64 Electron app.
 
-```bash
-DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence DSH_MACOS_INSTALLER_RESULT_FILE=/path/to/evidence/macos-installer.json npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg
-```
+This evidence does not replace macOS Developer ID, notarization, a Windows signed installer, native Intel x64, or a real DeepSeek live-model receipt. Until the repository publishes a formal Release, the unsigned directory build is not described as a downloadable distribution.
 
-`@linxin666/dsh-web-ui-all` is used only for conflict experiments and is not a release input. Better Sidebar, remote Web, SSH, image understanding, Agent presets, and other unreviewed community plugin managers are not in the default Profile. A community package does not enter the curated set without a fixed source, dependency review, real Electron evidence, and uninstall evidence.
+## Related projects
 
-The Skin Center and its `@linxin666/dsh-skins` dependency are not distributed with the app. A package-level Apache-2.0 license does not automatically cover every built-in visual asset; the upstream package identifies Maid Atelier assets as CC BY-NC-SA 4.0, so they cannot enter the release package without separate redistribution permission. The decision is recorded in the [community plugin registry](server/src/engine/dsh_runtime/community_plugin_registry.json), and the release boundary rejects unapproved visual assets from the curated set. The Skin Center can be reconsidered only after every asset has a verified license, attribution, and redistribution condition.
+| Project | Relationship |
+| --- | --- |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Provides the core Agent, Session, Tool, Skill, MCP, Profile, and official Web |
+| [Cordis](https://github.com/cordiverse/cordis) | Provides the plugin foundation |
+| [dsh-market](https://github.com/dsh-market/dsh-market) | The visual plugin market bundled by default |
+| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Upstream community repository for the current task board |
+| [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) | Another independent community desktop distribution |
+| [dshfind](https://www.dshfind.com/en) | A community for learning, sharing, and discovering DSH plugins |
 
-## Verified screenshots
+<p align="center"><a href="https://www.dshfind.com/en"><img src="https://dshfind.com/api/badge/vibeinging/dsh-work?lang=en" alt="dshfind listing card"></a></p>
 
-![Official DSH Web Session and trajectory](docs/images/readme/dsh-official-web-session-loopback.png)
+## Relationship to DeepSeek Harness
 
-This image comes from the current packaged Electron loopback SSE interaction smoke and shows the official Web Session, trajectory, and tool-result projection; it is not evidence from a live DeepSeek model.
+DSH Desktop is an independent community project built on DeepSeek Harness and the Cordis plugin model. Upstream provides the core runtime, plugin system, and Web UI; this project provides the Electron wrapper, offline initialization for new Profiles, curated community Bundles, narrow native Host, recovery page, and desktop release verification.
 
-![Default community task board inside official Web](docs/images/readme/dsh-community-task-board.png)
+This project has no affiliation, partnership, authorization, or endorsement from DeepSeek. “DeepSeek Harness” is used only to describe compatibility and technical origins accurately.
 
-This image comes from a real Electron regression of the fixed-version community Bundle and shows the task board activated inside the official Web root with five columns. It is now a default Bundle for new Profiles, while existing Profiles remain user-authoritative.
+## License
 
-## Electron native boundary
-
-The `webContents` that hosts the official Web has no product preload, Node access, or general IPC. The Electron main process retains only narrow native Host services for windows, updates, file authorization, and Browser Workspace. Browser navigation, tabs, downloads, history, find-in-page, zoom, page capture, and permission requests use an allowlisted method set, Session binding, and boundary validation. A third-party Client cannot access Electron objects or the Node filesystem.
-
-Official Web Sessions receive native window Host access only for allowlisted methods and never carry dsh-work user or project identity. `smoke:native-host` has now exercised state, focus, minimize, maximize, and restore through the packaged macOS arm64 Electron app, then removed the test Bundle through the official Profile command. The explicit manual `smoke:native-host:dialogs` mode has also completed file and directory selection on the packaged macOS arm64 app; cross-platform window interaction and native x64 acceptance still require their release environments.
-
-## Startup recovery
-
-When the DSH child, Profile parsing, or Client startup fails, the app opens a local recovery page instead of showing a blank window or silently changing the original Profile. The page supports retrying the original Profile, starting a safe Profile containing only the official `base` and `web-app` without modifying the original, opening the Profile directory, removing a named plugin after explicit confirmation, and exporting filtered diagnostics.
-
-Diagnostics are bounded and omit environment variables, credentials, Session content, user-file content, and full stacks. The latest failure stage and action result are stored in restricted local recovery state to avoid an endless restart loop.
-
-## Evidence levels
-
-Source inspection and unit tests do not substitute for real release evidence. The repository keeps these levels separate:
-
-- Source and Profile integration: official Web composition, read-only existing Profiles, fixed tarballs, offline initialization, and permission projection tests;
-- Real Electron: official Web startup without preload, workspace, Session, Session log, history user flow, community task-board entry/five-column board/activation inside the official Web root, Browser Workspace WebContentsView smoke, and the packaged macOS arm64 session-bound window and file/directory Host flows. `smoke:official-web:flow` uses a temporary user directory without an API key and can save an official Web screenshot with `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow`; `DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run test:release:community` saves a development task-board screenshot and `DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run smoke:community:packaged` saves three packaged frames: default activation, the baseline after removal, and activation after bundled reinstall; `DSH_BROWSER_SCREENSHOT_DIR=/path npm run smoke:browser-workspace` saves a real WebContentsView screenshot; `npm run smoke:native-host` exercises the packaged official Web to Electron window Host chain for state, focus, minimize, maximize, and restore, while `npm run smoke:native-host:dialogs` is the explicit manual file/directory dialog mode; `smoke:official-web:interactions` uses a loopback SSE test model inside the same packaged Electron run to drive the official LLM adapter, the question card, bash sandbox denial/escalation, approval panel, QueueDock, and Session history, and saves question/approval/queue screenshots with `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:interactions`; it verifies the official runtime and UI contracts but does not replace live-model evidence against the real DeepSeek service; a credentialed release environment can run `DEEPSEEK_API_KEY=... npm run smoke:official-web:live` for the real-model baseline flow, while the command fails closed without a key; `smoke:updater` also exercises update metadata, fixed-hash download, Profile preflight, temporary app replacement, and history replay through a local HTTPS feed, but complete replacement requires a Developer ID-signed package;
-- Packaged app: `package:mac:dir` creates the packaged directory; `smoke:official-web` checks the packaged official Web; and `smoke:community:packaged` checks offline default initialization and activation, official removal with baseline preservation, and reinstall from the bundled tarball. `smoke:native-host` covers the real packaged official-Web-to-Electron-window-Host call chain; `smoke:native-host:dialogs` covers the manual macOS file/directory dialog flow; `smoke:macos:installer -- /path/to/*.dmg` mounts the DMG read-only, copies the App, and repeats that Profile lifecycle, with the current x64 DMG also passing under Rosetta; set `DSH_COMMUNITY_SCREENSHOT_DIR=/path` to save the default activation, post-removal baseline, and post-reinstall frames. Browser Workspace screenshots use Electron `capturePage` first and a controlled DevTools Page screenshot fallback when the current Viz compositor is unavailable. Windows hardware acceptance, native x64 acceptance, and real DeepSeek live-model evidence still require their release environments.
-
-See the [distribution migration plan](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md), [privacy notice](PRIVACY.md), [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
+Project code is available under the [MIT License](LICENSE). Sources and distribution terms for third-party components, fixed tarballs, native binaries, and visual assets are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
