@@ -46,11 +46,16 @@ function renderTable(manifest, language) {
   return lines.join("\n")
 }
 
-async function replaceGeneratedSection(path, section) {
+async function replaceGeneratedSection(path, section, count, language) {
   const text = await readFile(path, "utf8")
   const pattern = new RegExp(`${START_MARKER}[\\s\\S]*?${END_MARKER}`)
   if (!pattern.test(text)) throw new Error(`缺少精选插件文档标记: ${path}`)
-  await writeFile(path, text.replace(pattern, section))
+  const countPattern = language === "zh"
+    ? /(<summary>查看新 Profile 默认安装的 )\d+( 个 Bundle<\/summary>)/
+    : /(<summary>View the )\d+( Bundles installed in a new Profile<\/summary>)/
+  const withSection = text.replace(pattern, section)
+  if (!countPattern.test(withSection)) throw new Error(`缺少精选插件数量摘要: ${path}`)
+  await writeFile(path, withSection.replace(countPattern, `$1${count}$2`))
 }
 
 /**
@@ -66,7 +71,9 @@ export async function generateFeaturedPluginDocs({ appRoot = SCRIPT_ROOT } = {})
     [join(root, "README.md"), renderTable(manifest, "zh")],
     [join(root, "README.en.md"), renderTable(manifest, "en")],
   ]
-  for (const [path, section] of docs) await replaceGeneratedSection(path, section)
+  for (const [index, [path, section]] of docs.entries()) {
+    await replaceGeneratedSection(path, section, manifest.plugins.length, index === 0 ? "zh" : "en")
+  }
   return manifest.plugins.map((plugin) => plugin.name)
 }
 

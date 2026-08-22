@@ -32,7 +32,7 @@ This project and [anywhere-labs/deepseek-harness-desktop](https://github.com/any
 | Primary goal | Curate, review, and verify a composable set of DSH Bundles, preferring community plugins | Provide a complete desktop Shell and a cross-platform client ready for direct download |
 | DSH integration | Uses only a pinned official npm runtime and SDK, with no DSH source checkout | Pins the official DSH source as a submodule inside an outer Yarn project, with desktop code concentrated in `dsh-plugin-desktop` |
 | Interface strategy | Official Web is the only primary interface; even the desktop safe bar is a regular `dshClient` Bundle, with no second Renderer | Offers compatible and advanced presentation modes; advanced mode can install a Desktop-owned layout, frame, and native materials |
-| Default experience | Bundles community `dshmarket` and task-board plus independent Project, Canvas/Site, Structured UI, Office, and model-inheritance Bundles | Bundles a unified Desktop plugin, terminal, tray, Profile, updater, and DSH Community Market; mobile remote control is listed as future work |
+| Default experience | Bundles community `dshmarket` and task-board plus independent Git Worktree, Project, Canvas/Site, Structured UI, Office, and model-inheritance Bundles | Bundles a unified Desktop plugin, terminal, tray, Profile, updater, and DSH Community Market; mobile remote control is listed as future work |
 | Native boundary | Feature Bundles consume only Session-bound method allowlists; plugin installation still ends in the official DSH CLI | The third-party surface is similarly narrowed to `desktopProfiles` and `desktopPnpm`, while other native capabilities stay inside Desktop-owned plugins |
 | Current maturity | Preview; real macOS arm64 Electron and plugin lifecycles are verified, but no signed installer has been released | Provides formal Windows x64 and macOS Universal installers, with a more mature download experience |
 
@@ -58,7 +58,7 @@ If you only want to download a mature desktop client today, the anywhere-labs pr
     </td>
     <td width="50%" valign="top">
       <h3>Product capabilities are Bundles</h3>
-      <p>Project, Conversation, Canvas/Site, Structured UI, Office, and model inheritance live in separate Bundles. Feature code imports neither Electron nor general IPC, so a Host provider can be replaced later without rewriting the Tools.</p>
+      <p>Git Worktree, Project, Conversation, Canvas/Site, Structured UI, Office, and model inheritance live in separate Bundles. Feature code imports neither Electron nor general IPC, so a Host provider can be replaced later without rewriting the Tools.</p>
     </td>
   </tr>
   <tr>
@@ -86,6 +86,12 @@ This screenshot comes from a normal user conversation with real DeepSeek-V4-Flas
 ![Default plugin market in official Web settings](docs/images/readme/dsh-plugin-market.png)
 
 The market mounts as an independent Client Bundle in the official settings Slot. The screenshot proves that the page and community catalog load; a separate packaged lifecycle test verifies installation, disabling, official removal, and restart recovery after removal.
+
+### Git Worktree in an official Workspace
+
+![Git Worktree Bundle in official Web](docs/images/readme/dsh-worktree-official-web.png)
+
+Worktree is not the retired Renderer's project-settings page. It is an independently installable portable Bundle: the Host derives the Git main checkout only from the current DSH Session's fixed `cwd`; the Client contributes through the official `sidebar.footer.action`, `shell.overlay`, and `conversation.view` Slots and opens isolated Sessions through official Workspaces. The screenshot comes from the fixed-tarball installation in packaged macOS arm64 Electron; the same smoke also verifies disabling, official removal, and restart recovery after removal.
 
 ## Quick start
 
@@ -124,7 +130,7 @@ New Profiles install the fixed `dshmarket@1.17.1` release by default. The distri
 On the desktop side, `@vibeinging/dsh-desktop-profile-host` exposes only two public structural services: `desktopProfiles` and `desktopPnpm`. The market delegates user-confirmed operations to the packaged pnpm runtime and the official DSH CLI; it cannot acquire Electron permissions or restart the app itself.
 
 <details>
-<summary>View the 11 Bundles installed in a new Profile</summary>
+<summary>View the 12 Bundles installed in a new Profile</summary>
 
 <!-- featured-plugins:start -->
 | Default Bundle | Type | Declared permissions | Official management | Source |
@@ -138,6 +144,7 @@ On the desktop side, `@vibeinging/dsh-desktop-profile-host` exposes only two pub
 | `@vibeinging/dsh-model-inheritance` | portable | no Host permission | `dsh plugin --profile web remove @vibeinging/dsh-model-inheritance` | [local package](packages/dsh-model-inheritance) |
 | `@vibeinging/dsh-product-bridge` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-product-bridge` | [local package](packages/dsh-product-bridge) |
 | `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [local package](packages/dsh-office-tools) |
+| `@vibeinging/dsh-client-ui-worktree` | portable | no Host permission | `dsh plugin --profile web remove @vibeinging/dsh-client-ui-worktree` | [local package](packages/dsh-worktree) |
 | `@linxin666/dsh-client-ui-task-board` | portable | read current DSH Session, Workspace, and completion history, write task ledger and run records under DSH_HOME, start DSH Session tasks from user actions or Host cron, optionally start a fixed cross-platform sleep-prevention helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [upstream repository](https://github.com/zhu1090093659/dsh-web-ui) |
 | `dshmarket` | portable | read and modify dependencies, Bundle order, and enabled state in the active DSH Profile, install, update, and remove user-confirmed plugins through controlled pnpm, access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services, export or import backups that contain Profile configuration | `dsh plugin --profile web remove dshmarket` | [upstream repository](https://github.com/dsh-market/dsh-market) |
 <!-- featured-plugins:end -->
@@ -178,7 +185,7 @@ npm run check:release:budgets
 npm run measure:featured-plugins
 ```
 
-The latest local verification passed 170 of 173 release tests, with 3 conditional skips and no failures. All 11 default Bundles passed per-package Profile installation and lifecycle measurement. `dshmarket` and the task board also passed activation, disabling, official removal, and restart recovery in the current packaged macOS arm64 Electron app. A real DeepSeek-V4-Flash development smoke also passed official Web, Session history, provider-origin, and complete-response checks.
+The latest local verification passed 174 of 177 release tests, with 3 conditional skips and no failures. All 12 default Bundles passed per-package Profile installation and lifecycle measurement. `dshmarket`, the task board, and Worktree also passed activation, disabling, official removal, and restart recovery in the current packaged macOS arm64 Electron app. A real DeepSeek-V4-Flash development smoke also passed official Web, Session history, provider-origin, and complete-response checks.
 
 This evidence does not replace macOS Developer ID, notarization, a Windows signed installer, native Intel x64, or a live-model receipt bound to a formally signed artifact. Until the repository publishes a formal Release, the unsigned directory build is not described as a downloadable distribution.
 

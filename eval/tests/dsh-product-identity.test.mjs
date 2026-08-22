@@ -7,7 +7,7 @@ function read(path) {
 }
 
 test('release copy and package metadata use the DSH Desktop community identity', () => {
-  assert.match(read('README.md'), /^# DSH Desktop$/m)
+  assert.match(read('README.md'), /^<h1 align="center">DSH Desktop<\/h1>$/m)
   assert.equal(JSON.parse(read('package.json')).productName, 'DSH Desktop')
   const electronManifest = JSON.parse(read('electron/package.json'))
   assert.equal(electronManifest.build.productName, 'DSH Desktop')

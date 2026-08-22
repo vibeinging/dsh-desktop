@@ -1,8 +1,9 @@
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { promisify } from 'node:util'
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 import { pathWithPackagedBin, systemOnlyPath } from './packaged-smoke-environment.mjs'
 
@@ -17,6 +18,8 @@ const featuredArtifactManifest = join(featuredArtifactDir, 'manifest.json')
 const featuredSourceManifest = join(serverDir, 'src', 'engine', 'dsh_runtime', 'featured_plugins.json')
 const PRODUCT_HOST_PROVIDER = '@vibeinging/dsh-work-product-host-ipc'
 const DESKTOP_PROFILE_PROVIDER = '@vibeinging/dsh-desktop-profile-host'
+const WORKTREE_PLUGIN = '@vibeinging/dsh-client-ui-worktree'
+const execFileAsync = promisify(execFile)
 
 function requestedOnly() {
   const index = process.argv.indexOf('--only')
@@ -118,6 +121,15 @@ async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
   if (clientPlugin === '@vibeinging/dsh-desktop-chrome') {
     appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-dsh-desktop-titlebar]'
   }
+  if (clientPlugin === WORKTREE_PLUGIN) {
+    appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify([
+      'button[aria-label="新建会话"],button[aria-label="New session"]',
+      '[data-testid="dsh-worktree-sidebar-action"]',
+    ])
+    appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-testid="dsh-worktree-overlay"] [data-testid="dsh-worktree-view"]'
+  } else {
+    delete appEnv.DSH_SMOKE_WORKSPACE_PATH
+  }
   if (clientPlugin === 'dshmarket') {
     appEnv.DEEPSEEK_API_KEY = 'dsh-packaged-market-ui-smoke-not-used'
     appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify([
@@ -154,13 +166,28 @@ function supportBundles(plugin) {
   return support
 }
 
+async function prepareWorktreeFixture(pluginRoot) {
+  const workspace = join(pluginRoot, 'worktree-fixture')
+  await mkdir(workspace, { recursive: true })
+  const options = { cwd: workspace, env: { ...process.env, PATH: systemOnlyPath(), GIT_CONFIG_NOSYSTEM: '1' } }
+  await execFileAsync('git', ['init'], options)
+  await execFileAsync('git', ['config', 'user.name', 'DSH Worktree Smoke'], options)
+  await execFileAsync('git', ['config', 'user.email', 'worktree-smoke@example.invalid'], options)
+  await writeFile(join(workspace, 'README.md'), '# Worktree smoke fixture\n')
+  await execFileAsync('git', ['add', 'README.md'], options)
+  await execFileAsync('git', ['commit', '-m', 'fixture'], options)
+  await execFileAsync('git', ['worktree', 'add', '-b', 'feature/worktree-preview', join(workspace, '.dsh-worktrees', 'preview')], options)
+}
+
 async function measurePlugin(plugin, artifact, sourceArtifactByName) {
   const pluginDirName = plugin.name.replace(/[^A-Za-z0-9._-]+/g, '-')
   const pluginRoot = join(tempDir, pluginDirName)
   const dataRoot = join(pluginRoot, 'data')
   const userDataDir = join(pluginRoot, 'user-data')
   await mkdir(pluginRoot, { recursive: true })
+  if (plugin.name === WORKTREE_PLUGIN) await prepareWorktreeFixture(pluginRoot)
   const env = officialEnv(pluginRoot, dataRoot, userDataDir, { offline: true })
+  if (plugin.name === WORKTREE_PLUGIN) env.DSH_SMOKE_WORKSPACE_PATH = join(pluginRoot, 'worktree-fixture')
   const result = {
     name: plugin.name,
     version: artifact.version,

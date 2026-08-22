@@ -32,7 +32,7 @@ DSH Desktop 是社区维护的 Electron 桌面发行版。它固定并运行官�
 | 核心目标 | 精选、审查并验证一组可组合的 DSH Bundle，优先采用社区插件 | 提供完整桌面 Shell 与可直接下载安装的跨平台客户端 |
 | DSH 接入 | 只使用固定的官方 npm 运行时与 SDK，不携带 DSH 源码 checkout | 外层 Yarn 工程固定官方 DSH 源码子模块，桌面代码集中在 `dsh-plugin-desktop` |
 | 界面策略 | 官方 Web 是唯一主界面；桌面安全条也是普通 `dshClient` Bundle，不提供第二套 Renderer | 提供兼容与高级两种呈现模式；高级模式可安装 Desktop 自有 layout、frame 与原生材质 |
-| 默认体验 | 内置社区 `dshmarket`、task-board，以及独立的 Project、Canvas/Site、Structured UI、Office 和模型继承 Bundle | 内置统一 Desktop 插件、终端、托盘、Profile、更新与 DSH Community Market；手机远程控制列为后续能力 |
+| 默认体验 | 内置社区 `dshmarket`、task-board，以及独立的 Git Worktree、Project、Canvas/Site、Structured UI、Office 和模型继承 Bundle | 内置统一 Desktop 插件、终端、托盘、Profile、更新与 DSH Community Market；手机远程控制列为后续能力 |
 | 原生边界 | 功能 Bundle 只消费按 Session 绑定的方法白名单；插件安装最终仍走官方 DSH CLI | 第三方公开面同样收窄为 `desktopProfiles` 与 `desktopPnpm`，其它原生能力由 Desktop 内部插件使用 |
 | 当前成熟度 | Preview；真实 macOS arm64 Electron 和插件生命周期已验证，但还没有正式签名安装包 | 已提供 Windows x64 与 macOS Universal 正式安装包，下载体验更成熟 |
 
@@ -58,7 +58,7 @@ DSH Desktop 是社区维护的 Electron 桌面发行版。它固定并运行官�
     </td>
     <td width="50%" valign="top">
       <h3>产品能力也是 Bundle</h3>
-      <p>Project、Conversation、Canvas/Site、Structured UI、Office 与模型继承分属独立 Bundle。功能代码不导入 Electron 或通用 IPC，未来可以替换 Host provider，而不用重写 Tool。</p>
+      <p>Git Worktree、Project、Conversation、Canvas/Site、Structured UI、Office 与模型继承分属独立 Bundle。功能代码不导入 Electron 或通用 IPC，未来可以替换 Host provider，而不用重写 Tool。</p>
     </td>
   </tr>
   <tr>
@@ -86,6 +86,12 @@ DSH Desktop 是社区维护的 Electron 桌面发行版。它固定并运行官�
 ![官方 Web 设置中的默认插件市场](docs/images/readme/dsh-plugin-market.png)
 
 市场作为独立 Client Bundle 挂在官方设置 Slot 内。截图证明页面和社区目录已经加载；另一条打包版生命周期测试负责验证安装、停用、官方卸载和卸载后重启恢复。
+
+### 官方 Workspace 中的 Git Worktree
+
+![官方 Web 中的 Git Worktree Bundle](docs/images/readme/dsh-worktree-official-web.png)
+
+Worktree 不是旧 Renderer 的项目设置页。它是可独立安装的 portable Bundle：Host 只从当前 DSH Session 的固定 `cwd` 推导 Git 主检出，Client 通过 `sidebar.footer.action`、`shell.overlay` 和 `conversation.view` 三个官方 Slot 提供入口，并用官方 Workspace 打开隔离 Session。截图来自 macOS arm64 打包 Electron 的固定 tarball 安装；同一条 smoke 还验证停用、官方卸载和卸载后重启恢复。
 
 ## 快速开始
 
@@ -124,7 +130,7 @@ dsh plugin --profile web remove <package>
 桌面侧的 `@vibeinging/dsh-desktop-profile-host` 只提供 `desktopProfiles` 和 `desktopPnpm` 两个公开结构服务。市场把用户确认的操作交给随包 pnpm 和官方 DSH CLI；它不能自行取得 Electron 权限或重启应用。
 
 <details>
-<summary>查看新 Profile 默认安装的 11 个 Bundle</summary>
+<summary>查看新 Profile 默认安装的 12 个 Bundle</summary>
 
 <!-- featured-plugins:start -->
 | 默认 Bundle | 类型 | 声明权限 | 官方管理方式 | 来源 |
@@ -138,6 +144,7 @@ dsh plugin --profile web remove <package>
 | `@vibeinging/dsh-model-inheritance` | portable | 无 Host 权限 | `dsh plugin --profile web remove @vibeinging/dsh-model-inheritance` | [本地包](packages/dsh-model-inheritance) |
 | `@vibeinging/dsh-product-bridge` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-product-bridge` | [本地包](packages/dsh-product-bridge) |
 | `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [本地包](packages/dsh-office-tools) |
+| `@vibeinging/dsh-client-ui-worktree` | portable | 无 Host 权限 | `dsh plugin --profile web remove @vibeinging/dsh-client-ui-worktree` | [本地包](packages/dsh-worktree) |
 | `@linxin666/dsh-client-ui-task-board` | portable | 读取当前 DSH Session、Workspace 与完成历史、在 DSH_HOME 写入任务账本和执行记录、按用户操作或 Host cron 启动 DSH Session 任务、可选启动固定的跨平台防休眠 helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [上游仓库](https://github.com/zhu1090093659/dsh-web-ui) |
 | `dshmarket` | portable | 读取和修改当前 DSH Profile 的依赖、Bundle 顺序和启停状态、通过受控 pnpm 安装、更新和卸载用户确认的插件、访问插件目录、npm、GitHub 以及用户配置的 WebDAV 或 Gist、导出或导入包含 Profile 配置的备份 | `dsh plugin --profile web remove dshmarket` | [上游仓库](https://github.com/dsh-market/dsh-market) |
 <!-- featured-plugins:end -->
@@ -178,7 +185,7 @@ npm run check:release:budgets
 npm run measure:featured-plugins
 ```
 
-最近一次本地验证为 173 项 release 测试中 170 项通过、3 项条件跳过、0 项失败；11 个默认 Bundle 均通过逐包 Profile 安装与生命周期测量。`dshmarket` 和 task-board 还通过当前 macOS arm64 打包 Electron 的激活、停用、官方卸载和重启恢复。真实 DeepSeek-V4-Flash 开发 smoke 也已通过官方 Web、Session history、provider 来源和完整响应校验。
+最近一次本地验证为 177 项 release 测试中 174 项通过、3 项条件跳过、0 项失败；12 个默认 Bundle 均通过逐包 Profile 安装与生命周期测量。`dshmarket`、task-board 和 Worktree 还通过当前 macOS arm64 打包 Electron 的激活、停用、官方卸载和重启恢复。真实 DeepSeek-V4-Flash 开发 smoke 也已通过官方 Web、Session history、provider 来源和完整响应校验。
 
 这些证据仍不替代 macOS Developer ID、公证、Windows 签名安装器、原生 Intel x64 或绑定正式签名产物的 live-model 回执。仓库没有正式 Release 前，不把未签名目录包描述为可下载发行版。
 

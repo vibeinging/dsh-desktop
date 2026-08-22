@@ -329,6 +329,44 @@
       }
     },
     {
+      "name": "@vibeinging/dsh-client-ui-worktree",
+      "package_path": "packages/dsh-worktree",
+      "default": true,
+      "user_manageable": true,
+      "portability": "portable",
+      "permissions": [],
+      "permissions_en": [],
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "dsh-worktree",
+        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "runtime_requirements": ["system-git"],
+        "network": "loopback-session-bound-route-only",
+        "client": true,
+        "composition": {
+          "plugin_id": "dsh-worktree",
+          "requires": ["webServer", "sessions"],
+          "provides": [],
+          "routes": ["/dsh-worktree"],
+          "slots": ["conversation.view", "sidebar.footer.action", "shell.overlay"],
+          "conflicts": []
+        },
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-worktree.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-featured-plugins.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball, Profile storage, Client activation, and cold Web start"
+      }
+    },
+    {
       "name": "@linxin666/dsh-client-ui-task-board",
       "package_path": "server/node_modules/@linxin666/dsh-client-ui-task-board",
       "repository": "https://github.com/zhu1090093659/dsh-web-ui",

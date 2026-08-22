@@ -52,6 +52,9 @@ renderer/.env.*
 !/docs/plans/
 /docs/plans/*
 !/docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md
+!/docs/design/
+/docs/design/*
+!/docs/design/2026-08-22_dsh-worktree-client-bundle.md
 !/docs/reports/
 /docs/reports/*
 !/docs/reports/2026-08-20_dsh-app-release-evidence.md

@@ -1,0 +1,4 @@
+# Additive Git Worktree Bundle. It contributes only through official Web slots.
+- insert:
+    - id: dsh-worktree
+      name: '@vibeinging/dsh-client-ui-worktree'

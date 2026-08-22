@@ -80,6 +80,7 @@ const SMOKE_SCREENSHOT_NAME = /^[A-Za-z0-9._-]+$/.test(String(process.env.DSH_SM
   ? String(process.env.DSH_SMOKE_SCREENSHOT_NAME).trim()
   : 'dsh-smoke.png';
 const SMOKE_DISMISS_ONBOARDING = process.env.DSH_SMOKE_DISMISS_ONBOARDING === '1';
+const SMOKE_WORKSPACE_PATH = String(process.env.DSH_SMOKE_WORKSPACE_PATH || '').trim();
 const UPDATE_API_BASE_URL = String(process.env.DSH_UPDATE_API_BASE_URL || '').trim();
 const RECOVERY_PAGE = path.join(__dirname, 'recovery.html');
 
@@ -1403,14 +1404,36 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
         let state = null;
         let nextClickIndex = 0;
         let onboardingSettled = !SMOKE_DISMISS_ONBOARDING;
+        let workspaceCreated = !SMOKE_WORKSPACE_PATH;
         while (Date.now() < deadline) {
-          state = await mainWindow.webContents.executeJavaScript(`({ title: document.title, officialWeb: Boolean(document.querySelector('#root') && globalThis.__DSH_BOOT__), bodyText: document.body?.innerText?.slice(0, 500) || '', expectedSurface: ${JSON.stringify(SMOKE_EXPECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_EXPECT_SELECTOR)}) !== null, rejectedSurfaceAbsent: ${JSON.stringify(SMOKE_REJECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_REJECT_SELECTOR)}) === null })`);
+          state = await mainWindow.webContents.executeJavaScript(`({ title: document.title, officialWeb: Boolean(document.querySelector('#root') && globalThis.__DSH_BOOT__), bodyText: document.body?.innerText?.slice(0, 1200) || '', clientEntries: (globalThis.__DSH_BOOT__?.entries || []).map((entry) => entry.id), controls: [...document.querySelectorAll('button,[role="button"],[role="tab"]')].filter((element) => { const rect = element.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; }).slice(0, 80).map((element) => ({ text: String(element.innerText || element.textContent || '').trim().replace(/\\s+/g, ' '), aria: element.getAttribute('aria-label'), role: element.getAttribute('role') })), expectedSurface: ${JSON.stringify(SMOKE_EXPECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_EXPECT_SELECTOR)}) !== null, rejectedSurfaceAbsent: ${JSON.stringify(SMOKE_REJECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_REJECT_SELECTOR)}) === null })`);
           if (!onboardingSettled && state.officialWeb) {
             for (let attempt = 0; attempt < 30; attempt += 1) {
               await smokeOnboardingState(mainWindow);
               await new Promise((resolve) => setTimeout(resolve, 150));
             }
             onboardingSettled = true;
+            continue;
+          }
+          if (state.officialWeb && onboardingSettled && !workspaceCreated) {
+            const rpc = await mainWindow.webContents.executeJavaScript(`(() => {
+              const request = {
+                type: 'client-request',
+                rpcId: crypto.randomUUID(),
+                method: 'workspace.create',
+                payload: { path: ${JSON.stringify(SMOKE_WORKSPACE_PATH)} },
+              };
+              return fetch('/api/workspace.create', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(request),
+              }).then(async (response) => ({ status: response.status, body: await response.text() }));
+            })()`);
+            const envelope = rpc?.status === 200 ? JSON.parse(rpc.body) : null;
+            if (!envelope?.result?.ok) {
+              throw new Error(`Smoke Workspace 创建失败: ${JSON.stringify(envelope?.result?.error || rpc)}`);
+            }
+            workspaceCreated = true;
             continue;
           }
           if (state.officialWeb && nextClickIndex < SMOKE_CLICK_SELECTORS.length) {
@@ -1454,7 +1477,11 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
           await captureSmokeScreenshot();
         }
         console.log(`[smoke] 官方 DSH Web 已加载 title=${state.title} officialWeb=${state.officialWeb} clicks=${nextClickIndex}/${SMOKE_CLICK_SELECTORS.length}`);
-        if (!state.officialWeb) console.error(`[smoke] 官方 Web 页面摘要: ${String(state.bodyText || '').replace(/\s+/g, ' ').trim()}`);
+        if (!state.officialWeb || !clicksCompleted || !state.expectedSurface) {
+          console.error(`[smoke] 官方 Web 页面摘要: ${String(state.bodyText || '').replace(/\s+/g, ' ').trim()}`);
+          console.error(`[smoke] Client entries: ${JSON.stringify(state.clientEntries || [])}`);
+          console.error(`[smoke] 可见控件: ${JSON.stringify(state.controls || [])}`);
+        }
         if (rendererErrors.length) console.error(`[smoke] Renderer 控制台错误: ${rendererErrors.join(' | ')}`);
         if (!state.officialWeb || !clicksCompleted || !state.expectedSurface || !state.rejectedSurfaceAbsent || rendererErrors.length) process.exitCode = 1;
       } catch (error) {
