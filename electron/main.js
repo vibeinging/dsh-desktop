@@ -1297,7 +1297,7 @@ async function waitForOfficialWebSurface(win) {
   throw error;
 }
 
-// ── Main window (default 1200x800, bg #36313f, custom title bar with traffic lights kept)──
+// ── Main window (native title bar keeps system controls outside official Web content) ──
 function createWindow(surfaceUrl = rendererSurfaceUrl) {
   if (!surfaceUrl) throw new Error('DSH Client 地址尚未就绪');
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
@@ -1311,9 +1311,6 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
     backgroundColor: '#36313f',
     title: runtimeAppName,
     icon: APP_ICON, // Windows/Linux taskbar icon (on macOS icon is set by app.dock.setIcon below)
-    // macOS: hide title bar while keeping traffic lights; align with front-end -webkit-app-region:drag.
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-    ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 18 } } : {}),
     webPreferences: {
       // The official DSH Web page and its Profile Client plugins run without
       // Node, ipcRenderer, or a product preload. Native capabilities must be

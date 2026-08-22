@@ -33,6 +33,16 @@ test("Electron's main window has one official DSH Web surface", () => {
   assert.doesNotMatch(createWindowSource, /standalone|dsh-work-shell|legacy/i);
 });
 
+test("macOS window controls stay outside the official Web content", () => {
+  const createWindowStart = electronMain.indexOf("function createWindow(");
+  const appLifecycleStart = electronMain.indexOf("// ── App lifecycle ──");
+  const createWindowSource = electronMain.slice(createWindowStart, appLifecycleStart);
+
+  assert.doesNotMatch(createWindowSource, /titleBarStyle\s*:/);
+  assert.doesNotMatch(createWindowSource, /trafficLightPosition\s*:/);
+  assert.doesNotMatch(createWindowSource, /titleBarOverlay\s*:/);
+});
+
 test("the release package does not ship a product preload bridge", () => {
   assert.equal(electronPackage.build.files.includes("preload.js"), false);
   assert.equal(electronPackage.build.extraResources.some((entry) => String(entry.from || "").includes("renderer")), false);
