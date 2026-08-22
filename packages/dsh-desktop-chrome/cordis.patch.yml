@@ -1,0 +1,4 @@
+# Additive desktop chrome Bundle. It does not replace an official DSH row.
+- insert:
+    - id: dsh-desktop-chrome
+      name: '@vibeinging/dsh-desktop-chrome'

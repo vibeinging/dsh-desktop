@@ -109,6 +109,9 @@ async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
     appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify(['[data-dsh-taskboard-entry]'])
     appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-dsh-taskboard-board]'
   }
+  if (clientPlugin === '@vibeinging/dsh-desktop-chrome') {
+    appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-dsh-desktop-titlebar]'
+  }
   const result = await runProcess(label, [], {
     ...appEnv,
     DSH_SMOKE_TEST: '1',

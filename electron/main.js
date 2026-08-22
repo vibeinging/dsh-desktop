@@ -149,6 +149,7 @@ let backendStopPromise = null;
 let backendRestartAttempts = 0;
 let backendStableTimer = null;
 let rendererSurfaceUrl = null;
+let integratedDesktopChrome = false;
 let runtimeHomeOverride = DATA_ROOT;
 let profileInitializationMode = 'normal';
 let mainWindowKind = 'official-web';
@@ -1297,12 +1298,13 @@ async function waitForOfficialWebSurface(win) {
   throw error;
 }
 
-// ── Main window (native title bar keeps system controls outside official Web content) ──
+// ── Main window (the Profile Client supplies compact chrome; native title bar is the safe fallback) ──
 function createWindow(surfaceUrl = rendererSurfaceUrl) {
   if (!surfaceUrl) throw new Error('DSH Client 地址尚未就绪');
   const { width: sw, height: sh } = screen.getPrimaryDisplay().workAreaSize;
   const width = Math.min(1400, Math.round(sw * 0.92));
   const height = Math.min(900, Math.round(sh * 0.92));
+  const useIntegratedChrome = process.platform === 'darwin' && integratedDesktopChrome;
   mainWindow = new BrowserWindow({
     width,
     height,
@@ -1311,6 +1313,8 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
     backgroundColor: '#36313f',
     title: runtimeAppName,
     icon: APP_ICON, // Windows/Linux taskbar icon (on macOS icon is set by app.dock.setIcon below)
+    titleBarStyle: useIntegratedChrome ? 'hiddenInset' : 'default',
+    ...(useIntegratedChrome ? { trafficLightPosition: { x: 14, y: 11 } } : {}),
     webPreferences: {
       // The official DSH Web page and its Profile Client plugins run without
       // Node, ipcRenderer, or a product preload. Native capabilities must be
@@ -1532,6 +1536,7 @@ async function resolveRendererSurface() {
   if (response.status !== 200 || response.json?.success !== true) {
     throw new Error(response.json?.message || `DSH Client 启动失败（HTTP ${response.status}）`);
   }
+  integratedDesktopChrome = response.json?.data?.desktop_chrome === true;
   return normalizeRendererSurface(response.json?.data?.url);
 }
 

@@ -51,12 +51,13 @@ Only a new Profile is initialized in an isolated directory through the official 
 
 There is one curated input: [featured_plugins.json](server/src/engine/dsh_runtime/featured_plugins.json). It generates packaged tarballs, new-Profile installation input, permission summaries, third-party notices, and test expectations. Other code and documentation do not maintain another default package list.
 
-The default set contains seven first-party capability Bundles and one independent community task-board Bundle, all installed through the official Profile. The task board mounts its Client page inside official Web without replacing official Chat, Sessions, or the application shell. The source, permissions, and official management method for each entry are generated from the [curated manifest](server/src/engine/dsh_runtime/featured_plugins.json); application updates do not reinstall an entry the user removed. First-party packages use the `@vibeinging/*` scope; official DSH SDK packages keep the `@deepseek-ai/*` scope.
+The default set contains eight first-party capability Bundles and one independent community task-board Bundle, all installed through the official Profile. The task board mounts its Client page inside official Web without replacing official Chat, Sessions, or the application shell. The source, permissions, and official management method for each entry are generated from the [curated manifest](server/src/engine/dsh_runtime/featured_plugins.json); application updates do not reinstall an entry the user removed. First-party packages use the `@vibeinging/*` scope; official DSH SDK packages keep the `@deepseek-ai/*` scope.
 
 <!-- featured-plugins:start -->
 | Default Bundle | Type | Declared permissions | Official management | Source |
 |---|---|---|---|---|
 | `@vibeinging/dsh-work-product-host-ipc` | desktop-adapter | dsh-work-parent-ipc, browser-workspace-host, file-dialog-host, window-host | desktop foundation; uninstall is not offered | [local package](packages/dsh-work-product-host-ipc) |
+| `@vibeinging/dsh-desktop-chrome` | desktop-adapter | no Host permission | `dsh plugin --profile web remove @vibeinging/dsh-desktop-chrome` | [local package](packages/dsh-desktop-chrome) |
 | `@vibeinging/dsh-project-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-project-tools` | [local package](packages/dsh-project-tools) |
 | `@vibeinging/dsh-canvas-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-canvas-tools` | [local package](packages/dsh-canvas-tools) |
 | `@vibeinging/dsh-structured-ui-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-structured-ui-tools` | [local package](packages/dsh-structured-ui-tools) |

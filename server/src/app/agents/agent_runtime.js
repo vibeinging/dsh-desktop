@@ -11,6 +11,21 @@ import {
 } from "../../engine/agent_kernel/agent_runtime.js";
 import { getDshProfilePluginService } from "../../engine/dsh_runtime/profile_plugin_service.js";
 
+const DESKTOP_CHROME_BUNDLE = "@vibeinging/dsh-desktop-chrome";
+
+/** Return whether the authoritative Profile enables the desktop chrome Client. */
+export function desktopChromeEnabled(profileState) {
+  const plugin = profileState?.plugins?.find(({ id }) => id === DESKTOP_CHROME_BUNDLE);
+  return plugin?.enabled === true && plugin?.ui_runtime?.client_graph === true;
+}
+
+/** Resolve the Client first because its startup owns new Profile initialization. */
+export async function resolveDesktopClientSurface({ waitForClientSurface, readProfileState }) {
+  const url = await waitForClientSurface();
+  const profileState = await readProfileState();
+  return { url, desktop_chrome: desktopChromeEnabled(profileState) };
+}
+
 export async function getAgentRuntimeStatus() {
   return {
     data: dshRuntimeEnabled() ? dshRuntimeStatus() : agentRuntimeStatus(),
@@ -54,8 +69,13 @@ export async function probeAgentRuntime() {
 export async function getDshClientSurface() {
   if (!dshRuntimeEnabled()) throw new ApiError("DSH 运行时未启用", 503);
   try {
+    const runtime = getDshRuntimeClient();
+    const profileService = getDshProfilePluginService();
     return {
-      data: { url: await getDshRuntimeClient().waitForClientSurface() },
+      data: await resolveDesktopClientSurface({
+        waitForClientSurface: () => runtime.waitForClientSurface(),
+        readProfileState: () => profileService.state(),
+      }),
       message: "获取 DSH Client 地址成功",
     };
   } catch (error) {

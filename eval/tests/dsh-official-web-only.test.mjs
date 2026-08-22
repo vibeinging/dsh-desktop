@@ -33,14 +33,15 @@ test("Electron's main window has one official DSH Web surface", () => {
   assert.doesNotMatch(createWindowSource, /standalone|dsh-work-shell|legacy/i);
 });
 
-test("macOS window controls stay outside the official Web content", () => {
+test("macOS window controls use Profile chrome with a native safe fallback", () => {
   const createWindowStart = electronMain.indexOf("function createWindow(");
   const appLifecycleStart = electronMain.indexOf("// ── App lifecycle ──");
   const createWindowSource = electronMain.slice(createWindowStart, appLifecycleStart);
 
-  assert.doesNotMatch(createWindowSource, /titleBarStyle\s*:/);
-  assert.doesNotMatch(createWindowSource, /trafficLightPosition\s*:/);
+  assert.match(createWindowSource, /titleBarStyle: useIntegratedChrome \? 'hiddenInset' : 'default'/);
+  assert.match(createWindowSource, /trafficLightPosition: \{ x: 14, y: 11 \}/);
   assert.doesNotMatch(createWindowSource, /titleBarOverlay\s*:/);
+  assert.match(electronMain, /integratedDesktopChrome = response\.json\?\.data\?\.desktop_chrome === true/);
 });
 
 test("the release package does not ship a product preload bridge", () => {

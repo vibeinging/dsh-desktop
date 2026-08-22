@@ -104,7 +104,7 @@ export function validateFeaturedPackageComposition(plugin, sourceText, patchText
   if (plugin.evidence.source_kind === "workspace-package" && name !== composition.plugin_id) {
     throw new Error(`精选插件 composition.plugin_id 与源码 name 不一致: ${plugin.name}`)
   }
-  const injectText = sourceText.match(/^export const inject = (\[[^\n]+\]);?$/m)?.[1]
+  const injectText = sourceText.match(/^export const inject = (\[[^\n]*\]);?$/m)?.[1]
   const inject = injectText
     ? [...injectText.matchAll(/["']([^"']+)["']/g)].map((match) => match[1])
     : null

@@ -40,6 +40,42 @@
       }
     },
     {
+      "name": "@vibeinging/dsh-desktop-chrome",
+      "package_path": "packages/dsh-desktop-chrome",
+      "default": true,
+      "user_manageable": true,
+      "portability": "desktop-adapter",
+      "permissions": [],
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "dsh-desktop-chrome",
+        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "not-declared",
+        "client": true,
+        "composition": {
+          "plugin_id": "dsh-desktop-chrome",
+          "requires": [],
+          "provides": [],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-desktop-chrome.test.mjs", "eval/tests/dsh-official-web-only.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-featured-plugins.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball, Profile storage, Client activation, and cold Web start"
+      }
+    },
+    {
       "name": "@vibeinging/dsh-project-tools",
       "package_path": "packages/dsh-project-tools",
       "default": true,

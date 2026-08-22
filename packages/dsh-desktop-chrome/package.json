@@ -1,0 +1,52 @@
+{
+  "name": "@vibeinging/dsh-desktop-chrome",
+  "description": "Integrated macOS title-bar safe area for DSH Desktop",
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-theme"
+      ],
+      "platform": "web"
+    }
+  },
+  "dshWork": {
+    "portability": {
+      "level": "desktop-adapter",
+      "surfaces": ["dsh-desktop"],
+      "hostRequirements": [],
+      "compatibilityTest": "eval/tests/dsh-desktop-chrome.test.mjs"
+    }
+  },
+  "files": [
+    "src/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "BSD-3-Clause",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-runtime": "^0.1.1-rc.2",
+    "@deepseek-ai/dsh-client-ui-theme": "^0.1.1-rc.2"
+  }
+}

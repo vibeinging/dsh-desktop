@@ -208,6 +208,15 @@ test("the curated list keeps package names, source paths, and SPDX licenses alig
   }
 });
 
+test("the composition validator accepts a browser-only Bundle without fake Host dependencies", () => {
+  const plugin = featuredPlugins().find(({ name }) => name === "@vibeinging/dsh-desktop-chrome");
+  const packageDir = resolveFeaturedPackageDir(plugin);
+  const source = readFileSync(join(packageDir, plugin.evidence.entry), "utf8");
+  const patch = readFileSync(join(packageDir, "cordis.patch.yml"), "utf8");
+  assert.deepEqual(plugin.evidence.composition.requires, []);
+  assert.doesNotThrow(() => validateFeaturedPackageComposition(plugin, source, patch));
+});
+
 test("the curated registry package rejects lock, license, and dependency drift", () => {
   const plugin = featuredPlugins().find(({ name }) => name === "@linxin666/dsh-client-ui-task-board");
   const packageJson = JSON.parse(readFileSync(join(resolveFeaturedPackageDir(plugin), "package.json"), "utf8"));
