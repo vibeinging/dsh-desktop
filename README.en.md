@@ -1,8 +1,8 @@
 <h1 align="center">DSH Desktop</h1>
 
 <p align="center">
-  <strong>Official DeepSeek Harness Web and its plugin ecosystem, packaged as a native desktop app.</strong><br>
-  Official Web is the only primary interface, Profile is the only source of plugin state, and desktop capabilities are composed as Bundles.
+  <strong>A curated DSH plugin distribution for desktop.</strong><br>
+  It runs official Web unchanged and composes community plugins, product tools, and controlled native capabilities through a Profile.
 </p>
 
 <p align="center"><sub>An independent, community-maintained open-source project with no affiliation, partnership, authorization, or endorsement from DeepSeek.<br>English · <a href="README.md">中文</a> · <a href="README.anime.md">Anime README</a></sub></p>
@@ -19,9 +19,24 @@
   <img src="docs/images/readme/dsh-community-task-board.png" alt="Community task board loaded through the official Profile in DSH Desktop" width="100%">
 </p>
 
-DSH Desktop is a community-maintained Electron desktop distribution. It pins and runs the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm runtime, bringing `dsh-web-app`, Session, Agent, Tool, Skill, MCP, and Profile Bundles into one local app. The project does not modify DSH source code or maintain a second Chat, home, settings, or plugin center.
+DSH Desktop is a community-maintained Electron desktop distribution. It pins and runs the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm runtime, bringing `dsh-web-app`, Session, Agent, Tool, Skill, MCP, and Profile Bundles into one local app. The project does not modify DSH source code or maintain a second Chat, home, settings, or plugin center. Its focus is not another similar interface, but a reproducible, removable, and recoverable desktop workspace composed from reviewed community plugins and independent product Bundles.
 
-This repository has not released a signed installer. The verified artifact is an unsigned macOS Apple Silicon directory build; the Windows signed installer, macOS Developer ID and notarization, native Intel x64, and real DeepSeek live-model evidence remain release acceptance items.
+This repository has not released a signed installer. The verified artifact is an unsigned macOS Apple Silicon directory build; the Windows signed installer, macOS Developer ID and notarization, native Intel x64, and a formal DeepSeek live-model receipt bound to a signed artifact remain release acceptance items.
+
+## Why this distribution
+
+This project and [anywhere-labs/deepseek-harness-desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) are both independent community Electron distributions. Both run official DSH Web, follow Profile composition, and avoid exposing Electron APIs directly to pages. The difference is not which one is “more official,” but the product tradeoff:
+
+| Dimension | This repository | anywhere-labs DSH Desktop |
+| --- | --- | --- |
+| Primary goal | Curate, review, and verify a composable set of DSH Bundles, preferring community plugins | Provide a complete desktop Shell and a cross-platform client ready for direct download |
+| DSH integration | Uses only a pinned official npm runtime and SDK, with no DSH source checkout | Pins the official DSH source as a submodule inside an outer Yarn project, with desktop code concentrated in `dsh-plugin-desktop` |
+| Interface strategy | Official Web is the only primary interface; even the desktop safe bar is a regular `dshClient` Bundle, with no second Renderer | Offers compatible and advanced presentation modes; advanced mode can install a Desktop-owned layout, frame, and native materials |
+| Default experience | Bundles community `dshmarket` and task-board plus independent Project, Canvas/Site, Structured UI, Office, and model-inheritance Bundles | Bundles a unified Desktop plugin, terminal, tray, Profile, updater, and DSH Community Market; mobile remote control is listed as future work |
+| Native boundary | Feature Bundles consume only Session-bound method allowlists; plugin installation still ends in the official DSH CLI | The third-party surface is similarly narrowed to `desktopProfiles` and `desktopPnpm`, while other native capabilities stay inside Desktop-owned plugins |
+| Current maturity | Preview; real macOS arm64 Electron and plugin lifecycles are verified, but no signed installer has been released | Provides formal Windows x64 and macOS Universal installers, with a more mature download experience |
+
+If you only want to download a mature desktop client today, the anywhere-labs project is the better fit. If you care about one official Web interface, community-first adoption, reproducible offline initialization for new Profiles, fine-grained product-tool Bundles, and per-capability release evidence, this repository follows a different path. See the [source-backed comparison](docs/research/2026-08-22_dsh-desktop-distribution-differences.md) for details.
 
 ## Key capabilities
 
@@ -38,12 +53,22 @@ This repository has not released a signed installer. The verified artifact is an
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <h3>Community task board</h3>
-      <p>A fixed task-board release loads through the official Profile and provides Backlog, Todo, In Progress, Done, and Failed columns. Its installation and removal have been tested in real Electron.</p>
+      <h3>Community-first curated workbench</h3>
+      <p>The default uses the community task-board and dshmarket instead of rebuilding them in the Shell. Every release is pinned to a reviewed tarball and independently tested for installation, disabling, official removal, and restart recovery.</p>
     </td>
+    <td width="50%" valign="top">
+      <h3>Product capabilities are Bundles</h3>
+      <p>Project, Conversation, Canvas/Site, Structured UI, Office, and model inheritance live in separate Bundles. Feature code imports neither Electron nor general IPC, so a Host provider can be replaced later without rewriting the Tools.</p>
+    </td>
+  </tr>
+  <tr>
     <td width="50%" valign="top">
       <h3>Narrow native Host</h3>
       <p>Window, file authorization, Browser Workspace, and update capabilities are exposed only through method allowlists and Session binding. Third-party Clients cannot access Electron, Node, or general IPC.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Offline initialization and recovery</h3>
+      <p>A new Profile initializes atomically from pinned artifacts and the packaged pnpm runtime; existing Profiles remain unchanged during updates. Startup failures open recovery instead of a blank page or silently restoring plugins the user removed.</p>
     </td>
   </tr>
 </table>
@@ -54,7 +79,7 @@ This repository has not released a signed installer. The verified artifact is an
 
 ![Official DSH Web Session](docs/images/readme/dsh-official-web-session-loopback.png)
 
-This screenshot comes from a local fake-model interaction smoke in the current packaged macOS arm64 Electron app. It exercises the official Session, questions, approvals, tool calls, message queue, and Session history, but does not represent live-model evidence from the real DeepSeek service.
+This screenshot comes from a real DeepSeek-V4-Flash smoke in the current packaged macOS arm64 Electron app. Acceptance reads official `session.history` directly and requires a non-empty `assistant/message`, `source.kind=model`, `provider=deepseek-official`, a unique receipt marker, and `turn/end(completed)` in the same turn. The key is injected only into the temporary process and is written to neither the Profile nor the screenshot. Because the current App is still an unsigned directory build, this development smoke does not replace a release receipt bound to a formally signed artifact.
 
 ### Plugin market in official settings
 
@@ -153,9 +178,9 @@ npm run check:release:budgets
 npm run measure:featured-plugins
 ```
 
-The latest local verification passed 170 of 173 release tests, with 3 conditional skips and no failures. All 11 default Bundles passed per-package Profile installation and lifecycle measurement. `dshmarket` and the task board also passed activation, disabling, official removal, and restart recovery in the current packaged macOS arm64 Electron app.
+The latest local verification passed 170 of 173 release tests, with 3 conditional skips and no failures. All 11 default Bundles passed per-package Profile installation and lifecycle measurement. `dshmarket` and the task board also passed activation, disabling, official removal, and restart recovery in the current packaged macOS arm64 Electron app. A real DeepSeek-V4-Flash development smoke also passed official Web, Session history, provider-origin, and complete-response checks.
 
-This evidence does not replace macOS Developer ID, notarization, a Windows signed installer, native Intel x64, or a real DeepSeek live-model receipt. Until the repository publishes a formal Release, the unsigned directory build is not described as a downloadable distribution.
+This evidence does not replace macOS Developer ID, notarization, a Windows signed installer, native Intel x64, or a live-model receipt bound to a formally signed artifact. Until the repository publishes a formal Release, the unsigned directory build is not described as a downloadable distribution.
 
 ## Related projects
 
@@ -165,7 +190,7 @@ This evidence does not replace macOS Developer ID, notarization, a Windows signe
 | [Cordis](https://github.com/cordiverse/cordis) | Provides the plugin foundation |
 | [dsh-market](https://github.com/dsh-market/dsh-market) | The visual plugin market bundled by default |
 | [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Upstream community repository for the current task board |
-| [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) | Another independent community desktop distribution |
+| [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) | An independent community distribution focused more on a complete desktop Shell, cross-platform installers, and direct downloads; see the comparison above |
 | [dshfind](https://www.dshfind.com/en) | A community for learning, sharing, and discovering DSH plugins |
 
 <p align="center"><a href="https://www.dshfind.com/en"><img src="https://dshfind.com/api/badge/vibeinging/dsh-work?lang=en" alt="dshfind listing card"></a></p>
