@@ -56,6 +56,7 @@
     "smoke:official-web:flow": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-official-web-flow",
     "smoke:official-web:interactions": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-official-web-interactions",
     "smoke:official-web:live": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-official-web-live",
+    "smoke:official-web:showcase": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-official-web-showcase",
     "smoke:featured-plugins:packaged": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-featured-plugins",
     "smoke:community:packaged": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:packaged-community",
     "smoke:native-host": "node scripts/run-with-project-node.mjs npm --prefix electron run smoke:native-host",

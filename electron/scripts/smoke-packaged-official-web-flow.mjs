@@ -26,12 +26,17 @@ const liveModelResultPath = String(process.env.DSH_LIVE_MODEL_RESULT_FILE || '')
 const keepTemp = process.env.DSH_OFFICIAL_WEB_FLOW_KEEP_TEMP === '1'
 const fakeModelEnabled = process.env.DSH_OFFICIAL_WEB_FLOW_FAKE_MODEL === '1' || process.argv.includes('--fake-model')
 const liveModelEnabled = process.env.DSH_OFFICIAL_WEB_FLOW_LIVE_MODEL === '1' || process.argv.includes('--live-model')
+const showcaseModelEnabled = process.env.DSH_OFFICIAL_WEB_FLOW_SHOWCASE_MODEL === '1' || process.argv.includes('--showcase-model')
+const realModelEnabled = liveModelEnabled || showcaseModelEnabled
 const liveModelResponseMarker = liveModelEnabled ? `DSH-LIVE-MODEL-${randomUUID()}` : ''
+const showcaseResponseMarker = 'DSH Desktop'
 const promptText = fakeModelEnabled
   ? 'DSH Desktop 官方 Web 审批烟测'
   : liveModelEnabled
     ? `DSH Desktop 官方 Web live-model 烟测。请用一句完整的话确认当前会话已启动，并原样包含唯一回执标记 ${liveModelResponseMarker}。`
-    : 'DSH Desktop 官方 Web 流程烟测'
+    : showcaseModelEnabled
+      ? '请用一句话说说 DSH Desktop 能怎样帮助我的开发工作，并举三个例子。'
+      : 'DSH Desktop 官方 Web 流程烟测'
 const queuedPromptText = 'DSH Desktop 官方 Web 排队烟测'
 const questionText = '是否继续执行审批烟测？'
 const questionOptionText = '继续执行'
@@ -417,11 +422,11 @@ async function findSmokeSession() {
       const candidateHistory = await rpc('session.history', { sessionId: candidate.sessionId, maxMessages: 100 })
       const serialized = JSON.stringify(candidateHistory)
       if (!serialized.includes(promptText)) continue
-      if (!liveModelEnabled) {
+      if (!realModelEnabled) {
         return { session: candidate, history: candidateHistory, liveCheck: null }
       }
       const liveCheck = inspectLiveModelHistory(candidateHistory, {
-        responseMarker: liveModelResponseMarker,
+        responseMarker: liveModelEnabled ? liveModelResponseMarker : showcaseResponseMarker,
       })
       if (liveCheck.ok) return { session: candidate, history: candidateHistory, liveCheck }
       lastLiveErrors = liveCheck.errors
@@ -431,7 +436,7 @@ async function findSmokeSession() {
     }
     await sleep(500)
   }
-  throw new Error(`官方 Web session.history 未在超时前形成可验收会话${liveModelEnabled ? `；live-model=${lastLiveErrors.join('；')}` : ''}`)
+  throw new Error(`官方 Web session.history 未在超时前形成可验收会话${realModelEnabled ? `；real-model=${lastLiveErrors.join('；')}` : ''}`)
 }
 
 async function pageSummary() {
@@ -472,11 +477,24 @@ async function fillComposer(text) {
   await waitFor(`([...document.querySelectorAll('textarea')].find((textarea) => !textarea.readOnly)?.value || '') === ${JSON.stringify(text)}`, '输入内容')
 }
 
+async function clearComposer() {
+  await evaluate(`(() => {
+    const textarea = [...document.querySelectorAll('textarea')].find((item) => !item.readOnly);
+    if (!textarea) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    setter?.call(textarea, '');
+    textarea.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
+    textarea.dispatchEvent(new Event('change', { bubbles: true }));
+    return textarea.value === '';
+  })()`)
+}
+
 try {
   if (liveModelResultPath) await rm(liveModelResultPath, { force: true })
-  if (fakeModelEnabled && liveModelEnabled) throw new Error('不能同时启用 fake-model 和 live-model')
-  if (liveModelEnabled && !String(process.env.DEEPSEEK_API_KEY || '').trim()) {
-    throw new Error('live-model smoke 需要用户主动提供 DEEPSEEK_API_KEY；当前没有发送请求')
+  if (fakeModelEnabled && realModelEnabled) throw new Error('不能同时启用 fake-model 和真实模型')
+  if (liveModelEnabled && showcaseModelEnabled) throw new Error('不能同时启用 live-model 和 showcase-model')
+  if (realModelEnabled && !String(process.env.DEEPSEEK_API_KEY || '').trim()) {
+    throw new Error('真实模型流程需要用户主动提供 DEEPSEEK_API_KEY；当前没有发送请求')
   }
   await mkdir(workspaceDir, { recursive: true })
   if (fakeModelEnabled) fakeModel = await startFakeModel()
@@ -488,7 +506,7 @@ try {
   if (fakeModelEnabled) {
     env.DEEPSEEK_API_KEY = 'dsh-desktop-official-web-smoke'
     env.DEEPSEEK_BASE_URL = fakeModel.baseURL
-  } else if (!liveModelEnabled) {
+  } else if (!realModelEnabled) {
     delete env.DEEPSEEK_API_KEY
     delete env.DEEPSEEK_BASE_URL
   }
@@ -599,6 +617,7 @@ try {
   await sleep(250)
   await clickTextIfPresent(['对话', 'Conversation'])
   await sleep(250)
+  if (showcaseModelEnabled) await clearComposer()
   const final = await pageSummary()
   if (final.hasElectronAPI || final.hasNodeGlobals) throw new Error('官方 Web 会话流程中出现 Electron/Node 全局')
   const screenshot = await captureScreenshot()
@@ -616,10 +635,10 @@ try {
     }), null, 2)}\n`, { mode: 0o600 })
     liveModelResultWritten = true
   }
-  console.log(`[smoke] PASS 官方 Web 启动、无 preload/Node、工作区、Session、Session log 和 history 用户流程${fakeModelEnabled ? '、问题、审批、允许一次和消息队列' : ''}${liveModelEnabled ? '、真实 DeepSeek live-model' : ''}; session_id=${session.sessionId}; screenshot=${screenshot}`)
+  console.log(`[smoke] PASS 官方 Web 启动、无 preload/Node、工作区、Session、Session log 和 history 用户流程${fakeModelEnabled ? '、问题、审批、允许一次和消息队列' : ''}${liveModelEnabled ? '、真实 DeepSeek live-model' : ''}${showcaseModelEnabled ? '、真实 DeepSeek 展示对话' : ''}; session_id=${session.sessionId}; screenshot=${screenshot}`)
   if (fakeModelEnabled) console.log(`[smoke] INFO 审批/队列截图=${interactionScreenshots.join(', ')}`)
-  if (!fakeModelEnabled && !liveModelEnabled) console.log('[smoke] INFO 审批和队列需要带工具调用的 live-model 环境，本次无密钥 smoke 不宣称已覆盖')
-  if (liveModelEnabled) console.log('[smoke] INFO live-model 凭据仅用于本次临时 smoke，未写入 Profile 或截图')
+  if (!fakeModelEnabled && !realModelEnabled) console.log('[smoke] INFO 审批和队列需要带工具调用的 live-model 环境，本次无密钥 smoke 不宣称已覆盖')
+  if (realModelEnabled) console.log('[smoke] INFO 真实模型凭据仅用于本次临时流程，未写入 Profile 或截图')
 } finally {
   if (liveModelResultPath && !liveModelResultWritten) {
     try { await rm(liveModelResultPath, { force: true }) } catch { /* stale evidence must not survive a failed smoke */ }
