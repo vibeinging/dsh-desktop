@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-desktop-profile-host
+      name: '@vibeinging/dsh-desktop-profile-host'

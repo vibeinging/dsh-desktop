@@ -51,12 +51,13 @@ Only a new Profile is initialized in an isolated directory through the official 
 
 There is one curated input: [featured_plugins.json](server/src/engine/dsh_runtime/featured_plugins.json). It generates packaged tarballs, new-Profile installation input, permission summaries, third-party notices, and test expectations. Other code and documentation do not maintain another default package list.
 
-The default set contains eight first-party capability Bundles and one independent community task-board Bundle, all installed through the official Profile. The task board mounts its Client page inside official Web without replacing official Chat, Sessions, or the application shell. The source, permissions, and official management method for each entry are generated from the [curated manifest](server/src/engine/dsh_runtime/featured_plugins.json); application updates do not reinstall an entry the user removed. First-party packages use the `@vibeinging/*` scope; official DSH SDK packages keep the `@deepseek-ai/*` scope.
+The default set contains nine first-party desktop capability Bundles plus the independent community task board and plugin market, all installed through the official Profile. The task board and market mount only through standard official Web Slots; they do not replace official Chat, Sessions, the settings framework, or the application shell. The source, permissions, and official management method for each entry are generated from the [curated manifest](server/src/engine/dsh_runtime/featured_plugins.json); application updates do not reinstall an entry the user removed. First-party packages use the `@vibeinging/*` scope; official DSH SDK packages keep the `@deepseek-ai/*` scope.
 
 <!-- featured-plugins:start -->
 | Default Bundle | Type | Declared permissions | Official management | Source |
 |---|---|---|---|---|
 | `@vibeinging/dsh-work-product-host-ipc` | desktop-adapter | dsh-work-parent-ipc, browser-workspace-host, file-dialog-host, window-host | desktop foundation; uninstall is not offered | [local package](packages/dsh-work-product-host-ipc) |
+| `@vibeinging/dsh-desktop-profile-host` | desktop-adapter | dsh-profile-filesystem, controlled-pnpm-runtime, dsh-cli-runtime | desktop foundation; uninstall is not offered | [local package](packages/dsh-desktop-profile-host) |
 | `@vibeinging/dsh-desktop-chrome` | desktop-adapter | no Host permission | `dsh plugin --profile web remove @vibeinging/dsh-desktop-chrome` | [local package](packages/dsh-desktop-chrome) |
 | `@vibeinging/dsh-project-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-project-tools` | [local package](packages/dsh-project-tools) |
 | `@vibeinging/dsh-canvas-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-canvas-tools` | [local package](packages/dsh-canvas-tools) |
@@ -65,11 +66,27 @@ The default set contains eight first-party capability Bundles and one independen
 | `@vibeinging/dsh-product-bridge` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-product-bridge` | [local package](packages/dsh-product-bridge) |
 | `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [local package](packages/dsh-office-tools) |
 | `@linxin666/dsh-client-ui-task-board` | portable | read current DSH Session, Workspace, and completion history, write task ledger and run records under DSH_HOME, start DSH Session tasks from user actions or Host cron, optionally start a fixed cross-platform sleep-prevention helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [upstream repository](https://github.com/zhu1090093659/dsh-web-ui) |
+| `dshmarket` | portable | read and modify dependencies, Bundle order, and enabled state in the active DSH Profile, install, update, and remove user-confirmed plugins through controlled pnpm, access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services, export or import backups that contain Profile configuration | `dsh plugin --profile web remove dshmarket` | [upstream repository](https://github.com/dsh-market/dsh-market) |
 <!-- featured-plugins:end -->
 
 ## Optional plugins
 
-The app does not create a second installation state. Discovery, installation, disabling, updating, and removal return to the official Profile commands or the official Web plugin-management surface.
+The app does not create a second installation state. The default market, official Web settings, and command line read and write the same DSH Profile. The market owns discovery and interaction, while the official Profile and Loader remain responsible for installation, disabling, updating, and removal.
+
+### Default plugin market
+
+New Profiles install the fixed `dshmarket@1.17.1` release by default. It registers its page in the official Web `settings.section` Slot and provides catalog search, installed-plugin views, compatibility diagnostics, theme selection, updates, and removal without creating another desktop settings page. The distribution carries an audited fixed tarball, its complete dependency closure, and SHA-256 values. Initialization uses `--ignore-scripts`, so first launch does not require npm and does not run the upstream `prepare` or `prepack` scripts.
+
+The desktop-side `@vibeinging/dsh-desktop-profile-host` exposes only the public structural `desktopProfiles` and `desktopPnpm` contracts. The market reads the active `web` Profile and delegates user-confirmed operations to the packaged pnpm runtime and official `dsh plugin --profile web` command. Only one operation may run at a time, cancellation terminates the child process tree, and the market cannot restart Electron itself. Browsing reaches the community catalog; installation and updates may reach npm or GitHub; WebDAV and Gist are used only after explicit user configuration. Existing Profiles are not backfilled during upgrades, and a user-removed market stays removed.
+
+```bash
+dsh plugin --profile web add -w dshmarket@1.17.1 --save-exact --ignore-scripts
+dsh plugin --profile web remove dshmarket
+```
+
+The screenshot below comes from the current macOS arm64 directory build running in Electron with an isolated temporary Profile. The market is mounted in the official settings Slot. The screenshot proves page and catalog loading only; a separate packaged lifecycle test verifies installation, disabling, removal, and restart recovery.
+
+![Default plugin market in official Web settings](docs/images/readme/dsh-plugin-market.png)
 
 Our portable candidate:
 
@@ -95,7 +112,7 @@ To include the installer source in the community regression, on macOS mount the 
 DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence DSH_MACOS_INSTALLER_RESULT_FILE=/path/to/evidence/macos-installer.json npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg
 ```
 
-`@linxin666/dsh-web-ui-all` is used only for conflict experiments and is not a release input. Better Sidebar, remote Web, SSH, image understanding, Agent presets, and community plugin managers are not in the default Profile. A community package does not enter the curated set without a fixed source, dependency review, real Electron evidence, and uninstall evidence.
+`@linxin666/dsh-web-ui-all` is used only for conflict experiments and is not a release input. Better Sidebar, remote Web, SSH, image understanding, Agent presets, and other unreviewed community plugin managers are not in the default Profile. A community package does not enter the curated set without a fixed source, dependency review, real Electron evidence, and uninstall evidence.
 
 The Skin Center and its `@linxin666/dsh-skins` dependency are not distributed with the app. A package-level Apache-2.0 license does not automatically cover every built-in visual asset; the upstream package identifies Maid Atelier assets as CC BY-NC-SA 4.0, so they cannot enter the release package without separate redistribution permission. The decision is recorded in the [community plugin registry](server/src/engine/dsh_runtime/community_plugin_registry.json), and the release boundary rejects unapproved visual assets from the curated set. The Skin Center can be reconsidered only after every asset has a verified license, attribution, and redistribution condition.
 

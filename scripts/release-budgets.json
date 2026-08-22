@@ -4,8 +4,8 @@
     "app_bytes": 1400000000,
     "server_bytes": 1000000000,
     "pnpm_runtime_bytes": 20000000,
-    "featured_tarballs_bytes": 400000,
-    "profile_storage_bytes": 6000000,
-    "cold_web_ms": 10000
+    "featured_tarballs_bytes": 2000000,
+    "profile_storage_bytes": 20000000,
+    "cold_web_ms": 20000
   }
 }

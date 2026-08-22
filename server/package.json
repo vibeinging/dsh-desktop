@@ -13,7 +13,6 @@
     "generate:schema": "node ../scripts/run-with-project-node.mjs node scripts/gen_schema.mjs"
   },
   "dependencies": {
-    "@linxin666/dsh-client-ui-task-board": "0.2.7",
     "@clickhouse/client": "^1.22.0",
     "@deepseek-ai/cordis-plugin-group": "1.0.1",
     "@deepseek-ai/dsh": "0.1.1-rc.2",
@@ -36,6 +35,7 @@
     "@deepseek-ai/dsh-timeout": "0.1.1-rc.2",
     "@deepseek-ai/dsh-workflow": "0.1.1-rc.2",
     "@duckdb/node-api": "^1.5.4-r.1",
+    "@linxin666/dsh-client-ui-task-board": "0.2.7",
     "@openai/codex": "0.147.0",
     "@pdf-lib/fontkit": "1.1.1",
     "@vscode/ripgrep": "^1.18.0",
@@ -43,6 +43,7 @@
     "@yitrace/db": "0.1.8",
     "better-sqlite3": "^12.11.1",
     "docx": "9.6.1",
+    "dshmarket": "1.17.1",
     "express": "^4.21.2",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",

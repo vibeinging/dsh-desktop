@@ -21,6 +21,11 @@ const TASK_BOARD_DEPENDENCIES = Object.freeze({
   schemastery: "^3.18.0",
 });
 
+const DSH_MARKET_DEPENDENCIES = Object.freeze({
+  "js-yaml": "^4.1.0",
+  undici: "^7.29.0",
+});
+
 /** Return the exact dependency projection reviewed for the aggregate Client release. */
 export function reviewedCommunityClientDependencies() {
   return DSH_WEB_UI_DEPENDENCIES;
@@ -31,8 +36,26 @@ export function reviewedTaskBoardDependencies() {
   return TASK_BOARD_DEPENDENCIES;
 }
 
+/** Return the exact dependency projection reviewed for the default plugin market. */
+export function reviewedDshMarketDependencies() {
+  return DSH_MARKET_DEPENDENCIES;
+}
+
 const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
-  ["dshmarket", Object.freeze({ version: "1.9.0" })],
+  ["dshmarket", Object.freeze({
+    version: "1.17.1",
+    bundlePatch: "./cordis.patch.yml",
+    dependencies: DSH_MARKET_DEPENDENCIES,
+    integrity: "sha512-DQRK0dg0duXhDOqw6LWy5m6GkG3oLiTXC9pM6W9mi1gCbqM1ofgSPuyPOGCsE+06qHsiF65j/urpvCyvhhCPNw==",
+    review: Object.freeze({
+      session: "插件市场不读取 Session 内容；所有 Profile 变更由用户在市场界面确认",
+      capabilities: Object.freeze([
+        "读取和修改当前 DSH Profile",
+        "通过受控 pnpm 安装、更新和卸载插件",
+        "访问社区目录、npm、GitHub 和用户选择的备份服务",
+      ]),
+    }),
+  })],
   ["@linxin666/dsh-web-ui-all", Object.freeze({
     version: "0.1.20",
     bundlePatch: "./cordis.patch.yml",

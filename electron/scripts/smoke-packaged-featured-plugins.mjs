@@ -16,6 +16,7 @@ const featuredArtifactDir = join(resourcesDir, 'featured-plugins')
 const featuredArtifactManifest = join(featuredArtifactDir, 'manifest.json')
 const featuredSourceManifest = join(serverDir, 'src', 'engine', 'dsh_runtime', 'featured_plugins.json')
 const PRODUCT_HOST_PROVIDER = '@vibeinging/dsh-work-product-host-ipc'
+const DESKTOP_PROFILE_PROVIDER = '@vibeinging/dsh-desktop-profile-host'
 
 function requestedOnly() {
   const index = process.argv.indexOf('--only')
@@ -57,6 +58,7 @@ function officialEnv(tempRoot, dataRoot, userDataDir, { offline = false } = {}) 
     DSH_HOME: dataRoot,
     DSH_RUNTIME_DISTRIBUTION: 'npm',
     DSH_RUNTIME_HOME: dataRoot,
+    DSH_DESKTOP_PROFILE_NAME: 'web',
     DSH_PROFILE_PLUGIN_LIBRARY: libraryRoot,
     DSH_FEATURED_PLUGIN_TARBALL_DIR: featuredArtifactDir,
     DSH_FEATURED_PLUGIN_MANIFEST: featuredArtifactManifest,
@@ -105,12 +107,24 @@ async function runOfficial(args, env, label) {
 async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
   const appEnv = { ...env }
   delete appEnv.ELECTRON_RUN_AS_NODE
+  if (!clientPlugin) {
+    delete appEnv.DSH_SMOKE_SCREENSHOT_DIR
+    delete appEnv.DSH_SMOKE_SCREENSHOT_NAME
+  }
   if (clientPlugin === '@linxin666/dsh-client-ui-task-board') {
     appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify(['[data-dsh-taskboard-entry]'])
     appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-dsh-taskboard-board]'
   }
   if (clientPlugin === '@vibeinging/dsh-desktop-chrome') {
     appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-dsh-desktop-titlebar]'
+  }
+  if (clientPlugin === 'dshmarket') {
+    appEnv.DEEPSEEK_API_KEY = 'dsh-packaged-market-ui-smoke-not-used'
+    appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify([
+      'text:设置|Settings',
+      'text:插件市场|Plugin Market|Market',
+    ])
+    appEnv.DSH_SMOKE_EXPECT_SELECTOR = 'div[role="dialog"] nav button:last-child[aria-current="true"]'
   }
   const result = await runProcess(label, [], {
     ...appEnv,
@@ -134,7 +148,10 @@ async function readProfile(dataRoot) {
 }
 
 function supportBundles(plugin) {
-  return plugin.name !== PRODUCT_HOST_PROVIDER ? [PRODUCT_HOST_PROVIDER] : []
+  const support = []
+  if (plugin.name !== PRODUCT_HOST_PROVIDER) support.push(PRODUCT_HOST_PROVIDER)
+  if (plugin.name === 'dshmarket') support.push(DESKTOP_PROFILE_PROVIDER)
+  return support
 }
 
 async function measurePlugin(plugin, artifact, sourceArtifactByName) {

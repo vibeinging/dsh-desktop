@@ -54,12 +54,13 @@ DSH Profile 是插件状态的唯一权威。已有 Profile 的启动、状态�
 
 默认精选输入只有一份：[featured_plugins.json](server/src/engine/dsh_runtime/featured_plugins.json)。它生成随包 tarball、Profile 初始化输入、权限摘要、第三方公告和测试预期；其他代码和文档不维护第二份默认包名列表。
 
-当前默认精选如下：八个自研能力 Bundle 和一个独立社区任务看板 Bundle 都通过官方 Profile 接入。任务看板把 Client 页面挂入官方 Web，不替换官方 Chat、Session 或应用 Shell。每个条目的来源、权限和官方管理方式由 [精选清单](server/src/engine/dsh_runtime/featured_plugins.json) 生成；应用更新不会重新安装用户已卸载的条目。自研包使用 `@vibeinging/*` scope；官方 DSH SDK 仍使用 `@deepseek-ai/*` scope。
+当前默认精选如下：九个自研桌面能力 Bundle，加上独立的社区任务看板和插件市场，都通过官方 Profile 接入。任务看板和插件市场只挂入官方 Web 的标准 Slot，不替换官方 Chat、Session、设置框架或应用 Shell。每个条目的来源、权限和官方管理方式由 [精选清单](server/src/engine/dsh_runtime/featured_plugins.json) 生成；应用更新不会重新安装用户已卸载的条目。自研包使用 `@vibeinging/*` scope；官方 DSH SDK 仍使用 `@deepseek-ai/*` scope。
 
 <!-- featured-plugins:start -->
 | 默认 Bundle | 类型 | 声明权限 | 官方管理方式 | 来源 |
 |---|---|---|---|---|
 | `@vibeinging/dsh-work-product-host-ipc` | desktop-adapter | dsh-work-parent-ipc、browser-workspace-host、file-dialog-host、window-host | 桌面基础服务，不提供卸载 | [本地包](packages/dsh-work-product-host-ipc) |
+| `@vibeinging/dsh-desktop-profile-host` | desktop-adapter | dsh-profile-filesystem、controlled-pnpm-runtime、dsh-cli-runtime | 桌面基础服务，不提供卸载 | [本地包](packages/dsh-desktop-profile-host) |
 | `@vibeinging/dsh-desktop-chrome` | desktop-adapter | 无 Host 权限 | `dsh plugin --profile web remove @vibeinging/dsh-desktop-chrome` | [本地包](packages/dsh-desktop-chrome) |
 | `@vibeinging/dsh-project-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-project-tools` | [本地包](packages/dsh-project-tools) |
 | `@vibeinging/dsh-canvas-tools` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-canvas-tools` | [本地包](packages/dsh-canvas-tools) |
@@ -68,11 +69,27 @@ DSH Profile 是插件状态的唯一权威。已有 Profile 的启动、状态�
 | `@vibeinging/dsh-product-bridge` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-product-bridge` | [本地包](packages/dsh-product-bridge) |
 | `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [本地包](packages/dsh-office-tools) |
 | `@linxin666/dsh-client-ui-task-board` | portable | 读取当前 DSH Session、Workspace 与完成历史、在 DSH_HOME 写入任务账本和执行记录、按用户操作或 Host cron 启动 DSH Session 任务、可选启动固定的跨平台防休眠 helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [上游仓库](https://github.com/zhu1090093659/dsh-web-ui) |
+| `dshmarket` | portable | 读取和修改当前 DSH Profile 的依赖、Bundle 顺序和启停状态、通过受控 pnpm 安装、更新和卸载用户确认的插件、访问插件目录、npm、GitHub 以及用户配置的 WebDAV 或 Gist、导出或导入包含 Profile 配置的备份 | `dsh plugin --profile web remove dshmarket` | [上游仓库](https://github.com/dsh-market/dsh-market) |
 <!-- featured-plugins:end -->
 
 ## 可选插件
 
-应用不建设第二套安装状态。发现、安装、停用、更新和卸载都回到官方 Profile 命令或官方 Web 插件管理能力。
+应用不建设第二套安装状态。默认插件市场、官方 Web 设置页和命令行都读写同一个 DSH Profile；发现和交互由市场提供，最终安装、停用、更新和卸载仍由官方 Profile 及 Loader 生效。
+
+### 默认插件市场
+
+新建 Profile 默认安装固定版本 `dshmarket@1.17.1`。它把市场页面注册到官方 Web 的 `settings.section` Slot，提供目录搜索、已安装列表、兼容性诊断、主题选择、更新和卸载，不创建另一套桌面设置页。发行包内保存经过审查的固定 tarball、完整依赖闭包和 SHA-256，初始化使用 `--ignore-scripts`，所以首次打开不依赖 npm，也不会执行上游 `prepare` 或 `prepack`。
+
+桌面侧的 `@vibeinging/dsh-desktop-profile-host` 只提供公开结构合同 `desktopProfiles` 和 `desktopPnpm`：市场读取当前 `web` Profile，并把用户确认的操作交给随包 pnpm 和官方 `dsh plugin --profile web`。同一时间只允许一个操作，取消会终止子进程树；市场不能自行重启 Electron。浏览目录会访问社区目录，安装和更新可能访问 npm 或 GitHub；WebDAV 和 Gist 只有用户主动配置后才会使用。已有 Profile 不会因升级被补装，用户卸载市场后也不会被恢复。
+
+```bash
+dsh plugin --profile web add -w dshmarket@1.17.1 --save-exact --ignore-scripts
+dsh plugin --profile web remove dshmarket
+```
+
+下面的截图来自当前 macOS arm64 目录包在隔离临时 Profile 中的真实 Electron 运行。插件市场挂在官方设置 Slot 内；截图只证明页面加载和目录读取，安装、停用、卸载与重启恢复由独立的打包版生命周期测试验证。
+
+![官方 Web 设置中的默认插件市场](docs/images/readme/dsh-plugin-market.png)
 
 我方 portable 候选：
 
@@ -98,7 +115,7 @@ dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
 DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence DSH_MACOS_INSTALLER_RESULT_FILE=/path/to/evidence/macos-installer.json npm run smoke:macos:installer -- /path/to/dsh-desktop-0.0.1-mac-arm64.dmg
 ```
 
-`@linxin666/dsh-web-ui-all` 是聚合包，只用于冲突实验，不是发行输入。Better Sidebar、远程 Web、SSH、图像理解、Agent 预设和社区插件管理器没有进入默认 Profile。没有固定来源、完整依赖审查、真实 Electron 回归和卸载证据的社区包不会写入精选清单。
+`@linxin666/dsh-web-ui-all` 是聚合包，只用于冲突实验，不是发行输入。Better Sidebar、远程 Web、SSH、图像理解、Agent 预设和其他未审查的社区插件管理器没有进入默认 Profile。没有固定来源、完整依赖审查、真实 Electron 回归和卸载证据的社区包不会写入精选清单。
 
 皮肤中心和它依赖的 `@linxin666/dsh-skins` 当前不随包分发。上游包级 Apache-2.0 许可证不自动覆盖所有内建视觉资产；上游说明 Maid Atelier 资产使用 CC BY-NC-SA 4.0，不能在没有单独再分发授权的情况下进入发行包。许可结论记录在 [社区插件目录](server/src/engine/dsh_runtime/community_plugin_registry.json) 中，发行边界会阻止未批准的视觉资产进入精选清单。只有逐项资产许可证、署名和再分发条件都通过后，皮肤中心才可重新评估。
 

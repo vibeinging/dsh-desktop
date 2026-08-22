@@ -98,8 +98,26 @@ async function captureSmokeScreenshot(name = SMOKE_SCREENSHOT_NAME) {
   const targetDir = path.resolve(SMOKE_SCREENSHOT_DIR);
   const targetPath = path.join(targetDir, name);
   fs.mkdirSync(targetDir, { recursive: true });
-  const image = await mainWindow.webContents.capturePage();
-  fs.writeFileSync(targetPath, image.toPNG());
+  const debuggerAgent = mainWindow.webContents.debugger;
+  let attached = false;
+  try {
+    if (!debuggerAgent.isAttached()) {
+      debuggerAgent.attach('1.3');
+      attached = true;
+    }
+    const result = await debuggerAgent.sendCommand('Page.captureScreenshot', {
+      format: 'png',
+      fromSurface: true,
+      captureBeyondViewport: false,
+    });
+    const png = Buffer.from(String(result?.data || ''), 'base64');
+    if (!png.length) throw new Error('DevTools 截图为空');
+    fs.writeFileSync(targetPath, png);
+  } finally {
+    if (attached) {
+      try { debuggerAgent.detach(); } catch { /* screenshot success owns the result */ }
+    }
+  }
   console.log(`[smoke] screenshot=${targetPath}`);
   return targetPath;
 }
@@ -661,6 +679,7 @@ function startBackend() {
   env.DSH_DATA_ROOT = DATA_ROOT;
   env.DSH_APP_ROOT = APP_ROOT;
   env.DSH_RUNTIME_HOME = runtimeHomeOverride;
+  env.DSH_DESKTOP_PROFILE_NAME = 'web';
   env.DSH_PROFILE_PLUGIN_LIBRARY = path.join(runtimeHomeOverride, 'plugin-library');
   env.DSH_FEATURED_PLUGIN_TARBALL_DIR = FEATURED_PLUGIN_ARTIFACT_DIR;
   env.DSH_FEATURED_PLUGIN_MANIFEST = path.join(FEATURED_PLUGIN_ARTIFACT_DIR, 'manifest.json');
@@ -1383,18 +1402,36 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
         const deadline = Date.now() + 30_000;
         let state = null;
         let nextClickIndex = 0;
+        let onboardingSettled = !SMOKE_DISMISS_ONBOARDING;
         while (Date.now() < deadline) {
           state = await mainWindow.webContents.executeJavaScript(`({ title: document.title, officialWeb: Boolean(document.querySelector('#root') && globalThis.__DSH_BOOT__), bodyText: document.body?.innerText?.slice(0, 500) || '', expectedSurface: ${JSON.stringify(SMOKE_EXPECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_EXPECT_SELECTOR)}) !== null, rejectedSurfaceAbsent: ${JSON.stringify(SMOKE_REJECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_REJECT_SELECTOR)}) === null })`);
-          if (SMOKE_DISMISS_ONBOARDING && state.officialWeb) {
-            const onboarding = await smokeOnboardingState(mainWindow);
-            if (onboarding.dismissed || onboarding.visible) {
-              await new Promise((resolve) => setTimeout(resolve, 100));
-              continue;
+          if (!onboardingSettled && state.officialWeb) {
+            for (let attempt = 0; attempt < 30; attempt += 1) {
+              await smokeOnboardingState(mainWindow);
+              await new Promise((resolve) => setTimeout(resolve, 150));
             }
+            onboardingSettled = true;
+            continue;
           }
           if (state.officialWeb && nextClickIndex < SMOKE_CLICK_SELECTORS.length) {
             const selector = SMOKE_CLICK_SELECTORS[nextClickIndex];
-            const clicked = await mainWindow.webContents.executeJavaScript(`(() => { const target = document.querySelector(${JSON.stringify(selector)}); if (!target) return false; target.click(); return true })()`);
+            const clicked = await mainWindow.webContents.executeJavaScript(`(() => {
+              const selector = ${JSON.stringify(selector)};
+              let target = null;
+              if (selector.startsWith('text:')) {
+                const labels = new Set(selector.slice(5).split('|').map((value) => value.trim()).filter(Boolean));
+                target = [...document.querySelectorAll('button,[role="button"]')].find((element) => {
+                  const rect = element.getBoundingClientRect();
+                  const text = String(element.innerText || element.textContent || '').trim().replace(/\\s+/g, ' ');
+                  return rect.width > 0 && rect.height > 0 && labels.has(text);
+                });
+              } else {
+                target = document.querySelector(selector);
+              }
+              if (!target) return false;
+              target.click();
+              return true;
+            })()`);
             if (clicked) nextClickIndex += 1;
           }
           if (state.officialWeb && nextClickIndex === SMOKE_CLICK_SELECTORS.length && state.expectedSurface) break;
@@ -1413,6 +1450,7 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
         }
         const clicksCompleted = nextClickIndex === SMOKE_CLICK_SELECTORS.length;
         if (state?.officialWeb && clicksCompleted && state.expectedSurface && state.rejectedSurfaceAbsent) {
+          await new Promise((resolve) => setTimeout(resolve, 3_000));
           await captureSmokeScreenshot();
         }
         console.log(`[smoke] 官方 DSH Web 已加载 title=${state.title} officialWeb=${state.officialWeb} clicks=${nextClickIndex}/${SMOKE_CLICK_SELECTORS.length}`);

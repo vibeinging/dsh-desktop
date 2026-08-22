@@ -136,6 +136,7 @@ export class DshRuntimeClient extends EventEmitter {
       DSH_RUNTIME_DISTRIBUTION: resolved.distribution,
       DSH_RUNTIME_VERSION: resolved.version || "",
       DSH_HOME: dshHome,
+      DSH_DESKTOP_PROFILE_NAME: "web",
       DSH_TELEMETRY_DISABLED: this.env.DSH_TELEMETRY_DISABLED || "1",
       DSH_APP_BOOT_PATH: resolved.appBootPath,
       DSH_RUNTIME_INSTALL_ANCHOR: resolved.installAnchor,

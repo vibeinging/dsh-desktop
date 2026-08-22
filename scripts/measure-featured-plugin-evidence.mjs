@@ -16,6 +16,7 @@ const DSH_CLI = join(APP_ROOT, 'server', 'node_modules', '@deepseek-ai', 'dsh', 
 const PNPM_BIN_DIR = join(APP_ROOT, '.desktop-build', 'pnpm-bin')
 const DEFAULT_OUTPUT = join(APP_ROOT, '.desktop-build', 'reports', 'featured-plugin-evaluation.json')
 const PRODUCT_HOST_PROVIDER = '@vibeinging/dsh-work-product-host-ipc'
+const DESKTOP_PROFILE_PROVIDER = '@vibeinging/dsh-desktop-profile-host'
 
 function argument(name, fallback) {
   const index = process.argv.indexOf(`--${name}`)
@@ -132,6 +133,7 @@ function makeEnvironment(home) {
     DSH_RUNTIME_HOME: home,
     DSH_DATA_ROOT: home,
     DSH_RUNTIME_DISTRIBUTION: 'source',
+    DSH_DESKTOP_PROFILE_NAME: 'web',
     DSH_TELEMETRY_DISABLED: '1',
     DSH_PROFILE_PLUGIN_LIBRARY: libraryRoot,
     DSH_FEATURED_PLUGIN_TARBALL_DIR: FEATURED_ARTIFACT_DIR,
@@ -166,7 +168,9 @@ async function measurePlugin(plugin, artifact) {
     desktop_runtime_required: plugin.evidence.desktop_runtime_required === true,
     client_activation: plugin.evidence.client ? 'required' : 'not-applicable',
   }
-  const supportBundles = plugin.name !== PRODUCT_HOST_PROVIDER ? [PRODUCT_HOST_PROVIDER] : []
+  const supportBundles = []
+  if (plugin.name !== PRODUCT_HOST_PROVIDER) supportBundles.push(PRODUCT_HOST_PROVIDER)
+  if (plugin.name === 'dshmarket') supportBundles.push(DESKTOP_PROFILE_PROVIDER)
   result.support_bundles = supportBundles
   let server
   try {

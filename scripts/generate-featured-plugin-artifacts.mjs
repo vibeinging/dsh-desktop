@@ -52,8 +52,10 @@ export function validateFeaturedPackageContract(plugin, manifest) {
       || JSON.stringify(manifest.dependencies || {}) !== JSON.stringify(plugin.evidence.package_dependencies)) {
       throw new Error(`精选 registry 插件版本或依赖闭包漂移: ${plugin.name}`)
     }
+    const clientExport = manifest.exports?.["./client"]
+    const clientEntry = typeof clientExport === "string" ? clientExport : clientExport?.default
     if (manifest.dsh?.client?.platform !== "web"
-      || String(manifest.exports?.["./client"]?.default || "").replace(/^\.\//, "") !== "lib/client.js") {
+      || String(clientEntry || "").replace(/^\.\//, "") !== (plugin.evidence.client_entry || "lib/client.js")) {
       throw new Error(`精选 registry 插件缺少官方 Web Client 导出: ${plugin.name}`)
     }
     return { hostRequirements: plugin.permissions }
@@ -87,9 +89,10 @@ export function validateFeaturedPackageLock(plugin, lockfile) {
     version: plugin.evidence.package_version,
     integrity: plugin.evidence.package_integrity,
     license: plugin.evidence.declared_license,
+    lock_path: `node_modules/${plugin.name}`,
   }, ...plugin.evidence.offline_dependencies]
   for (const record of records) {
-    const locked = lockfile?.packages?.[`node_modules/${record.name}`]
+    const locked = lockfile?.packages?.[record.lock_path || record.install_path]
     if (!locked || locked.version !== record.version || locked.integrity !== record.integrity
       || locked.license !== record.license) {
       throw new Error(`精选 registry 插件锁文件漂移: ${record.name}`)
@@ -105,6 +108,7 @@ export function validateFeaturedPackageComposition(plugin, sourceText, patchText
     throw new Error(`精选插件 composition.plugin_id 与源码 name 不一致: ${plugin.name}`)
   }
   const injectText = sourceText.match(/^export const inject = (\[[^\n]*\]);?$/m)?.[1]
+    || sourceText.match(/\bctx\.inject\((\[[^\n]*\])/m)?.[1]
   const inject = injectText
     ? [...injectText.matchAll(/["']([^"']+)["']/g)].map((match) => match[1])
     : null
@@ -127,7 +131,7 @@ async function prepareRegistryPackSource(plugin, sourceDir, root) {
     manifest.bundleDependencies = Object.keys(plugin.evidence.package_dependencies)
     await writeFile(manifestPath, json(manifest))
     for (const dependency of plugin.evidence.offline_dependencies) {
-      const dependencySource = join(root, "server", "node_modules", dependency.name)
+      const dependencySource = join(root, "server", dependency.install_path)
       const dependencyManifest = JSON.parse(await readFile(join(dependencySource, "package.json"), "utf8"))
       if (dependencyManifest.version !== dependency.version || dependencyManifest.license !== dependency.license) {
         throw new Error(`精选 registry 插件离线依赖安装态漂移: ${dependency.name}`)

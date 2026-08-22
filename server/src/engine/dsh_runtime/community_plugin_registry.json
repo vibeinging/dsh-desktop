@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-21",
+  "updated_at": "2026-08-22",
   "catalog_source": "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin",
   "plugins": [
     {
@@ -9,12 +9,16 @@
       "description": "Browse, search, install, and update DSH plugins from the Web settings surface.",
       "description_zh": "在 Web 设置页浏览、搜索、安装和更新 DSH 插件。",
       "repository": "https://github.com/dsh-market/dsh-market",
-      "stars": 167,
+      "stars": 1600,
       "category": "market",
-      "source": "dshmarket@1.9.0",
-      "compatibility": "reviewed",
-      "release_policy": "excluded-duplicate-official-plugin-manager",
-      "review_note_zh": "仅保留为目录预检记录，不进入 DSH Desktop 发行 Profile；官方 Profile 插件命令是唯一安装状态权威。",
+      "source": "dshmarket@1.17.1",
+      "compatibility": "bundled-default-dual-face",
+      "release_policy": "bundled-default",
+      "reviewed_at": "2026-08-22",
+      "package_integrity": "sha512-DQRK0dg0duXhDOqw6LWy5m6GkG3oLiTXC9pM6W9mi1gCbqM1ofgSPuyPOGCsE+06qHsiF65j/urpvCyvhhCPNw==",
+      "license": "MIT",
+      "permissions": ["读取和修改当前 DSH Profile", "通过受控 pnpm 执行用户确认的插件操作", "访问社区目录、npm、GitHub 和用户选择的备份服务"],
+      "review_note_zh": "作为默认独立 Bundle 挂入官方 Web 设置 Slot；市场负责发现和交互，desktopProfiles、desktopPnpm 与官方 dsh plugin 命令保持 Profile 为唯一状态权威。安装脚本默认禁用，WebDAV/Gist 仅在用户配置后启用，Electron 重启仍由桌面壳负责。",
       "priority": 10
     },
     {

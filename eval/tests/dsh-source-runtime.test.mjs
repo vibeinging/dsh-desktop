@@ -254,6 +254,7 @@ test("DSH runtime opens current mux and host WebSockets before reporting ready",
   };
   child.disconnect = () => { child.connected = false; };
   child.kill = () => {};
+  let spawnedOptions = null;
   const client = new DshRuntimeClient({
     productHostDispatcher: {
       registerNativeHostSession(sessionId) {
@@ -268,7 +269,8 @@ test("DSH runtime opens current mux and host WebSockets before reporting ready",
       DSH_APP_ROOT: APP_ROOT,
       ...(await featuredArtifactEnv()),
     },
-    spawn: () => {
+    spawn: (_path, _args, options) => {
+      spawnedOptions = options;
       queueMicrotask(() => {
         child.emit("message", { type: "product-native-session-ready", sessionId: "dsh-native-1" });
         child.emit("message", { type: "product-native-session-released", sessionId: "dsh-native-1" });
@@ -295,6 +297,7 @@ test("DSH runtime opens current mux and host WebSockets before reporting ready",
   });
 
   await client.start();
+  assert.equal(spawnedOptions.env.DSH_DESKTOP_PROFILE_NAME, "web");
   assert.deepEqual(nativeSessionEvents, [
     { type: "ready", sessionId: "dsh-native-1" },
     { type: "released", sessionId: "dsh-native-1" },

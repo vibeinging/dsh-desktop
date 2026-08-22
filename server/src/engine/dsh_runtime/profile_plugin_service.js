@@ -306,9 +306,12 @@ export function validateProfileBundleSdk(manifest) {
       "DSH_PROFILE_LEGACY_SDK",
     );
   }
-  const mismatchedDsh = Object.entries(dependencies).filter(([name, version]) => (
-    name.startsWith("@deepseek-ai/dsh-") && !currentReleaseRange(version, CURRENT_DSH_SDK_VERSION)
-  ));
+  const mismatchedDsh = Object.entries(dependencies).filter(([name, version]) => {
+    if (!name.startsWith("@deepseek-ai/dsh-")) return false;
+    const optionalPeer = manifest?.dependencies?.[name] === undefined
+      && manifest?.peerDependenciesMeta?.[name]?.optional === true;
+    return !optionalPeer && !currentReleaseRange(version, CURRENT_DSH_SDK_VERSION);
+  });
   if (mismatchedDsh.length) {
     throw profileError(
       `${manifest.name} 依赖的 DSH SDK 不属于当前 ${CURRENT_DSH_SDK_VERSION} 发布线：${mismatchedDsh.map(([name, version]) => `${name}@${version}`).join("、")}`,
@@ -949,6 +952,22 @@ export class DshProfilePluginService {
   }
 
   async validateCandidate(source, context) {
+    if (source.startsWith("file:")) {
+      const sourceDir = realpathSync(source.slice(5));
+      const sourceManifest = readJson(join(sourceDir, "package.json"));
+      const sourceIssues = [
+        ...inspectProfileBundleManifest(sourceManifest),
+        ...inspectCommunityClientIsolation(sourceManifest),
+      ];
+      if (sourceIssues.length > 0) {
+        throw profileError(sourceIssues[0].message, sourceIssues[0].code, {
+          package_name: sourceManifest.name || null,
+          version: sourceManifest.version || null,
+          compatibility_checks: inspectProfileBundleCompatibility(sourceManifest),
+          issues: sourceIssues,
+        });
+      }
+    }
     const candidateName = `dsh-work-candidate-${randomUUID()}`;
     const candidateDir = context.api.resolveProfileDir(candidateName, context.dshHome);
     context.api.initProfile(candidateDir, context.api.PROFILE_TEMPLATES?.web || context.api.DEFAULT_PROFILE_BUNDLES);

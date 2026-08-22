@@ -40,6 +40,43 @@
       }
     },
     {
+      "name": "@vibeinging/dsh-desktop-profile-host",
+      "package_path": "packages/dsh-desktop-profile-host",
+      "default": true,
+      "user_manageable": false,
+      "portability": "desktop-adapter",
+      "permissions": ["dsh-profile-filesystem", "controlled-pnpm-runtime", "dsh-cli-runtime"],
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "workspace-package",
+        "release_source": "fixed-tarball",
+        "entry": "src/index.js",
+        "patch_id": "dsh-desktop-profile-host",
+        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "registry-access-only-through-user-requested-plugin-operations",
+        "client": false,
+        "composition": {
+          "plugin_id": "dsh-desktop-profile-host",
+          "requires": [],
+          "provides": ["desktopProfiles", "desktopPnpm"],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "desktop_runtime_required": true,
+        "regression": {
+          "unit": ["eval/tests/dsh-desktop-profile-host.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-initialization.test.mjs", "eval/tests/dsh-profile-plugin-service.test.mjs"],
+          "electron": ["electron/scripts/smoke-packaged-featured-plugins.mjs"]
+        },
+        "cost_measurement": "per-plugin tarball; Profile mutation lifecycle and cold start are release-smoke measurements"
+      }
+    },
+    {
       "name": "@vibeinging/dsh-desktop-chrome",
       "package_path": "packages/dsh-desktop-chrome",
       "default": true,
@@ -317,8 +354,8 @@
             "version": "3.18.0",
             "integrity": "sha512-Jw2uxjoyyqc/yeurmChUEc/jbi8GsrdXV/KmqRUDZXJAXAmrJiPsz8vKa17l/VckyzljHZ9oGaul443CQiXxtA==",
             "license": "MIT",
-            "license_path": "server/node_modules/cosmokit/LICENSE",
-            "license_sha256": "034fb52b1d57360ecbae6cb1632a88f86fd7c3d3f5631a5f082710203dda0be7",
+            "license_path": "server/node_modules/schemastery/package.json",
+            "license_sha256": "d0e484b95e47081f88b53e9863317365d5ce0c69469524abff5617672f70cd9f",
             "install_path": "node_modules/schemastery"
           },
           {
@@ -328,7 +365,7 @@
             "license": "MIT",
             "license_path": "server/node_modules/cosmokit/LICENSE",
             "license_sha256": "034fb52b1d57360ecbae6cb1632a88f86fd7c3d3f5631a5f082710203dda0be7",
-            "install_path": "node_modules/schemastery/node_modules/cosmokit"
+            "install_path": "node_modules/cosmokit"
           },
           {
             "name": "@standard-schema/spec",
@@ -337,7 +374,7 @@
             "license": "MIT",
             "license_path": "server/node_modules/@standard-schema/spec/LICENSE",
             "license_sha256": "653b779005a3a4d64a7288c940f7b9a0e8f0b1e0375f6aa6af9473caf131e564",
-            "install_path": "node_modules/schemastery/node_modules/@standard-schema/spec"
+            "install_path": "node_modules/@standard-schema/spec"
           }
         ],
         "entry": "lib/index.js",
@@ -364,6 +401,82 @@
           "electron": ["eval/tests/dsh-community-task-board.test.mjs", "electron/scripts/smoke-packaged-featured-plugins.mjs"]
         },
         "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, and cold Web start"
+      }
+    },
+    {
+      "name": "dshmarket",
+      "package_path": "server/node_modules/dshmarket",
+      "repository": "https://github.com/dsh-market/dsh-market",
+      "default": true,
+      "user_manageable": true,
+      "portability": "portable",
+      "permissions": ["读取和修改当前 DSH Profile 的依赖、Bundle 顺序和启停状态", "通过受控 pnpm 安装、更新和卸载用户确认的插件", "访问插件目录、npm、GitHub 以及用户配置的 WebDAV 或 Gist", "导出或导入包含 Profile 配置的备份"],
+      "permissions_en": ["read and modify dependencies, Bundle order, and enabled state in the active DSH Profile", "install, update, and remove user-confirmed plugins through controlled pnpm", "access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services", "export or import backups that contain Profile configuration"],
+      "license": "MIT",
+      "evidence": {
+        "source_kind": "locked-registry-package",
+        "release_source": "fixed-tarball",
+        "package_spec": "dshmarket@1.17.1",
+        "package_version": "1.17.1",
+        "package_integrity": "sha512-DQRK0dg0duXhDOqw6LWy5m6GkG3oLiTXC9pM6W9mi1gCbqM1ofgSPuyPOGCsE+06qHsiF65j/urpvCyvhhCPNw==",
+        "declared_license": "MIT",
+        "license_path": "server/node_modules/dshmarket/LICENSE",
+        "license_sha256": "5c4b7168fe83192a2c6a1cbd674fbc6e8489eeb22222b96ace1f5cc5b1f654fa",
+        "package_dependencies": { "js-yaml": "^4.1.0", "undici": "^7.29.0" },
+        "offline_dependencies": [
+          {
+            "name": "js-yaml",
+            "version": "4.3.1",
+            "integrity": "sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ==",
+            "license": "MIT",
+            "license_path": "server/node_modules/js-yaml/LICENSE",
+            "license_sha256": "a07bc24468b9654ce76a547d47a2db282d07733b715db4c73a98bd63961f9550",
+            "install_path": "node_modules/js-yaml"
+          },
+          {
+            "name": "argparse",
+            "version": "2.0.1",
+            "integrity": "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==",
+            "license": "Python-2.0",
+            "license_path": "server/node_modules/js-yaml/node_modules/argparse/LICENSE",
+            "license_sha256": "de4d1f2d2ad5ad0cfd1657a106476b31cb5db5ef9d1ff842b237c0c81f0c8a23",
+            "install_path": "node_modules/js-yaml/node_modules/argparse"
+          },
+          {
+            "name": "undici",
+            "version": "7.29.0",
+            "integrity": "sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==",
+            "license": "MIT",
+            "license_path": "server/node_modules/undici/LICENSE",
+            "license_sha256": "a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27",
+            "install_path": "node_modules/undici"
+          }
+        ],
+        "entry": "lib/index.js",
+        "client_entry": "client/client.js",
+        "source_entry": "src/index.ts",
+        "patch_id": "dsh-market",
+        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "declared_settings_sdk": "^0.1.0-rc.7", "cordis": "^4.0.1" },
+        "lifecycle_scripts": ["prepare", "prepack"],
+        "native_dependencies": [],
+        "network": "awesome-dsh-plugin-npm-github-and-user-configured-backup-services",
+        "client": true,
+        "composition": {
+          "plugin_id": "dsh-market",
+          "requires": ["webServer", "loader"],
+          "provides": [],
+          "routes": ["/dsh-market/*"],
+          "slots": ["settings.section", "settings.plugin.item", "shell.overlay"],
+          "conflicts": []
+        },
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-trusted-client-plugins.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-initialization.test.mjs", "eval/tests/dsh-profile-plugin-service.test.mjs"],
+          "electron": ["eval/dsh-market-ui-smoke.mjs", "electron/scripts/smoke-packaged-featured-plugins.mjs"]
+        },
+        "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, Client activation, and cold Web start"
       }
     }
   ]

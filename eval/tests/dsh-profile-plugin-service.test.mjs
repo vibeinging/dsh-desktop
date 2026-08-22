@@ -27,6 +27,8 @@ import { generateFeaturedPluginArtifacts } from "../../scripts/generate-featured
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_NPM_ROOT = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh");
+const DSH_MARKET_INTEGRITY = "sha512-DQRK0dg0duXhDOqw6LWy5m6GkG3oLiTXC9pM6W9mi1gCbqM1ofgSPuyPOGCsE+06qHsiF65j/urpvCyvhhCPNw==";
+const DSH_MARKET_DEPENDENCIES = { "js-yaml": "^4.1.0", undici: "^7.29.0" };
 
 async function writeReviewedMarketFixture(root) {
   await mkdir(root, { recursive: true });
@@ -35,7 +37,7 @@ async function writeReviewedMarketFixture(root) {
   await writeFile(join(root, "cordis.patch.yml"), "- insert:\n    - id: reviewed-market-fixture\n      name: dshmarket\n");
   await writeFile(join(root, "package.json"), `${JSON.stringify({
     name: "dshmarket",
-    version: "1.9.0",
+    version: "1.17.1",
     private: true,
     type: "module",
     main: "./index.js",
@@ -47,6 +49,7 @@ async function writeReviewedMarketFixture(root) {
       bundle: { patch: "./cordis.patch.yml" },
       client: { platform: "web" },
     },
+    dependencies: DSH_MARKET_DEPENDENCIES,
     peerDependencies: {
       "@deepseek-ai/cordis": "^4.0.1",
     },
@@ -140,8 +143,11 @@ test("Profile Bundle compatibility separates Host, Session, capabilities, and Cl
   assert.equal(inspectProfileBundleCompatibility({ dependencies: {} })[3].message, "Host-only Bundle，不需要桌面 Slot");
   assert.deepEqual(inspectProfileBundleCompatibility({
     name: "dshmarket",
-    version: "1.9.0",
-    dsh: { client: { platform: "web" } },
+    version: "1.17.1",
+    dependencies: DSH_MARKET_DEPENDENCIES,
+    dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
+  }, {
+    integrity: DSH_MARKET_INTEGRITY,
   })[3], {
     id: "client",
     status: "reviewed",
@@ -376,14 +382,15 @@ test("community dsh.client Bundles stay out of the privileged Electron renderer"
   }), []);
   assert.deepEqual(inspectCommunityClientIsolation({
     name: "dshmarket",
-    version: "1.9.0",
-    dsh: { client: { platform: "web" } },
-  }), []);
+    version: "1.17.1",
+    dependencies: DSH_MARKET_DEPENDENCIES,
+    dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
+  }, { integrity: DSH_MARKET_INTEGRITY }), []);
   assert.equal(inspectCommunityClientIsolation({
     name: "dshmarket",
-    version: "1.8.0",
+    version: "1.17.0",
     dsh: { client: { platform: "web" } },
-  })[0].code, "DSH_PROFILE_CLIENT_ISOLATION_REQUIRED");
+  }, { integrity: DSH_MARKET_INTEGRITY })[0].code, "DSH_PROFILE_CLIENT_ISOLATION_REQUIRED");
   assert.deepEqual(inspectCommunityClientIsolation({
     name: "@linxin666/dsh-chat-recovery",
     version: "0.2.5",
@@ -532,7 +539,7 @@ test("a current local Bundle passes the real isolated Profile preflight", {
   }
 });
 
-test("the reviewed market release passes the real isolated Client preflight", {
+test("a local package cannot impersonate the reviewed bundled market", {
   timeout: 30_000,
   skip: existsSync(join(DSH_NPM_ROOT, "package.json"))
     ? false
@@ -553,24 +560,9 @@ test("the reviewed market release passes the real isolated Client preflight", {
       restartRuntime: async () => ({ restarted: false, sessions: [] }),
     });
     const result = await service.preflight(source);
-    assert.equal(result.status, "ready");
-    assert.equal(result.installable, true);
-    assert.equal(result.package_name, "dshmarket");
-    assert.equal(result.version, "1.9.0");
-    assert.equal(result.surface, "dsh_web");
-    assert.equal(result.compatibility_checks.at(-1).status, "reviewed");
-    assert.deepEqual(await service.install(source), {
-      id: "dshmarket",
-      pluginId: "dshmarket",
-      name: "dshmarket",
-      version: "1.9.0",
-      surface: "dsh_web",
-    });
-    assert.deepEqual(await service.uninstall("dshmarket"), {
-      id: "dshmarket",
-      name: "dshmarket",
-      surface: "dsh_web",
-    });
+    assert.equal(result.status, "migration_required");
+    assert.equal(result.installable, false);
+    assert.equal(result.blockers[0].code, "DSH_PROFILE_CLIENT_INTEGRITY_MISSING");
   } finally {
     await rm(home, { recursive: true, force: true });
   }
@@ -655,9 +647,9 @@ test("the Profile catalog is projected from the official Web Profile order", {
       { code: "PLUGIN_UNINSTALL_NOT_ALLOWED" },
     );
     assert.equal(productBridge.product, null);
-    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-21");
+    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-22");
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
-    assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.9.0");
+    assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.17.1");
     assert.deepEqual(
       catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-web-ui"),
       {

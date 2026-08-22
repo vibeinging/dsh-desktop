@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 
 import {
   isReviewedCommunityClient,
+  reviewedDshMarketDependencies,
   reviewedCommunityClientDependencies,
   reviewedCommunityClientReview,
   reviewedCommunityClientPolicy,
@@ -25,18 +26,44 @@ const APP_ROOT = resolve(import.meta.dirname, "../..");
 
 test("only audited community Client releases may enter the product Client graph", () => {
   const dependencies = reviewedCommunityClientDependencies();
+  const marketDependencies = reviewedDshMarketDependencies();
   assert.equal(isReviewedCommunityClient({
     name: "dshmarket",
-    manifest: { version: "1.9.0" },
+    manifest: {
+      version: "1.17.1",
+      dependencies: marketDependencies,
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
+    integrity: "sha512-DQRK0dg0duXhDOqw6LWy5m6GkG3oLiTXC9pM6W9mi1gCbqM1ofgSPuyPOGCsE+06qHsiF65j/urpvCyvhhCPNw==",
   }), true);
   assert.equal(isReviewedCommunityClient({
     name: "dshmarket",
-    manifest: { version: "1.9.1" },
+    manifest: {
+      version: "1.17.2",
+      dependencies: marketDependencies,
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
   }), false);
   assert.equal(isReviewedCommunityClient({
     name: "another-client",
-    manifest: { version: "1.9.0" },
+    manifest: { version: "1.17.1" },
   }), false);
+  assert.deepEqual(reviewedCommunityClientReview({
+    name: "dshmarket",
+    manifest: {
+      version: "1.17.1",
+      dependencies: marketDependencies,
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
+    integrity: "sha512-DQRK0dg0duXhDOqw6LWy5m6GkG3oLiTXC9pM6W9mi1gCbqM1ofgSPuyPOGCsE+06qHsiF65j/urpvCyvhhCPNw==",
+  }), {
+    session: "插件市场不读取 Session 内容；所有 Profile 变更由用户在市场界面确认",
+    capabilities: [
+      "读取和修改当前 DSH Profile",
+      "通过受控 pnpm 安装、更新和卸载插件",
+      "访问社区目录、npm、GitHub 和用户选择的备份服务",
+    ],
+  });
   assert.equal(isReviewedCommunityClient({
     name: "@linxin666/dsh-web-ui-all",
     manifest: {
@@ -167,7 +194,8 @@ test("the curated Profile input has one authoritative list with explicit managea
   assert.deepEqual(plugins, manifest.plugins);
   assert.equal(plugins.every((plugin) => plugin.default && typeof plugin.user_manageable === "boolean"), true);
   assert.equal(plugins.find((plugin) => plugin.name === "@vibeinging/dsh-work-product-host-ipc")?.user_manageable, false);
-  assert.equal(plugins.filter((plugin) => plugin.user_manageable).length, plugins.length - 1);
+  assert.equal(plugins.find((plugin) => plugin.name === "@vibeinging/dsh-desktop-profile-host")?.user_manageable, false);
+  assert.equal(plugins.filter((plugin) => plugin.user_manageable).length, plugins.length - 2);
   assert.equal(plugins.some((plugin) => plugin.name === "@linxin666/dsh-client-ui-task-board"), true);
   for (const plugin of plugins) {
     assert.equal(new Set(["workspace-package", "locked-registry-package"]).has(plugin.evidence.source_kind), true);
@@ -196,8 +224,11 @@ test("the curated list keeps package names, source paths, and SPDX licenses alig
     const source = readFileSync(join(packageDir, plugin.evidence.source_entry || plugin.evidence.entry), "utf8");
     const patch = readFileSync(join(packageDir, "cordis.patch.yml"), "utf8");
     assert.doesNotThrow(() => validateFeaturedPackageComposition(plugin, source, patch));
+    const wrongSource = source.match(/^export const inject = .*$/m)
+      ? source.replace(/^export const inject = .*$/m, 'export const inject = ["wrongService"];')
+      : source.replace(/\bctx\.inject\(\[[^\n]*\]/m, 'ctx.inject(["wrongService"]');
     assert.throws(
-      () => validateFeaturedPackageComposition(plugin, source.replace(/^export const inject = .*$/m, 'export const inject = ["wrongService"];'), patch),
+      () => validateFeaturedPackageComposition(plugin, wrongSource, patch),
       /composition\.requires/,
     );
     if (plugin.evidence.source_kind === "workspace-package") {
@@ -235,6 +266,28 @@ test("the curated registry package rejects lock, license, and dependency drift",
       ...serverLockfile.packages,
       "node_modules/schemastery": {
         ...serverLockfile.packages["node_modules/schemastery"],
+        integrity: "sha512-drift",
+      },
+    },
+  }), /锁文件漂移/);
+});
+
+test("the bundled plugin market is pinned to its audited package and nested dependency closure", () => {
+  const plugin = featuredPlugins().find(({ name }) => name === "dshmarket");
+  const packageJson = JSON.parse(readFileSync(join(resolveFeaturedPackageDir(plugin), "package.json"), "utf8"));
+  const serverLockfile = JSON.parse(readFileSync(join(APP_ROOT, "server/package-lock.json"), "utf8"));
+  assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
+  assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile));
+  assert.throws(() => validateFeaturedPackageContract(plugin, {
+    ...packageJson,
+    dependencies: { ...packageJson.dependencies, undici: "^8.0.0" },
+  }), /依赖闭包漂移/);
+  assert.throws(() => validateFeaturedPackageLock(plugin, {
+    ...serverLockfile,
+    packages: {
+      ...serverLockfile.packages,
+      "node_modules/js-yaml/node_modules/argparse": {
+        ...serverLockfile.packages["node_modules/js-yaml/node_modules/argparse"],
         integrity: "sha512-drift",
       },
     },
