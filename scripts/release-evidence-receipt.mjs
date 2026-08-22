@@ -31,7 +31,6 @@ export const RELEASE_EVIDENCE_CONTRACTS = Object.freeze({
       'notarytool-accepted',
       'dmg-stapled',
       'dmg-stapler-validate',
-      'dmg-gatekeeper-open',
       'payload-stapler-validate',
       'payload-gatekeeper-execute',
     ]),

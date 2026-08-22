@@ -2,7 +2,7 @@
 
 ## 目标
 
-本次候选版本为 `v0.1.0`。macOS arm64 产物必须使用 Developer ID 签名并完成 App、DMG 公证、Gatekeeper、安装器、Native Host、精选 Bundle 和真实模型回执；Windows x64 由 GitHub Actions 生成并完成安装、启动、Profile、恢复和卸载验收。仓库没有 Windows 代码签名证书，因此 Windows 产物只能明确标记为未签名，不能写成已签名或 SmartScreen 无提示。
+本次候选版本为 `v0.1.0`。macOS arm64 产物必须使用 Developer ID 签名并完成 App 公证、DMG 公证票据、最终 App Gatekeeper、安装器、Native Host、精选 Bundle 和真实模型回执；Windows x64 由 GitHub Actions 生成并完成安装、启动、Profile、恢复和卸载验收。仓库没有 Windows 代码签名证书，因此 Windows 产物只能明确标记为未签名，不能写成已签名或 SmartScreen 无提示。
 
 ## 已确认条件
 
@@ -11,8 +11,12 @@
 - Apple Team 为 `BB5VK42K87`，本机公证凭据已通过 `notarytool history` 只读验证。
 - Developer ID 指纹 `26C311958B22397631A857D0482CD2F0EA0BF2AA` 有效期至 2031 年；workflow 使用唯一指纹，避免两个同名证书产生歧义。
 - npm 认证材料存在，但 GitHub Actions 仓库 Secret 尚未配置。
-- 本机存在 `~/.dsh/.env`，但预检没有读取其内容；检查或复制真实模型凭据到 GitHub Actions 前需要用户明确授权。
+- 用户已授权本轮只在本机 smoke 进程中临时使用 `~/.dsh/.env` 的 DeepSeek 凭据；凭据不输出、不写入回执、不提交且不上传 GitHub Actions。
 - Windows x64 签名证书不存在；`windows-release-evidence.yml` 保留为未来的正式签名入口，本轮只运行 `windows-release.yml`。
+
+## DMG 公证验收
+
+electron-builder 默认不对 DMG 容器另外签名，并明确说明 DMG 容器签名不是 Gatekeeper 必需条件。正式回执因此要求 Apple 接受 DMG 公证、DMG 票据附加与验证成功，然后挂载该 DMG，对其中实际分发的 App 执行 stapler 和 Gatekeeper 验证。只有另外签名的 DMG 容器才能通过 `spctl --type open --context context:primary-signature`；本项目不把该可选的企业分发能力写成必需发行门禁。
 
 ## Actions 用量
 

@@ -545,7 +545,7 @@ test('each release receipt kind rejects incomplete, failed, wrong-level, and str
     {
       kind: 'macos-dmg-notarization',
       evidenceLevel: 'macos-dmg-notarization',
-      checks: ['notarytool-accepted', 'dmg-stapled', 'dmg-stapler-validate', 'dmg-gatekeeper-open', 'payload-stapler-validate', 'payload-gatekeeper-execute'],
+      checks: ['notarytool-accepted', 'dmg-stapled', 'dmg-stapler-validate', 'payload-stapler-validate', 'payload-gatekeeper-execute'],
       validator: isMacosDmgNotarizationEvidenceReceipt,
     },
     {

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import {
   createReleaseEvidenceReceipt,
   readSignerIdentity,
+  releaseEvidenceChecks,
 } from '../../scripts/release-evidence-receipt.mjs'
 
 const execFileAsync = promisify(execFile)
@@ -103,7 +104,6 @@ async function main() {
     }
     await run('附加 DMG 公证票据', 'xcrun', ['stapler', 'staple', dmgPath], { timeoutMs: 120_000 })
     await run('验证 DMG 公证票据', 'xcrun', ['stapler', 'validate', dmgPath], { timeoutMs: 120_000 })
-    await run('验证 DMG Gatekeeper', 'spctl', ['--assess', '--type', 'open', '--verbose=4', dmgPath], { timeoutMs: 120_000 })
 
     await mkdir(mountPoint, { recursive: true })
     await run('挂载已公证 DMG', 'hdiutil', ['attach', dmgPath, '-readonly', '-nobrowse', '-mountpoint', mountPoint], { timeoutMs: 120_000 })
@@ -125,14 +125,14 @@ async function main() {
         signerIdentity: readSignerIdentity(appPath, process.env, { allowOverride: false }),
         startedAt,
         completedAt: new Date().toISOString(),
-        checks: ['notarytool-accepted', 'dmg-stapled', 'dmg-stapler-validate', 'dmg-gatekeeper-open', 'payload-stapler-validate', 'payload-gatekeeper-execute']
+        checks: releaseEvidenceChecks('macos-dmg-notarization')
           .map((name) => ({ name, passed: true })),
       }),
       dmg: dmgPath.replace(`${APP_ROOT}/`, ''),
       arch,
       submission_id: submission.id,
     })
-    console.log(`[macos-notary] PASS ${dmgPath.split('/').pop()} 容器和 App 载荷均已公证并通过 Gatekeeper`)
+    console.log(`[macos-notary] PASS ${dmgPath.split('/').pop()} DMG 票据与 App Gatekeeper 验收通过`)
   } finally {
     if (mounted) await run('卸载 DMG', 'hdiutil', ['detach', mountPoint, '-force'], { timeoutMs: 120_000 }).catch(() => {})
     await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 })
