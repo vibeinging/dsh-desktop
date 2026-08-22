@@ -23,6 +23,7 @@ const workspaceDir = join(tempDir, 'workspace')
 const approvalMarkerPath = join(tempDir, 'approval-marker')
 const screenshotDir = String(process.env.DSH_SCREENSHOT_DIR || '').trim()
 const liveModelResultPath = String(process.env.DSH_LIVE_MODEL_RESULT_FILE || '').trim()
+const keepTemp = process.env.DSH_OFFICIAL_WEB_FLOW_KEEP_TEMP === '1'
 const fakeModelEnabled = process.env.DSH_OFFICIAL_WEB_FLOW_FAKE_MODEL === '1' || process.argv.includes('--fake-model')
 const liveModelEnabled = process.env.DSH_OFFICIAL_WEB_FLOW_LIVE_MODEL === '1' || process.argv.includes('--live-model')
 const liveModelResponseMarker = liveModelEnabled ? `DSH-LIVE-MODEL-${randomUUID()}` : ''
@@ -626,7 +627,11 @@ try {
   try { cdp?.close() } catch { /* ignore */ }
   try { child?.kill() } catch { /* ignore */ }
   try { await fakeModel?.close() } catch { /* ignore */ }
-  try { await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }) } catch (error) {
-    console.warn(`[smoke] 临时目录清理失败(已忽略): ${error.code || error.message}`)
+  if (keepTemp) {
+    console.log(`[smoke] INFO 保留诊断目录=${tempDir}`)
+  } else {
+    try { await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }) } catch (error) {
+      console.warn(`[smoke] 临时目录清理失败(已忽略): ${error.code || error.message}`)
+    }
   }
 }

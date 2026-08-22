@@ -415,6 +415,15 @@ test('live-model evidence receipt binds the current artifacts and rejects drift'
       providerName: 'DeepSeek',
       errors: [],
     });
+    assert.deepEqual(inspectLiveModelHistory({ events: history.entries }, { responseMarker }), {
+      ok: true,
+      completed: true,
+      terminalFailure: false,
+      assistantText: `已完成 ${responseMarker}`,
+      provider: 'deepseek-official',
+      providerName: 'DeepSeek',
+      errors: [],
+    });
     const receipt = createLiveModelEvidenceReceipt({
       root,
       appPath: app,

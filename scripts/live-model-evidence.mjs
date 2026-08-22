@@ -21,7 +21,11 @@ const FAILURE_TEXT_PATTERN = /(?:AUTH(?:ORIZATION|ENTICATION)?|CREDENTIAL|EMPTY[
 
 function historyEntries(history) {
   if (Array.isArray(history?.entries)) return history.entries
-  if (Array.isArray(history?.events)) return history.events.map((event) => ({ event }))
+  if (Array.isArray(history?.events)) {
+    return history.events.map((entry) => (
+      entry?.event && typeof entry.event === 'object' ? entry : { event: entry }
+    ))
+  }
   return []
 }
 
