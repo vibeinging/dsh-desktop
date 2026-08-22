@@ -54,7 +54,7 @@ DSH Profile 是插件状态的唯一权威。已有 Profile 的启动、状态�
 
 默认精选输入只有一份：[featured_plugins.json](server/src/engine/dsh_runtime/featured_plugins.json)。它生成随包 tarball、Profile 初始化输入、权限摘要、第三方公告和测试预期；其他代码和文档不维护第二份默认包名列表。
 
-当前默认精选如下；它们都是非 UI Bundle，Host、portable 或 desktop-adapter 能力均通过官方 Profile 接入，不替换官方 Web 页面。每个条目的来源、权限和官方管理方式由 [精选清单](server/src/engine/dsh_runtime/featured_plugins.json) 生成；应用更新不会重新安装用户已卸载的条目。自研包使用 `@vibeinging/*` scope；官方 DSH SDK 仍使用 `@deepseek-ai/*` scope。
+当前默认精选如下：七个自研能力 Bundle 和一个独立社区任务看板 Bundle 都通过官方 Profile 接入。任务看板把 Client 页面挂入官方 Web，不替换官方 Chat、Session 或应用 Shell。每个条目的来源、权限和官方管理方式由 [精选清单](server/src/engine/dsh_runtime/featured_plugins.json) 生成；应用更新不会重新安装用户已卸载的条目。自研包使用 `@vibeinging/*` scope；官方 DSH SDK 仍使用 `@deepseek-ai/*` scope。
 
 <!-- featured-plugins:start -->
 | 默认 Bundle | 类型 | 声明权限 | 官方管理方式 | 来源 |
@@ -66,6 +66,7 @@ DSH Profile 是插件状态的唯一权威。已有 Profile 的启动、状态�
 | `@vibeinging/dsh-model-inheritance` | portable | 无 Host 权限 | `dsh plugin --profile web remove @vibeinging/dsh-model-inheritance` | [本地包](packages/dsh-model-inheritance) |
 | `@vibeinging/dsh-product-bridge` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-product-bridge` | [本地包](packages/dsh-product-bridge) |
 | `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [本地包](packages/dsh-office-tools) |
+| `@linxin666/dsh-client-ui-task-board` | portable | 读取当前 DSH Session、Workspace 与完成历史、在 DSH_HOME 写入任务账本和执行记录、按用户操作或 Host cron 启动 DSH Session 任务、可选启动固定的跨平台防休眠 helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [上游仓库](https://github.com/zhu1090093659/dsh-web-ui) |
 <!-- featured-plugins:end -->
 
 ## 可选插件
@@ -83,10 +84,10 @@ dsh plugin --profile web remove @vibeinging/dsh-work-references
 
 它只在当前 DSH Session 的工作目录内提供有上限的相对文件引用，不接受浏览器传入的绝对路径。
 
-社区独立 UI 候选 `@linxin666/dsh-client-ui-task-board@0.1.20`（上游 [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui)）已完成固定版本的网络安装、官方 Web 激活、真实 Electron 启动、任务看板入口与五列看板配置检查、官方卸载命令和重启回归；它是可选候选，不进入默认精选。它声明的权限是读取当前 DSH Session 与 Workspace、写入任务看板数据、按用户操作启动 DSH Session 任务。`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run test:release:community` 可保存开发态真实 Electron 看板截图；`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run smoke:community:packaged` 可保存打包版安装前、候选激活态和官方卸载后的基线三帧：
+独立社区 Bundle `@linxin666/dsh-client-ui-task-board@0.2.7`（上游 [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui)）已经进入新 Profile 的默认精选。发行包使用固定 tarball，并把 `schemastery` 及其依赖闭包一并封装，因此首次初始化不需要访问 npm。它已通过官方 Web 激活、真实 Electron 入口和五列看板、停用、官方卸载、卸载后重启回归。它会读取 DSH Session、Workspace 和完成历史，在 `DSH_HOME` 写入任务账本，可由用户操作或 Host cron 启动任务，并提供默认关闭的固定跨平台防休眠 helper。已有 Profile 不会因应用更新自动补装；用户卸载后也不会被恢复。`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run test:release:community` 可保存开发态真实 Electron 看板截图；`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run smoke:community:packaged` 可保存打包版默认激活、卸载后官方基线和从随包 tarball 重装后的三帧：
 
 ```bash
-dsh plugin --profile web add -w @linxin666/dsh-client-ui-task-board@0.1.20 --save-exact --ignore-scripts
+dsh plugin --profile web add -w @linxin666/dsh-client-ui-task-board@0.2.7 --save-exact --ignore-scripts
 dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board
 ```
 
@@ -106,9 +107,9 @@ DSH_COMMUNITY_SCREENSHOT_DIR=/path/to/evidence DSH_MACOS_INSTALLER_RESULT_FILE=/
 
 上图来自当前打包 Electron 的 loopback SSE 交互 smoke，证明官方 Web 的 Session、轨迹和工具结果投影；它不是真实 DeepSeek live-model 证据。
 
-![官方 Web 中的社区 task-board 候选](docs/images/readme/dsh-community-task-board.png)
+![官方 Web 中的默认社区 task-board](docs/images/readme/dsh-community-task-board.png)
 
-上图来自当前 arm64 打包版的固定版本社区 Bundle 回归，证明 task-board 在官方 Web 根节点内激活并显示五列；它是可选候选，不是默认精选。
+上图来自固定版本社区 Bundle 的真实 Electron 回归，证明 task-board 在官方 Web 根节点内激活并显示五列；它现在是新 Profile 的默认精选，已有 Profile 仍以用户状态为准。
 
 ## Electron 原生边界
 
@@ -133,7 +134,7 @@ DSH 子进程、Profile 解析或 Client 启动失败时，应用进入本地恢
 源码检查和单元测试不能替代真实发行证据。当前仓库分别使用以下证据层级：
 
 - 源码和 Profile 集成：官方 Web 组合、只读已有 Profile、固定 tarball、离线初始化和权限投影测试；
-- 真实 Electron：官方 Web 无 preload 启动、工作区、Session、Session log、history 用户流程、社区 task board 入口/五列看板/官方 Web 容器内激活和 Browser Workspace WebContentsView 烟测。`smoke:official-web:flow` 会在无 API key 的临时用户目录运行，并可用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow` 保存官方 Web 截图；`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run test:release:community` 可保存开发态 task board 看板截图，`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run smoke:community:packaged` 可保存打包版安装前、激活态和卸载后基线三帧；`DSH_BROWSER_SCREENSHOT_DIR=/path npm run smoke:browser-workspace` 可保存真实 WebContentsView 页面截图；`npm run smoke:native-host` 在打包 Electron 中通过官方 Web Tool 真实验证 session-bound 窗口 Host 的状态、聚焦、最小化、最大化和恢复；`smoke:official-web:interactions` 在同一打包 Electron 中用 loopback SSE 测试模型驱动官方 LLM、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock 和 Session history，并用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:interactions` 保存问题/审批/队列截图；它验证的是官方运行时和 UI 契约，不替代真实 DeepSeek 服务的 live-model 证据；有凭据的发行环境使用 `DEEPSEEK_API_KEY=... npm run smoke:official-web:live` 运行真实模型基础流程，无 key 时该命令会 fail closed；`smoke:updater` 还会用本地 HTTPS feed 验证更新元数据、固定哈希下载、Profile 预检、临时 App 替换和历史回放，但完整替换需要 Developer ID 签名包；
-- 安装包：`package:mac:dir` 生成随包目录，`smoke:official-web` 验证随包官方 Web，`smoke:community:packaged` 验证打包版 App 先初始化精选 Profile，再通过官方命令安装、激活、卸载和重启独立社区 Bundle；`smoke:native-host` 覆盖打包版官方 Web 到 Electron 窗口 Host 的真实调用链，`smoke:native-host:dialogs` 是需要人工选择文件和目录的 macOS 对话框模式，当前 macOS arm64 已有通过回执；`smoke:macos:installer -- /path/to/*.dmg` 会只读挂载 DMG、复制 App，并重复这条 Profile 生命周期，当前 x64 DMG 已在 Rosetta 下通过，设置 `DSH_COMMUNITY_SCREENSHOT_DIR=/path` 可保存安装前、激活态和卸载后的三帧。Browser Workspace 截图先使用 Electron `capturePage`，在当前 Viz 不可用时回退到受控的 DevTools Page 截图协议；Windows 实机、原生 x64 和真实 DeepSeek live-model 仍需在对应发行环境完成。
+- 真实 Electron：官方 Web 无 preload 启动、工作区、Session、Session log、history 用户流程、社区 task board 入口/五列看板/官方 Web 容器内激活和 Browser Workspace WebContentsView 烟测。`smoke:official-web:flow` 会在无 API key 的临时用户目录运行，并可用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:flow` 保存官方 Web 截图；`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run test:release:community` 可保存开发态 task board 看板截图，`DSH_COMMUNITY_SCREENSHOT_DIR=/path npm run smoke:community:packaged` 可保存打包版默认激活、卸载后基线和随包重装后三帧；`DSH_BROWSER_SCREENSHOT_DIR=/path npm run smoke:browser-workspace` 可保存真实 WebContentsView 页面截图；`npm run smoke:native-host` 在打包 Electron 中通过官方 Web Tool 真实验证 session-bound 窗口 Host 的状态、聚焦、最小化、最大化和恢复；`smoke:official-web:interactions` 在同一打包 Electron 中用 loopback SSE 测试模型驱动官方 LLM、问题卡片、bash 沙箱拒绝/升权、审批面板、QueueDock 和 Session history，并用 `DSH_SCREENSHOT_DIR=/path npm run smoke:official-web:interactions` 保存问题/审批/队列截图；它验证的是官方运行时和 UI 契约，不替代真实 DeepSeek 服务的 live-model 证据；有凭据的发行环境使用 `DEEPSEEK_API_KEY=... npm run smoke:official-web:live` 运行真实模型基础流程，无 key 时该命令会 fail closed；`smoke:updater` 还会用本地 HTTPS feed 验证更新元数据、固定哈希下载、Profile 预检、临时 App 替换和历史回放，但完整替换需要 Developer ID 签名包；
+- 安装包：`package:mac:dir` 生成随包目录，`smoke:official-web` 验证随包官方 Web，`smoke:community:packaged` 验证打包版 App 通过官方命令离线初始化和激活任务看板、卸载后保持官方基线，并从随包 tarball 重装；`smoke:native-host` 覆盖打包版官方 Web 到 Electron 窗口 Host 的真实调用链，`smoke:native-host:dialogs` 是需要人工选择文件和目录的 macOS 对话框模式，当前 macOS arm64 已有通过回执；`smoke:macos:installer -- /path/to/*.dmg` 会只读挂载 DMG、复制 App，并重复这条 Profile 生命周期，当前 x64 DMG 已在 Rosetta 下通过，设置 `DSH_COMMUNITY_SCREENSHOT_DIR=/path` 可保存默认激活、卸载后基线和重装后的三帧。Browser Workspace 截图先使用 Electron `capturePage`，在当前 Viz 不可用时回退到受控的 DevTools Page 截图协议；Windows 实机、原生 x64 和真实 DeepSeek live-model 仍需在对应发行环境完成。
 
 详见 [发行方案](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md)、[隐私说明](PRIVACY.md)、[安全说明](SECURITY.md) 和 [第三方说明](THIRD_PARTY_NOTICES.md)。

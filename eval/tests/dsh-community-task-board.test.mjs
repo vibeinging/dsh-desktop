@@ -12,7 +12,7 @@ import { DshProfilePluginService } from "../../server/src/engine/dsh_runtime/pro
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_CLI = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh/lib/bin.js");
-const TASK_BOARD_SOURCE = "@linxin666/dsh-client-ui-task-board@0.1.20";
+const TASK_BOARD_SOURCE = "@linxin666/dsh-client-ui-task-board@0.2.7";
 const requireFromElectron = createRequire(resolve(APP_ROOT, "electron/package.json"));
 const ELECTRON_EXECUTABLE = requireFromElectron("electron");
 const ELECTRON_FIXTURE = resolve(APP_ROOT, "eval/fixtures/official-web-electron.cjs");

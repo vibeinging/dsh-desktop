@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto"
 import { execFile } from "node:child_process"
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
-import { basename, dirname, join, resolve } from "node:path"
+import { cp, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
+import { tmpdir } from "node:os"
+import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 
@@ -37,17 +38,31 @@ export function validateFeaturedPackageContract(plugin, manifest) {
   if (manifest.name !== plugin.name || typeof manifest.version !== "string") {
     throw new Error(`精选插件清单与包 manifest 不一致: ${plugin.name}`)
   }
-  if (manifest.main !== `./${plugin.evidence.entry}`) {
+  if (String(manifest.main || "").replace(/^\.\//, "") !== plugin.evidence.entry) {
     throw new Error(`精选插件清单与包入口不一致: ${plugin.name}`)
-  }
-  if (manifest.packageManager !== "pnpm@11.22.0") {
-    throw new Error(`精选插件必须固定使用 pnpm@11.22.0: ${plugin.name}`)
   }
   if (manifest.dsh?.bundle?.patch !== "./cordis.patch.yml") {
     throw new Error(`精选插件必须通过 cordis.patch.yml 挂载: ${plugin.name}`)
   }
+  if (plugin.evidence.source_kind === "locked-registry-package") {
+    if (manifest.license !== plugin.evidence.declared_license) {
+      throw new Error(`精选 registry 插件声明许可证漂移: ${plugin.name}`)
+    }
+    if (manifest.version !== plugin.evidence.package_version
+      || JSON.stringify(manifest.dependencies || {}) !== JSON.stringify(plugin.evidence.package_dependencies)) {
+      throw new Error(`精选 registry 插件版本或依赖闭包漂移: ${plugin.name}`)
+    }
+    if (manifest.dsh?.client?.platform !== "web"
+      || String(manifest.exports?.["./client"]?.default || "").replace(/^\.\//, "") !== "lib/client.js") {
+      throw new Error(`精选 registry 插件缺少官方 Web Client 导出: ${plugin.name}`)
+    }
+    return { hostRequirements: plugin.permissions }
+  }
   if (manifest.license !== plugin.license) {
     throw new Error(`精选插件清单与包许可证不一致: ${plugin.name}`)
+  }
+  if (manifest.packageManager !== "pnpm@11.22.0") {
+    throw new Error(`精选插件必须固定使用 pnpm@11.22.0: ${plugin.name}`)
   }
   const portability = manifest.dshWork?.portability
   if (!portability || portability.level !== plugin.portability) {
@@ -60,14 +75,36 @@ export function validateFeaturedPackageContract(plugin, manifest) {
   return portability
 }
 
+/** Validate an exact registry package and its offline dependency closure against server/package-lock.json. */
+export function validateFeaturedPackageLock(plugin, lockfile) {
+  if (plugin.evidence.source_kind !== "locked-registry-package") return
+  const rootDependencies = lockfile?.packages?.[""]?.dependencies || {}
+  if (rootDependencies[plugin.name] !== plugin.evidence.package_version) {
+    throw new Error(`精选 registry 插件不是 server 的精确直接依赖: ${plugin.name}`)
+  }
+  const records = [{
+    name: plugin.name,
+    version: plugin.evidence.package_version,
+    integrity: plugin.evidence.package_integrity,
+    license: plugin.evidence.declared_license,
+  }, ...plugin.evidence.offline_dependencies]
+  for (const record of records) {
+    const locked = lockfile?.packages?.[`node_modules/${record.name}`]
+    if (!locked || locked.version !== record.version || locked.integrity !== record.integrity
+      || locked.license !== record.license) {
+      throw new Error(`精选 registry 插件锁文件漂移: ${record.name}`)
+    }
+  }
+}
+
 /** Validate the curated composition claim against the package's runtime entry and patch. */
 export function validateFeaturedPackageComposition(plugin, sourceText, patchText) {
   const composition = plugin.evidence.composition
   const name = sourceText.match(/^export const name = ["']([^"']+)["'];$/m)?.[1]
-  if (name !== composition.plugin_id) {
+  if (plugin.evidence.source_kind === "workspace-package" && name !== composition.plugin_id) {
     throw new Error(`精选插件 composition.plugin_id 与源码 name 不一致: ${plugin.name}`)
   }
-  const injectText = sourceText.match(/^export const inject = (\[[^\n]+\]);$/m)?.[1]
+  const injectText = sourceText.match(/^export const inject = (\[[^\n]+\]);?$/m)?.[1]
   const inject = injectText
     ? [...injectText.matchAll(/["']([^"']+)["']/g)].map((match) => match[1])
     : null
@@ -78,6 +115,52 @@ export function validateFeaturedPackageComposition(plugin, sourceText, patchText
   if (patchId !== composition.plugin_id) {
     throw new Error(`精选插件 composition.plugin_id 与 cordis.patch.yml 不一致: ${plugin.name}`)
   }
+}
+
+async function prepareRegistryPackSource(plugin, sourceDir, root) {
+  const temporaryRoot = await mkdtemp(join(tmpdir(), "dsh-featured-registry-package-"))
+  const staged = join(temporaryRoot, "package")
+  try {
+    await cp(sourceDir, staged, { recursive: true })
+    const manifestPath = join(staged, "package.json")
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
+    manifest.bundleDependencies = Object.keys(plugin.evidence.package_dependencies)
+    await writeFile(manifestPath, json(manifest))
+    for (const dependency of plugin.evidence.offline_dependencies) {
+      const dependencySource = join(root, "server", "node_modules", dependency.name)
+      const dependencyManifest = JSON.parse(await readFile(join(dependencySource, "package.json"), "utf8"))
+      if (dependencyManifest.version !== dependency.version || dependencyManifest.license !== dependency.license) {
+        throw new Error(`精选 registry 插件离线依赖安装态漂移: ${dependency.name}`)
+      }
+      const target = join(staged, dependency.install_path)
+      await mkdir(dirname(target), { recursive: true })
+      await cp(dependencySource, target, { recursive: true })
+    }
+    return { sourceDir: staged, temporaryRoot }
+  } catch (error) {
+    await rm(temporaryRoot, { recursive: true, force: true })
+    throw error
+  }
+}
+
+function inside(root, target) {
+  const path = relative(root, target)
+  return path === "" || (!path.startsWith("..") && !isAbsolute(path))
+}
+
+function licenseArtifactName(name, version, license) {
+  const packageName = String(name).replace(/^@/, "").replaceAll("/", "-").replace(/[^A-Za-z0-9._-]/g, "-")
+  return `${packageName}-${version}-${license}.txt`
+}
+
+function primaryLicenseFile(record) {
+  return record.evidence.source_kind === "locked-registry-package"
+    ? `licenses/${licenseArtifactName(record.name, record.version, record.package_license)}`
+    : `licenses/${record.package_license}.txt`
+}
+
+function bundledLicenseFile(dependency) {
+  return `licenses/${licenseArtifactName(dependency.name, dependency.version, dependency.license)}`
 }
 
 function evaluationRecord(record) {
@@ -97,19 +180,28 @@ function evaluationRecord(record) {
 
 async function pack(sourceDir, outputDir) {
   const command = npmCommand()
-  const { stdout } = await execFileAsync(command.file, [
-    ...command.prefix,
-    "pack",
-    sourceDir,
-    "--json",
-    "--ignore-scripts",
-    "--pack-destination",
-    outputDir,
-  ], { cwd: SCRIPT_ROOT, maxBuffer: 8 * 1024 * 1024 })
-  const parsed = JSON.parse(stdout)
-  const record = Array.isArray(parsed) ? parsed[0] : parsed
-  if (!record?.filename) throw new Error(`npm pack 没有返回 tarball: ${sourceDir}`)
-  return resolve(outputDir, basename(record.filename))
+  const cache = await mkdtemp(join(tmpdir(), "dsh-featured-npm-cache-"))
+  try {
+    const { stdout } = await execFileAsync(command.file, [
+      ...command.prefix,
+      "pack",
+      ".",
+      "--json",
+      "--ignore-scripts",
+      "--pack-destination",
+      outputDir,
+    ], {
+      cwd: sourceDir,
+      env: { ...process.env, npm_config_cache: cache },
+      maxBuffer: 8 * 1024 * 1024,
+    })
+    const parsed = JSON.parse(stdout)
+    const record = Array.isArray(parsed) ? parsed[0] : parsed
+    if (!record?.filename) throw new Error(`npm pack 没有返回 tarball: ${sourceDir}`)
+    return resolve(outputDir, basename(record.filename))
+  } finally {
+    await rm(cache, { recursive: true, force: true })
+  }
 }
 
 /** Generate fixed local Bundle tarballs and all release-side projections from one list. */
@@ -122,16 +214,26 @@ export async function generateFeaturedPluginArtifacts({
   await rm(output, { recursive: true, force: true })
   await mkdir(output, { recursive: true })
   const records = []
+  const serverLockfile = JSON.parse(await readFile(join(root, "server", "package-lock.json"), "utf8"))
   for (const plugin of featuredPlugins()) {
     const sourceDir = resolveFeaturedPackageDir(plugin, { appRoot: root })
     const manifest = JSON.parse(await readFile(join(sourceDir, "package.json"), "utf8"))
     const portability = validateFeaturedPackageContract(plugin, manifest)
+    validateFeaturedPackageLock(plugin, serverLockfile)
     await validateFeaturedPackageComposition(
       plugin,
-      await readFile(join(sourceDir, plugin.evidence.entry), "utf8"),
+      await readFile(join(sourceDir, plugin.evidence.source_entry || plugin.evidence.entry), "utf8"),
       await readFile(join(sourceDir, "cordis.patch.yml"), "utf8"),
     )
-    const packed = await pack(sourceDir, output)
+    const prepared = plugin.evidence.source_kind === "locked-registry-package"
+      ? await prepareRegistryPackSource(plugin, sourceDir, root)
+      : { sourceDir, temporaryRoot: null }
+    let packed
+    try {
+      packed = await pack(prepared.sourceDir, output)
+    } finally {
+      if (prepared.temporaryRoot) await rm(prepared.temporaryRoot, { recursive: true, force: true })
+    }
     const tarball = featuredPluginTarballName(plugin.name, manifest.version)
     const target = join(output, tarball)
     await rename(packed, target)
@@ -143,7 +245,8 @@ export async function generateFeaturedPluginArtifacts({
       tarball,
       sha256: sha256(bytes),
       size_bytes: file.size,
-      package_license: manifest.license || plugin.license,
+      package_license: plugin.license,
+      package_declared_license: manifest.license || plugin.license,
       host_requirements: portability.hostRequirements,
     })
   }
@@ -154,19 +257,36 @@ export async function generateFeaturedPluginArtifacts({
     source_schema: featuredPluginManifest().schema_version,
     plugins: records.map((record) => ({
       ...record,
-      license_file: `licenses/${record.package_license}.txt`,
+      license_file: primaryLicenseFile(record),
+      bundled_license_files: [...new Set((record.evidence.offline_dependencies || [])
+        .map(bundledLicenseFile))],
     })),
   }
-  const licenseIds = new Set(records.map(({ package_license }) => package_license))
   const licenseDir = join(output, "licenses")
   await mkdir(licenseDir, { recursive: true })
-  for (const licenseId of licenseIds) {
-    if (!/^[A-Za-z0-9.-]+$/.test(licenseId)) throw new Error(`精选插件许可证标识无效: ${licenseId}`)
-    const licensePath = join(SCRIPT_ROOT, "legal", "licenses", `${licenseId}.txt`)
-    const licenseText = await readFile(licensePath, "utf8").catch(() => {
-      throw new Error(`缺少精选插件许可证原文: ${licenseId}`)
+  const licenseInputs = new Map()
+  for (const record of records) {
+    const primaryFile = primaryLicenseFile(record)
+    licenseInputs.set(primaryFile, record.evidence.source_kind === "locked-registry-package"
+      ? { path: record.evidence.license_path, sha256: record.evidence.license_sha256 }
+      : { path: `legal/licenses/${record.package_license}.txt`, sha256: null })
+    for (const dependency of record.evidence.offline_dependencies || []) {
+      licenseInputs.set(bundledLicenseFile(dependency), {
+        path: dependency.license_path,
+        sha256: dependency.license_sha256,
+      })
+    }
+  }
+  for (const [artifactPath, input] of licenseInputs) {
+    const source = resolve(root, input.path)
+    if (!inside(root, source)) throw new Error(`精选插件许可证路径越过应用目录: ${input.path}`)
+    const licenseBytes = await readFile(source).catch(() => {
+      throw new Error(`缺少精选插件许可证原文: ${input.path}`)
     })
-    await writeFile(join(licenseDir, `${licenseId}.txt`), licenseText)
+    if (input.sha256 && sha256(licenseBytes) !== input.sha256) {
+      throw new Error(`精选插件许可证原文漂移: ${input.path}`)
+    }
+    await writeFile(join(output, artifactPath), licenseBytes)
   }
   await writeFile(join(output, "manifest.json"), json(manifest))
   await writeFile(join(output, "profile-install.json"), json({
@@ -196,7 +316,10 @@ export async function generateFeaturedPluginArtifacts({
     "",
     "This file is generated from `server/src/engine/dsh_runtime/featured_plugins.json`.",
     "",
-    ...records.map(({ name, version, package_license, package_path, sha256: hash }) => `- ${name}@${version} — ${package_license}; license licenses/${package_license}.txt; source ${package_path}; SHA-256 ${hash}`),
+    ...records.flatMap(({ name, version, package_license, package_path, sha256: hash, evidence }) => [
+      `- ${name}@${version} — ${package_license}; license ${primaryLicenseFile({ name, version, package_license, evidence })}; source ${package_path}; SHA-256 ${hash}${evidence.declared_license && evidence.declared_license !== package_license ? `; package.json declares ${evidence.declared_license} while bundled LICENSE is ${package_license}` : ""}`,
+      ...(evidence.offline_dependencies || []).map((dependency) => `  - bundled dependency ${dependency.name}@${dependency.version} — ${dependency.license}; license ${bundledLicenseFile(dependency)}; registry integrity ${dependency.integrity}`),
+    ]),
     "",
   ].join("\n")
   await writeFile(join(output, "THIRD_PARTY_NOTICES.md"), notices)
@@ -214,7 +337,7 @@ export async function generateFeaturedPluginArtifacts({
       tarball: "per-plugin",
       profile_storage: "must be measured per-plugin; aggregate release smoke is not a substitute",
       cold_start: "must be measured per-plugin; aggregate release smoke is not a substitute",
-      client_activation: "not-applicable for the current host-only curated set",
+      client_activation: "required for Client-enabled bundles and verified by packaged Electron smoke",
     },
     plugins: records.map(evaluationRecord),
   }))

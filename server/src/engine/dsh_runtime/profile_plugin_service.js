@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
+import semver from "semver";
 
 import { dataRoot } from "../../config/paths.js";
 import { resolveDshRuntimeDistribution } from "./source_locator.js";
@@ -195,6 +196,7 @@ function bundleView({
   index,
   descriptor,
   managed,
+  featured = null,
   userManageable = false,
   enabled = true,
 }) {
@@ -202,7 +204,12 @@ function bundleView({
   const source = sourceView(packageName, dependencySpec || "", packageDir, managed);
   const version = typeof manifest.version === "string" ? manifest.version : null;
   const dshClient = manifest?.dsh?.client?.platform === "web";
-  const portability = readDshWorkPortability(manifest);
+  const portability = readDshWorkPortability(manifest) || (featured ? {
+    level: featured.portability,
+    surfaces: ["official-web", "dsh-desktop"],
+    host_requirements: [...featured.permissions],
+    compatibility_test: featured.evidence.regression.electron[0] || null,
+  } : null);
   const canUninstall = managed === "user" || (managed === "app" && userManageable);
   return {
     id: packageName,
@@ -273,7 +280,9 @@ export function normalizeProfileBundleSource(value, { allowLocal = false } = {})
 }
 
 function currentReleaseRange(value, version) {
-  return new RegExp(`^(?:\\^|~)?${version.replaceAll(".", "\\.")}$`).test(String(value || "").trim());
+  const range = String(value || "").trim();
+  if (!/^(?:\^|~)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(range)) return false;
+  return semver.satisfies(version, range);
 }
 
 /** Require one coherent official SDK release before a Bundle reaches the live tree. */
@@ -829,6 +838,7 @@ export class DshProfilePluginService {
         index,
         descriptor,
         managed,
+        featured,
         userManageable: featured?.user_manageable === true,
         enabled,
       });

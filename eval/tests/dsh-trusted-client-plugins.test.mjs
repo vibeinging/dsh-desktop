@@ -18,6 +18,7 @@ import {
 import {
   validateFeaturedPackageComposition,
   validateFeaturedPackageContract,
+  validateFeaturedPackageLock,
 } from "../../scripts/generate-featured-plugin-artifacts.mjs";
 
 const APP_ROOT = resolve(import.meta.dirname, "../..");
@@ -83,16 +84,16 @@ test("only audited community Client releases may enter the product Client graph"
   assert.equal(isReviewedCommunityClient({
     name: "@linxin666/dsh-client-ui-task-board",
     manifest: {
-      version: "0.1.20",
+      version: "0.2.7",
       dependencies: taskBoardDependencies,
       dsh: { bundle: { patch: "./cordis.patch.yml" } },
     },
-    integrity: "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
+    integrity: "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
   }), true);
   assert.equal(isReviewedCommunityClient({
     name: "@linxin666/dsh-client-ui-task-board",
     manifest: {
-      version: "0.1.20",
+      version: "0.2.7",
       dependencies: taskBoardDependencies,
       dsh: { bundle: { patch: "./cordis.patch.yml" } },
     },
@@ -101,21 +102,22 @@ test("only audited community Client releases may enter the product Client graph"
   assert.equal(isReviewedCommunityClient({
     name: "@linxin666/dsh-client-ui-task-board",
     manifest: {
-      version: "0.1.20",
+      version: "0.2.7",
       dependencies: { ...taskBoardDependencies, schemastery: "^3.19.0" },
       dsh: { bundle: { patch: "./cordis.patch.yml" } },
     },
   }), false);
   assert.deepEqual(reviewedCommunityClientReview({
     name: "@linxin666/dsh-client-ui-task-board",
-    manifest: { version: "0.1.20", dependencies: taskBoardDependencies, dsh: { bundle: { patch: "./cordis.patch.yml" } } },
-    integrity: "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
+    manifest: { version: "0.2.7", dependencies: taskBoardDependencies, dsh: { bundle: { patch: "./cordis.patch.yml" } } },
+    integrity: "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
   }), {
-    session: "任务看板使用官方 DSH Session.prompt 启动任务，并读取当前 Workspace 状态",
+    session: "任务看板创建独立 DSH Session 执行任务，并读取 Workspace、Session 状态和完成历史",
     capabilities: [
       "读取当前 DSH Session 与 Workspace",
-      "写入任务看板数据",
-      "按用户操作启动 DSH Session 任务",
+      "在 DSH_HOME 写入任务账本和执行记录",
+      "按用户操作或 Host cron 启动 DSH Session 任务",
+      "可选启动固定的系统防休眠 helper",
     ],
   });
 
@@ -166,9 +168,9 @@ test("the curated Profile input has one authoritative list with explicit managea
   assert.equal(plugins.every((plugin) => plugin.default && typeof plugin.user_manageable === "boolean"), true);
   assert.equal(plugins.find((plugin) => plugin.name === "@vibeinging/dsh-work-product-host-ipc")?.user_manageable, false);
   assert.equal(plugins.filter((plugin) => plugin.user_manageable).length, plugins.length - 1);
-  assert.equal(plugins.some((plugin) => plugin.name.includes("web-ui-task-board")), false);
+  assert.equal(plugins.some((plugin) => plugin.name === "@linxin666/dsh-client-ui-task-board"), true);
   for (const plugin of plugins) {
-    assert.equal(plugin.evidence.source_kind, "workspace-package");
+    assert.equal(new Set(["workspace-package", "locked-registry-package"]).has(plugin.evidence.source_kind), true);
     assert.equal(plugin.evidence.release_source, "fixed-tarball");
     assert.equal(plugin.evidence.profile_install, "official-dsh-plugin-cli");
     assert.equal(plugin.evidence.profile_uninstall, "official-dsh-plugin-cli");
@@ -185,19 +187,49 @@ test("the curated Profile input has one authoritative list with explicit managea
 });
 
 test("the curated list keeps package names, source paths, and SPDX licenses aligned", () => {
+  const serverLockfile = JSON.parse(readFileSync(join(APP_ROOT, "server/package-lock.json"), "utf8"));
   for (const plugin of featuredPlugins()) {
     const packageDir = resolveFeaturedPackageDir(plugin);
     const packageJson = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
     assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
-    const source = readFileSync(join(packageDir, plugin.evidence.entry), "utf8");
+    assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile));
+    const source = readFileSync(join(packageDir, plugin.evidence.source_entry || plugin.evidence.entry), "utf8");
     const patch = readFileSync(join(packageDir, "cordis.patch.yml"), "utf8");
     assert.doesNotThrow(() => validateFeaturedPackageComposition(plugin, source, patch));
     assert.throws(
       () => validateFeaturedPackageComposition(plugin, source.replace(/^export const inject = .*$/m, 'export const inject = ["wrongService"];'), patch),
       /composition\.requires/,
     );
-    assert.match(plugin.package_path, /^packages\/dsh-[^/]+$/);
+    if (plugin.evidence.source_kind === "workspace-package") {
+      assert.match(plugin.package_path, /^packages\/dsh-[^/]+$/);
+    } else {
+      assert.equal(plugin.package_path, `server/node_modules/${plugin.name}`);
+    }
   }
+});
+
+test("the curated registry package rejects lock, license, and dependency drift", () => {
+  const plugin = featuredPlugins().find(({ name }) => name === "@linxin666/dsh-client-ui-task-board");
+  const packageJson = JSON.parse(readFileSync(join(resolveFeaturedPackageDir(plugin), "package.json"), "utf8"));
+  const serverLockfile = JSON.parse(readFileSync(join(APP_ROOT, "server/package-lock.json"), "utf8"));
+  assert.throws(() => validateFeaturedPackageContract(plugin, {
+    ...packageJson,
+    license: "BSD-3-Clause",
+  }), /声明许可证漂移/);
+  assert.throws(() => validateFeaturedPackageContract(plugin, {
+    ...packageJson,
+    dependencies: { schemastery: "^3.19.0" },
+  }), /依赖闭包漂移/);
+  assert.throws(() => validateFeaturedPackageLock(plugin, {
+    ...serverLockfile,
+    packages: {
+      ...serverLockfile.packages,
+      "node_modules/schemastery": {
+        ...serverLockfile.packages["node_modules/schemastery"],
+        integrity: "sha512-drift",
+      },
+    },
+  }), /锁文件漂移/);
 });
 
 test("the artifact generator rejects curated portability and permission drift", () => {
@@ -235,7 +267,10 @@ test("public README tables are generated from the curated list", () => {
           : section.includes("桌面基础服务，不提供卸载") || section.includes("desktop foundation; uninstall is not offered"),
         true,
       );
-      for (const permission of plugin.permissions) assert.equal(section.includes(permission), true);
+      const expectedPermissions = file === "README.en.md" && plugin.permissions_en
+        ? plugin.permissions_en
+        : plugin.permissions;
+      for (const permission of expectedPermissions) assert.equal(section.includes(permission), true);
     }
   }
 });

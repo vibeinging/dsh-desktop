@@ -116,7 +116,7 @@ async function main() {
         screenshotRefs,
         sourceDmg: basename(dmgPath),
         copiedApp: 'DSH Desktop.app',
-        communityCandidate: '@linxin666/dsh-client-ui-task-board@0.1.20',
+        communityCandidate: '@linxin666/dsh-client-ui-task-board@0.2.7',
       }
       await mkdir(dirname(resultPath), { recursive: true })
     }
@@ -166,7 +166,7 @@ async function main() {
           }
           await writeReceiptAtomically(resultPath, receipt)
         }
-        console.log(`[installer-smoke] PASS 从 ${basename(dmgPath)} 挂载、复制、detach 并运行签名 DSH Desktop；官方 Profile 社区安装/激活/卸载/重启通过`)
+        console.log(`[installer-smoke] PASS 从 ${basename(dmgPath)} 挂载、复制、detach 并运行签名 DSH Desktop；默认任务看板激活、官方卸载、重启和随包重装通过`)
       }
     } catch (error) {
       if (resultPath) await rm(resultPath, { force: true }).catch(() => {})

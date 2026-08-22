@@ -254,6 +254,81 @@
         },
         "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
       }
+    },
+    {
+      "name": "@linxin666/dsh-client-ui-task-board",
+      "package_path": "server/node_modules/@linxin666/dsh-client-ui-task-board",
+      "repository": "https://github.com/zhu1090093659/dsh-web-ui",
+      "default": true,
+      "user_manageable": true,
+      "portability": "portable",
+      "permissions": ["读取当前 DSH Session、Workspace 与完成历史", "在 DSH_HOME 写入任务账本和执行记录", "按用户操作或 Host cron 启动 DSH Session 任务", "可选启动固定的跨平台防休眠 helper"],
+      "permissions_en": ["read current DSH Session, Workspace, and completion history", "write task ledger and run records under DSH_HOME", "start DSH Session tasks from user actions or Host cron", "optionally start a fixed cross-platform sleep-prevention helper"],
+      "license": "BSD-3-Clause",
+      "evidence": {
+        "source_kind": "locked-registry-package",
+        "release_source": "fixed-tarball",
+        "package_spec": "@linxin666/dsh-client-ui-task-board@0.2.7",
+        "package_version": "0.2.7",
+        "package_integrity": "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
+        "declared_license": "Apache-2.0",
+        "license_path": "server/node_modules/@linxin666/dsh-client-ui-task-board/LICENSE",
+        "license_sha256": "02e1e3ebf73df5c1840c842a8e93b40942bf6e53a66acbe6c5643fc8664ff97d",
+        "package_dependencies": { "schemastery": "^3.18.0" },
+        "offline_dependencies": [
+          {
+            "name": "schemastery",
+            "version": "3.18.0",
+            "integrity": "sha512-Jw2uxjoyyqc/yeurmChUEc/jbi8GsrdXV/KmqRUDZXJAXAmrJiPsz8vKa17l/VckyzljHZ9oGaul443CQiXxtA==",
+            "license": "MIT",
+            "license_path": "server/node_modules/cosmokit/LICENSE",
+            "license_sha256": "034fb52b1d57360ecbae6cb1632a88f86fd7c3d3f5631a5f082710203dda0be7",
+            "install_path": "node_modules/schemastery"
+          },
+          {
+            "name": "cosmokit",
+            "version": "1.8.1",
+            "integrity": "sha512-PDBv4l90xZKrUsZ0vtoycgZpO/j4iFsqJXrAxsyBDsnQRI7ZMJXIjgDJsKNjd5L8jnVnnlrDCdhkFbTncgCVjQ==",
+            "license": "MIT",
+            "license_path": "server/node_modules/cosmokit/LICENSE",
+            "license_sha256": "034fb52b1d57360ecbae6cb1632a88f86fd7c3d3f5631a5f082710203dda0be7",
+            "install_path": "node_modules/schemastery/node_modules/cosmokit"
+          },
+          {
+            "name": "@standard-schema/spec",
+            "version": "1.1.0",
+            "integrity": "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==",
+            "license": "MIT",
+            "license_path": "server/node_modules/@standard-schema/spec/LICENSE",
+            "license_sha256": "653b779005a3a4d64a7288c940f7b9a0e8f0b1e0375f6aa6af9473caf131e564",
+            "install_path": "node_modules/schemastery/node_modules/@standard-schema/spec"
+          }
+        ],
+        "entry": "lib/index.js",
+        "source_entry": "src/index.ts",
+        "patch_id": "ui-task-board",
+        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "declared_dsh_sdk": "^0.1.1-rc.1", "cordis": "^4.0.1" },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "loopback-same-origin-only",
+        "client": true,
+        "composition": {
+          "plugin_id": "ui-task-board",
+          "requires": ["systemPrompt", "apiProxy", "webServer", "agents", "commands"],
+          "provides": [],
+          "routes": ["/api/task-board/state", "/api/task-board/events", "/api/task-board/action"],
+          "slots": [],
+          "conflicts": ["@linxin666/dsh-web-ui-all"]
+        },
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": ["eval/tests/dsh-trusted-client-plugins.test.mjs", "eval/tests/dsh-profile-plugin-service.test.mjs"],
+          "profile": ["eval/tests/dsh-profile-initialization.test.mjs", "eval/tests/dsh-community-task-board.test.mjs"],
+          "electron": ["eval/tests/dsh-community-task-board.test.mjs", "electron/scripts/smoke-packaged-featured-plugins.mjs"]
+        },
+        "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, and cold Web start"
+      }
     }
   ]
 }

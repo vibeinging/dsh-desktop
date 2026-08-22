@@ -7,12 +7,19 @@ const START_MARKER = "<!-- featured-plugins:start -->"
 const END_MARKER = "<!-- featured-plugins:end -->"
 
 function sourceLink(plugin, language) {
+  if (plugin.evidence?.source_kind === "locked-registry-package") {
+    const label = language === "zh" ? "上游仓库" : "upstream repository"
+    return `[${label}](${plugin.repository})`
+  }
   const label = language === "zh" ? "本地包" : "local package"
   return `[${label}](${plugin.package_path})`
 }
 
 function permissions(plugin, language) {
-  if (plugin.permissions.length > 0) return plugin.permissions.join(language === "zh" ? "、" : ", ")
+  const values = language === "en" && Array.isArray(plugin.permissions_en)
+    ? plugin.permissions_en
+    : plugin.permissions
+  if (values.length > 0) return values.join(language === "zh" ? "、" : ", ")
   return language === "zh" ? "无 Host 权限" : "no Host permission"
 }
 

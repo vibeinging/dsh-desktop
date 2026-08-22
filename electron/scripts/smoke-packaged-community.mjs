@@ -16,7 +16,6 @@ const serverDir = join(resourcesDir, 'server')
 const dshCli = join(serverDir, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
 const pnpmBinDir = join(resourcesDir, 'pnpm-bin')
 const featuredArtifactDir = join(resourcesDir, 'featured-plugins')
-const candidate = '@linxin666/dsh-client-ui-task-board@0.1.20'
 const candidateName = '@linxin666/dsh-client-ui-task-board'
 const screenshotDir = String(process.env.DSH_COMMUNITY_SCREENSHOT_DIR || '').trim()
   ? resolve(String(process.env.DSH_COMMUNITY_SCREENSHOT_DIR).trim())
@@ -117,36 +116,28 @@ async function runPackagedApp(label, overrides = {}) {
 }
 
 try {
-  // The App owns first-use initialization. This ordering proves a community
-  // install augments an existing Profile instead of becoming its initializer.
-  await runPackagedApp('首次启动', screenshotDir
-    ? {
+  const artifactManifest = JSON.parse(await readFile(join(featuredArtifactDir, 'manifest.json'), 'utf8'))
+  const candidateArtifact = artifactManifest.plugins?.find((plugin) => plugin.name === candidateName)
+  if (!candidateArtifact?.tarball || candidateArtifact.version !== '0.2.7') {
+    throw new Error(`随包精选清单缺少 ${candidateName}@0.2.7`)
+  }
+  await runPackagedApp('首次启动并激活默认任务看板', {
+    DSH_SMOKE_EXPECT_SELECTOR: '[data-dsh-taskboard-board]',
+    DSH_SMOKE_CLICK_SELECTORS: JSON.stringify(['[data-dsh-taskboard-entry]']),
+    ...(screenshotDir
+      ? {
         DSH_SMOKE_SCREENSHOT_DIR: screenshotDir,
-        DSH_SMOKE_SCREENSHOT_NAME: 'official-web-before-install.png',
+        DSH_SMOKE_SCREENSHOT_NAME: 'task-board-default.png',
       }
-    : {})
-  await runOfficial([
-    'plugin', '--profile', 'web', 'add', '-w', candidate,
-    '--save-exact', '--ignore-scripts',
-  ], `官方安装 ${candidateName}`)
+      : {}),
+  })
 
   const manifestPath = join(dataRoot, 'profiles', 'web', 'package.json')
   const installed = JSON.parse(await readFile(manifestPath, 'utf8'))
   if (!installed.dsh?.profile?.bundles?.includes(candidateName)
     || !Object.hasOwn(installed.dependencies || {}, candidateName)) {
-    throw new Error(`官方安装后 Profile 未包含 ${candidateName}`)
+    throw new Error(`首次初始化后 Profile 未包含 ${candidateName}`)
   }
-
-  await runPackagedApp('候选插件启动', {
-    DSH_SMOKE_EXPECT_SELECTOR: '[data-dsh-taskboard-board]',
-    DSH_SMOKE_CLICK_SELECTORS: JSON.stringify(['[data-dsh-taskboard-entry]']),
-    ...(screenshotDir
-      ? {
-          DSH_SMOKE_SCREENSHOT_DIR: screenshotDir,
-          DSH_SMOKE_SCREENSHOT_NAME: 'task-board-packaged.png',
-        }
-      : {}),
-  })
 
   await runOfficial(['plugin', '--profile', 'web', 'remove', candidateName], `官方卸载 ${candidateName}`, { offline: true })
   const removed = JSON.parse(await readFile(manifestPath, 'utf8'))
@@ -164,7 +155,21 @@ try {
         }
       : {}),
   })
-  console.log(`[smoke] PASS 打包版先初始化精选 Profile，再通过官方命令安装/激活/卸载/重启 ${candidateName}`)
+  await runOfficial([
+    'plugin', '--profile', 'web', 'add', '-w', `file:${join(featuredArtifactDir, candidateArtifact.tarball)}`,
+    '--save-exact', '--offline', '--ignore-scripts',
+  ], `从随包 tarball 重新安装 ${candidateName}`, { offline: true })
+  await runPackagedApp('重新安装后激活', {
+    DSH_SMOKE_EXPECT_SELECTOR: '[data-dsh-taskboard-board]',
+    DSH_SMOKE_CLICK_SELECTORS: JSON.stringify(['[data-dsh-taskboard-entry]']),
+    ...(screenshotDir
+      ? {
+          DSH_SMOKE_SCREENSHOT_DIR: screenshotDir,
+          DSH_SMOKE_SCREENSHOT_NAME: 'task-board-after-reinstall.png',
+        }
+      : {}),
+  })
+  console.log(`[smoke] PASS 打包版离线初始化、激活、官方卸载、重启和随包 tarball 重装 ${candidateName}`)
 } finally {
   await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }).catch((error) => {
     console.warn(`[smoke] 临时目录清理失败(已忽略): ${error.code || error.message}`)

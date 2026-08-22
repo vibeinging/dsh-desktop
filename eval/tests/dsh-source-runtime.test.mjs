@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { test } from "node:test";
+import { after, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { resolveDshRuntimeDistribution } from "../../server/src/engine/dsh_runtime/source_locator.js";
 import { DshEventAdapter, dshTurnStatus } from "../../server/src/engine/dsh_runtime/event_adapter.js";
@@ -18,6 +18,7 @@ import {
 import { DshRuntimeClient, normalizeDshClientSurface } from "../../server/src/engine/dsh_runtime/client.js";
 import { dshModelOptions, encodeDshModelRoute } from "../../server/src/engine/dsh_runtime/model_route.js";
 import { featuredPluginNames } from "../../server/src/engine/dsh_runtime/featured_plugins.js";
+import { generateFeaturedPluginArtifacts } from "../../scripts/generate-featured-plugin-artifacts.mjs";
 import {
   publishDshModelSettingsChanged,
   resetDshModelSettingsEventsForTests,
@@ -26,6 +27,28 @@ import {
 
 const DSH_SOURCE_ROOT = process.env.DSH_SOURCE_ROOT
   || resolve(dirname(fileURLToPath(import.meta.url)), "../../../test-vibeinging");
+const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+let featuredArtifactRoot = null;
+let featuredArtifactPromise = null;
+
+async function featuredArtifactEnv() {
+  if (!featuredArtifactPromise) {
+    featuredArtifactPromise = (async () => {
+      featuredArtifactRoot = await mkdtemp(join(tmpdir(), "dsh-source-runtime-featured-"));
+      const outputDir = join(featuredArtifactRoot, "featured-plugins");
+      await generateFeaturedPluginArtifacts({ appRoot: APP_ROOT, outputDir });
+      return {
+        DSH_FEATURED_PLUGIN_MANIFEST: join(outputDir, "manifest.json"),
+        DSH_FEATURED_PLUGIN_TARBALL_DIR: outputDir,
+      };
+    })();
+  }
+  return featuredArtifactPromise;
+}
+
+after(async () => {
+  if (featuredArtifactRoot) await rm(featuredArtifactRoot, { recursive: true, force: true });
+});
 const DSH_RUNTIME_VERSION = existsSync(join(DSH_SOURCE_ROOT, "apps", "cli", "package.json"))
   ? JSON.parse(readFileSync(join(DSH_SOURCE_ROOT, "apps", "cli", "package.json"), "utf8")).version
   : null;
@@ -242,8 +265,8 @@ test("DSH runtime opens current mux and host WebSockets before reporting ready",
     },
     env: {
       DSH_RUNTIME_DISTRIBUTION: "npm",
-      DSH_FEATURED_PLUGIN_ALLOW_SOURCE: "1",
-      DSH_APP_ROOT: resolve(dirname(fileURLToPath(import.meta.url)), "../.."),
+      DSH_APP_ROOT: APP_ROOT,
+      ...(await featuredArtifactEnv()),
     },
     spawn: () => {
       queueMicrotask(() => {
@@ -1045,10 +1068,7 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
       DSH_RUNTIME_HOME: runtimeHome,
       DSH_RUNTIME_ENV_DIR: runtimeHome,
       DSH_TELEMETRY_DISABLED: "1",
-      DSH_FEATURED_PLUGIN_ALLOW_SOURCE: "1",
-      DSH_FEATURED_PLUGIN_SOURCE_ROOT: resolve(dirname(fileURLToPath(import.meta.url)), "../.."),
-      DSH_FEATURED_PLUGIN_MANIFEST: "",
-      DSH_FEATURED_PLUGIN_TARBALL_DIR: "",
+      ...(await featuredArtifactEnv()),
     },
   });
   const sessionId = "app-pinned-image-admission-smoke";

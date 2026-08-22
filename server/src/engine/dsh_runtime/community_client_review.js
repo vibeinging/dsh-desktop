@@ -48,16 +48,17 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
     }),
   })],
   ["@linxin666/dsh-client-ui-task-board", Object.freeze({
-    version: "0.1.20",
+    version: "0.2.7",
     bundlePatch: "./cordis.patch.yml",
     dependencies: TASK_BOARD_DEPENDENCIES,
-    integrity: "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
+    integrity: "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
     review: Object.freeze({
-      session: "任务看板使用官方 DSH Session.prompt 启动任务，并读取当前 Workspace 状态",
+      session: "任务看板创建独立 DSH Session 执行任务，并读取 Workspace、Session 状态和完成历史",
       capabilities: Object.freeze([
         "读取当前 DSH Session 与 Workspace",
-        "写入任务看板数据",
-        "按用户操作启动 DSH Session 任务",
+        "在 DSH_HOME 写入任务账本和执行记录",
+        "按用户操作或 Host cron 启动 DSH Session 任务",
+        "可选启动固定的系统防休眠 helper",
       ]),
     }),
   })],

@@ -23,6 +23,7 @@ import {
   featuredPluginNames,
   featuredPlugins,
 } from "../../server/src/engine/dsh_runtime/featured_plugins.js";
+import { generateFeaturedPluginArtifacts } from "../../scripts/generate-featured-plugin-artifacts.mjs";
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_NPM_ROOT = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh");
@@ -260,6 +261,21 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
     },
   }));
   assert.doesNotThrow(() => validateProfileBundleSdk({
+    name: "@example/current-compatible-prerelease-range",
+    peerDependencies: {
+      "@deepseek-ai/dsh-agent": "^0.1.1-rc.1",
+      "@deepseek-ai/dsh-commands": "^0.1.1-rc.1",
+    },
+  }));
+  assert.throws(() => validateProfileBundleSdk({
+    name: "@example/older-prerelease-line",
+    peerDependencies: { "@deepseek-ai/dsh-agent": "^0.1.0-rc.8" },
+  }), { code: "DSH_PROFILE_LEGACY_SDK" });
+  assert.throws(() => validateProfileBundleSdk({
+    name: "@example/unbounded-sdk-range",
+    peerDependencies: { "@deepseek-ai/dsh-agent": "*" },
+  }), { code: "DSH_PROFILE_LEGACY_SDK" });
+  assert.doesNotThrow(() => validateProfileBundleSdk({
     name: "@example/current-with-optional-legacy-peer",
     peerDependencies: {
       "@deepseek-ai/cordis": "^4.0.1",
@@ -441,11 +457,12 @@ test("Profile Bundle preflight rejects mutable sources without touching DSH", as
 
 test("the app-owned Profile Bundles use the current public SDK names", () => {
   for (const plugin of featuredPlugins()) {
-    const packageDir = plugin.package_path.replace(/^packages\//, "");
-    const manifest = JSON.parse(readFileSync(join(APP_ROOT, "packages", packageDir, "package.json"), "utf8"));
+    const manifest = JSON.parse(readFileSync(join(APP_ROOT, plugin.package_path, "package.json"), "utf8"));
     assert.doesNotThrow(() => validateProfileBundleSdk(manifest));
-    assert.equal(manifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");
-    assert.equal(manifest.peerDependencies.cordis, undefined);
+    if (plugin.evidence.source_kind === "workspace-package") {
+      assert.equal(manifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");
+      assert.equal(manifest.peerDependencies.cordis, undefined);
+    }
   }
 });
 
@@ -571,13 +588,15 @@ test("known dsh-external samples are refused until their SDK pins are updated", 
 });
 
 test("the Profile catalog is projected from the official Web Profile order", {
-  timeout: 30_000,
+  timeout: 120_000,
   skip: existsSync(join(DSH_NPM_ROOT, "package.json"))
     ? false
     : `missing app-pinned DSH package: ${DSH_NPM_ROOT}`,
 }, async () => {
   const home = await mkdtemp(join(tmpdir(), "dsh-work-profile-catalog-"));
   try {
+    const artifactDir = join(home, "featured-plugins");
+    await generateFeaturedPluginArtifacts({ appRoot: APP_ROOT, outputDir: artifactDir });
     const service = new DshProfilePluginService({
       env: {
         ...process.env,
@@ -593,10 +612,8 @@ test("the Profile catalog is projected from the official Web Profile order", {
       env: {
         ...service.env,
         DSH_HOME: home,
-        DSH_FEATURED_PLUGIN_ALLOW_SOURCE: "1",
-        DSH_FEATURED_PLUGIN_SOURCE_ROOT: APP_ROOT,
-        DSH_FEATURED_PLUGIN_MANIFEST: "",
-        DSH_FEATURED_PLUGIN_TARBALL_DIR: "",
+        DSH_FEATURED_PLUGIN_MANIFEST: join(artifactDir, "manifest.json"),
+        DSH_FEATURED_PLUGIN_TARBALL_DIR: artifactDir,
         DSH_PROFILE_PLUGIN_LIBRARY: join(home, "plugin-library"),
       },
       appRoot: APP_ROOT,
@@ -613,14 +630,19 @@ test("the Profile catalog is projected from the official Web Profile order", {
         join(APP_ROOT, featured.package_path, "package.json"),
         "utf8",
       ));
-      const portability = packageManifest.dshWork.portability;
+      const portability = packageManifest.dshWork?.portability;
       assert.equal(plugin.runtime_kind, "profile_bundle");
       assert.equal(plugin.managed_by, "app");
-      assert.deepEqual(plugin.portability, {
+      assert.deepEqual(plugin.portability, portability ? {
         level: portability.level,
         surfaces: portability.surfaces,
         host_requirements: portability.hostRequirements,
         compatibility_test: portability.compatibilityTest || null,
+      } : {
+        level: featured.portability,
+        surfaces: ["official-web", "dsh-desktop"],
+        host_requirements: featured.permissions,
+        compatibility_test: featured.evidence.regression.electron[0],
       });
     }
     const productBridge = catalog.plugins.find((plugin) => plugin.id.endsWith("/dsh-product-bridge"));
@@ -677,15 +699,20 @@ test("the Profile catalog is projected from the official Web Profile order", {
         repository: "https://github.com/zhu1090093659/dsh-web-ui",
         stars: 2278,
         category: "productivity",
-        source: "@linxin666/dsh-client-ui-task-board@0.1.20",
-        compatibility: "reviewed-independent-client-candidate",
-        release_policy: "optional-after-e2e",
-        reviewed_at: "2026-08-20",
+        source: "@linxin666/dsh-client-ui-task-board@0.2.7",
+        compatibility: "bundled-default-dual-face",
+        release_policy: "bundled-default",
+        reviewed_at: "2026-08-21",
         reviewed_commit: "92655dbefeaf08cb60429f4b487c33137889a3f7",
-        package_integrity: "sha512-7Llft+DOb8aPX8wz+5CVtkK8YoZSVBPQech+0pS7F2+YYlzgp6NWL5mEjtXhIlSjTplNwi5GC3c6BD1DzYm3EA==",
-        license: "Apache-2.0",
-        permissions: ["读取当前 DSH Session 与 Workspace", "写入任务看板数据", "按用户操作启动 DSH Session 任务"],
-        review_note_zh: "独立于聚合包安装；不创建 Electron 启停器、插件市场或通用原生桥。完整发行资格仍需当前官方 Web 和 Electron 的安装、启动、停用、卸载、重启回归。",
+        package_integrity: "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
+        package_size_bytes: 246542,
+        license: "BSD-3-Clause",
+        declared_license: "Apache-2.0",
+        license_note_zh: "package.json 声明 Apache-2.0，但 npm tarball 内 LICENSE 是 BSD-3-Clause；发行包保留 tarball 内 BSD-3-Clause 原文与作者署名。",
+        permissions: ["读取当前 DSH Session、Workspace 与完成历史", "在 DSH_HOME 写入任务账本和执行记录", "按用户操作或 Host cron 启动 DSH Session 任务", "可选启动固定的跨平台防休眠 helper"],
+        native_dependencies: [],
+        install_scripts: [],
+        review_note_zh: "作为独立 Bundle 内置，不安装聚合包；Host 侧持有任务账本、cron 调度和默认关闭的防休眠 helper，不创建 Electron 启停器、插件市场或通用原生桥。已通过当前官方 Web 和 Electron 的安装、启动、停用、卸载、重启回归。",
         priority: 21,
       },
     );
@@ -761,9 +788,9 @@ test("the Profile catalog is projected from the official Web Profile order", {
         preflight_blocker: "Six DSH SDK dependencies still target the 0.1.0-rc.5 release line.",
       }],
     );
-    assert.deepEqual(catalog.plugins.at(-1).ui_runtime, {
-      kind: "host_only",
-      client_graph: false,
+    assert.deepEqual(catalog.plugins.find((plugin) => plugin.id === "@linxin666/dsh-client-ui-task-board").ui_runtime, {
+      kind: "dsh_client",
+      client_graph: true,
     });
     const preflight = await service.preflightCurrentProfile({ targetVersion: "1.1.0" });
     assert.equal(preflight.ok, true);

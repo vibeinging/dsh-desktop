@@ -139,9 +139,18 @@ export function inspectOfficialWebReleaseBoundary(root = ROOT) {
   if (!existsSync(recoveryPath) || /window\.electronAPI|ipcRenderer|nodeIntegration|dsh-web-app|plugin market/i.test(readText(recoveryPath))) {
     errors.push("恢复页不是纯本地最小安全页面");
   }
-  const names = Array.isArray(featured.plugins) ? featured.plugins.map((plugin) => plugin.name) : [];
-  for (const name of names) {
-    if (!name.startsWith("@vibeinging/")) errors.push(`自研精选包没有使用自有 scope：${name}`);
+  const featuredPlugins = Array.isArray(featured.plugins) ? featured.plugins : [];
+  const names = featuredPlugins.map((plugin) => plugin.name);
+  for (const plugin of featuredPlugins) {
+    const { name } = plugin;
+    if (plugin.evidence?.source_kind === "workspace-package" && !name.startsWith("@vibeinging/")) {
+      errors.push(`自研精选包没有使用自有 scope：${name}`);
+    }
+    if (plugin.evidence?.source_kind === "locked-registry-package"
+      && (!plugin.package_path?.startsWith("server/node_modules/")
+        || typeof plugin.evidence.package_integrity !== "string")) {
+      errors.push(`registry 精选包缺少受控安装路径或完整性：${name}`);
+    }
     if (RETIRED_NAMES.some((retired) => name.endsWith(`/${retired}`))) {
       errors.push(`精选清单仍包含退役包：${name}`);
     }
@@ -203,7 +212,10 @@ function inspectFeaturedPluginDocs(root, featured) {
       if (!section.includes(plugin.name) || !section.includes(managementText)) {
         errors.push(`${file} 缺少精选插件或官方管理方式：${plugin.name}`);
       }
-      for (const permission of plugin.permissions || []) {
+      const expectedPermissions = file === "README.en.md" && Array.isArray(plugin.permissions_en)
+        ? plugin.permissions_en
+        : plugin.permissions || [];
+      for (const permission of expectedPermissions) {
         if (!section.includes(permission)) errors.push(`${file} 缺少插件权限：${plugin.name}/${permission}`);
       }
     }
@@ -381,6 +393,11 @@ export function inspectFeaturedArtifacts(root = ROOT, { required = false } = {})
     const licenseFile = join(artifactRoot, plugin.license_file || "");
     if (!plugin.license_file || !existsSync(licenseFile)) {
       errors.push(`${plugin.name} 缺少许可证原文：${plugin.license_file || "(未声明)"}`);
+    }
+    for (const bundledLicense of plugin.bundled_license_files || []) {
+      if (!existsSync(join(artifactRoot, bundledLicense))) {
+        errors.push(`${plugin.name} 缺少离线依赖许可证原文：${bundledLicense}`);
+      }
     }
     const tarball = join(artifactRoot, plugin.tarball || "");
     if (!existsSync(tarball)) {

@@ -204,6 +204,9 @@ async function measurePlugin(plugin, artifact) {
     if (!plugin.evidence.client && html.includes(`/plugins/${plugin.name}/client.js?rev=`)) {
       throw new Error(`${plugin.name} 声称无 Client 但被官方 Web 投影`)
     }
+    if (plugin.evidence.client && !html.includes(`/plugins/${plugin.name}/client.js?rev=`)) {
+      throw new Error(`${plugin.name} 声称提供 Client 但没有进入官方 Web 启动图`)
+    }
     await stopServer(server)
     server = null
 

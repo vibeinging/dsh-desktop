@@ -102,9 +102,13 @@ async function runOfficial(args, env, label) {
   return result.text
 }
 
-async function runPackagedApp(env, label) {
+async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
   const appEnv = { ...env }
   delete appEnv.ELECTRON_RUN_AS_NODE
+  if (clientPlugin === '@linxin666/dsh-client-ui-task-board') {
+    appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify(['[data-dsh-taskboard-entry]'])
+    appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-dsh-taskboard-board]'
+  }
   const result = await runProcess(label, [], {
     ...appEnv,
     DSH_SMOKE_TEST: '1',
@@ -167,7 +171,9 @@ async function measurePlugin(plugin, artifact, sourceArtifactByName) {
       throw new Error(`${plugin.name} 安装后不在 Profile manifest 中`)
     }
     const storageAfterInstall = await directoryBytes(dataRoot)
-    const appStart = await runPackagedApp(env, `${plugin.name} 安装后 Electron 启动`)
+    const appStart = await runPackagedApp(env, `${plugin.name} 安装后 Electron 启动`, {
+      clientPlugin: plugin.evidence?.client ? plugin.name : null,
+    })
     if (await readFile(installed.path, 'utf8') !== installed.text) {
       throw new Error(`${plugin.name} Electron 启动改写了已有 Profile`)
     }

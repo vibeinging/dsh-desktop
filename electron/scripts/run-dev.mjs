@@ -4,8 +4,11 @@ import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { generateFeaturedPluginArtifacts } from '../../scripts/generate-featured-plugin-artifacts.mjs'
+
 const require = createRequire(import.meta.url)
 const ELECTRON_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const APP_ROOT = resolve(ELECTRON_DIR, '..')
 const PRODUCT_NAME = 'DSH Desktop'
 const DEV_APP_ID = 'com.vibeinging.dsh-desktop.dev'
 const CACHE_REVISION = '1'
@@ -67,6 +70,11 @@ const stockElectronExecutable = require('electron')
 const electronExecutable = process.platform === 'darwin'
   ? prepareMacDevelopmentApp(stockElectronExecutable)
   : stockElectronExecutable
+
+await generateFeaturedPluginArtifacts({
+  appRoot: APP_ROOT,
+  outputDir: join(APP_ROOT, '.desktop-build', 'featured-plugins'),
+})
 
 if (process.argv.includes('--prepare-only')) {
   console.log(`[electron] 开发应用已准备: ${electronExecutable}`)

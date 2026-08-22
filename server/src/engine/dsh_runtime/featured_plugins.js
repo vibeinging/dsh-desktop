@@ -26,8 +26,38 @@ function validateEvidence(plugin) {
       throw new Error(`${plugin.name} 的评估证据缺少 ${field}`);
     }
   }
-  if (evidence.source_kind !== "workspace-package" || evidence.release_source !== "fixed-tarball") {
-    throw new Error(`${plugin.name} 的评估证据必须指向工作区源码和固定 tarball`);
+  if (!new Set(["workspace-package", "locked-registry-package"]).has(evidence.source_kind)
+    || evidence.release_source !== "fixed-tarball") {
+    throw new Error(`${plugin.name} 的评估证据必须指向受控源码和固定 tarball`);
+  }
+  if (evidence.source_kind === "locked-registry-package") {
+    for (const field of ["package_spec", "package_version", "package_integrity", "source_entry", "declared_license", "license_path", "license_sha256"]) {
+      if (typeof evidence[field] !== "string" || !evidence[field].trim()) {
+        throw new Error(`${plugin.name} 的 registry 证据缺少 ${field}`);
+      }
+    }
+    if (evidence.package_spec !== `${plugin.name}@${evidence.package_version}`) {
+      throw new Error(`${plugin.name} 的 package_spec 未固定到清单版本`);
+    }
+    if (!evidence.package_dependencies || typeof evidence.package_dependencies !== "object"
+      || Array.isArray(evidence.package_dependencies)) {
+      throw new Error(`${plugin.name} 的 registry 证据缺少 package_dependencies`);
+    }
+    if (!Array.isArray(evidence.offline_dependencies) || evidence.offline_dependencies.length === 0) {
+      throw new Error(`${plugin.name} 的 registry 证据缺少离线依赖闭包`);
+    }
+    const offlineNames = new Set();
+    for (const dependency of evidence.offline_dependencies) {
+      if (!dependency || typeof dependency !== "object" || Array.isArray(dependency)
+        || ["name", "version", "integrity", "license", "license_path", "license_sha256", "install_path"]
+          .some((field) => typeof dependency[field] !== "string" || !dependency[field].trim())
+        || !dependency.install_path.startsWith("node_modules/")
+        || dependency.install_path.includes("..")
+        || offlineNames.has(dependency.name)) {
+        throw new Error(`${plugin.name} 的离线依赖闭包无效`);
+      }
+      offlineNames.add(dependency.name);
+    }
   }
   if (!evidence.compatibility || typeof evidence.compatibility !== "object"
     || typeof evidence.compatibility.dsh_sdk !== "string"
@@ -80,8 +110,12 @@ function validateManifest(value) {
     if (typeof plugin.name !== "string" || !plugin.name.trim() || names.has(plugin.name)) {
       throw new Error(`精选插件名称无效或重复：${plugin.name || "unknown"}`);
     }
-    if (typeof plugin.package_path !== "string" || !plugin.package_path.startsWith("packages/")) {
-      throw new Error(`${plugin.name} 的 package_path 必须位于 packages/ 下`);
+    const packagePathValid = typeof plugin.package_path === "string"
+      && (plugin.package_path.startsWith("packages/")
+        || (plugin.evidence?.source_kind === "locked-registry-package"
+          && plugin.package_path.startsWith("server/node_modules/")));
+    if (!packagePathValid) {
+      throw new Error(`${plugin.name} 的 package_path 必须位于 packages/ 或受控 server/node_modules/ 下`);
     }
     if (typeof plugin.license !== "string" || !plugin.license.trim()) {
       throw new Error(`${plugin.name} 必须声明 SPDX 许可证`);
@@ -91,6 +125,12 @@ function validateManifest(value) {
     }
     if (!Array.isArray(plugin.permissions) || plugin.permissions.some((item) => typeof item !== "string")) {
       throw new Error(`${plugin.name} 的 permissions 必须是字符串数组`);
+    }
+    if (plugin.permissions_en !== undefined
+      && (!Array.isArray(plugin.permissions_en)
+        || plugin.permissions_en.length !== plugin.permissions.length
+        || plugin.permissions_en.some((item) => typeof item !== "string" || !item.trim()))) {
+      throw new Error(`${plugin.name} 的 permissions_en 必须与 permissions 对齐`);
     }
     if (plugin.default !== true || typeof plugin.user_manageable !== "boolean") {
       throw new Error(`${plugin.name} 必须明确声明为默认，并声明是否可由用户管理`);
@@ -112,6 +152,7 @@ function validateManifest(value) {
     plugins: Object.freeze(value.plugins.map((plugin) => Object.freeze({
       ...plugin,
       permissions: Object.freeze([...plugin.permissions]),
+      ...(plugin.permissions_en ? { permissions_en: Object.freeze([...plugin.permissions_en]) } : {}),
       evidence: freeze(structuredClone(plugin.evidence)),
     }))),
   });
