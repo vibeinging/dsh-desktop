@@ -10,6 +10,7 @@
 - GitHub 仓库候选名 `vibeinging/dsh-desktop` 可用；旧仓库地址在 GitHub 改名后由平台保留跳转。
 - Apple Team 为 `BB5VK42K87`，本机公证凭据已通过 `notarytool history` 只读验证。
 - Developer ID 指纹 `26C311958B22397631A857D0482CD2F0EA0BF2AA` 有效期至 2031 年；workflow 使用唯一指纹，避免两个同名证书产生歧义。
+- 本地 Apple 公证使用 `notarytool` Keychain profile；正式打包进程清除 Apple ID/password 环境变量，避免 app-specific password 出现在进程参数或日志中。
 - npm 认证材料存在，但 GitHub Actions 仓库 Secret 尚未配置。
 - 用户已授权本轮只在本机 smoke 进程中临时使用 `~/.dsh/.env` 的 DeepSeek 凭据；凭据不输出、不写入回执、不提交且不上传 GitHub Actions。
 - Windows x64 签名证书不存在；`windows-release-evidence.yml` 保留为未来的正式签名入口，本轮只运行 `windows-release.yml`。

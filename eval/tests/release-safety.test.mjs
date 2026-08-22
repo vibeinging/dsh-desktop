@@ -47,6 +47,7 @@ import {
 } from '../../electron/scripts/packaged-smoke-environment.mjs';
 import {
   parseNotaryResult,
+  resolveNotaryCredentialArgs,
   resolveDmgPath,
 } from '../../electron/scripts/notarize-macos-dmg.mjs';
 import { BUNDLED_PNPM_FILES } from '../../electron/scripts/prepare-package.mjs';
@@ -847,6 +848,20 @@ test('macOS DMG notarization selects the current architecture and keeps the rece
     status: 'Invalid',
     id: null,
   });
+});
+
+test('macOS notarization prefers a Keychain profile over password arguments', () => {
+  assert.deepEqual(resolveNotaryCredentialArgs({
+    APPLE_KEYCHAIN_PROFILE: 'dsh-desktop-release',
+    APPLE_ID: 'ignored@example.test',
+    APPLE_TEAM_ID: 'IGNOREDTEAM',
+    APPLE_APP_SPECIFIC_PASSWORD: 'ignored-password',
+  }), ['--keychain-profile', 'dsh-desktop-release']);
+  assert.deepEqual(resolveNotaryCredentialArgs({
+    APPLE_KEYCHAIN_PROFILE: 'dsh-desktop-release',
+    APPLE_KEYCHAIN: '/tmp/release.keychain-db',
+  }), ['--keychain', '/tmp/release.keychain-db', '--keychain-profile', 'dsh-desktop-release']);
+  assert.throws(() => resolveNotaryCredentialArgs({}), /APPLE_ID/);
 });
 
 test('Windows release evidence workflow requires signing, installer acceptance, and signature verification', () => {

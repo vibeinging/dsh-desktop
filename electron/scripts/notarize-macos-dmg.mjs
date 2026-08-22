@@ -46,10 +46,26 @@ export function parseNotaryResult(output) {
   })
 }
 
-function requireCredential(name) {
-  const value = String(process.env[name] || '').trim()
+function requireCredential(environment, name) {
+  const value = String(environment[name] || '').trim()
   if (!value) throw new Error(`缺少 macOS 公证凭据：${name}`)
   return value
+}
+
+/** Build notarytool authentication arguments, preferring credentials stored in Keychain. */
+export function resolveNotaryCredentialArgs(environment = process.env) {
+  const keychainProfile = String(environment.APPLE_KEYCHAIN_PROFILE || '').trim()
+  if (keychainProfile) {
+    const keychain = String(environment.APPLE_KEYCHAIN || '').trim()
+    return keychain
+      ? ['--keychain', keychain, '--keychain-profile', keychainProfile]
+      : ['--keychain-profile', keychainProfile]
+  }
+  return [
+    '--apple-id', requireCredential(environment, 'APPLE_ID'),
+    '--team-id', requireCredential(environment, 'APPLE_TEAM_ID'),
+    '--password', requireCredential(environment, 'APPLE_APP_SPECIFIC_PASSWORD'),
+  ]
 }
 
 async function run(label, command, args, options = {}) {
@@ -80,9 +96,7 @@ async function main() {
   const packageJson = JSON.parse(await readFile(join(APP_ROOT, 'package.json'), 'utf8'))
   const dmgPath = resolveDmgPath(APP_ROOT, packageJson.version, arch)
   const startedAt = new Date().toISOString()
-  const appleId = requireCredential('APPLE_ID')
-  const teamId = requireCredential('APPLE_TEAM_ID')
-  const password = requireCredential('APPLE_APP_SPECIFIC_PASSWORD')
+  const credentialArgs = resolveNotaryCredentialArgs()
   const resultPath = String(process.env.DSH_MACOS_DMG_NOTARY_RESULT_FILE || '').trim()
     ? resolve(String(process.env.DSH_MACOS_DMG_NOTARY_RESULT_FILE).trim())
     : ''
@@ -92,9 +106,7 @@ async function main() {
   try {
     const rawResult = await run('提交 macOS DMG 公证', 'xcrun', [
       'notarytool', 'submit', dmgPath,
-      '--apple-id', appleId,
-      '--team-id', teamId,
-      '--password', password,
+      ...credentialArgs,
       '--wait',
       '--output-format', 'json',
     ])
