@@ -8,7 +8,7 @@
 <p align="center"><sub>An independent, community-maintained open-source project with no affiliation, partnership, authorization, or endorsement from DeepSeek.<br>English · <a href="README.md">中文</a> · <a href="README.anime.md">Anime README</a></sub></p>
 
 <p align="center">
-  <a href="https://github.com/vibeinging/deepseek-harness-desktop-app"><img src="https://img.shields.io/github/stars/vibeinging/deepseek-harness-desktop-app?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
+  <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/runtime-Electron-47848F?style=flat" alt="Electron runtime">
   <img src="https://img.shields.io/badge/interface-official%20DSH%20Web-2563EB?style=flat" alt="Official DSH Web">
@@ -98,8 +98,8 @@ Worktree is not the retired Renderer's project-settings page. It is an independe
 Local development requires Node.js 24 or later:
 
 ```bash
-git clone https://github.com/vibeinging/deepseek-harness-desktop-app.git
-cd deepseek-harness-desktop-app
+git clone https://github.com/vibeinging/dsh-desktop.git
+cd dsh-desktop
 npm install
 npm run doctor
 npm run dev:electron
@@ -185,7 +185,7 @@ npm run check:release:budgets
 npm run measure:featured-plugins
 ```
 
-The latest local verification passed 174 of 177 release tests, with 3 conditional skips and no failures. All 12 default Bundles passed per-package Profile installation and lifecycle measurement. `dshmarket`, the task board, and Worktree also passed activation, disabling, official removal, and restart recovery in the current packaged macOS arm64 Electron app. A real DeepSeek-V4-Flash development smoke also passed official Web, Session history, provider-origin, and complete-response checks.
+The latest local verification passed 175 of 178 release tests, with 3 conditional skips and no failures. All 12 default Bundles passed per-package Profile installation and lifecycle measurement. `dshmarket`, the task board, and Worktree also passed activation, disabling, official removal, and restart recovery in the current packaged macOS arm64 Electron app. A real DeepSeek-V4-Flash development smoke also passed official Web, Session history, provider-origin, and complete-response checks.
 
 This evidence does not replace macOS Developer ID, notarization, a Windows signed installer, native Intel x64, or a live-model receipt bound to a formally signed artifact. Until the repository publishes a formal Release, the unsigned directory build is not described as a downloadable distribution.
 

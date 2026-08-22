@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, mkdtemp, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -14,7 +14,8 @@ import {
 
 const ELECTRON_DIR = resolve(resolve(fileURLToPath(import.meta.url), '..'), '..')
 const APP_ROOT = resolve(ELECTRON_DIR, '..')
-const DEFAULT_DMG = join(APP_ROOT, 'release', 'dsh-desktop-0.0.1-mac-arm64.dmg')
+const { version } = JSON.parse(readFileSync(join(ELECTRON_DIR, 'package.json'), 'utf8'))
+const DEFAULT_DMG = join(APP_ROOT, 'release', `dsh-desktop-${version}-mac-arm64.dmg`)
 const communitySmoke = join(ELECTRON_DIR, 'scripts', 'smoke-packaged-community.mjs')
 const resultPath = String(process.env.DSH_MACOS_INSTALLER_RESULT_FILE || '').trim()
   ? resolve(String(process.env.DSH_MACOS_INSTALLER_RESULT_FILE).trim())

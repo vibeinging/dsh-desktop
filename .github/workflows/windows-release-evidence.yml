@@ -39,6 +39,19 @@ jobs:
             server/package-lock.json
             electron/package-lock.json
 
+      - name: Validate release ref and credentials
+        shell: pwsh
+        run: |
+          $Version = (Get-Content package.json | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_TYPE -ne 'tag' -or $env:GITHUB_REF_NAME -ne "v$Version") {
+            throw "Release workflow must run from tag v$Version"
+          }
+          foreach ($Name in @('WIN_CSC_LINK', 'WIN_CSC_KEY_PASSWORD', 'NPM_TOKEN')) {
+            if (-not (Get-Item "Env:$Name" -ErrorAction SilentlyContinue).Value) {
+              throw "Missing required release secret: $Name"
+            }
+          }
+
       - name: Cache Electron and builder downloads
         uses: actions/cache@v4
         with:

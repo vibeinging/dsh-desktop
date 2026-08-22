@@ -23,7 +23,9 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       CSC_LINK: ${{ secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      CSC_NAME: 26C311958B22397631A857D0482CD2F0EA0BF2AA
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       DSH_RELEASE_COMMIT_SHA: ${{ github.sha }}
       DSH_LIVE_MODEL_RESULT_FILE: ${{ runner.temp }}/live-model-evidence/result.json
       DSH_MACOS_DMG_NOTARY_RESULT_FILE: ${{ runner.temp }}/macos-dmg-evidence/result.json
@@ -34,6 +36,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Validate release ref and credentials
+        shell: bash
+        run: |
+          EXPECTED_TAG="v$(sed -n 's/^  "version": "\([^"]*\)",$/\1/p' package.json | head -1)"
+          test "$GITHUB_REF_TYPE" = "tag"
+          test "$GITHUB_REF_NAME" = "$EXPECTED_TAG"
+          for NAME in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID CSC_LINK CSC_KEY_PASSWORD NPM_TOKEN DEEPSEEK_API_KEY; do
+            test -n "${!NAME}" || { echo "Missing required release secret: $NAME"; exit 1; }
+          done
 
       - name: Use Node 24
         uses: actions/setup-node@v4
@@ -129,8 +141,6 @@ jobs:
           DSH_NATIVE_HOST_RESULT_FILE="$DSH_NATIVE_HOST_DIALOGS_RESULT_FILE" npm run smoke:native-host:dialogs
 
       - name: Smoke real DeepSeek live-model
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           test -n "$DEEPSEEK_API_KEY"
           mkdir -p "$RUNNER_TEMP/live-model-evidence"

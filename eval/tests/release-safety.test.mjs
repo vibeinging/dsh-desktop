@@ -794,6 +794,27 @@ test('macOS release workflow persists the real live-model receipt', () => {
   assert.doesNotMatch(workflow, /inputs:\s*[\s\S]*live_model:/);
 });
 
+test('release workflows reject wrong refs and missing credentials before dependency installation', () => {
+  const mac = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
+  const windowsSigned = readFileSync(new URL('../../.github/workflows/windows-release-evidence.yml', import.meta.url), 'utf8');
+  const windowsUnsigned = readFileSync(new URL('../../.github/workflows/windows-release.yml', import.meta.url), 'utf8');
+  const ci = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  for (const workflow of [mac, windowsSigned, windowsUnsigned]) {
+    const preflightIndex = workflow.indexOf('- name: Validate release');
+    const installIndex = workflow.indexOf('- name: Install');
+    assert.ok(preflightIndex >= 0 && installIndex > preflightIndex);
+    assert.match(workflow, /GITHUB_REF_TYPE/);
+    assert.match(workflow, /GITHUB_REF_NAME/);
+  }
+  assert.match(mac, /CSC_NAME: 26C311958B22397631A857D0482CD2F0EA0BF2AA/);
+  assert.match(mac, /Missing required release secret/);
+  assert.match(windowsSigned, /WIN_CSC_LINK/);
+  assert.match(windowsSigned, /Missing required release secret/);
+  assert.match(windowsUnsigned, /dsh-desktop-win-x64-unsigned/);
+  assert.match(ci, /branches: \[dev, main\]/);
+  assert.doesNotMatch(ci, /tags:/);
+});
+
 test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
   assert.match(workflow, /npm run smoke:macos:installer/);

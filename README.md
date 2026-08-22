@@ -8,7 +8,7 @@
 <p align="center"><sub>独立的社区开源项目，与深度求索不存在隶属、合作、授权或背书关系。<br>中文 · <a href="README.en.md">English</a> · <a href="README.anime.md">二次元版 README</a></sub></p>
 
 <p align="center">
-  <a href="https://github.com/vibeinging/deepseek-harness-desktop-app"><img src="https://img.shields.io/github/stars/vibeinging/deepseek-harness-desktop-app?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
+  <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/runtime-Electron-47848F?style=flat" alt="Electron runtime">
   <img src="https://img.shields.io/badge/interface-official%20DSH%20Web-2563EB?style=flat" alt="Official DSH Web">
@@ -98,8 +98,8 @@ Worktree 不是旧 Renderer 的项目设置页。它是可独立安装的 portab
 本地开发要求 Node.js 24 或更高版本：
 
 ```bash
-git clone https://github.com/vibeinging/deepseek-harness-desktop-app.git
-cd deepseek-harness-desktop-app
+git clone https://github.com/vibeinging/dsh-desktop.git
+cd dsh-desktop
 npm install
 npm run doctor
 npm run dev:electron
@@ -185,7 +185,7 @@ npm run check:release:budgets
 npm run measure:featured-plugins
 ```
 
-最近一次本地验证为 177 项 release 测试中 174 项通过、3 项条件跳过、0 项失败；12 个默认 Bundle 均通过逐包 Profile 安装与生命周期测量。`dshmarket`、task-board 和 Worktree 还通过当前 macOS arm64 打包 Electron 的激活、停用、官方卸载和重启恢复。真实 DeepSeek-V4-Flash 开发 smoke 也已通过官方 Web、Session history、provider 来源和完整响应校验。
+最近一次本地验证为 178 项 release 测试中 175 项通过、3 项条件跳过、0 项失败；12 个默认 Bundle 均通过逐包 Profile 安装与生命周期测量。`dshmarket`、task-board 和 Worktree 还通过当前 macOS arm64 打包 Electron 的激活、停用、官方卸载和重启恢复。真实 DeepSeek-V4-Flash 开发 smoke 也已通过官方 Web、Session history、provider 来源和完整响应校验。
 
 这些证据仍不替代 macOS Developer ID、公证、Windows 签名安装器、原生 Intel x64 或绑定正式签名产物的 live-model 回执。仓库没有正式 Release 前，不把未签名目录包描述为可下载发行版。
 

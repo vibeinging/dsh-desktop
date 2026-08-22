@@ -58,4 +58,5 @@ renderer/.env.*
 !/docs/reports/
 /docs/reports/*
 !/docs/reports/2026-08-20_dsh-app-release-evidence.md
+!/docs/reports/2026-08-23_dsh-desktop-release-preflight.md
 .playwright-mcp/

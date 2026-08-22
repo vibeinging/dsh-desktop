@@ -33,6 +33,14 @@ jobs:
             server/package-lock.json
             electron/package-lock.json
 
+      - name: Validate release tag
+        shell: pwsh
+        run: |
+          $Version = (Get-Content package.json | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_TYPE -ne 'tag' -or $env:GITHUB_REF_NAME -ne "v$Version") {
+            throw "Release workflow must run from tag v$Version"
+          }
+
       # 缓存 Electron 发行包与 NSIS 工具链，省去每次冷下载（约 2-4 分钟）
       - name: Cache electron & builder downloads
         uses: actions/cache@v4
@@ -70,7 +78,7 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: dsh-work-win-x64-unsigned
+          name: dsh-desktop-win-x64-unsigned
           path: |
             release/*.exe
             release/windows-x64-acceptance.json
