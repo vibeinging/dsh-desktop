@@ -79,7 +79,7 @@ If you only want to download a mature desktop client today, the anywhere-labs pr
 
 ![Official DSH Web Session](docs/images/readme/dsh-official-web-session-loopback.png)
 
-This screenshot comes from a real DeepSeek-V4-Flash smoke in the current packaged macOS arm64 Electron app. Acceptance reads official `session.history` directly and requires a non-empty `assistant/message`, `source.kind=model`, `provider=deepseek-official`, a unique receipt marker, and `turn/end(completed)` in the same turn. The key is injected only into the temporary process and is written to neither the Profile nor the screenshot. Because the current App is still an unsigned directory build, this development smoke does not replace a release receipt bound to a formally signed artifact.
+This screenshot comes from a normal user conversation with real DeepSeek-V4-Flash in the current packaged macOS arm64 Electron app. The showcase flow still verifies a non-empty `assistant/message`, `source.kind=model`, `provider=deepseek-official`, and `turn/end(completed)` through official `session.history`, but does not put a test UUID in the interface; the separate release smoke still requires a unique receipt marker. The key is injected only into the temporary process and is written to neither the Profile nor the screenshot. Because the current App is still an unsigned directory build, this development check does not replace a release receipt bound to a formally signed artifact.
 
 ### Plugin market in official settings
 

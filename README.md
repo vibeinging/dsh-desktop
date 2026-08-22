@@ -79,7 +79,7 @@ DSH Desktop 是社区维护的 Electron 桌面发行版。它固定并运行官�
 
 ![官方 DSH Web 会话](docs/images/readme/dsh-official-web-session-loopback.png)
 
-截图来自当前 macOS arm64 打包 Electron 的真实 DeepSeek-V4-Flash smoke。验收直接读取官方 `session.history`，要求同一轮出现非空 `assistant/message`、`source.kind=model`、`provider=deepseek-official`、唯一回执标记和 `turn/end(completed)`。密钥只注入本次临时进程，没有写入 Profile 或截图；由于当前 App 仍是未签名目录包，这条开发 smoke 不替代绑定正式签名产物的发行回执。
+截图来自当前 macOS arm64 打包 Electron 与真实 DeepSeek-V4-Flash 的正常用户对话。展示流程仍从官方 `session.history` 验证非空 `assistant/message`、`source.kind=model`、`provider=deepseek-official` 和 `turn/end(completed)`，但不会把测试 UUID 放进用户界面；独立的发行 smoke 继续要求唯一回执标记。密钥只注入本次临时进程，没有写入 Profile 或截图；由于当前 App 仍是未签名目录包，这条开发验证不替代绑定正式签名产物的发行回执。
 
 ### 官方设置中的插件市场
 
