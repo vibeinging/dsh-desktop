@@ -8,6 +8,7 @@ import { test } from "node:test";
 
 import {
   controlledDshPluginEnvironment,
+  dshCommandWorkingDirectory,
   ensureDshProfileInitialized,
 } from "../../server/src/engine/dsh_runtime/profile_initialization.js";
 import {
@@ -50,6 +51,17 @@ function sourceEnvironment(home) {
     DSH_HOME: home,
   };
 }
+
+test("official plugin commands use DSH Home instead of the application install directory", () => {
+  assert.equal(
+    dshCommandWorkingDirectory({ root: "/read-only/app/dsh" }, { DSH_HOME: "/user/data/dsh" }),
+    resolve("/user/data/dsh"),
+  );
+  assert.equal(
+    dshCommandWorkingDirectory({ root: "/read-only/app/dsh" }, {}),
+    "/read-only/app/dsh",
+  );
+});
 
 test("controlled plugin commands use the packaged pnpm path and stable store", async () => {
   const root = await mkdtemp(join(tmpdir(), "dsh-controlled-pnpm-"));

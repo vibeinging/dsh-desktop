@@ -181,7 +181,7 @@ export function controlledDshPluginEnvironment(baseEnv = process.env, { dshHome,
 async function defaultCommandRunner(resolved, args, env) {
   try {
     return await execFileAsync(process.execPath, [...resolved.execArgv, resolved.entryPath, ...args], {
-      cwd: resolved.root,
+      cwd: dshCommandWorkingDirectory(resolved, env),
       env: { ...process.env, ...env },
       maxBuffer: 16 * 1024 * 1024,
     });
@@ -195,6 +195,12 @@ async function defaultCommandRunner(resolved, args, env) {
       command_output: output || null,
     });
   }
+}
+
+/** Keep official plugin commands out of the immutable application install directory. */
+export function dshCommandWorkingDirectory(resolved, env = process.env) {
+  const dshHome = String(env.DSH_HOME || "").trim();
+  return dshHome ? resolve(dshHome) : resolved.root;
 }
 
 function assertInitialProfile(manifest, expectedNames, { requireDependencies = true } = {}) {

@@ -16,6 +16,7 @@ import {
 } from "./community_client_review.js";
 import {
   controlledDshPluginEnvironment,
+  dshCommandWorkingDirectory,
   dshProfilePluginLibraryPath,
   existingDshProfilePath,
 } from "./profile_initialization.js";
@@ -567,7 +568,7 @@ export function inspectProfileBundlePatches(patches) {
 async function defaultCommandRunner(resolved, args, env) {
   try {
     return await execFileAsync(process.execPath, [...resolved.execArgv, resolved.entryPath, ...args], {
-      cwd: resolved.root,
+      cwd: dshCommandWorkingDirectory(resolved, env),
       env: { ...process.env, ...env },
       maxBuffer: 8 * 1024 * 1024,
     });
