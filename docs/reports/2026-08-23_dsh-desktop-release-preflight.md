@@ -16,6 +16,7 @@
 - Windows x64 签名证书不存在；`windows-release-evidence.yml` 保留为未来的正式签名入口，本轮只运行 `windows-release.yml`。
 - macOS、Windows 的目录包与正式包脚本都先准备随包 DSH 运行时，再验证官方 Web 资源；干净 runner 不依赖本机残留的 `.desktop-build`。
 - Electron 先启动应用自有的最小 NPM runtime child，再在进程内注册 Profile loader，并通过 `file://` 动态导入官方 DSH CLI；Windows 盘符路径不会再由自定义 loader 当作主模块说明符处理。
+- Windows 目录包验证发现 Electron Builder 会从 `server/node_modules` 复制结果中漏掉顶层 `@deepseek-ai/dsh`；打包准备现在额外固定一份官方 CLI 到 `server/runtime/dsh`，生产环境只从这个应用自有目录启动，且构建前同时验证 `package.json` 与 `lib/bin.js`。
 
 ## DMG 公证验收
 

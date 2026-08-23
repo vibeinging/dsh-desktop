@@ -112,6 +112,15 @@ test("the npm runtime wrapper loads the DSH entry through a file URL", () => {
   assert.equal(registerProfileModuleLoader({}), false);
 });
 
+test("packaged Electron launches the official CLI from an app-owned runtime path", () => {
+  const mainSource = readFileSync(join(APP_ROOT, "electron/main.js"), "utf8");
+  const prepareSource = readFileSync(join(APP_ROOT, "electron/scripts/prepare-package.mjs"), "utf8");
+  const verifySource = readFileSync(join(APP_ROOT, "electron/scripts/verify-official-web-assets.mjs"), "utf8");
+  assert.match(mainSource, /DSH_NPM_PACKAGE_ROOT = path\.join\(SERVER_DIR, 'runtime', 'dsh'\)/);
+  assert.match(prepareSource, /cp\(installedDshRoot, PACKAGED_DSH_RUNTIME_DIR/);
+  assert.match(verifySource, /packagedDshRuntime, 'lib', 'bin\.js'/);
+});
+
 test("DSH client surface accepts only an exact loopback HTTP origin", () => {
   assert.equal(normalizeDshClientSurface("http://127.0.0.1:3080/"), "http://127.0.0.1:3080/");
   assert.throws(
