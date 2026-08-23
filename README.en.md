@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
+  <a href="https://github.com/vibeinging/dsh-desktop/releases/latest"><img src="https://img.shields.io/github/v/release/vibeinging/dsh-desktop?display_name=tag&amp;style=flat&amp;color=2563EB" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/runtime-Electron-47848F?style=flat" alt="Electron runtime">
   <img src="https://img.shields.io/badge/interface-official%20DSH%20Web-2563EB?style=flat" alt="Official DSH Web">
@@ -110,7 +111,13 @@ The Git Worktree Bundle identifies the main checkout from the current Session's 
 
 ## Get started
 
-The app can currently be run from source. The repository pins the official DSH npm runtime and default Bundles; it does not require a separate DSH source checkout or source modification.
+Download the installer for your platform from [GitHub Releases](https://github.com/vibeinging/dsh-desktop/releases/latest). The macOS Apple Silicon build is signed with Developer ID and notarized by Apple. The Windows x64 build is currently unsigned and may show a SmartScreen warning on first launch. Installers already contain the official DSH npm runtime and default Bundles; no separate DSH source checkout or modification is required.
+
+### Download the desktop app
+
+- macOS Apple Silicon: download the `.dmg`, open it, and drag `DSH Desktop` to Applications.
+- Windows x64: download the `.exe` installer. The current build is unsigned, so verify that it came from this repository's Release page before running it.
+- macOS Intel and other platforms: no formal installer is available yet; run from source instead.
 
 ### Run from source
 
@@ -131,7 +138,7 @@ npm run package:mac:dir
 open "release/mac-arm64/DSH Desktop.app"
 ```
 
-This command creates a local unsigned app. Formal macOS and Windows installers will be published through GitHub Releases.
+This command creates a local unsigned app for development. Use the GitHub Release page for end-user installers.
 
 ## Plugin ecosystem
 

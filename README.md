@@ -9,6 +9,7 @@
 
 <p align="center">
   <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
+  <a href="https://github.com/vibeinging/dsh-desktop/releases/latest"><img src="https://img.shields.io/github/v/release/vibeinging/dsh-desktop?display_name=tag&amp;style=flat&amp;color=2563EB" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/runtime-Electron-47848F?style=flat" alt="Electron runtime">
   <img src="https://img.shields.io/badge/interface-official%20DSH%20Web-2563EB?style=flat" alt="Official DSH Web">
@@ -110,7 +111,13 @@ Git Worktree Bundle 从当前 Session 的 `cwd` 识别主检出，在侧边栏�
 
 ## 开始使用
 
-当前可从源码运行。仓库已固定官方 DSH npm 运行时和默认 Bundle，不需要另外 checkout 或修改 DSH 源码。
+从 [GitHub Releases](https://github.com/vibeinging/dsh-desktop/releases/latest) 下载适合当前平台的安装包。macOS Apple Silicon 版本使用 Developer ID 签名并完成 Apple 公证；Windows x64 版本目前没有代码签名，首次运行时可能出现 SmartScreen 提示。安装包已经包含官方 DSH npm 运行时和默认 Bundle，不需要另外安装或修改 DSH 源码。
+
+### 下载桌面版
+
+- macOS Apple Silicon：下载 `.dmg`，打开后将 `DSH Desktop` 拖入“应用程序”；
+- Windows x64：下载 `.exe` 安装器。当前版本未签名，请从本仓库 Release 页面核对来源后再运行；
+- macOS Intel 和其他平台：当前没有正式安装包，可以从源码运行。
 
 ### 从源码运行
 
@@ -131,7 +138,7 @@ npm run package:mac:dir
 open "release/mac-arm64/DSH Desktop.app"
 ```
 
-该命令生成本地未签名 App。正式 macOS 和 Windows 安装包会通过 GitHub Releases 发布。
+该命令生成本地未签名 App，只用于开发。面向用户的安装包以 GitHub Release 页面为准。
 
 ## 插件生态
 
