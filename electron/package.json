@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop",
   "productName": "DSH Desktop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "description": "DSH Desktop，基于 DeepSeek Harness 和 Electron 构建的社区桌面应用",
   "author": "vibeinging",

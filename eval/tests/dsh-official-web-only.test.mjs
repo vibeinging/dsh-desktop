@@ -109,6 +109,10 @@ test("the packaged official Web interaction smoke stays on official question, ap
   assert.match(officialWebFlowSmoke, /data-queue-dock/);
   assert.match(officialWebFlowSmoke, /mode: 'queue'/);
   assert.match(officialWebFlowSmoke, /approvalMarkerPath/);
+  assert.match(officialWebFlowSmoke, /name === 'bash' \|\| name === 'pwsh'/);
+  assert.match(officialWebFlowSmoke, /Set-Content -LiteralPath/);
+  assert.match(officialWebFlowSmoke, /function: \{ name: selectedShellTool/);
+  assert.doesNotMatch(officialWebFlowSmoke, /function: \{ name: 'bash'/);
 });
 
 test("the native Host smoke keeps file-dialog coverage behind an explicit manual mode", () => {

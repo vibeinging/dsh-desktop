@@ -55,6 +55,14 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+function approvalMarkerCommand(toolName) {
+  if (toolName === 'pwsh') {
+    const literalPath = `'${approvalMarkerPath.replaceAll("'", "''")}'`
+    return `Set-Content -LiteralPath ${literalPath} -Value 'approved'`
+  }
+  return `printf 'approved\\n' > ${JSON.stringify(approvalMarkerPath)}`
+}
+
 async function freePort() {
   const server = net.createServer()
   await new Promise((resolve, reject) => {
@@ -94,7 +102,8 @@ async function startFakeModel() {
   const requests = []
   let toolCallCount = 0
   let questionSent = false
-  let bashSent = false
+  let shellToolSent = false
+  let selectedShellTool = null
   let escalationSent = false
   const server = createServer(async (request, response) => {
     if (request.method !== 'POST' || request.url !== '/chat/completions') {
@@ -108,14 +117,16 @@ async function startFakeModel() {
       const lastUserText = [...messages].reverse().find((message) => message?.role === 'user')?.content || ''
       const hasPrompt = messages.some((message) => String(message?.content || '').includes(promptText))
       const hasToolResult = messages.some((message) => message?.role === 'tool')
-      const hasBashTool = tools.some((tool) => tool?.function?.name === 'bash')
+      const shellToolName = tools
+        .map((tool) => tool?.function?.name)
+        .find((name) => name === 'bash' || name === 'pwsh')
       const hasAskQuestionTool = tools.some((tool) => tool?.function?.name === 'ask_user_question')
       const toolResultText = messages.filter((message) => message?.role === 'tool').map((message) => message.content || '').join('\n')
       const isInitialQuestionRequest = !questionSent && !hasToolResult && hasAskQuestionTool && hasPrompt
-      const isBashRequest = questionSent && !bashSent && hasToolResult
-      const isEscalationRequest = bashSent && toolCallCount === 1 && hasToolResult
+      const isShellRequest = questionSent && !shellToolSent && hasToolResult && Boolean(shellToolName)
+      const isEscalationRequest = shellToolSent && toolCallCount === 1 && hasToolResult
       const record = {
-        hasBashTool,
+        shellToolName,
         hasAskQuestionTool,
         hasToolResult,
         questionAnswered: hasToolResult && toolResultText.includes(questionOptionText),
@@ -162,11 +173,12 @@ async function startFakeModel() {
           delta: {},
           finishReason: 'tool_calls',
         }))
-      } else if (isBashRequest) {
-        bashSent = true
+      } else if (isShellRequest) {
+        shellToolSent = true
+        selectedShellTool = shellToolName
         toolCallCount += 1
         const argumentsText = JSON.stringify({
-          command: `printf 'approved\\n' > ${JSON.stringify(approvalMarkerPath)}`,
+          command: approvalMarkerCommand(selectedShellTool),
           description: 'Print approval smoke result',
         })
         response.write(fakeSseChunk({
@@ -177,7 +189,7 @@ async function startFakeModel() {
               index: 0,
               id: 'call-dsh-desktop-approval-smoke',
               type: 'function',
-              function: { name: 'bash', arguments: argumentsText },
+              function: { name: selectedShellTool, arguments: argumentsText },
             }],
           },
         }))
@@ -190,7 +202,7 @@ async function startFakeModel() {
         toolCallCount += 1
         escalationSent = true
         const argumentsText = JSON.stringify({
-          command: `printf 'approved\\n' > ${JSON.stringify(approvalMarkerPath)}`,
+          command: approvalMarkerCommand(selectedShellTool),
           description: 'Print approval smoke result',
           sandbox_permissions: 'danger-full-access',
           justification: 'The smoke test writes one temporary marker outside the workspace.',
@@ -203,7 +215,7 @@ async function startFakeModel() {
               index: 0,
               id: 'call-dsh-desktop-approval-smoke-escalation',
               type: 'function',
-              function: { name: 'bash', arguments: argumentsText },
+              function: { name: selectedShellTool, arguments: argumentsText },
             }],
           },
         }))
@@ -242,7 +254,8 @@ async function startFakeModel() {
   return {
     baseURL: `http://127.0.0.1:${address.port}`,
     requests,
-    get bashSent() { return bashSent },
+    get shellToolSent() { return shellToolSent },
+    get selectedShellTool() { return selectedShellTool },
     get escalationSent() { return escalationSent },
     get questionAnswered() { return requests.some((request) => request.questionAnswered) },
     get questionSent() { return questionSent },
@@ -590,16 +603,17 @@ try {
     await waitFor(`(document.body.innerText || '').includes(${JSON.stringify(queuedResultText)})`, '排队消息的模型结果')
     await waitFor(`!document.querySelector('[data-queue-dock]')`, '排队消息完成')
     await access(approvalMarkerPath)
-    if (await readFile(approvalMarkerPath, 'utf8') !== 'approved\n') throw new Error('审批后的 bash 命令没有写入预期临时文件')
+    if ((await readFile(approvalMarkerPath, 'utf8')).trim() !== 'approved') throw new Error('审批后的 shell 命令没有写入预期临时文件')
     const requestSummary = {
       questionRequest: fakeModel.questionSent,
       questionAnswer: fakeModel.questionAnswered,
-      toolRequest: fakeModel.bashSent,
+      toolRequest: fakeModel.shellToolSent,
+      shellTool: fakeModel.selectedShellTool,
       toolResult: fakeModel.requests.some((request) => request.hasToolResult),
       queuedPrompt: fakeModel.requests.some((request) => request.lastUserText.includes(queuedPromptText)),
       escalation: fakeModel.escalationSent,
     }
-    if (!requestSummary.questionRequest || !requestSummary.questionAnswer || !requestSummary.toolRequest || !requestSummary.toolResult || !requestSummary.queuedPrompt || !requestSummary.escalation) {
+    if (!requestSummary.questionRequest || !requestSummary.questionAnswer || !requestSummary.toolRequest || !['bash', 'pwsh'].includes(requestSummary.shellTool) || !requestSummary.toolResult || !requestSummary.queuedPrompt || !requestSummary.escalation) {
       throw new Error(`fake DeepSeek 没有形成完整问题/审批/队列请求链: ${JSON.stringify(requestSummary)}`)
     }
     output.push(`[smoke] INFO 问题/审批/队列请求链已由本地 fake DeepSeek 驱动; queue_screenshot=${queuedScreenshot}; question_screenshot=${questionScreenshot}; approval_screenshot=${approvalScreenshot}`)

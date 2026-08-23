@@ -1,7 +1,7 @@
 {
   "name": "@dsh/server",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "type": "module",
   "description": "桌面版本地后端:服务 app/renderer 的本地 API 与 Agent/数据引擎。",
