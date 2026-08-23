@@ -1,8 +1,8 @@
 <h1 align="center">DSH Desktop</h1>
 
 <p align="center">
-  <strong>面向桌面的 DSH 精选插件发行版。</strong><br>
-  原样运行官方 Web，以 Profile 组合社区插件、产品工具和受控原生能力。
+  <strong>以官方 DSH Web 为核心的插件化桌面工作台。</strong><br>
+  精选社区 Bundle、离线 Profile、Git Worktree、文件附件与受控原生能力，组合在一个 Electron 应用中。
 </p>
 
 <p align="center"><sub>独立的社区开源项目，与深度求索不存在隶属、合作、授权或背书关系。<br>中文 · <a href="README.en.md">English</a> · <a href="README.anime.md">二次元版 README</a></sub></p>
@@ -12,31 +12,29 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/runtime-Electron-47848F?style=flat" alt="Electron runtime">
   <img src="https://img.shields.io/badge/interface-official%20DSH%20Web-2563EB?style=flat" alt="Official DSH Web">
-  <img src="https://img.shields.io/badge/status-preview-F59E0B?style=flat" alt="Preview status">
+  <img src="https://img.shields.io/badge/plugins-Profile%20Bundles-7C3AED?style=flat" alt="Profile Bundles">
 </p>
 
 <p align="center">
   <img src="docs/images/readme/dsh-community-task-board.png" alt="DSH Desktop 中通过官方 Profile 加载的社区任务看板" width="100%">
 </p>
 
-DSH Desktop 是社区维护的 Electron 桌面发行版。它固定并运行官方 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm 运行时，把 `dsh-web-app`、Session、Agent、Tool、Skill、MCP 与 Profile Bundle 放进一个本地应用。项目不修改 DSH 源码，也不再维护第二套 Chat、首页、设置或插件中心。我们的重点不是再做一层相似界面，而是把经过审查的社区插件和独立产品 Bundle 组合成可复现、可卸载、可恢复的桌面工作环境。
+DSH Desktop 是社区维护的 Electron 发行版。它固定并运行官方 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm 运行时，把 `dsh-web-app`、Session、Agent、Tool、Skill、MCP 与 Profile Bundle 组成可直接运行的本地桌面环境。项目不修改 DSH 源码，不另存一套插件状态，也不用私有 Chat 替换官方 Web。
 
-当前仓库尚未发布签名安装包。已经验证的是 macOS Apple Silicon 未签名目录包；Windows 签名安装器、macOS Developer ID、公证、原生 Intel x64 和绑定签名产物的 DeepSeek live-model 正式回执仍属于发行验收项。
+这个仓库做的是“桌面发行层”：从社区中选择值得默认安装的 Bundle，固定它们的来源、版本、依赖、权限和许可，然后在真实 Profile 与 Electron 中验证安装、停用、卸载、重启和恢复。用户得到的不是一堆手工配置，而是一个可组合、可移除、可复现的 DSH 工作台。
 
-## 为什么是这个发行版
+## 我们坚持的桌面路线
 
-我们与 [anywhere-labs/deepseek-harness-desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) 都是独立社区 Electron 发行版，也都运行官方 DSH Web、遵循 Profile，并避免把 Electron API 直接暴露给页面。区别不在“谁更官方”，而在产品取舍：
-
-| 维度 | 本仓库 | anywhere-labs DSH Desktop |
+| 原则 | 产品承诺 | 直接收益 |
 | --- | --- | --- |
-| 核心目标 | 精选、审查并验证一组可组合的 DSH Bundle，优先采用社区插件 | 提供完整桌面 Shell 与可直接下载安装的跨平台客户端 |
-| DSH 接入 | 只使用固定的官方 npm 运行时与 SDK，不携带 DSH 源码 checkout | 外层 Yarn 工程固定官方 DSH 源码子模块，桌面代码集中在 `dsh-plugin-desktop` |
-| 界面策略 | 官方 Web 是唯一主界面；桌面安全条也是普通 `dshClient` Bundle，不提供第二套 Renderer | 提供兼容与高级两种呈现模式；高级模式可安装 Desktop 自有 layout、frame 与原生材质 |
-| 默认体验 | 内置社区 `dshmarket`、task-board、文件/文件夹附件输入，以及独立的 Git Worktree、Project、Canvas/Site、Structured UI、Office 和模型继承 Bundle | 内置统一 Desktop 插件、终端、托盘、Profile、更新与 DSH Community Market；手机远程控制列为后续能力 |
-| 原生边界 | 功能 Bundle 只消费按 Session 绑定的方法白名单；插件安装最终仍走官方 DSH CLI | 第三方公开面同样收窄为 `desktopProfiles` 与 `desktopPnpm`，其它原生能力由 Desktop 内部插件使用 |
-| 当前成熟度 | Preview；真实 macOS arm64 Electron 和插件生命周期已验证，但还没有正式签名安装包 | 已提供 Windows x64 与 macOS Universal 正式安装包，下载体验更成熟 |
+| 官方 Web 是唯一主界面 | 主窗口直接加载官方 Client 图，桌面能力也以 `dshClient` Bundle 加入 | 跟随 DSH 会话、设置与 Slot 演进，不等第二套界面重写 |
+| Profile 是插件状态的唯一权威 | 市场、设置和 CLI 读写同一个 Profile；更新不补回用户已卸载的 Bundle | 不会出现“页面说已安装，DSH 实际没加载”的双状态 |
+| 社区实现优先 | 任务看板、插件市场和附件输入直接采用独立社区 Bundle | 社区插件可同时服务官方 Web 与桌面发行版，不被锁在本项目里 |
+| 默认组合可复现 | 新 Profile 从固定 tarball、SHA-256 和随包 pnpm 离线原子初始化 | 无需临时从 npm 拼装默认环境，安装失败不会留下半个 Profile |
+| 原生能力按最小权限开放 | 窗口、文件、Browser Workspace 和更新只通过 Session 绑定的方法白名单暴露 | 第三方 Client 不能直接获取 Electron、Node 或通用 IPC |
+| 失败必须可诊断、可恢复 | Profile 或 Client 启动失败时进入本地恢复页，保留原 Profile | 不用白屏、无限重启或静默改配置掩盖问题 |
 
-如果你现在只想下载安装一个成熟桌面客户端，anywhere-labs 项目更合适；如果你关心官方 Web 单一界面、社区插件优先、离线可复现的新 Profile、细粒度产品工具 Bundle 和逐项发行证据，本仓库走的是另一条路线。完整依据见[两套社区桌面发行版对比](docs/research/2026-08-22_dsh-desktop-distribution-differences.md)。
+这套路线适合想使用官方 DSH Web，同时需要社区插件、桌面原生能力、可控默认组合和清晰权限边界的用户与插件作者。
 
 ## 主要能力
 
@@ -53,12 +51,12 @@ DSH Desktop 是社区维护的 Electron 桌面发行版。它固定并运行官�
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <h3>社区优先的精选工作台</h3>
-      <p>默认采用社区 task-board、dshmarket 与附件输入插件，而不是在 Shell 内重复实现。每个版本都固定到审查过的 tarball，并单独验证安装、停用、官方卸载和重启恢复。</p>
+      <h3>任务、附件与社区能力</h3>
+      <p>社区 task-board 提供五列任务看板，附件 Bundle 在官方输入 Slot 中增加文件和文件夹选择，dshmarket 负责发现更多标准 Bundle。</p>
     </td>
     <td width="50%" valign="top">
-      <h3>产品能力也是 Bundle</h3>
-      <p>Git Worktree、Project、Conversation、Canvas/Site、Structured UI、Office 与模型继承分属独立 Bundle。功能代码不导入 Electron 或通用 IPC，未来可以替换 Host provider，而不用重写 Tool。</p>
+      <h3>工作区与产出工具</h3>
+      <p>Git Worktree、Project、Conversation、Canvas/Site、Structured UI、Office 和模型继承分属独立 Bundle。用户可按需移除，插件作者也可复用其中的 portable 能力。</p>
     </td>
   </tr>
   <tr>
@@ -73,29 +71,50 @@ DSH Desktop 是社区维护的 Electron 桌面发行版。它固定并运行官�
   </tr>
 </table>
 
+## 运行方式
+
+```mermaid
+flowchart LR
+  A[Electron 桌面壳] --> B[官方 DSH 运行时]
+  B --> C[web Profile]
+  C --> D[官方 dsh-web-app]
+  C --> E[社区与 portable Bundles]
+  C --> F[desktop-adapter Bundles]
+  F --> G[窄 Native Host]
+  G --> H[macOS / Windows]
+```
+
+官方 DSH 运行时负责 Agent、Session、Tool、Skill、MCP、Profile 和 Web UI。社区与 portable Bundle 只使用公开 DSH 服务，因此可安装到兼容的官方 Web Profile。`desktop-adapter` Bundle 才能调用桌面 Host，而且只能使用已声明、按 Session 绑定的有限方法。
+
+这个分层使“在官方 Web 中可用”和“在 DSH Desktop 中可用”不再是两套插件体系：普通 UI、Tool 和工作流优先保持 portable，只有文件对话框、窗口或内置浏览器等操作系统能力需要桌面适配。
+
 ## 当前界面
 
 ### 官方会话、问题与审批
 
 ![官方 DSH Web 会话](docs/images/readme/dsh-official-web-session-loopback.png)
 
-截图来自当前 macOS arm64 打包 Electron 与真实 DeepSeek-V4-Flash 的正常用户对话。展示流程仍从官方 `session.history` 验证非空 `assistant/message`、`source.kind=model`、`provider=deepseek-official` 和 `turn/end(completed)`，但不会把测试 UUID 放进用户界面；独立的发行 smoke 继续要求唯一回执标记。密钥只注入本次临时进程，没有写入 Profile 或截图；由于当前 App 仍是未签名目录包，这条开发验证不替代绑定正式签名产物的发行回执。
+会话、问题卡片、工具审批、消息排队和历史回放都留在官方 Session 中。截图使用真实 DeepSeek-V4-Flash 对话；密钥只注入当次临时进程，不写入 Profile 或截图。
 
 ### 官方设置中的插件市场
 
 ![官方 Web 设置中的默认插件市场](docs/images/readme/dsh-plugin-market.png)
 
-市场作为独立 Client Bundle 挂在官方设置 Slot 内。截图证明页面和社区目录已经加载；另一条打包版生命周期测试负责验证安装、停用、官方卸载和卸载后重启恢复。
+在“设置 → 插件市场”中可以搜索、查看兼容性与权限，并对当前 Profile 执行安装、更新和卸载。市场是普通 Client Bundle，不替换官方设置容器。
 
 ### 官方 Workspace 中的 Git Worktree
 
 ![官方 Web 中的 Git Worktree Bundle](docs/images/readme/dsh-worktree-official-web.png)
 
-Worktree 不是旧 Renderer 的项目设置页。它是可独立安装的 portable Bundle：Host 只从当前 DSH Session 的固定 `cwd` 推导 Git 主检出，Client 通过 `sidebar.footer.action`、`shell.overlay` 和 `conversation.view` 三个官方 Slot 提供入口，并用官方 Workspace 打开隔离 Session。截图来自 macOS arm64 打包 Electron 的固定 tarball 安装；同一条 smoke 还验证停用、官方卸载和卸载后重启恢复。
+Git Worktree Bundle 从当前 Session 的 `cwd` 识别主检出，在侧边栏和工作区中管理隔离 worktree，并为新工作区创建官方 Session。它只使用 DSH Workspace 与 Slot，可作为独立 portable Bundle 安装或移除。
 
-## 快速开始
+## 获取和运行
 
-本地开发要求 Node.js 24 或更高版本：
+当前 Preview 通道面向开发者从源码运行。仓库固定官方 DSH npm 运行时和默认 Bundle，不需要另外 checkout 或修改 DSH 源码。
+
+### 源码运行
+
+需要 Node.js 24 或更高版本：
 
 ```bash
 git clone https://github.com/vibeinging/dsh-desktop.git
@@ -105,14 +124,14 @@ npm run doctor
 npm run dev:electron
 ```
 
-macOS Apple Silicon 目录包：
+### macOS Apple Silicon 开发包
 
 ```bash
 npm run package:mac:dir
 open "release/mac-arm64/DSH Desktop.app"
 ```
 
-该命令生成未签名开发包，不等于可对外发布的签名安装包。
+该命令生成未签名开发包。对外发布的 macOS DMG 和 Windows 安装器只能来自带完整签名、公证和回执的发行流程，本地目录包不会冒充正式发行。
 
 ## 插件生态
 
@@ -130,6 +149,17 @@ dsh plugin --profile web remove <package>
 新 Profile 也默认安装 `dsh-multimedia-webui-input@0.1.0`。它通过官方 `conversation.input.left`、`conversation.input.dock`、`conversation.input.overlay` 和 `settings.section` Slot 增加文件/文件夹选择按钮；文件只在发送时复制到当前 Session 工作区。官方 DSH 继续负责图片粘贴和拖拽，内置版去掉上游通用拖拽监听，防止图片被两条通道重复接收。它不修改官方 Chat，也不取得 Electron 或通用 IPC。与其他附件输入插件同时启用可能出现重复按钮或重复上传，默认 Profile 只保留这一套附件入口。
 
 桌面侧的 `@vibeinging/dsh-desktop-profile-host` 只提供 `desktopProfiles` 和 `desktopPnpm` 两个公开结构服务。市场把用户确认的操作交给随包 pnpm 和官方 DSH CLI；它不能自行取得 Electron 权限或重启应用。
+
+### 插件信任级别
+
+| 级别 | 用户体验 | 发行版责任 |
+| --- | --- | --- |
+| 市场可发现 | 用户在市场中查看并主动安装 | 市场展示不等于本发行版审查、内置或背书 |
+| 已记录候选 | 目录会显示兼容性、权限、冲突和已知阻塞 | 固定上游来源和审查结论，但不进入默认 Profile |
+| 随包但可选 | 无网络也能从本地固定产物安装 | 保留许可证、哈希、依赖和安装/卸载证据 |
+| 随包且默认 | 新 Profile 原子安装，用户仍可停用或卸载 | 在当前 DSH、源码 Profile、打包 Electron、断网启动和卸载恢复中逐项验证 |
+
+这个分级把“社区里存在”、“可以自行安装”和“适合作为发行默认值”分开。新增默认 Bundle 不会被应用更新静默补到旧 Profile，已有用户始终保留自己的组合。
 
 <details>
 <summary>查看新 Profile 默认安装的 13 个 Bundle</summary>
@@ -177,7 +207,19 @@ dsh plugin --profile web remove <package>
 
 ## 开发与验证
 
-常用门禁：
+本仓库不把“能构建”当作“能发行”。验证分成几个独立层级：
+
+| 验证层级 | 要回答的问题 |
+| --- | --- |
+| 源码契约 | 官方 Web 是否仍是唯一入口？插件、原生 Host 和产物边界是否漂移？ |
+| Profile 集成 | 每个默认 Bundle 能否通过官方 CLI 安装和卸载？停用后是否仍被加载？ |
+| 打包 Electron | Client 是否真正进入官方启动图并呈现可交互界面？卸载重启后是否恢复官方基线？ |
+| 断网与预算 | 新用户是否可从随包产物初始化？App、Server、pnpm、tarball、Profile 和冷启动是否在上限内？ |
+| 签名发行 | App、DMG 或 EXE 是否和 commit、哈希、签名者、平台、架构、公证和交互回执绑定？ |
+
+当前 13 个默认 Bundle 已通过逐包源码 Profile 测量。task-board、dshmarket、Git Worktree 和文件/文件夹附件还分别通过打包 macOS arm64 Electron 的安装、Client 激活、停用、官方卸载和卸载后重启。当前断网候选中，精选 tarball 共 1,639,477 bytes，首次 Profile 占用 17,337,154 bytes，官方 Web 冷启动 12,304 ms，均在硬上限内。
+
+常用命令：
 
 ```bash
 npm run test:release
@@ -188,9 +230,13 @@ npm run check:release:budgets
 npm run measure:featured-plugins
 ```
 
-最近一次本地验证为 178 项 release 测试中 175 项通过、3 项条件跳过、0 项失败；12 个默认 Bundle 均通过逐包 Profile 安装与生命周期测量。`dshmarket`、task-board 和 Worktree 还通过当前 macOS arm64 打包 Electron 的激活、停用、官方卸载和重启恢复。真实 DeepSeek-V4-Flash 开发 smoke 也已通过官方 Web、Session history、provider 来源和完整响应校验。
+详细的附件 Bundle 证据见 [附件输入插件内置报告](docs/reports/2026-08-23_dsh-attachment-plugin-integration.md)，完整发行边界见 [发行证据报告](docs/reports/2026-08-20_dsh-app-release-evidence.md)。开发态真实 DeepSeek-V4-Flash 交互已通过官方 Web、Session history、provider 来源和完整响应校验；正式 Release 仍要求该结果与最终签名产物绑定。
 
-这些证据仍不替代 macOS Developer ID、公证、Windows 签名安装器、原生 Intel x64 或绑定正式签名产物的 live-model 回执。仓库没有正式 Release 前，不把未签名目录包描述为可下载发行版。
+## 与其他社区桌面发行版
+
+[anywhere-labs/deepseek-harness-desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) 和本项目都是独立社区发行版，但选择了不同的桌面路线。anywhere-labs 将桌面 Shell、托盘、终端、更新和跨平台安装器组成完整客户端；本项目固定官方 npm 运行时，以官方 Web 为唯一主界面，并把独立社区 Bundle、离线 Profile 产物和窄 Native Host 作为核心。
+
+两者都不是 DeepSeek Harness 官方桌面端。这里不做“更官方”的暗示，只明确本项目的不变边界：官方 Web 单一界面、Profile 单一权威、社区插件优先、默认组合可复现、原生能力最小授权。源码级差异见 [两套社区桌面发行版对比](docs/research/2026-08-22_dsh-desktop-distribution-differences.md)。
 
 ## 相关项目
 
@@ -200,10 +246,8 @@ npm run measure:featured-plugins
 | [Cordis](https://github.com/cordiverse/cordis) | 提供插件化基础 |
 | [dsh-market](https://github.com/dsh-market/dsh-market) | 当前默认内置的可视化插件市场 |
 | [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | 当前 task-board 的上游社区仓库 |
-| [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) | 更侧重完整桌面 Shell、跨平台安装包和直接下载体验的独立社区发行版；与本项目的差异见上文 |
+| [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) | 以完整桌面 Shell 和跨平台安装器为重心的独立社区发行版 |
 | [dshfind](https://www.dshfind.com/zh) | DSH 学习、分享与插件发现社区 |
-
-<p align="center"><a href="https://www.dshfind.com/zh"><img src="https://dshfind.com/api/badge/vibeinging/dsh-work?lang=zh" alt="dshfind 收录卡片"></a></p>
 
 ## 与 DeepSeek Harness 的关系
 
