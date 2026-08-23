@@ -111,13 +111,12 @@ Git Worktree Bundle 从当前 Session 的 `cwd` 识别主检出，在侧边栏�
 
 ## 开始使用
 
-从 [GitHub Releases](https://github.com/vibeinging/dsh-desktop/releases/latest) 下载适合当前平台的安装包。macOS Apple Silicon 版本使用 Developer ID 签名并完成 Apple 公证；Windows x64 版本目前没有代码签名，首次运行时可能出现 SmartScreen 提示。安装包已经包含官方 DSH npm 运行时和默认 Bundle，不需要另外安装或修改 DSH 源码。
+从 [GitHub Releases](https://github.com/vibeinging/dsh-desktop/releases/latest) 下载 macOS Apple Silicon 安装包。该版本使用 Developer ID 签名并完成 Apple 公证，已经包含官方 DSH npm 运行时和默认 Bundle，不需要另外安装或修改 DSH 源码。Windows x64 安装包仍在完成真实打包验收，本次版本暂不提供。
 
 ### 下载桌面版
 
 - macOS Apple Silicon：下载 `.dmg`，打开后将 `DSH Desktop` 拖入“应用程序”；
-- Windows x64：下载 `.exe` 安装器。当前版本未签名，请从本仓库 Release 页面核对来源后再运行；
-- macOS Intel 和其他平台：当前没有正式安装包，可以从源码运行。
+- Windows x64、macOS Intel 和其他平台：当前没有正式安装包，可以从源码运行。
 
 ### 从源码运行
 

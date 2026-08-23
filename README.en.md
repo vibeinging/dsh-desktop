@@ -111,13 +111,12 @@ The Git Worktree Bundle identifies the main checkout from the current Session's 
 
 ## Get started
 
-Download the installer for your platform from [GitHub Releases](https://github.com/vibeinging/dsh-desktop/releases/latest). The macOS Apple Silicon build is signed with Developer ID and notarized by Apple. The Windows x64 build is currently unsigned and may show a SmartScreen warning on first launch. Installers already contain the official DSH npm runtime and default Bundles; no separate DSH source checkout or modification is required.
+Download the macOS Apple Silicon installer from [GitHub Releases](https://github.com/vibeinging/dsh-desktop/releases/latest). It is signed with Developer ID and notarized by Apple, and already contains the official DSH npm runtime and default Bundles. No separate DSH source checkout or modification is required. The Windows x64 installer is still completing real packaged-app acceptance and is not included in this release.
 
 ### Download the desktop app
 
 - macOS Apple Silicon: download the `.dmg`, open it, and drag `DSH Desktop` to Applications.
-- Windows x64: download the `.exe` installer. The current build is unsigned, so verify that it came from this repository's Release page before running it.
-- macOS Intel and other platforms: no formal installer is available yet; run from source instead.
+- Windows x64, macOS Intel, and other platforms: no formal installer is available yet; run from source instead.
 
 ### Run from source
 

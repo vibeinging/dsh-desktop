@@ -2,7 +2,7 @@
 
 ## 目标
 
-本次候选版本为 `v0.1.0`。macOS arm64 产物必须使用 Developer ID 签名并完成 App 公证、DMG 公证票据、最终 App Gatekeeper、安装器、Native Host、精选 Bundle 和真实模型回执；Windows x64 由 GitHub Actions 生成并完成安装、启动、Profile、恢复和卸载验收。仓库没有 Windows 代码签名证书，因此 Windows 产物只能明确标记为未签名，不能写成已签名或 SmartScreen 无提示。
+本次候选版本为 `v0.1.0`。macOS arm64 产物必须使用 Developer ID 签名并完成 App 公证、DMG 公证票据、最终 App Gatekeeper、安装器、Native Host、精选 Bundle 和真实模型回执。Windows x64 目录包尚未通过随包 App smoke，本次版本不发布 Windows 安装器。
 
 ## 已确认条件
 
@@ -18,6 +18,7 @@
 - Electron 先启动应用自有的最小 NPM runtime child，再在进程内注册 Profile loader，并通过 `file://` 动态导入官方 DSH CLI；Windows 盘符路径不会再由自定义 loader 当作主模块说明符处理。
 - Windows 目录包验证发现 Electron Builder 会从通用资源复制结果中漏掉官方 CLI 目录，且 Windows 资源编辑阶段会清理 `afterPack` 新增的目录；打包准备现在额外固定一份官方 CLI 到 `server/runtime/dsh`，macOS 用 `afterPack` 在签名前复制，Windows 再用 `afterSign` 在资源编辑完成后恢复，生产环境只从这个应用自有目录启动。
 - 正式 macOS/Windows 证据 Workflow 的 job 级回执路径不再引用该阶段不可用的 `runner.temp` 上下文，避免手动 Workflow 在创建 job 前失败；回执统一写入 `.desktop-build/release-evidence` 并随产物上传。
+- 最终候选 `5490fea` 的 macOS arm64 CI 完整通过；Windows x64 在目录包和随包 Server smoke 通过后，随包 App smoke 仍因官方 CLI 目录在 Electron Builder 命令结束后消失而超时。`afterPack` 与 `afterSign` 日志都确认写入时文件存在，因此当前需要 Windows 产物保留或实机检查，不再用重复 Actions 试错。
 
 ## DMG 公证验收
 
@@ -33,4 +34,4 @@ electron-builder 默认不对 DMG 容器另外签名，并明确说明 DMG 容�
 
 ## 发布判定
 
-只有 `macos-release-evidence.yml` 的正式回执门禁全部通过，macOS DMG 和 ZIP 才能挂到 GitHub Release。Windows workflow 通过后可以附加未签名 NSIS，并在文件名和 Release 说明中保留未签名提示。任何 workflow 失败都先读原始日志和已上传证据，不重复触发同一 SHA；修复后产生新提交和新候选 tag。
+只有 macOS 的正式回执门禁全部通过，DMG 和 ZIP 才能挂到 GitHub Release。Windows 安装器不上传、不写成已支持，待真实产物链闭环后再单独发布。任何 workflow 失败都先读原始日志和已上传证据，不重复触发同一 SHA。
