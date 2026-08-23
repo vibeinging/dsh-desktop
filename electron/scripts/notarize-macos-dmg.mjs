@@ -68,6 +68,14 @@ export function resolveNotaryCredentialArgs(environment = process.env) {
   ]
 }
 
+/** Build a fresh submit command or resume the exact existing Apple submission. */
+export function resolveNotaryRequestArgs(dmgPath, credentialArgs, submissionId = '') {
+  const normalizedSubmissionId = String(submissionId || '').trim()
+  return normalizedSubmissionId
+    ? ['notarytool', 'wait', normalizedSubmissionId, ...credentialArgs, '--output-format', 'json']
+    : ['notarytool', 'submit', dmgPath, ...credentialArgs, '--wait', '--output-format', 'json']
+}
+
 async function run(label, command, args, options = {}) {
   const { timeoutMs, ...execOptions } = options
   try {
@@ -97,6 +105,7 @@ async function main() {
   const dmgPath = resolveDmgPath(APP_ROOT, packageJson.version, arch)
   const startedAt = new Date().toISOString()
   const credentialArgs = resolveNotaryCredentialArgs()
+  const submissionId = readOption('--submission-id')
   const resultPath = String(process.env.DSH_MACOS_DMG_NOTARY_RESULT_FILE || '').trim()
     ? resolve(String(process.env.DSH_MACOS_DMG_NOTARY_RESULT_FILE).trim())
     : ''
@@ -104,12 +113,11 @@ async function main() {
   const mountPoint = join(tempDir, 'mounted')
   let mounted = false
   try {
-    const rawResult = await run('提交 macOS DMG 公证', 'xcrun', [
-      'notarytool', 'submit', dmgPath,
-      ...credentialArgs,
-      '--wait',
-      '--output-format', 'json',
-    ])
+    const rawResult = await run(
+      submissionId ? '继续等待 macOS DMG 公证' : '提交 macOS DMG 公证',
+      'xcrun',
+      resolveNotaryRequestArgs(dmgPath, credentialArgs, submissionId),
+    )
     const submission = parseNotaryResult(rawResult)
     if (submission.status !== 'Accepted') {
       throw new Error(`DMG 公证未通过：${submission.status || 'unknown'}${submission.id ? ` (${submission.id})` : ''}`)

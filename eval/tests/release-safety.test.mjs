@@ -48,6 +48,7 @@ import {
 import {
   parseNotaryResult,
   resolveNotaryCredentialArgs,
+  resolveNotaryRequestArgs,
   resolveDmgPath,
 } from '../../electron/scripts/notarize-macos-dmg.mjs';
 import { BUNDLED_PNPM_FILES } from '../../electron/scripts/prepare-package.mjs';
@@ -881,6 +882,21 @@ test('macOS notarization prefers a Keychain profile over password arguments', ()
     APPLE_KEYCHAIN: '/tmp/release.keychain-db',
   }), ['--keychain', '/tmp/release.keychain-db', '--keychain-profile', 'dsh-desktop-release']);
   assert.throws(() => resolveNotaryCredentialArgs({}), /APPLE_ID/);
+});
+
+test('macOS notarization can resume the exact Apple submission after a local wait disconnect', () => {
+  assert.deepEqual(
+    resolveNotaryRequestArgs('/workspace/release/app.dmg', ['--keychain-profile', 'dsh-desktop-release']),
+    ['notarytool', 'submit', '/workspace/release/app.dmg', '--keychain-profile', 'dsh-desktop-release', '--wait', '--output-format', 'json'],
+  );
+  assert.deepEqual(
+    resolveNotaryRequestArgs(
+      '/workspace/release/app.dmg',
+      ['--keychain-profile', 'dsh-desktop-release'],
+      'submission-1',
+    ),
+    ['notarytool', 'wait', 'submission-1', '--keychain-profile', 'dsh-desktop-release', '--output-format', 'json'],
+  );
 });
 
 test('Windows release evidence workflow requires signing, installer acceptance, and signature verification', () => {
