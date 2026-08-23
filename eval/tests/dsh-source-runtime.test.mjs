@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { after, test } from "node:test";
@@ -32,6 +33,7 @@ import {
 const DSH_SOURCE_ROOT = process.env.DSH_SOURCE_ROOT
   || resolve(dirname(fileURLToPath(import.meta.url)), "../../../test-vibeinging");
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+const require = createRequire(import.meta.url);
 let featuredArtifactRoot = null;
 let featuredArtifactPromise = null;
 
@@ -117,13 +119,48 @@ test("packaged Electron launches the official CLI from an app-owned runtime path
   const prepareSource = readFileSync(join(APP_ROOT, "electron/scripts/prepare-package.mjs"), "utf8");
   const verifySource = readFileSync(join(APP_ROOT, "electron/scripts/verify-official-web-assets.mjs"), "utf8");
   const afterPackSource = readFileSync(join(APP_ROOT, "electron/scripts/after-pack.cjs"), "utf8");
+  const afterSignSource = readFileSync(join(APP_ROOT, "electron/scripts/after-sign.cjs"), "utf8");
   const electronPackage = JSON.parse(readFileSync(join(APP_ROOT, "electron/package.json"), "utf8"));
   assert.match(mainSource, /DSH_NPM_PACKAGE_ROOT = path\.join\(SERVER_DIR, 'runtime', 'dsh'\)/);
   assert.match(prepareSource, /cp\(installedDshRoot, PACKAGED_DSH_RUNTIME_DIR/);
   assert.match(verifySource, /packagedDshRuntime, 'lib', 'bin\.js'/);
   assert.equal(electronPackage.build.afterPack, "scripts/after-pack.cjs");
+  assert.equal(electronPackage.build.afterSign, "scripts/after-sign.cjs");
   assert.match(afterPackSource, /getResourcesDir\(context\.appOutDir\)/);
   assert.match(afterPackSource, /cp\(source, target, \{ recursive: true \}\)/);
+  assert.match(afterSignSource, /electronPlatformName !== 'win32'/);
+  assert.match(afterSignSource, /copyPackagedDshRuntime\(context\)/);
+});
+
+test("packaging hooks keep the official CLI after Windows signing", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-packaging-hooks-"));
+  try {
+    const projectDir = join(root, "electron");
+    const source = join(root, ".desktop-build", "server", "runtime", "dsh");
+    const resources = join(root, "release", "resources");
+    await mkdir(join(source, "lib"), { recursive: true });
+    await writeFile(join(source, "package.json"), '{"name":"@deepseek-ai/dsh"}\n');
+    await writeFile(join(source, "lib", "bin.js"), "export {};\n");
+    const context = {
+      appOutDir: join(root, "release"),
+      electronPlatformName: "win32",
+      packager: {
+        projectDir,
+        getResourcesDir: () => resources,
+      },
+    };
+    const copyAfterPack = require("../../electron/scripts/after-pack.cjs");
+    const restoreAfterSign = require("../../electron/scripts/after-sign.cjs");
+    await copyAfterPack(context);
+    const target = join(resources, "server", "runtime", "dsh");
+    assert.equal(existsSync(join(target, "lib", "bin.js")), true);
+    await rm(target, { recursive: true, force: true });
+    await restoreAfterSign(context);
+    assert.equal(existsSync(join(target, "package.json")), true);
+    assert.equal(existsSync(join(target, "lib", "bin.js")), true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("DSH client surface accepts only an exact loopback HTTP origin", () => {
