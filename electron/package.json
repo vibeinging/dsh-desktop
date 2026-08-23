@@ -71,6 +71,7 @@
   "build": {
     "appId": "com.vibeinging.dsh-desktop",
     "productName": "DSH Desktop",
+    "afterPack": "scripts/after-pack.cjs",
     "asar": true,
     "npmRebuild": false,
     "directories": {

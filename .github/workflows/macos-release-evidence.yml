@@ -27,11 +27,11 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       DSH_RELEASE_COMMIT_SHA: ${{ github.sha }}
-      DSH_LIVE_MODEL_RESULT_FILE: ${{ runner.temp }}/live-model-evidence/result.json
-      DSH_MACOS_DMG_NOTARY_RESULT_FILE: ${{ runner.temp }}/macos-dmg-evidence/result.json
-      DSH_MACOS_INSTALLER_RESULT_FILE: ${{ runner.temp }}/macos-installer-evidence/result.json
-      DSH_NATIVE_HOST_WINDOW_RESULT_FILE: ${{ runner.temp }}/native-host-window-evidence/result.json
-      DSH_NATIVE_HOST_DIALOGS_RESULT_FILE: ${{ runner.temp }}/native-host-dialogs-evidence/result.json
+      DSH_LIVE_MODEL_RESULT_FILE: .desktop-build/release-evidence/live-model-evidence/result.json
+      DSH_MACOS_DMG_NOTARY_RESULT_FILE: .desktop-build/release-evidence/macos-dmg-evidence/result.json
+      DSH_MACOS_INSTALLER_RESULT_FILE: .desktop-build/release-evidence/macos-installer-evidence/result.json
+      DSH_NATIVE_HOST_WINDOW_RESULT_FILE: .desktop-build/release-evidence/native-host-window-evidence/result.json
+      DSH_NATIVE_HOST_DIALOGS_RESULT_FILE: .desktop-build/release-evidence/native-host-dialogs-evidence/result.json
 
     steps:
       - name: Checkout
@@ -72,8 +72,6 @@ jobs:
         run: npm run test:release
 
       - name: Build signed and notarized package
-        env:
-          DSH_MACOS_DMG_NOTARY_RESULT_FILE: ${{ runner.temp }}/macos-dmg-evidence/result.json
         run: npm run package:mac
 
       - name: Record Apple notarization history
@@ -119,7 +117,7 @@ jobs:
           test -n "$DMG_PATH"
           mkdir -p "$RUNNER_TEMP/macos-installer-evidence"
           DSH_COMMUNITY_SCREENSHOT_DIR="$RUNNER_TEMP/macos-installer-evidence" \
-          DSH_MACOS_INSTALLER_RESULT_FILE="$RUNNER_TEMP/macos-installer-evidence/result.json" \
+          DSH_MACOS_INSTALLER_RESULT_FILE="$DSH_MACOS_INSTALLER_RESULT_FILE" \
           npm run smoke:macos:installer -- "$DMG_PATH"
 
       - name: Smoke signed updater
@@ -145,7 +143,7 @@ jobs:
           test -n "$DEEPSEEK_API_KEY"
           mkdir -p "$RUNNER_TEMP/live-model-evidence"
           DSH_SCREENSHOT_DIR="$RUNNER_TEMP/live-model-evidence" \
-          DSH_LIVE_MODEL_RESULT_FILE="$RUNNER_TEMP/live-model-evidence/result.json" \
+          DSH_LIVE_MODEL_RESULT_FILE="$DSH_LIVE_MODEL_RESULT_FILE" \
           npm run smoke:official-web:live
 
       - name: Enforce bound release receipts
@@ -160,13 +158,10 @@ jobs:
             release/*.dmg
             release/*.zip
             .desktop-build/reports/featured-plugin-evaluation.json
+            .desktop-build/release-evidence
             ${{ runner.temp }}/apple-notary-history.json
-            ${{ runner.temp }}/macos-dmg-evidence
             ${{ runner.temp }}/community-evidence
-            ${{ runner.temp }}/macos-installer-evidence
             ${{ runner.temp }}/browser-workspace-evidence
-            ${{ runner.temp }}/native-host-window-evidence
-            ${{ runner.temp }}/native-host-dialogs-evidence
             ${{ runner.temp }}/live-model-evidence
           if-no-files-found: ignore
           retention-days: 14

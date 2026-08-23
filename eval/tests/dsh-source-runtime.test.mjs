@@ -116,9 +116,14 @@ test("packaged Electron launches the official CLI from an app-owned runtime path
   const mainSource = readFileSync(join(APP_ROOT, "electron/main.js"), "utf8");
   const prepareSource = readFileSync(join(APP_ROOT, "electron/scripts/prepare-package.mjs"), "utf8");
   const verifySource = readFileSync(join(APP_ROOT, "electron/scripts/verify-official-web-assets.mjs"), "utf8");
+  const afterPackSource = readFileSync(join(APP_ROOT, "electron/scripts/after-pack.cjs"), "utf8");
+  const electronPackage = JSON.parse(readFileSync(join(APP_ROOT, "electron/package.json"), "utf8"));
   assert.match(mainSource, /DSH_NPM_PACKAGE_ROOT = path\.join\(SERVER_DIR, 'runtime', 'dsh'\)/);
   assert.match(prepareSource, /cp\(installedDshRoot, PACKAGED_DSH_RUNTIME_DIR/);
   assert.match(verifySource, /packagedDshRuntime, 'lib', 'bin\.js'/);
+  assert.equal(electronPackage.build.afterPack, "scripts/after-pack.cjs");
+  assert.match(afterPackSource, /getResourcesDir\(context\.appOutDir\)/);
+  assert.match(afterPackSource, /cp\(source, target, \{ recursive: true \}\)/);
 });
 
 test("DSH client surface accepts only an exact loopback HTTP origin", () => {
