@@ -2,7 +2,7 @@
 
 ## 目标
 
-macOS arm64 `v0.1.0` 已发布。当前 Windows 修复候选为 `v0.1.2`；NSIS 安装器必须通过随包 Server、随包 App、真实安装、启动、断网 Profile、恢复、权限边界、卸载和清理验收后才能上传。仓库尚未配置 Authenticode 证书，因此本轮产物明确为 unsigned，不等同于正式签名发行。
+macOS arm64 `v0.1.0` 已发布。当前 Windows 修复候选为 `v0.1.3`；NSIS 安装器必须通过随包 Server、随包 App、真实安装、启动、断网 Profile、恢复、权限边界、卸载和清理验收后才能上传。仓库尚未配置 Authenticode 证书，因此本轮产物明确为 unsigned，不等同于正式签名发行。
 
 ## 已确认条件
 
@@ -23,6 +23,8 @@ macOS arm64 `v0.1.0` 已发布。当前 Windows 修复候选为 `v0.1.2`；NSIS 
 - `v0.1.0` 候选 `30f9dd8` 的 macOS arm64 CI 完整通过；Windows x64 在目录包和随包 Server smoke 通过后，随包 App smoke 因重复 CLI 目录缺失而超时。安装验收和上传因此被阻断。`v0.1.1` 收敛到随包 npm 依赖这个唯一来源，完成针对性回归后才允许再次运行 Actions。
 - `v0.1.1` 候选 `a6c4a33` 已生成 unsigned NSIS，随包 Server 和随包 App smoke 均通过；真实安装后的官方 Web 交互验收发现测试模型固定调用 `bash`，而官方 DSH 在 Windows 只暴露 `pwsh`，因此审批面板没有出现，安装器未上传。`v0.1.1` 标签保持不动且不创建 Release。
 - `v0.1.2` 验收模型从官方工具清单选择 `bash` 或 `pwsh`，分别生成 POSIX 和 PowerShell 命令，并继续要求真实审批、临时标记落盘和卸载清理全部通过。现有打包 macOS App 的同一交互链已通过；Windows 结果只以新的安装验收回执为准。
+- `v0.1.2` Windows 复验确认官方 Web 的 `pwsh` 问题、沙箱、审批和队列链、断网 Profile 与恢复页均通过；后续官方卸载暴露出原子初始化遗留的临时 pnpm virtual store 绝对路径。Profile 发布时现在会把 Windows pnpm junction 和 `.modules.yaml` 从暂存路径改到正式路径，再删除暂存目录；virtual store 仍留在 Profile 内，避免破坏社区插件的依赖解析。
+- `v0.1.3` 是上述 Profile 发布修复的首个候选；`v0.1.2` 标签保持不动且不创建 Release。
 
 ## DMG 公证验收
 

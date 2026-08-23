@@ -6,9 +6,12 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readlinkSync,
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
+  symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -227,6 +230,55 @@ export function unlinkStagingProfileFallbacks(stagingHome) {
   return removed;
 }
 
+function isWithinPath(parent, candidate) {
+  const segment = relative(parent, candidate);
+  return segment === "" || (segment !== ".." && !segment.startsWith(`..${sep}`) && !isAbsolute(segment));
+}
+
+function absoluteLinkTarget(target) {
+  const normalized = process.platform === "win32" && target.startsWith("\\\\?\\") ? target.slice(4) : target;
+  return isAbsolute(normalized) ? resolve(normalized) : null;
+}
+
+/** Rebase absolute pnpm links after an atomic Profile directory move. */
+export function rebasePublishedProfileLinks(profileDir, fromProfileDir, toProfileDir) {
+  const sourceRoot = resolve(fromProfileDir);
+  const targetRoot = resolve(toProfileDir);
+  let rebased = 0;
+  const visit = (directory) => {
+    for (const name of readdirSync(directory)) {
+      const link = join(directory, name);
+      const linkStat = lstatSync(link);
+      if (linkStat.isSymbolicLink()) {
+        const currentTarget = readlinkSync(link);
+        const absoluteTarget = absoluteLinkTarget(currentTarget);
+        if (!absoluteTarget || !isWithinPath(sourceRoot, absoluteTarget)) continue;
+        const nextTarget = join(targetRoot, relative(sourceRoot, absoluteTarget));
+        const targetStat = statSync(nextTarget);
+        unlinkSync(link);
+        symlinkSync(nextTarget, link, targetStat.isDirectory() ? (process.platform === "win32" ? "junction" : "dir") : "file");
+        rebased += 1;
+      } else if (linkStat.isDirectory()) {
+        visit(link);
+      }
+    }
+  };
+  const modulesDir = join(profileDir, "node_modules");
+  if (existsSync(modulesDir)) visit(modulesDir);
+  const modulesStatePath = join(modulesDir, ".modules.yaml");
+  if (existsSync(modulesStatePath)) {
+    const before = readFileSync(modulesStatePath, "utf8");
+    const replacements = [
+      [sourceRoot, targetRoot],
+      [sourceRoot.split(sep).join("/"), targetRoot.split(sep).join("/")],
+      [sourceRoot.replaceAll("\\", "\\\\"), targetRoot.replaceAll("\\", "\\\\")],
+    ];
+    const after = replacements.reduce((text, [from, to]) => text.replaceAll(from, to), before);
+    if (after !== before) writeFileSync(modulesStatePath, after);
+  }
+  return rebased;
+}
+
 function assertInitialProfile(manifest, expectedNames, { requireDependencies = true } = {}) {
   const bundles = manifest?.dsh?.profile?.bundles;
   const dependencies = manifest?.dependencies;
@@ -278,11 +330,10 @@ async function initializeUnlocked({
     pnpm_config_lockfile: "false",
   }, { dshHome: stagingHome, libraryRoot });
   try {
-    if (env.DSH_PROFILE_INITIALIZATION_MODE === "safe") {
-      const stagingProfileDir = profilePath(api, stagingHome);
-      const template = api.PROFILE_TEMPLATES?.web || api.DEFAULT_PROFILE_BUNDLES || OFFICIAL_PROFILE_BUNDLES;
-      await api.initProfile(stagingProfileDir, template);
-    } else {
+    const stagingProfileDir = profilePath(api, stagingHome);
+    const template = api.PROFILE_TEMPLATES?.web || api.DEFAULT_PROFILE_BUNDLES || OFFICIAL_PROFILE_BUNDLES;
+    await api.initProfile(stagingProfileDir, template);
+    if (env.DSH_PROFILE_INITIALIZATION_MODE !== "safe") {
       for (const source of sources) {
         await commandRunner(resolved, [
           "plugin", "--profile", PROFILE_NAME, "add", "-w", source,
@@ -290,7 +341,6 @@ async function initializeUnlocked({
         ], commandEnv);
       }
     }
-    const stagingProfileDir = profilePath(api, stagingHome);
     const manifest = api.readProfileManifest("dsh-work", stagingProfileDir);
     const expectedBundles = env.DSH_PROFILE_INITIALIZATION_MODE === "safe"
       ? OFFICIAL_PROFILE_BUNDLES
@@ -304,6 +354,12 @@ async function initializeUnlocked({
       throw profileError("DSH Profile 在初始化期间被其他操作创建", "DSH_PROFILE_INIT_RACE");
     }
     renameSync(stagingProfileDir, finalProfileDir);
+    try {
+      rebasePublishedProfileLinks(finalProfileDir, stagingProfileDir, finalProfileDir);
+    } catch (error) {
+      renameSync(finalProfileDir, stagingProfileDir);
+      throw error;
+    }
     return Object.freeze({
       created: true,
       initialized: true,
