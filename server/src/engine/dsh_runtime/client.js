@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dataRoot } from "../../config/paths.js";
 import { dshRuntimeEnabled, resolveDshRuntimeDistribution } from "./source_locator.js";
 import { createSessionProductHostDispatcher } from "./product_host_dispatcher.js";
@@ -44,6 +44,11 @@ function streamFailure(stream, message, code = "DSH_EVENT_STREAM_FAILED") {
   error.code = code;
   error.stream = stream;
   return error;
+}
+
+/** Pass the Electron ESM child entry as a URL so Windows drive letters are never parsed as schemes. */
+export function dshChildModulePath(modulePath, useFileUrl = false) {
+  return useFileUrl ? pathToFileURL(modulePath) : modulePath;
 }
 
 /** Accept only the loopback origin emitted by the trusted DSH child. */
@@ -159,7 +164,7 @@ export class DshRuntimeClient extends EventEmitter {
     let launchPath = CHILD_PATH;
     let launchArgs = [];
     if (resolved.launch === "cli") {
-      launchPath = resolved.entryPath;
+      launchPath = dshChildModulePath(resolved.entryPath, electronProfileLoader);
       launchArgs = ["web", "--patch", CLIENT_PATCH_PATH];
     }
     const child = this.spawn(launchPath, launchArgs, {

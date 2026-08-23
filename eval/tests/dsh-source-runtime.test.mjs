@@ -18,6 +18,7 @@ import {
 import {
   DSH_PROFILE_MODULE_LOADER_ARG,
   DshRuntimeClient,
+  dshChildModulePath,
   normalizeDshClientSurface,
 } from "../../server/src/engine/dsh_runtime/client.js";
 import { dshModelOptions, encodeDshModelRoute } from "../../server/src/engine/dsh_runtime/model_route.js";
@@ -109,6 +110,10 @@ test("DSH runtime locator resolves the app-pinned npm distribution", () => {
 test("the Electron Profile loader always uses a file URL", () => {
   assert.match(DSH_PROFILE_MODULE_LOADER_ARG, /^--experimental-loader=file:\/\//);
   assert.doesNotMatch(DSH_PROFILE_MODULE_LOADER_ARG, /^--experimental-loader=[A-Za-z]:/);
+  const entry = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh/lib/bin.js");
+  assert.equal(dshChildModulePath(entry), entry);
+  assert.equal(dshChildModulePath(entry, true) instanceof URL, true);
+  assert.match(dshChildModulePath(entry, true).href, /^file:\/\//);
 });
 
 test("DSH client surface accepts only an exact loopback HTTP origin", () => {
