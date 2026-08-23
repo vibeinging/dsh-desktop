@@ -5,8 +5,8 @@ import {
   readFileSync,
   readlinkSync,
   realpathSync,
-  rmSync,
   symlinkSync,
+  unlinkSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -92,7 +92,7 @@ function ensureLink(link, target) {
     }
     const current = resolve(dirname(link), readlinkSync(link));
     if (current === target) return;
-    rmSync(link);
+    unlinkSync(link);
   }
   symlinkSync(target, link, "junction");
 }
@@ -105,7 +105,7 @@ function removeRetiredLinks(dshHome) {
     if (!stat.isSymbolicLink()) {
       throw new Error(`退役 DSH plugin 解析位被普通文件占用：${link}`);
     }
-    rmSync(link);
+    unlinkSync(link);
   }
 }
 
