@@ -2,7 +2,7 @@
 
 ## 目标
 
-本次候选版本为 `v0.1.0`。macOS arm64 产物必须使用 Developer ID 签名并完成 App 公证、DMG 公证票据、最终 App Gatekeeper、安装器、Native Host、精选 Bundle 和真实模型回执。Windows x64 目录包尚未通过随包 App smoke，本次版本不发布 Windows 安装器。
+macOS arm64 `v0.1.0` 已发布。当前 Windows 修复候选为 `v0.1.1`；NSIS 安装器必须通过随包 Server、随包 App、真实安装、启动、断网 Profile、恢复、权限边界、卸载和清理验收后才能上传。仓库尚未配置 Authenticode 证书，因此本轮产物明确为 unsigned，不等同于正式签名发行。
 
 ## 已确认条件
 
@@ -16,9 +16,9 @@
 - Windows x64 签名证书不存在；`windows-release-evidence.yml` 保留为未来的正式签名入口，本轮只运行 `windows-release.yml`。
 - macOS、Windows 的目录包与正式包脚本都先准备随包 DSH 运行时，再验证官方 Web 资源；干净 runner 不依赖本机残留的 `.desktop-build`。
 - Electron 先启动应用自有的最小 NPM runtime child，再在进程内注册 Profile loader，并通过 `file://` 动态导入官方 DSH CLI；Windows 盘符路径不会再由自定义 loader 当作主模块说明符处理。
-- Windows 目录包验证发现 Electron Builder 会从通用资源复制结果中漏掉官方 CLI 目录，且 Windows 资源编辑阶段会清理 `afterPack` 新增的目录；打包准备现在额外固定一份官方 CLI 到 `server/runtime/dsh`，macOS 用 `afterPack` 在签名前复制，Windows 再用 `afterSign` 在资源编辑完成后恢复，生产环境只从这个应用自有目录启动。
+- Windows 目录包验证发现 Electron Builder 会从通用资源复制结果中漏掉官方 CLI 目录，且 Windows 资源编辑阶段会清理 `afterPack` 新增的目录；打包准备现在额外固定一份官方 CLI 到 `server/runtime/dsh`，macOS 用 `afterPack` 在签名前复制，Windows 在 `afterSign` 和 NSIS 归档开始前恢复并校验，生产环境只从这个应用自有目录启动。
 - 正式 macOS/Windows 证据 Workflow 的 job 级回执路径不再引用该阶段不可用的 `runner.temp` 上下文，避免手动 Workflow 在创建 job 前失败；回执统一写入 `.desktop-build/release-evidence` 并随产物上传。
-- 最终候选 `5490fea` 的 macOS arm64 CI 完整通过；Windows x64 在目录包和随包 Server smoke 通过后，随包 App smoke 仍因官方 CLI 目录在 Electron Builder 命令结束后消失而超时。`afterPack` 与 `afterSign` 日志都确认写入时文件存在，因此当前需要 Windows 产物保留或实机检查，不再用重复 Actions 试错。
+- `v0.1.0` 候选 `30f9dd8` 的 macOS arm64 CI 完整通过；Windows x64 在目录包和随包 Server smoke 通过后，随包 App smoke 因官方 CLI 目录在 NSIS 归档前消失而超时。安装验收和上传因此被阻断。当前本地修复增加 NSIS 归档前恢复与文件校验，完成针对性回归后才允许再次运行 Actions。
 
 ## DMG 公证验收
 

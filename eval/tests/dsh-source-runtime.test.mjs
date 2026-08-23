@@ -120,19 +120,24 @@ test("packaged Electron launches the official CLI from an app-owned runtime path
   const verifySource = readFileSync(join(APP_ROOT, "electron/scripts/verify-official-web-assets.mjs"), "utf8");
   const afterPackSource = readFileSync(join(APP_ROOT, "electron/scripts/after-pack.cjs"), "utf8");
   const afterSignSource = readFileSync(join(APP_ROOT, "electron/scripts/after-sign.cjs"), "utf8");
+  const artifactBuildStartedSource = readFileSync(join(APP_ROOT, "electron/scripts/artifact-build-started.cjs"), "utf8");
   const electronPackage = JSON.parse(readFileSync(join(APP_ROOT, "electron/package.json"), "utf8"));
   assert.match(mainSource, /DSH_NPM_PACKAGE_ROOT = path\.join\(SERVER_DIR, 'runtime', 'dsh'\)/);
   assert.match(prepareSource, /cp\(installedDshRoot, PACKAGED_DSH_RUNTIME_DIR/);
   assert.match(verifySource, /packagedDshRuntime, 'lib', 'bin\.js'/);
   assert.equal(electronPackage.build.afterPack, "scripts/after-pack.cjs");
   assert.equal(electronPackage.build.afterSign, "scripts/after-sign.cjs");
+  assert.equal(electronPackage.build.artifactBuildStarted, "scripts/artifact-build-started.cjs");
   assert.match(afterPackSource, /getResourcesDir\(context\.appOutDir\)/);
   assert.match(afterPackSource, /cp\(source, target, \{ recursive: true \}\)/);
   assert.match(afterSignSource, /electronPlatformName !== 'win32'/);
   assert.match(afterSignSource, /copyPackagedDshRuntime\(context\)/);
+  assert.match(artifactBuildStartedSource, /targetName\.includes\('nsis'\)/);
+  assert.match(artifactBuildStartedSource, /'win-unpacked'/);
+  assert.match(artifactBuildStartedSource, /copyDshRuntime\(source, target\)/);
 });
 
-test("packaging hooks keep the official CLI after Windows signing", async () => {
+test("packaging hooks keep the official CLI through Windows NSIS archiving", async () => {
   const root = await mkdtemp(join(tmpdir(), "dsh-packaging-hooks-"));
   try {
     const projectDir = join(root, "electron");
@@ -151,6 +156,7 @@ test("packaging hooks keep the official CLI after Windows signing", async () => 
     };
     const copyAfterPack = require("../../electron/scripts/after-pack.cjs");
     const restoreAfterSign = require("../../electron/scripts/after-sign.cjs");
+    const restoreBeforeArtifact = require("../../electron/scripts/artifact-build-started.cjs");
     await copyAfterPack(context);
     const target = join(resources, "server", "runtime", "dsh");
     assert.equal(existsSync(join(target, "lib", "bin.js")), true);
@@ -158,6 +164,20 @@ test("packaging hooks keep the official CLI after Windows signing", async () => 
     await restoreAfterSign(context);
     assert.equal(existsSync(join(target, "package.json")), true);
     assert.equal(existsSync(join(target, "lib", "bin.js")), true);
+    await rm(target, { recursive: true, force: true });
+    const artifactFile = join(root, "release", "DSH Desktop Setup.exe");
+    await restoreBeforeArtifact(
+      { file: artifactFile, targetPresentableName: "NSIS" },
+      { source, target },
+    );
+    assert.equal(existsSync(join(target, "package.json")), true);
+    assert.equal(existsSync(join(target, "lib", "bin.js")), true);
+    await rm(target, { recursive: true, force: true });
+    await restoreBeforeArtifact(
+      { file: artifactFile, targetPresentableName: "zip" },
+      { source, target },
+    );
+    assert.equal(existsSync(target), false);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -2,11 +2,8 @@ const { cp, mkdir, rm } = require('node:fs/promises');
 const { existsSync } = require('node:fs');
 const path = require('node:path');
 
-/** Copy the pinned official DSH CLI after Electron Builder finishes resource filtering. */
-async function copyPackagedDshRuntime(context) {
-  const source = path.resolve(context.packager.projectDir, '../.desktop-build/server/runtime/dsh');
-  const resources = context.packager.getResourcesDir(context.appOutDir);
-  const target = path.join(resources, 'server', 'runtime', 'dsh');
+/** Copy and verify the pinned official DSH CLI at an Electron artifact boundary. */
+async function copyDshRuntime(source, target) {
   const sourceManifest = path.join(source, 'package.json');
   const sourceEntry = path.join(source, 'lib', 'bin.js');
   if (!existsSync(sourceManifest) || !existsSync(sourceEntry)) {
@@ -21,5 +18,14 @@ async function copyPackagedDshRuntime(context) {
   console.log(`[package] 官方 DSH CLI 已固定到 Electron 产物: ${target}`);
 }
 
+/** Copy the pinned official DSH CLI after Electron Builder finishes resource filtering. */
+async function copyPackagedDshRuntime(context) {
+  const source = path.resolve(context.packager.projectDir, '../.desktop-build/server/runtime/dsh');
+  const resources = context.packager.getResourcesDir(context.appOutDir);
+  const target = path.join(resources, 'server', 'runtime', 'dsh');
+  await copyDshRuntime(source, target);
+}
+
 module.exports = copyPackagedDshRuntime;
+module.exports.copyDshRuntime = copyDshRuntime;
 module.exports.copyPackagedDshRuntime = copyPackagedDshRuntime;
