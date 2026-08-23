@@ -240,6 +240,23 @@ function absoluteLinkTarget(target) {
   return isAbsolute(normalized) ? resolve(normalized) : null;
 }
 
+function pinPnpmVirtualStore(modulesState) {
+  const finalVirtualStore = ".pnpm";
+  try {
+    const parsed = JSON.parse(modulesState);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      parsed.virtualStoreDir = finalVirtualStore;
+      return `${JSON.stringify(parsed, null, 2)}\n`;
+    }
+  } catch {
+    // Older pnpm versions may write YAML instead of JSON.
+  }
+  return modulesState.replace(
+    /^(\s*virtualStoreDir:\s*).*$/mu,
+    (_line, prefix) => `${prefix}${JSON.stringify(finalVirtualStore)}`,
+  );
+}
+
 /** Rebase absolute pnpm links after an atomic Profile directory move. */
 export function rebasePublishedProfileLinks(profileDir, fromProfileDir, toProfileDir) {
   const sourceRoot = resolve(fromProfileDir);
@@ -274,11 +291,7 @@ export function rebasePublishedProfileLinks(profileDir, fromProfileDir, toProfil
       [sourceRoot.replaceAll("\\", "\\\\"), targetRoot.replaceAll("\\", "\\\\")],
     ];
     const rebasedPaths = replacements.reduce((text, [from, to]) => text.replaceAll(from, to), before);
-    const finalVirtualStore = join(targetRoot, "node_modules", ".pnpm");
-    const after = rebasedPaths.replace(
-      /^(\s*virtualStoreDir:\s*).*$/mu,
-      (_line, prefix) => `${prefix}${JSON.stringify(finalVirtualStore)}`,
-    );
+    const after = pinPnpmVirtualStore(rebasedPaths);
     if (after !== before) writeFileSync(modulesStatePath, after);
   }
   return rebased;

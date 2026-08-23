@@ -108,7 +108,7 @@ test("atomic Profile publication rebases absolute pnpm links and metadata", asyn
     assert.equal(JSON.parse(await readFile(join(finalProfile, "node_modules", "fixture", "package.json"), "utf8")).name, "fixture");
     const modules = await readFile(join(finalProfile, "node_modules", ".modules.yaml"), "utf8");
     assert.doesNotMatch(modules, /staging/);
-    assert.match(modules, /home/);
+    assert.equal(JSON.parse(modules).virtualStoreDir, ".pnpm");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -122,13 +122,19 @@ test("atomic Profile publication sets the final pnpm virtual store without match
     await mkdir(join(stagingProfile, "node_modules"), { recursive: true });
     await writeFile(
       join(stagingProfile, "node_modules", ".modules.yaml"),
-      `virtualStoreDir: ${JSON.stringify("C:\\\\Users\\\\RUNNER~1\\\\alternate-staging\\\\profiles\\\\web\\\\node_modules\\\\.pnpm")}\n`,
+      `${JSON.stringify({
+        layoutVersion: 5,
+        virtualStoreDir: "C:\\Users\\RUNNER~1\\alternate-staging\\profiles\\web\\node_modules\\.pnpm",
+      }, null, 2)}\n`,
     );
     await mkdir(resolve(finalProfile, ".."), { recursive: true });
     await rename(stagingProfile, finalProfile);
     assert.equal(rebasePublishedProfileLinks(finalProfile, stagingProfile, finalProfile), 0);
     const modules = await readFile(join(finalProfile, "node_modules", ".modules.yaml"), "utf8");
-    assert.equal(modules, `virtualStoreDir: ${JSON.stringify(join(finalProfile, "node_modules", ".pnpm"))}\n`);
+    assert.deepEqual(JSON.parse(modules), {
+      layoutVersion: 5,
+      virtualStoreDir: ".pnpm",
+    });
   } finally {
     await rm(root, { recursive: true, force: true });
   }

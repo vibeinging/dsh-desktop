@@ -2,7 +2,7 @@
 
 ## 目标
 
-macOS arm64 `v0.1.0` 已发布。当前 Windows 修复候选为 `v0.1.4`；NSIS 安装器必须通过随包 Server、随包 App、真实安装、启动、断网 Profile、恢复、权限边界、卸载和清理验收后才能上传。仓库尚未配置 Authenticode 证书，因此本轮产物明确为 unsigned，不等同于正式签名发行。
+macOS arm64 `v0.1.0` 已发布。当前 Windows 修复候选为 `v0.1.5`；NSIS 安装器必须通过随包 Server、随包 App、真实安装、启动、断网 Profile、恢复、权限边界、卸载和清理验收后才能上传。仓库尚未配置 Authenticode 证书，因此本轮产物明确为 unsigned，不等同于正式签名发行。
 
 ## 已确认条件
 
@@ -25,7 +25,8 @@ macOS arm64 `v0.1.0` 已发布。当前 Windows 修复候选为 `v0.1.4`；NSIS 
 - `v0.1.2` 验收模型从官方工具清单选择 `bash` 或 `pwsh`，分别生成 POSIX 和 PowerShell 命令，并继续要求真实审批、临时标记落盘和卸载清理全部通过。现有打包 macOS App 的同一交互链已通过；Windows 结果只以新的安装验收回执为准。
 - `v0.1.2` Windows 复验确认官方 Web 的 `pwsh` 问题、沙箱、审批和队列链、断网 Profile 与恢复页均通过；后续官方卸载暴露出原子初始化遗留的临时 pnpm virtual store 绝对路径。Profile 发布时现在会把 Windows pnpm junction 和 `.modules.yaml` 从暂存路径改到正式路径，再删除暂存目录；virtual store 仍留在 Profile 内，避免破坏社区插件的依赖解析。
 - `v0.1.3` 复验再次通过安装包、随包 Server、随包 App、官方 Web `pwsh` 交互、断网 Profile 与恢复页，但 `.modules.yaml` 中的 `virtualStoreDir` 使用了与暂存目录不同的 Windows 路径形式，字符串替换没有命中，官方插件卸载仍被 pnpm 阻断。`v0.1.3` 标签保持不动且不创建 Release。
-- `v0.1.4` 不再从旧路径形式推导 pnpm 元数据，Profile 发布后直接把 `virtualStoreDir` 固定为正式 Profile 的 `.pnpm` 目录；回归测试覆盖旧路径的长短路径或大小写不同仍必须收敛到最终目录。
+- `v0.1.4` 的修复只识别了 YAML 键，而当前 pnpm 的 `.modules.yaml` 实际为 JSON；Windows 复验仍在官方插件卸载时被同一暂存 virtual store 路径阻断。`v0.1.4` 标签保持不动且不创建 Release。
+- `v0.1.5` 按 pnpm 的真实 JSON 状态文件修正 `virtualStoreDir`，并固定为相对值 `.pnpm`，由 pnpm 基于正式 `node_modules` 解析；这同时避开 Windows 长短路径和 macOS `/var`、`/private/var` 别名。真实 pnpm install、原子移动和 remove 回归必须通过。
 
 ## DMG 公证验收
 
