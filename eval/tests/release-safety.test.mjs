@@ -816,6 +816,25 @@ test('release workflows reject wrong refs and missing credentials before depende
   assert.doesNotMatch(ci, /tags:/);
 });
 
+test('clean package scripts prepare official Web assets before verifying them', () => {
+  const electronPackage = JSON.parse(readFileSync(new URL('../../electron/package.json', import.meta.url), 'utf8'));
+  const scripts = [
+    ['package:mac:dir:project', 'prepare:mac'],
+    ['package:mac:x64:dir:project', 'prepare:mac:x64'],
+    ['package:mac:project', 'prepare:mac'],
+    ['package:mac:x64:project', 'prepare:mac:x64'],
+    ['package:win:dir:project', 'prepare:win'],
+    ['package:win:unsigned:project', 'prepare:win'],
+    ['package:win:project', 'prepare:win'],
+  ];
+  for (const [name, prepareCommand] of scripts) {
+    const command = electronPackage.scripts[name];
+    const prepareIndex = command.indexOf(`npm run ${prepareCommand}`);
+    const verifyIndex = command.indexOf('npm run verify:official-web-assets');
+    assert.ok(prepareIndex >= 0 && verifyIndex > prepareIndex, `${name} must prepare before verify`);
+  }
+});
+
 test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
   assert.match(workflow, /npm run smoke:macos:installer/);
