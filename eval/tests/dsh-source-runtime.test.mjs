@@ -121,6 +121,7 @@ test("packaged Electron launches the official CLI from an app-owned runtime path
   const afterPackSource = readFileSync(join(APP_ROOT, "electron/scripts/after-pack.cjs"), "utf8");
   const afterSignSource = readFileSync(join(APP_ROOT, "electron/scripts/after-sign.cjs"), "utf8");
   const artifactBuildStartedSource = readFileSync(join(APP_ROOT, "electron/scripts/artifact-build-started.cjs"), "utf8");
+  const restoreWindowsRuntimeSource = readFileSync(join(APP_ROOT, "electron/scripts/restore-windows-runtime.mjs"), "utf8");
   const electronPackage = JSON.parse(readFileSync(join(APP_ROOT, "electron/package.json"), "utf8"));
   assert.match(mainSource, /DSH_NPM_PACKAGE_ROOT = path\.join\(SERVER_DIR, 'runtime', 'dsh'\)/);
   assert.match(prepareSource, /cp\(installedDshRoot, PACKAGED_DSH_RUNTIME_DIR/);
@@ -135,6 +136,10 @@ test("packaged Electron launches the official CLI from an app-owned runtime path
   assert.match(artifactBuildStartedSource, /targetName\.includes\('nsis'\)/);
   assert.match(artifactBuildStartedSource, /'win-unpacked'/);
   assert.match(artifactBuildStartedSource, /copyDshRuntime\(source, target\)/);
+  assert.match(restoreWindowsRuntimeSource, /restorePackagedWindowsRuntime/);
+  for (const scriptName of ["package:win:dir:project", "package:win:unsigned:project", "package:win:project"]) {
+    assert.match(electronPackage.scripts[scriptName], /npm run restore:win:runtime/);
+  }
 });
 
 test("packaging hooks keep the official CLI through Windows NSIS archiving", async () => {
@@ -157,6 +162,7 @@ test("packaging hooks keep the official CLI through Windows NSIS archiving", asy
     const copyAfterPack = require("../../electron/scripts/after-pack.cjs");
     const restoreAfterSign = require("../../electron/scripts/after-sign.cjs");
     const restoreBeforeArtifact = require("../../electron/scripts/artifact-build-started.cjs");
+    const { restorePackagedWindowsRuntime } = await import("../../electron/scripts/restore-windows-runtime.mjs");
     await copyAfterPack(context);
     const target = join(resources, "server", "runtime", "dsh");
     assert.equal(existsSync(join(target, "lib", "bin.js")), true);
@@ -178,6 +184,9 @@ test("packaging hooks keep the official CLI through Windows NSIS archiving", asy
       { source, target },
     );
     assert.equal(existsSync(target), false);
+    await restorePackagedWindowsRuntime({ source, target });
+    assert.equal(existsSync(join(target, "package.json")), true);
+    assert.equal(existsSync(join(target, "lib", "bin.js")), true);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

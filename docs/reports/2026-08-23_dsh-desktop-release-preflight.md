@@ -16,9 +16,9 @@ macOS arm64 `v0.1.0` 已发布。当前 Windows 修复候选为 `v0.1.1`；NSIS 
 - Windows x64 签名证书不存在；`windows-release-evidence.yml` 保留为未来的正式签名入口，本轮只运行 `windows-release.yml`。
 - macOS、Windows 的目录包与正式包脚本都先准备随包 DSH 运行时，再验证官方 Web 资源；干净 runner 不依赖本机残留的 `.desktop-build`。
 - Electron 先启动应用自有的最小 NPM runtime child，再在进程内注册 Profile loader，并通过 `file://` 动态导入官方 DSH CLI；Windows 盘符路径不会再由自定义 loader 当作主模块说明符处理。
-- Windows 目录包验证发现 Electron Builder 会从通用资源复制结果中漏掉官方 CLI 目录，且 Windows 资源编辑阶段会清理 `afterPack` 新增的目录；打包准备现在额外固定一份官方 CLI 到 `server/runtime/dsh`，macOS 用 `afterPack` 在签名前复制，Windows 在 `afterSign` 和 NSIS 归档开始前恢复并校验，生产环境只从这个应用自有目录启动。
+- Windows 目录包验证发现 Electron Builder 会从通用资源复制结果中漏掉官方 CLI 目录，且 Windows 资源编辑阶段会清理 `afterPack` 新增的目录；打包准备现在额外固定一份官方 CLI 到 `server/runtime/dsh`，macOS 用 `afterPack` 在签名前复制，Windows 在 `afterSign`、NSIS 归档开始前和 Builder 完全退出后恢复并校验，生产环境只从这个应用自有目录启动。
 - 正式 macOS/Windows 证据 Workflow 的 job 级回执路径不再引用该阶段不可用的 `runner.temp` 上下文，避免手动 Workflow 在创建 job 前失败；回执统一写入 `.desktop-build/release-evidence` 并随产物上传。
-- `v0.1.0` 候选 `30f9dd8` 的 macOS arm64 CI 完整通过；Windows x64 在目录包和随包 Server smoke 通过后，随包 App smoke 因官方 CLI 目录在 NSIS 归档前消失而超时。安装验收和上传因此被阻断。当前本地修复增加 NSIS 归档前恢复与文件校验，完成针对性回归后才允许再次运行 Actions。
+- `v0.1.0` 候选 `30f9dd8` 的 macOS arm64 CI 完整通过；Windows x64 在目录包和随包 Server smoke 通过后，随包 App smoke 因官方 CLI 目录缺失而超时。安装验收和上传因此被阻断。`v0.1.1` 修复同时覆盖 NSIS 归档前和 Builder 完全退出后的恢复与文件校验，完成针对性回归后才允许再次运行 Actions。
 
 ## DMG 公证验收
 
