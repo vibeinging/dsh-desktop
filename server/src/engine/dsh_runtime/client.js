@@ -11,7 +11,7 @@ import { ensureDshWorkspaceSession } from "./session_attachment.js";
 import { ensureDshProfileInitialized } from "./profile_initialization.js";
 
 const CHILD_PATH = fileURLToPath(new URL("./source_runtime_child.mjs", import.meta.url));
-const PROFILE_MODULE_LOADER_PATH = fileURLToPath(new URL("./profile_module_loader.mjs", import.meta.url));
+export const DSH_PROFILE_MODULE_LOADER_ARG = `--experimental-loader=${new URL("./profile_module_loader.mjs", import.meta.url).href}`;
 const CLIENT_PATCH_PATH = fileURLToPath(new URL("./desktop_web.patch.yml", import.meta.url));
 const START_TIMEOUT_MS = 60_000;
 const CLIENT_SURFACE_TIMEOUT_MS = 60_000;
@@ -153,7 +153,7 @@ export class DshRuntimeClient extends EventEmitter {
       && process.versions.electron
       && existsSync(profileNodeModules);
     const execArgv = electronProfileLoader
-      ? [...resolved.execArgv, `--experimental-loader=${PROFILE_MODULE_LOADER_PATH}`]
+      ? [...resolved.execArgv, DSH_PROFILE_MODULE_LOADER_ARG]
       : resolved.execArgv;
     if (electronProfileLoader) childEnv.DSH_PROFILE_NODE_MODULES = profileNodeModules;
     let launchPath = CHILD_PATH;

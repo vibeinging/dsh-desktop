@@ -15,6 +15,7 @@
 - 用户已授权本轮只在本机 smoke 进程中临时使用 `~/.dsh/.env` 的 DeepSeek 凭据；凭据不输出、不写入回执、不提交且不上传 GitHub Actions。
 - Windows x64 签名证书不存在；`windows-release-evidence.yml` 保留为未来的正式签名入口，本轮只运行 `windows-release.yml`。
 - macOS、Windows 的目录包与正式包脚本都先准备随包 DSH 运行时，再验证官方 Web 资源；干净 runner 不依赖本机残留的 `.desktop-build`。
+- Electron 子进程的 Profile ESM loader 使用 `file://` URL；Windows 盘符路径不会再被 Node 误判为不支持的 URL 协议。
 
 ## DMG 公证验收
 
