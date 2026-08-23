@@ -118,75 +118,33 @@ test("packaged Electron launches the official CLI from an app-owned runtime path
   const mainSource = readFileSync(join(APP_ROOT, "electron/main.js"), "utf8");
   const prepareSource = readFileSync(join(APP_ROOT, "electron/scripts/prepare-package.mjs"), "utf8");
   const verifySource = readFileSync(join(APP_ROOT, "electron/scripts/verify-official-web-assets.mjs"), "utf8");
-  const afterPackSource = readFileSync(join(APP_ROOT, "electron/scripts/after-pack.cjs"), "utf8");
-  const afterSignSource = readFileSync(join(APP_ROOT, "electron/scripts/after-sign.cjs"), "utf8");
-  const artifactBuildStartedSource = readFileSync(join(APP_ROOT, "electron/scripts/artifact-build-started.cjs"), "utf8");
-  const restoreWindowsRuntimeSource = readFileSync(join(APP_ROOT, "electron/scripts/restore-windows-runtime.mjs"), "utf8");
+  const packagedRuntimeVerifier = readFileSync(join(APP_ROOT, "electron/scripts/verify-packaged-dsh-runtime.mjs"), "utf8");
   const electronPackage = JSON.parse(readFileSync(join(APP_ROOT, "electron/package.json"), "utf8"));
-  assert.match(mainSource, /DSH_NPM_PACKAGE_ROOT = path\.join\(SERVER_DIR, 'runtime', 'dsh'\)/);
-  assert.match(prepareSource, /cp\(installedDshRoot, PACKAGED_DSH_RUNTIME_DIR/);
-  assert.match(verifySource, /packagedDshRuntime, 'lib', 'bin\.js'/);
-  assert.equal(electronPackage.build.afterPack, "scripts/after-pack.cjs");
-  assert.equal(electronPackage.build.afterSign, "scripts/after-sign.cjs");
-  assert.equal(electronPackage.build.artifactBuildStarted, "scripts/artifact-build-started.cjs");
-  assert.match(afterPackSource, /getResourcesDir\(context\.appOutDir\)/);
-  assert.match(afterPackSource, /cp\(source, target, \{ recursive: true \}\)/);
-  assert.match(afterSignSource, /electronPlatformName !== 'win32'/);
-  assert.match(afterSignSource, /copyPackagedDshRuntime\(context\)/);
-  assert.match(artifactBuildStartedSource, /targetName\.includes\('nsis'\)/);
-  assert.match(artifactBuildStartedSource, /'win-unpacked'/);
-  assert.match(artifactBuildStartedSource, /copyDshRuntime\(source, target\)/);
-  assert.match(restoreWindowsRuntimeSource, /restorePackagedWindowsRuntime/);
+  assert.match(mainSource, /DSH_NPM_PACKAGE_ROOT = path\.join\(SERVER_DIR, 'node_modules', '@deepseek-ai', 'dsh'\)/);
+  assert.match(prepareSource, /installedDshRoot, 'lib', 'bin\.js'/);
+  assert.match(verifySource, /serverNodeModules, '@deepseek-ai', 'dsh'/);
+  assert.equal(electronPackage.build.afterPack, undefined);
+  assert.equal(electronPackage.build.afterSign, undefined);
+  assert.equal(electronPackage.build.artifactBuildStarted, undefined);
+  assert.match(packagedRuntimeVerifier, /server', 'node_modules', '@deepseek-ai', 'dsh'/);
   for (const scriptName of ["package:win:dir:project", "package:win:unsigned:project", "package:win:project"]) {
-    assert.match(electronPackage.scripts[scriptName], /npm run restore:win:runtime/);
+    assert.match(electronPackage.scripts[scriptName], /npm run verify:win:runtime/);
   }
 });
 
-test("packaging hooks keep the official CLI through Windows NSIS archiving", async () => {
-  const root = await mkdtemp(join(tmpdir(), "dsh-packaging-hooks-"));
+test("the Windows package verifier accepts only the official CLI dependency", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-packaged-runtime-"));
   try {
-    const projectDir = join(root, "electron");
-    const source = join(root, ".desktop-build", "server", "runtime", "dsh");
-    const resources = join(root, "release", "resources");
-    await mkdir(join(source, "lib"), { recursive: true });
-    await writeFile(join(source, "package.json"), '{"name":"@deepseek-ai/dsh"}\n');
-    await writeFile(join(source, "lib", "bin.js"), "export {};\n");
-    const context = {
-      appOutDir: join(root, "release"),
-      electronPlatformName: "win32",
-      packager: {
-        projectDir,
-        getResourcesDir: () => resources,
-      },
-    };
-    const copyAfterPack = require("../../electron/scripts/after-pack.cjs");
-    const restoreAfterSign = require("../../electron/scripts/after-sign.cjs");
-    const restoreBeforeArtifact = require("../../electron/scripts/artifact-build-started.cjs");
-    const { restorePackagedWindowsRuntime } = await import("../../electron/scripts/restore-windows-runtime.mjs");
-    await copyAfterPack(context);
-    const target = join(resources, "server", "runtime", "dsh");
-    assert.equal(existsSync(join(target, "lib", "bin.js")), true);
-    await rm(target, { recursive: true, force: true });
-    await restoreAfterSign(context);
-    assert.equal(existsSync(join(target, "package.json")), true);
-    assert.equal(existsSync(join(target, "lib", "bin.js")), true);
-    await rm(target, { recursive: true, force: true });
-    const artifactFile = join(root, "release", "DSH Desktop Setup.exe");
-    await restoreBeforeArtifact(
-      { file: artifactFile, targetPresentableName: "NSIS" },
-      { source, target },
-    );
-    assert.equal(existsSync(join(target, "package.json")), true);
-    assert.equal(existsSync(join(target, "lib", "bin.js")), true);
-    await rm(target, { recursive: true, force: true });
-    await restoreBeforeArtifact(
-      { file: artifactFile, targetPresentableName: "zip" },
-      { source, target },
-    );
-    assert.equal(existsSync(target), false);
-    await restorePackagedWindowsRuntime({ source, target });
-    assert.equal(existsSync(join(target, "package.json")), true);
-    assert.equal(existsSync(join(target, "lib", "bin.js")), true);
+    const appDir = join(root, "win-unpacked");
+    const dshRoot = join(appDir, "resources", "server", "node_modules", "@deepseek-ai", "dsh");
+    await mkdir(join(dshRoot, "lib"), { recursive: true });
+    await writeFile(join(appDir, "DSH Desktop.exe"), "");
+    await writeFile(join(dshRoot, "package.json"), '{"name":"@deepseek-ai/dsh","version":"0.1.1-rc.2"}\n');
+    await writeFile(join(dshRoot, "lib", "bin.js"), "export {};\n");
+    const { verifyPackagedDshRuntime } = await import("../../electron/scripts/verify-packaged-dsh-runtime.mjs");
+    assert.equal(verifyPackagedDshRuntime(appDir).version, "0.1.1-rc.2");
+    await rm(join(dshRoot, "lib", "bin.js"));
+    assert.throws(() => verifyPackagedDshRuntime(appDir), /缺少官方 DSH CLI npm 依赖/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

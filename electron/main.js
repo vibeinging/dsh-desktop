@@ -689,7 +689,7 @@ function startBackend() {
   env.DSH_APP_VERSION = app.getVersion();
   env.DSH_APP_NAME = runtimeAppName; // 构建身份只用于 DSH 运行时标识，不接受用户输入
   env.DSH_RUNTIME_DISTRIBUTION = process.env.DSH_RUNTIME_DISTRIBUTION || 'npm';
-  if (!isDev) env.DSH_NPM_PACKAGE_ROOT = path.join(SERVER_DIR, 'runtime', 'dsh');
+  if (!isDev) env.DSH_NPM_PACKAGE_ROOT = path.join(SERVER_DIR, 'node_modules', '@deepseek-ai', 'dsh');
   env.DSH_DESKTOP_WEB_PORT = String(rendererSurfacePort);
   if (profileInitializationMode === 'safe') env.DSH_PROFILE_INITIALIZATION_MODE = 'safe';
   else delete env.DSH_PROFILE_INITIALIZATION_MODE;

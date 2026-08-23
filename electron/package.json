@@ -19,7 +19,7 @@
     "prepare:mac": "node ../scripts/run-with-project-node.mjs node scripts/prepare-package.mjs --platform darwin --arch arm64",
     "prepare:mac:x64": "node ../scripts/run-with-project-node.mjs node scripts/prepare-package.mjs --platform darwin --arch x64",
     "prepare:win": "node ../scripts/run-with-project-node.mjs node scripts/prepare-package.mjs --platform win32 --arch x64",
-    "restore:win:runtime": "node ../scripts/run-with-project-node.mjs node scripts/restore-windows-runtime.mjs",
+    "verify:win:runtime": "node ../scripts/run-with-project-node.mjs node scripts/verify-packaged-dsh-runtime.mjs ../release/win-unpacked",
     "smoke:packaged-server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs \"../release/mac-arm64/DSH Desktop.app\"",
     "smoke:packaged-app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs \"../release/mac-arm64/DSH Desktop.app\"",
     "smoke:packaged-offline": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-offline.mjs \"../release/mac-arm64/DSH Desktop.app\"",
@@ -50,11 +50,11 @@
     "package:mac:x64": "node ../scripts/run-with-project-node.mjs npm run package:mac:x64:project",
     "package:mac:x64:project": "npm --prefix .. run release:check:mac:static && npm run prepare:mac:x64 && npm run verify:official-web-assets && electron-builder --mac --x64 -c.forceCodeSigning=true -c.mac.notarize=true && node scripts/notarize-macos-dmg.mjs --arch x64",
     "package:win:dir": "node ../scripts/run-with-project-node.mjs npm run package:win:dir:project",
-    "package:win:dir:project": "npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 --dir && npm run restore:win:runtime",
+    "package:win:dir:project": "npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 --dir && npm run verify:win:runtime",
     "package:win:unsigned": "node ../scripts/run-with-project-node.mjs npm run package:win:unsigned:project",
-    "package:win:unsigned:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 && npm run restore:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers",
+    "package:win:unsigned:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 && npm run verify:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers",
     "package:win": "node ../scripts/run-with-project-node.mjs npm run package:win:project",
-    "package:win:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 -c.forceCodeSigning=true && npm run restore:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers"
+    "package:win:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 -c.forceCodeSigning=true && npm run verify:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.2",
@@ -72,9 +72,6 @@
   "build": {
     "appId": "com.vibeinging.dsh-desktop",
     "productName": "DSH Desktop",
-    "afterPack": "scripts/after-pack.cjs",
-    "afterSign": "scripts/after-sign.cjs",
-    "artifactBuildStarted": "scripts/artifact-build-started.cjs",
     "asar": true,
     "npmRebuild": false,
     "directories": {

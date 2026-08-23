@@ -13,7 +13,6 @@ const ELECTRON_DIR = resolve(SCRIPT_DIR, '..')
 const APP_DIR = resolve(ELECTRON_DIR, '..')
 const SOURCE_SERVER_DIR = join(APP_DIR, 'server')
 const STAGED_SERVER_DIR = join(APP_DIR, '.desktop-build', 'server')
-const PACKAGED_DSH_RUNTIME_DIR = join(STAGED_SERVER_DIR, 'runtime', 'dsh')
 const BUILD_CACHE_DIR = join(APP_DIR, '.desktop-build', 'npm-cache')
 const BUILD_HEADERS_DIR = join(APP_DIR, '.desktop-build', 'electron-gyp')
 const FEATURED_PLUGIN_ARTIFACT_DIR = join(APP_DIR, '.desktop-build', 'featured-plugins')
@@ -279,16 +278,9 @@ export async function preparePackage() {
   })
 
   const installedDshRoot = join(STAGED_SERVER_DIR, 'node_modules', '@deepseek-ai', 'dsh')
-  const installedDshManifest = join(installedDshRoot, 'package.json')
-  const installedDshEntry = join(installedDshRoot, 'lib', 'bin.js')
-  if (!existsSync(installedDshManifest) || !existsSync(installedDshEntry)) {
+  if (!existsSync(join(installedDshRoot, 'package.json'))
+    || !existsSync(join(installedDshRoot, 'lib', 'bin.js'))) {
     throw new Error(`随包官方 DSH CLI 不完整: ${installedDshRoot}`)
-  }
-  await mkdir(dirname(PACKAGED_DSH_RUNTIME_DIR), { recursive: true })
-  await cp(installedDshRoot, PACKAGED_DSH_RUNTIME_DIR, { recursive: true })
-  if (!existsSync(join(PACKAGED_DSH_RUNTIME_DIR, 'package.json'))
-    || !existsSync(join(PACKAGED_DSH_RUNTIME_DIR, 'lib', 'bin.js'))) {
-    throw new Error(`官方 DSH CLI 未进入稳定运行时目录: ${PACKAGED_DSH_RUNTIME_DIR}`)
   }
 
   const agentRuntimeTarget = AGENT_RUNTIME_TARGETS[`${targetPlatform}-${targetArch}`]
