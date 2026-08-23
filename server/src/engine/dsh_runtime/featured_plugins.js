@@ -43,8 +43,30 @@ function validateEvidence(plugin) {
       || Array.isArray(evidence.package_dependencies)) {
       throw new Error(`${plugin.name} 的 registry 证据缺少 package_dependencies`);
     }
-    if (!Array.isArray(evidence.offline_dependencies) || evidence.offline_dependencies.length === 0) {
+    if (!Array.isArray(evidence.offline_dependencies)) {
       throw new Error(`${plugin.name} 的 registry 证据缺少离线依赖闭包`);
+    }
+    if (Object.keys(evidence.package_dependencies).length > 0 && evidence.offline_dependencies.length === 0) {
+      throw new Error(`${plugin.name} 的 registry 依赖没有离线闭包`);
+    }
+    if (evidence.release_files !== undefined
+      && (!Array.isArray(evidence.release_files)
+        || evidence.release_files.length === 0
+        || evidence.release_files.some((path) => typeof path !== "string"
+          || !path.trim()
+          || isAbsolute(path)
+          || path.split(/[\\/]/).includes("..")))) {
+      throw new Error(`${plugin.name} 的 release_files 无效`);
+    }
+    if (evidence.release_transform !== undefined) {
+      const transform = evidence.release_transform;
+      if (!transform || typeof transform !== "object" || Array.isArray(transform)
+        || ["id", "path", "source_sha256", "output_sha256"]
+          .some((field) => typeof transform[field] !== "string" || !transform[field].trim())
+        || isAbsolute(transform.path)
+        || transform.path.split(/[\\/]/).includes("..")) {
+        throw new Error(`${plugin.name} 的 release_transform 无效`);
+      }
     }
     const offlineNames = new Set();
     for (const dependency of evidence.offline_dependencies) {

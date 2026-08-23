@@ -9,6 +9,7 @@ import {
   reviewedCommunityClientDependencies,
   reviewedCommunityClientReview,
   reviewedCommunityClientPolicy,
+  reviewedMultimediaInputDependencies,
   reviewedTaskBoardDependencies,
 } from "../../server/src/engine/dsh_runtime/community_client_review.js";
 import {
@@ -20,6 +21,7 @@ import {
   validateFeaturedPackageComposition,
   validateFeaturedPackageContract,
   validateFeaturedPackageLock,
+  transformFeaturedRegistryClient,
 } from "../../scripts/generate-featured-plugin-artifacts.mjs";
 
 const APP_ROOT = resolve(import.meta.dirname, "../..");
@@ -62,6 +64,38 @@ test("only audited community Client releases may enter the product Client graph"
       "读取和修改当前 DSH Profile",
       "通过受控 pnpm 安装、更新和卸载插件",
       "访问社区目录、npm、GitHub 和用户选择的备份服务",
+    ],
+  });
+
+  const multimediaInputDependencies = reviewedMultimediaInputDependencies();
+  assert.deepEqual(multimediaInputDependencies, {});
+  assert.equal(isReviewedCommunityClient({
+    name: "dsh-multimedia-webui-input",
+    manifest: {
+      version: "0.1.0",
+      dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
+    },
+    integrity: "sha512-p79qgcvquYISotp4tU8ddnDuY3TBth8lG1Mwa6d5U74GCOrRA/jQpX724yar4SyBE4Dfiit2O2bN+Q+TSxBSHw==",
+  }), true);
+  assert.equal(isReviewedCommunityClient({
+    name: "dsh-multimedia-webui-input",
+    manifest: {
+      version: "0.1.0",
+      dependencies: { unexpected: "1.0.0" },
+      dsh: { bundle: { patch: "./cordis.patch.yml" } },
+    },
+    integrity: "sha512-p79qgcvquYISotp4tU8ddnDuY3TBth8lG1Mwa6d5U74GCOrRA/jQpX724yar4SyBE4Dfiit2O2bN+Q+TSxBSHw==",
+  }), false);
+  assert.deepEqual(reviewedCommunityClientReview({
+    name: "dsh-multimedia-webui-input",
+    manifest: { version: "0.1.0", dsh: { bundle: { patch: "./cordis.patch.yml" } } },
+    integrity: "sha512-p79qgcvquYISotp4tU8ddnDuY3TBth8lG1Mwa6d5U74GCOrRA/jQpX724yar4SyBE4Dfiit2O2bN+Q+TSxBSHw==",
+  }), {
+    session: "附件只在用户发送时复制到当前 Session 工作区，发送失败保留草稿与待发送附件",
+    capabilities: [
+      "读取用户主动选择的文件和文件夹",
+      "向当前 Session 工作区的 .dsh/tmp/attachments 写入附件",
+      "按用户二次确认清理带插件所有权标记的附件目录",
     ],
   });
   assert.equal(isReviewedCommunityClient({
@@ -197,6 +231,7 @@ test("the curated Profile input has one authoritative list with explicit managea
   assert.equal(plugins.find((plugin) => plugin.name === "@vibeinging/dsh-desktop-profile-host")?.user_manageable, false);
   assert.equal(plugins.filter((plugin) => plugin.user_manageable).length, plugins.length - 2);
   assert.equal(plugins.some((plugin) => plugin.name === "@linxin666/dsh-client-ui-task-board"), true);
+  assert.equal(plugins.some((plugin) => plugin.name === "dsh-multimedia-webui-input"), true);
   for (const plugin of plugins) {
     assert.equal(new Set(["workspace-package", "locked-registry-package"]).has(plugin.evidence.source_kind), true);
     assert.equal(plugin.evidence.release_source, "fixed-tarball");
@@ -288,6 +323,46 @@ test("the bundled plugin market is pinned to its audited package and nested depe
       ...serverLockfile.packages,
       "node_modules/js-yaml/node_modules/argparse": {
         ...serverLockfile.packages["node_modules/js-yaml/node_modules/argparse"],
+        integrity: "sha512-drift",
+      },
+    },
+  }), /锁文件漂移/);
+});
+
+test("the bundled multimedia input is pinned without inventing a dependency closure", () => {
+  const plugin = featuredPlugins().find(({ name }) => name === "dsh-multimedia-webui-input");
+  const packageJson = JSON.parse(readFileSync(join(resolveFeaturedPackageDir(plugin), "package.json"), "utf8"));
+  const serverLockfile = JSON.parse(readFileSync(join(APP_ROOT, "server/package-lock.json"), "utf8"));
+  assert.deepEqual(plugin.evidence.package_dependencies, {});
+  assert.deepEqual(plugin.evidence.offline_dependencies, []);
+  assert.deepEqual(plugin.evidence.release_files, ["cordis.patch.yml", "lib", "README.md", "README.zh.md", "LICENSE"]);
+  assert.equal(plugin.evidence.release_transform.id, "remove-composer-drop-listeners-v1");
+  assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
+  assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile));
+  const clientSource = readFileSync(join(resolveFeaturedPackageDir(plugin), plugin.evidence.release_transform.path), "utf8");
+  const releaseClient = transformFeaturedRegistryClient(plugin, clientSource);
+  assert.match(clientSource, /document\.addEventListener\('drop', drop\)/);
+  assert.doesNotMatch(releaseClient, /document\.addEventListener\('drop', drop\)/);
+  assert.match(releaseClient, /Attach files or a folder/);
+  assert.throws(() => transformFeaturedRegistryClient(plugin, `${clientSource}\n// drift`), /源文件漂移/);
+  assert.throws(() => validateFeaturedPackageContract(plugin, {
+    ...packageJson,
+    dependencies: { unexpected: "1.0.0" },
+  }), /依赖闭包漂移/);
+  assert.throws(() => validateFeaturedPackageContract({
+    ...plugin,
+    evidence: { ...plugin.evidence, release_files: ["../outside"] },
+  }, packageJson), /release_files 无效/);
+  assert.throws(() => validateFeaturedPackageContract({
+    ...plugin,
+    evidence: { ...plugin.evidence, release_transform: { ...plugin.evidence.release_transform, path: "../outside" } },
+  }, packageJson), /release_transform 无效/);
+  assert.throws(() => validateFeaturedPackageLock(plugin, {
+    ...serverLockfile,
+    packages: {
+      ...serverLockfile.packages,
+      "node_modules/dsh-multimedia-webui-input": {
+        ...serverLockfile.packages["node_modules/dsh-multimedia-webui-input"],
         integrity: "sha512-drift",
       },
     },

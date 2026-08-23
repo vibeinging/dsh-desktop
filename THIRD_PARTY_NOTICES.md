@@ -17,6 +17,7 @@
 | DeepSeek Harness npm runtime | 0.1.1-rc.2 | MIT | 官方 `@deepseek-ai/dsh`、`@deepseek-ai/dsh-web-app` 和 Cordis npm 包；不修改官方源码 |
 | DSH Desktop first-party Bundles | 当前仓库版本 | BSD-3-Clause | `@vibeinging/*` 包通过官方 Profile 组合；许可证原文随包位于 `featured-plugins/licenses/BSD-3-Clause.txt`，逐包来源、权限和 SHA-256 由精选清单生成；默认清单不包含自研主题、替换 Shell 或工作台目录 |
 | DSH task board | `@linxin666/dsh-client-ui-task-board@0.2.7` | BSD-3-Clause | 新 Profile 默认安装的独立社区 Bundle；固定 tarball 同时封装 MIT 许可的 `schemastery@3.18.0`、`cosmokit@1.8.1` 和 `@standard-schema/spec@1.1.0`，逐项许可证原文、来源、完整性和权限由精选清单生成 |
+| DSH Multimedia WebUI Input | `dsh-multimedia-webui-input@0.1.0` | MIT | 新 Profile 默认安装的独立社区 Bundle；固定 tarball 没有运行依赖、原生依赖或安装脚本，通过官方输入和设置 Slot 提供附件入口，许可证原文、来源、完整性和权限由精选清单生成 |
 | DSH Plugin Market | `dshmarket@1.17.1` | MIT | 新 Profile 默认安装的社区市场 Bundle；固定 tarball 同时封装 MIT 许可的 `js-yaml@4.3.1` 和 `undici@7.29.0`，以及 Python-2.0 许可的 `argparse@2.0.1`；逐项许可证原文、来源、完整性和权限由精选清单生成，市场内展示的其他插件不随发行包分发 |
 
 ## OpenAI Agent Runtime
@@ -48,4 +49,4 @@ SHA-256 和来源记录。由于 v0.0.17 没有 Windows 预编译包，当前 Wi
 
 ## 社区插件和皮肤资产
 
-社区插件不是 DeepSeek 或 DSH 官方产品。发行包内置经过逐包审查的任务看板和 `dshmarket`，不携带 `dsh-web-ui` 聚合包或未审查的皮肤资产。任务看板的 `package.json` 声明 Apache-2.0，但 npm tarball 内 `LICENSE` 是带作者署名的 BSD-3-Clause；发行包按 tarball 内原文保留 BSD-3-Clause 许可证和署名，并在生成的公告中记录这项元数据差异。`dshmarket` 只提供目录与 Profile 管理界面，市场内展示的其他插件并未随发行包内置；用户确认安装后的来源、权限和许可由对应插件负责。其他默认候选必须通过固定来源、依赖、权限、许可证、真实 Electron 启动和卸载回归。没有可核对再分发许可的皮肤、插图、字体、音频和视频不得进入安装包。
+社区插件不是 DeepSeek 或 DSH 官方产品。发行包内置经过逐包审查的任务看板、`dsh-multimedia-webui-input` 和 `dshmarket`，不携带 `dsh-web-ui` 聚合包或未审查的皮肤资产。任务看板的 `package.json` 声明 Apache-2.0，但 npm tarball 内 `LICENSE` 是带作者署名的 BSD-3-Clause；发行包按 tarball 内原文保留 BSD-3-Clause 许可证和署名，并在生成的公告中记录这项元数据差异。附件插件只处理用户主动选择的文件，并在发送时写入当前 Session 工作区；发行适配去掉上游通用拖拽监听，图片粘贴和拖拽继续由官方 DSH 处理。和其他附件输入插件同时启用仍可能重复注册输入入口。`dshmarket` 只提供目录与 Profile 管理界面，市场内展示的其他插件并未随发行包内置；用户确认安装后的来源、权限和许可由对应插件负责。其他默认候选必须通过固定来源、依赖、权限、许可证、真实 Electron 启动和卸载回归。没有可核对再分发许可的皮肤、插图、字体、音频和视频不得进入安装包。

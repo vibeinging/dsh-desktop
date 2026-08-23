@@ -26,6 +26,8 @@ const DSH_MARKET_DEPENDENCIES = Object.freeze({
   undici: "^7.29.0",
 });
 
+const MULTIMEDIA_INPUT_DEPENDENCIES = Object.freeze({});
+
 /** Return the exact dependency projection reviewed for the aggregate Client release. */
 export function reviewedCommunityClientDependencies() {
   return DSH_WEB_UI_DEPENDENCIES;
@@ -39,6 +41,11 @@ export function reviewedTaskBoardDependencies() {
 /** Return the exact dependency projection reviewed for the default plugin market. */
 export function reviewedDshMarketDependencies() {
   return DSH_MARKET_DEPENDENCIES;
+}
+
+/** Return the exact dependency projection reviewed for the multimedia input release. */
+export function reviewedMultimediaInputDependencies() {
+  return MULTIMEDIA_INPUT_DEPENDENCIES;
 }
 
 const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
@@ -85,6 +92,20 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
       ]),
     }),
   })],
+  ["dsh-multimedia-webui-input", Object.freeze({
+    version: "0.1.0",
+    bundlePatch: "./cordis.patch.yml",
+    dependencies: MULTIMEDIA_INPUT_DEPENDENCIES,
+    integrity: "sha512-p79qgcvquYISotp4tU8ddnDuY3TBth8lG1Mwa6d5U74GCOrRA/jQpX724yar4SyBE4Dfiit2O2bN+Q+TSxBSHw==",
+    review: Object.freeze({
+      session: "附件只在用户发送时复制到当前 Session 工作区，发送失败保留草稿与待发送附件",
+      capabilities: Object.freeze([
+        "读取用户主动选择的文件和文件夹",
+        "向当前 Session 工作区的 .dsh/tmp/attachments 写入附件",
+        "按用户二次确认清理带插件所有权标记的附件目录",
+      ]),
+    }),
+  })],
   ["@linxin666/dsh-chat-recovery", Object.freeze({
     version: "0.2.5",
     bundlePatch: "./cordis.patch.yml",
@@ -102,8 +123,9 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
 ]));
 
 function sameDependencyManifest(actual, expected) {
-  if (!actual || typeof actual !== "object" || Array.isArray(actual)) return false;
-  const actualEntries = Object.entries(actual).sort(([left], [right]) => left.localeCompare(right));
+  const normalized = actual ?? {};
+  if (typeof normalized !== "object" || Array.isArray(normalized)) return false;
+  const actualEntries = Object.entries(normalized).sort(([left], [right]) => left.localeCompare(right));
   const expectedEntries = Object.entries(expected).sort(([left], [right]) => left.localeCompare(right));
   return actualEntries.length === expectedEntries.length
     && actualEntries.every(([name, version], index) => (

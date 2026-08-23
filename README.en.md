@@ -32,7 +32,7 @@ This project and [anywhere-labs/deepseek-harness-desktop](https://github.com/any
 | Primary goal | Curate, review, and verify a composable set of DSH Bundles, preferring community plugins | Provide a complete desktop Shell and a cross-platform client ready for direct download |
 | DSH integration | Uses only a pinned official npm runtime and SDK, with no DSH source checkout | Pins the official DSH source as a submodule inside an outer Yarn project, with desktop code concentrated in `dsh-plugin-desktop` |
 | Interface strategy | Official Web is the only primary interface; even the desktop safe bar is a regular `dshClient` Bundle, with no second Renderer | Offers compatible and advanced presentation modes; advanced mode can install a Desktop-owned layout, frame, and native materials |
-| Default experience | Bundles community `dshmarket` and task-board plus independent Git Worktree, Project, Canvas/Site, Structured UI, Office, and model-inheritance Bundles | Bundles a unified Desktop plugin, terminal, tray, Profile, updater, and DSH Community Market; mobile remote control is listed as future work |
+| Default experience | Bundles community `dshmarket`, task-board, file/folder attachment input, plus independent Git Worktree, Project, Canvas/Site, Structured UI, Office, and model-inheritance Bundles | Bundles a unified Desktop plugin, terminal, tray, Profile, updater, and DSH Community Market; mobile remote control is listed as future work |
 | Native boundary | Feature Bundles consume only Session-bound method allowlists; plugin installation still ends in the official DSH CLI | The third-party surface is similarly narrowed to `desktopProfiles` and `desktopPnpm`, while other native capabilities stay inside Desktop-owned plugins |
 | Current maturity | Preview; real macOS arm64 Electron and plugin lifecycles are verified, but no signed installer has been released | Provides formal Windows x64 and macOS Universal installers, with a more mature download experience |
 
@@ -54,7 +54,7 @@ If you only want to download a mature desktop client today, the anywhere-labs pr
   <tr>
     <td width="50%" valign="top">
       <h3>Community-first curated workbench</h3>
-      <p>The default uses the community task-board and dshmarket instead of rebuilding them in the Shell. Every release is pinned to a reviewed tarball and independently tested for installation, disabling, official removal, and restart recovery.</p>
+      <p>The default uses the community task-board, dshmarket, and attachment-input plugin instead of rebuilding them in the Shell. Every release is pinned to a reviewed tarball and independently tested for installation, disabling, official removal, and restart recovery.</p>
     </td>
     <td width="50%" valign="top">
       <h3>Product capabilities are Bundles</h3>
@@ -127,10 +127,12 @@ dsh plugin --profile web remove <package>
 
 New Profiles install the fixed `dshmarket@1.17.1` release by default. The distribution includes a reviewed fixed tarball, its complete runtime dependency closure, and SHA-256 values; default initialization needs no npm network access and runs no upstream lifecycle scripts. Browsing the market reaches the community catalog, while installation and updates may reach npm or GitHub. WebDAV and Gist are used only after explicit user configuration. A plugin appearing in the market is not necessarily bundled or approved for the distribution.
 
+New Profiles also install `dsh-multimedia-webui-input@0.1.0`. It contributes a file/folder picker through the official `conversation.input.left`, `conversation.input.dock`, `conversation.input.overlay`, and `settings.section` Slots. Files are copied into the active Session workspace only when the message is sent. Official DSH remains responsible for image paste and drop; the bundled adaptation removes the upstream generic drop listeners so images cannot enter both paths. The plugin does not modify official Chat or receive Electron or general IPC access. Enabling another attachment-input plugin at the same time may create duplicate buttons or uploads, so the default Profile keeps a single attachment surface.
+
 On the desktop side, `@vibeinging/dsh-desktop-profile-host` exposes only two public structural services: `desktopProfiles` and `desktopPnpm`. The market delegates user-confirmed operations to the packaged pnpm runtime and the official DSH CLI; it cannot acquire Electron permissions or restart the app itself.
 
 <details>
-<summary>View the 12 Bundles installed in a new Profile</summary>
+<summary>View the 13 Bundles installed in a new Profile</summary>
 
 <!-- featured-plugins:start -->
 | Default Bundle | Type | Declared permissions | Official management | Source |
@@ -146,6 +148,7 @@ On the desktop side, `@vibeinging/dsh-desktop-profile-host` exposes only two pub
 | `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [local package](packages/dsh-office-tools) |
 | `@vibeinging/dsh-client-ui-worktree` | portable | no Host permission | `dsh plugin --profile web remove @vibeinging/dsh-client-ui-worktree` | [local package](packages/dsh-worktree) |
 | `@linxin666/dsh-client-ui-task-board` | portable | read current DSH Session, Workspace, and completion history, write task ledger and run records under DSH_HOME, start DSH Session tasks from user actions or Host cron, optionally start a fixed cross-platform sleep-prevention helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [upstream repository](https://github.com/zhu1090093659/dsh-web-ui) |
+| `dsh-multimedia-webui-input` | portable | read files and folders explicitly selected by the user, write attachments under .dsh/tmp/attachments in the active Session workspace, remove only plugin-owned attachment directories after a second user confirmation | `dsh plugin --profile web remove dsh-multimedia-webui-input` | [upstream repository](https://github.com/LCYLYM/dsh-attachments) |
 | `dshmarket` | portable | read and modify dependencies, Bundle order, and enabled state in the active DSH Profile, install, update, and remove user-confirmed plugins through controlled pnpm, access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services, export or import backups that contain Profile configuration | `dsh plugin --profile web remove dshmarket` | [upstream repository](https://github.com/dsh-market/dsh-market) |
 <!-- featured-plugins:end -->
 

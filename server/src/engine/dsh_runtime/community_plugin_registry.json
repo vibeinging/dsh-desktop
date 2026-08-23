@@ -74,6 +74,32 @@
       "priority": 21
     },
     {
+      "id": "dsh-multimedia-webui-input",
+      "name": "DSH Multimedia WebUI Input",
+      "description": "Official-slot file and folder selection with Session workspace delivery.",
+      "description_zh": "通过官方输入 Slot 选择文件和文件夹，并写入当前 Session 工作区。",
+      "repository": "https://github.com/LCYLYM/dsh-attachments",
+      "stars": 3,
+      "category": "files",
+      "source": "dsh-multimedia-webui-input@0.1.0",
+      "compatibility": "bundled-default-dual-face",
+      "release_policy": "bundled-default",
+      "reviewed_at": "2026-08-23",
+      "reviewed_commit": "028dc1f8dc9c7f963e714013b36adc4f48d88c2a",
+      "package_integrity": "sha512-p79qgcvquYISotp4tU8ddnDuY3TBth8lG1Mwa6d5U74GCOrRA/jQpX724yar4SyBE4Dfiit2O2bN+Q+TSxBSHw==",
+      "package_size_bytes": 5234475,
+      "license": "MIT",
+      "permissions": [
+        "读取用户主动选择的文件和文件夹",
+        "向当前 Session 工作区的 .dsh/tmp/attachments 写入附件",
+        "按用户二次确认清理带插件所有权标记的附件目录"
+      ],
+      "native_dependencies": [],
+      "install_scripts": [],
+      "review_note_zh": "作为独立 Bundle 内置并挂入 conversation.input.left、conversation.input.dock、conversation.input.overlay 和 settings.section；不修改官方 Chat，也不使用 Electron 通用 IPC。发行适配去掉上游通用拖拽监听，避免和官方图片附件通道重复；与其他附件输入插件同时启用仍会产生重复按钮或重复上传。",
+      "priority": 22
+    },
+    {
       "id": "dsh-web-ui-skin-center",
       "name": "DSH Web UI Skin Center",
       "description": "Skin selection and built-in visual assets for the official DSH Web client.",
@@ -99,7 +125,7 @@
       },
       "permissions": ["读取官方 Web 的皮肤配置", "写入皮肤选择和页面外观"],
       "preflight_blocker": "包级 Apache-2.0 许可证不覆盖其中所有视觉资产；在逐项资产许可证和再分发授权完成前不能进入发行 Profile。",
-      "priority": 22
+      "priority": 23
     },
     {
       "id": "modlens",

@@ -43,6 +43,7 @@
     "@yitrace/db": "0.1.8",
     "better-sqlite3": "^12.11.1",
     "docx": "9.6.1",
+    "dsh-multimedia-webui-input": "0.1.0",
     "dshmarket": "1.17.1",
     "express": "^4.21.2",
     "jszip": "^3.10.1",

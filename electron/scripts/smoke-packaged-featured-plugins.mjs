@@ -19,6 +19,7 @@ const featuredSourceManifest = join(serverDir, 'src', 'engine', 'dsh_runtime', '
 const PRODUCT_HOST_PROVIDER = '@vibeinging/dsh-work-product-host-ipc'
 const DESKTOP_PROFILE_PROVIDER = '@vibeinging/dsh-desktop-profile-host'
 const WORKTREE_PLUGIN = '@vibeinging/dsh-client-ui-worktree'
+const MULTIMEDIA_INPUT_PLUGIN = 'dsh-multimedia-webui-input'
 const execFileAsync = promisify(execFile)
 
 function requestedOnly() {
@@ -127,8 +128,14 @@ async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
       '[data-testid="dsh-worktree-sidebar-action"]',
     ])
     appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-testid="dsh-worktree-overlay"] [data-testid="dsh-worktree-view"]'
-  } else {
+  } else if (clientPlugin !== MULTIMEDIA_INPUT_PLUGIN) {
     delete appEnv.DSH_SMOKE_WORKSPACE_PATH
+  }
+  if (clientPlugin === MULTIMEDIA_INPUT_PLUGIN) {
+    appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify([
+      'button[aria-label="新建会话"],button[aria-label="New session"]',
+    ])
+    appEnv.DSH_SMOKE_EXPECT_SELECTOR = '.dshca-button[aria-label="Attach files or a folder"]'
   }
   if (clientPlugin === 'dshmarket') {
     appEnv.DEEPSEEK_API_KEY = 'dsh-packaged-market-ui-smoke-not-used'
@@ -186,8 +193,10 @@ async function measurePlugin(plugin, artifact, sourceArtifactByName) {
   const userDataDir = join(pluginRoot, 'user-data')
   await mkdir(pluginRoot, { recursive: true })
   if (plugin.name === WORKTREE_PLUGIN) await prepareWorktreeFixture(pluginRoot)
+  if (plugin.name === MULTIMEDIA_INPUT_PLUGIN) await mkdir(join(pluginRoot, 'attachment-fixture'), { recursive: true })
   const env = officialEnv(pluginRoot, dataRoot, userDataDir, { offline: true })
   if (plugin.name === WORKTREE_PLUGIN) env.DSH_SMOKE_WORKSPACE_PATH = join(pluginRoot, 'worktree-fixture')
+  if (plugin.name === MULTIMEDIA_INPUT_PLUGIN) env.DSH_SMOKE_WORKSPACE_PATH = join(pluginRoot, 'attachment-fixture')
   const result = {
     name: plugin.name,
     version: artifact.version,

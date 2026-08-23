@@ -45,6 +45,24 @@ export function validateFeaturedPackageContract(plugin, manifest) {
     throw new Error(`精选插件必须通过 cordis.patch.yml 挂载: ${plugin.name}`)
   }
   if (plugin.evidence.source_kind === "locked-registry-package") {
+    if (plugin.evidence.release_files !== undefined
+      && (!Array.isArray(plugin.evidence.release_files)
+        || plugin.evidence.release_files.length === 0
+        || plugin.evidence.release_files.some((path) => typeof path !== "string"
+          || !path.trim()
+          || isAbsolute(path)
+          || path.split(/[\\/]/).includes("..")))) {
+      throw new Error(`精选 registry 插件 release_files 无效: ${plugin.name}`)
+    }
+    const transform = plugin.evidence.release_transform
+    if (transform !== undefined
+      && (!transform || typeof transform !== "object" || Array.isArray(transform)
+        || ["id", "path", "source_sha256", "output_sha256"]
+          .some((field) => typeof transform[field] !== "string" || !transform[field].trim())
+        || isAbsolute(transform.path)
+        || transform.path.split(/[\\/]/).includes(".."))) {
+      throw new Error(`精选 registry 插件 release_transform 无效: ${plugin.name}`)
+    }
     if (manifest.license !== plugin.evidence.declared_license) {
       throw new Error(`精选 registry 插件声明许可证漂移: ${plugin.name}`)
     }
@@ -75,6 +93,26 @@ export function validateFeaturedPackageContract(plugin, manifest) {
     throw new Error(`精选插件清单与包 Host 权限不一致: ${plugin.name}`)
   }
   return portability
+}
+
+/** Apply an exact, hash-bound release adaptation to a registry Client bundle. */
+export function transformFeaturedRegistryClient(plugin, sourceText) {
+  const transform = plugin.evidence.release_transform
+  if (!transform) return sourceText
+  if (transform.id !== "remove-composer-drop-listeners-v1") {
+    throw new Error(`未知的精选 registry Client 发行适配: ${transform.id}`)
+  }
+  if (sha256(Buffer.from(sourceText)) !== transform.source_sha256) {
+    throw new Error(`精选 registry Client 发行适配源文件漂移: ${plugin.name}`)
+  }
+  const dropEffect = /\n      React\.useEffect\(\(\) => \{\n        const dragover = event => \{[\s\S]*?\n      \}, \[accept, locked\]\);\n/
+  const matches = sourceText.match(new RegExp(dropEffect.source, "g")) || []
+  if (matches.length !== 1) throw new Error(`精选 registry Client 发行适配目标不唯一: ${plugin.name}`)
+  const output = sourceText.replace(dropEffect, "\n")
+  if (sha256(Buffer.from(output)) !== transform.output_sha256) {
+    throw new Error(`精选 registry Client 发行适配输出漂移: ${plugin.name}`)
+  }
+  return output
 }
 
 /** Validate an exact registry package and its offline dependency closure against server/package-lock.json. */
@@ -129,7 +167,13 @@ async function prepareRegistryPackSource(plugin, sourceDir, root) {
     const manifestPath = join(staged, "package.json")
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
     manifest.bundleDependencies = Object.keys(plugin.evidence.package_dependencies)
+    if (plugin.evidence.release_files) manifest.files = [...plugin.evidence.release_files]
     await writeFile(manifestPath, json(manifest))
+    if (plugin.evidence.release_transform) {
+      const clientPath = join(staged, plugin.evidence.release_transform.path)
+      const source = await readFile(clientPath, "utf8")
+      await writeFile(clientPath, transformFeaturedRegistryClient(plugin, source))
+    }
     for (const dependency of plugin.evidence.offline_dependencies) {
       const dependencySource = join(root, "server", dependency.install_path)
       const dependencyManifest = JSON.parse(await readFile(join(dependencySource, "package.json"), "utf8"))

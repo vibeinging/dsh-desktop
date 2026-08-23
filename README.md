@@ -32,7 +32,7 @@ DSH Desktop 是社区维护的 Electron 桌面发行版。它固定并运行官�
 | 核心目标 | 精选、审查并验证一组可组合的 DSH Bundle，优先采用社区插件 | 提供完整桌面 Shell 与可直接下载安装的跨平台客户端 |
 | DSH 接入 | 只使用固定的官方 npm 运行时与 SDK，不携带 DSH 源码 checkout | 外层 Yarn 工程固定官方 DSH 源码子模块，桌面代码集中在 `dsh-plugin-desktop` |
 | 界面策略 | 官方 Web 是唯一主界面；桌面安全条也是普通 `dshClient` Bundle，不提供第二套 Renderer | 提供兼容与高级两种呈现模式；高级模式可安装 Desktop 自有 layout、frame 与原生材质 |
-| 默认体验 | 内置社区 `dshmarket`、task-board，以及独立的 Git Worktree、Project、Canvas/Site、Structured UI、Office 和模型继承 Bundle | 内置统一 Desktop 插件、终端、托盘、Profile、更新与 DSH Community Market；手机远程控制列为后续能力 |
+| 默认体验 | 内置社区 `dshmarket`、task-board、文件/文件夹附件输入，以及独立的 Git Worktree、Project、Canvas/Site、Structured UI、Office 和模型继承 Bundle | 内置统一 Desktop 插件、终端、托盘、Profile、更新与 DSH Community Market；手机远程控制列为后续能力 |
 | 原生边界 | 功能 Bundle 只消费按 Session 绑定的方法白名单；插件安装最终仍走官方 DSH CLI | 第三方公开面同样收窄为 `desktopProfiles` 与 `desktopPnpm`，其它原生能力由 Desktop 内部插件使用 |
 | 当前成熟度 | Preview；真实 macOS arm64 Electron 和插件生命周期已验证，但还没有正式签名安装包 | 已提供 Windows x64 与 macOS Universal 正式安装包，下载体验更成熟 |
 
@@ -54,7 +54,7 @@ DSH Desktop 是社区维护的 Electron 桌面发行版。它固定并运行官�
   <tr>
     <td width="50%" valign="top">
       <h3>社区优先的精选工作台</h3>
-      <p>默认采用社区 task-board 与 dshmarket，而不是在 Shell 内重复实现。每个版本都固定到审查过的 tarball，并单独验证安装、停用、官方卸载和重启恢复。</p>
+      <p>默认采用社区 task-board、dshmarket 与附件输入插件，而不是在 Shell 内重复实现。每个版本都固定到审查过的 tarball，并单独验证安装、停用、官方卸载和重启恢复。</p>
     </td>
     <td width="50%" valign="top">
       <h3>产品能力也是 Bundle</h3>
@@ -127,10 +127,12 @@ dsh plugin --profile web remove <package>
 
 新 Profile 默认安装固定的 `dshmarket@1.17.1`。发行包携带经过审查的固定 tarball、完整运行依赖闭包和 SHA-256；默认初始化不需要 npm 网络，也不执行上游生命周期脚本。浏览市场会访问社区目录，安装与更新可能访问 npm 或 GitHub；WebDAV 和 Gist 只有用户主动配置后才会使用。市场内展示的插件并不等于已经内置或通过发行审查。
 
+新 Profile 也默认安装 `dsh-multimedia-webui-input@0.1.0`。它通过官方 `conversation.input.left`、`conversation.input.dock`、`conversation.input.overlay` 和 `settings.section` Slot 增加文件/文件夹选择按钮；文件只在发送时复制到当前 Session 工作区。官方 DSH 继续负责图片粘贴和拖拽，内置版去掉上游通用拖拽监听，防止图片被两条通道重复接收。它不修改官方 Chat，也不取得 Electron 或通用 IPC。与其他附件输入插件同时启用可能出现重复按钮或重复上传，默认 Profile 只保留这一套附件入口。
+
 桌面侧的 `@vibeinging/dsh-desktop-profile-host` 只提供 `desktopProfiles` 和 `desktopPnpm` 两个公开结构服务。市场把用户确认的操作交给随包 pnpm 和官方 DSH CLI；它不能自行取得 Electron 权限或重启应用。
 
 <details>
-<summary>查看新 Profile 默认安装的 12 个 Bundle</summary>
+<summary>查看新 Profile 默认安装的 13 个 Bundle</summary>
 
 <!-- featured-plugins:start -->
 | 默认 Bundle | 类型 | 声明权限 | 官方管理方式 | 来源 |
@@ -146,6 +148,7 @@ dsh plugin --profile web remove <package>
 | `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [本地包](packages/dsh-office-tools) |
 | `@vibeinging/dsh-client-ui-worktree` | portable | 无 Host 权限 | `dsh plugin --profile web remove @vibeinging/dsh-client-ui-worktree` | [本地包](packages/dsh-worktree) |
 | `@linxin666/dsh-client-ui-task-board` | portable | 读取当前 DSH Session、Workspace 与完成历史、在 DSH_HOME 写入任务账本和执行记录、按用户操作或 Host cron 启动 DSH Session 任务、可选启动固定的跨平台防休眠 helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [上游仓库](https://github.com/zhu1090093659/dsh-web-ui) |
+| `dsh-multimedia-webui-input` | portable | 读取用户主动选择的文件和文件夹、向当前 Session 工作区的 .dsh/tmp/attachments 写入附件、按用户二次确认清理带插件所有权标记的附件目录 | `dsh plugin --profile web remove dsh-multimedia-webui-input` | [上游仓库](https://github.com/LCYLYM/dsh-attachments) |
 | `dshmarket` | portable | 读取和修改当前 DSH Profile 的依赖、Bundle 顺序和启停状态、通过受控 pnpm 安装、更新和卸载用户确认的插件、访问插件目录、npm、GitHub 以及用户配置的 WebDAV 或 Gist、导出或导入包含 Profile 配置的备份 | `dsh plugin --profile web remove dshmarket` | [上游仓库](https://github.com/dsh-market/dsh-market) |
 <!-- featured-plugins:end -->
 
