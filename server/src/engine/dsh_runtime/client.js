@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { dataRoot } from "../../config/paths.js";
 import { dshRuntimeEnabled, resolveDshRuntimeDistribution } from "./source_locator.js";
 import { createSessionProductHostDispatcher } from "./product_host_dispatcher.js";
@@ -11,7 +11,8 @@ import { ensureDshWorkspaceSession } from "./session_attachment.js";
 import { ensureDshProfileInitialized } from "./profile_initialization.js";
 
 const CHILD_PATH = fileURLToPath(new URL("./source_runtime_child.mjs", import.meta.url));
-export const DSH_PROFILE_MODULE_LOADER_ARG = `--experimental-loader=${new URL("./profile_module_loader.mjs", import.meta.url).href}`;
+const NPM_RUNTIME_CHILD_PATH = fileURLToPath(new URL("./npm_runtime_child.mjs", import.meta.url));
+const PROFILE_MODULE_LOADER_PATH = fileURLToPath(new URL("./profile_module_loader.mjs", import.meta.url));
 const CLIENT_PATCH_PATH = fileURLToPath(new URL("./desktop_web.patch.yml", import.meta.url));
 const START_TIMEOUT_MS = 60_000;
 const CLIENT_SURFACE_TIMEOUT_MS = 60_000;
@@ -44,11 +45,6 @@ function streamFailure(stream, message, code = "DSH_EVENT_STREAM_FAILED") {
   error.code = code;
   error.stream = stream;
   return error;
-}
-
-/** Pass the Electron ESM child entry as a URL so Windows drive letters are never parsed as schemes. */
-export function dshChildModulePath(modulePath, useFileUrl = false) {
-  return useFileUrl ? pathToFileURL(modulePath) : modulePath;
 }
 
 /** Accept only the loopback origin emitted by the trusted DSH child. */
@@ -157,14 +153,16 @@ export class DshRuntimeClient extends EventEmitter {
     const electronProfileLoader = resolved.distribution === "npm"
       && process.versions.electron
       && existsSync(profileNodeModules);
-    const execArgv = electronProfileLoader
-      ? [...resolved.execArgv, DSH_PROFILE_MODULE_LOADER_ARG]
-      : resolved.execArgv;
-    if (electronProfileLoader) childEnv.DSH_PROFILE_NODE_MODULES = profileNodeModules;
+    const execArgv = resolved.execArgv;
+    if (electronProfileLoader) {
+      childEnv.DSH_PROFILE_NODE_MODULES = profileNodeModules;
+      childEnv.DSH_PROFILE_MODULE_LOADER_PATH = PROFILE_MODULE_LOADER_PATH;
+    }
     let launchPath = CHILD_PATH;
     let launchArgs = [];
     if (resolved.launch === "cli") {
-      launchPath = dshChildModulePath(resolved.entryPath, electronProfileLoader);
+      launchPath = NPM_RUNTIME_CHILD_PATH;
+      childEnv.DSH_CLI_ENTRY_PATH = resolved.entryPath;
       launchArgs = ["web", "--patch", CLIENT_PATCH_PATH];
     }
     const child = this.spawn(launchPath, launchArgs, {
