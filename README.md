@@ -108,11 +108,11 @@ flowchart LR
 
 Git Worktree Bundle 从当前 Session 的 `cwd` 识别主检出，在侧边栏和工作区中管理隔离 worktree，并为新工作区创建官方 Session。它只使用 DSH Workspace 与 Slot，可作为独立 portable Bundle 安装或移除。
 
-## 获取和运行
+## 开始使用
 
-当前 Preview 通道面向开发者从源码运行。仓库固定官方 DSH npm 运行时和默认 Bundle，不需要另外 checkout 或修改 DSH 源码。
+当前可从源码运行。仓库已固定官方 DSH npm 运行时和默认 Bundle，不需要另外 checkout 或修改 DSH 源码。
 
-### 源码运行
+### 从源码运行
 
 需要 Node.js 24 或更高版本：
 
@@ -124,14 +124,14 @@ npm run doctor
 npm run dev:electron
 ```
 
-### macOS Apple Silicon 开发包
+### 构建 macOS Apple Silicon App
 
 ```bash
 npm run package:mac:dir
 open "release/mac-arm64/DSH Desktop.app"
 ```
 
-该命令生成未签名开发包。对外发布的 macOS DMG 和 Windows 安装器只能来自带完整签名、公证和回执的发行流程，本地目录包不会冒充正式发行。
+该命令生成本地未签名 App。正式 macOS 和 Windows 安装包会通过 GitHub Releases 发布。
 
 ## 插件生态
 
@@ -184,16 +184,16 @@ dsh plugin --profile web remove <package>
 
 </details>
 
-## 开发插件
+## 插件兼容性
 
-应用能力按边界拆成两类：
+DSH Desktop 按能力边界识别两类 Bundle：
 
 - `portable` Bundle 只使用官方 DSH 服务，可以安装到兼容的官方 Web Profile；
 - `desktop-adapter` Bundle 使用 DSH Desktop 提供的窄 Host 合同，离开桌面宿主时应直接报告缺少能力。
 
-自研 Bundle 位于 [`packages/`](packages/)。新增功能优先复用社区插件；只有社区没有可审查的实现时才增加独立 Bundle。插件不得直接修改官方 DSH 源码，也不能绕过 Profile 保存第二套安装状态。
+与当前官方 DSH Web 兼容的标准 Bundle 可通过市场或官方 CLI 安装，不需要为 DSH Desktop 重写。需要窗口、文件对话框或 Browser Workspace 的插件，则显式声明对桌面 Host 的依赖；能力缺失时直接报告，不伪装成可用。
 
-插件市场接入、权限和离线边界见[插件市场选择与桌面接入](docs/research/2026-08-22_dsh-plugin-market-selection.md)。完整架构与发行顺序见[发行版转型方案](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md)。
+插件作者可从 [`packages/`](packages/) 中的独立 Bundle 参考官方 Slot、Host 合同和打包方式。插件市场接入、权限和离线边界见[插件市场选择与桌面接入](docs/research/2026-08-22_dsh-plugin-market-selection.md)。
 
 ## 数据与安全
 
@@ -204,33 +204,6 @@ dsh plugin --profile web remove <package>
 - 项目代码、第三方 Bundle 和视觉资产分别遵守自己的许可证与再分发条件。
 
 详见[隐私说明](PRIVACY.md)、[安全说明](SECURITY.md)和[第三方说明](THIRD_PARTY_NOTICES.md)。
-
-## 开发与验证
-
-本仓库不把“能构建”当作“能发行”。验证分成几个独立层级：
-
-| 验证层级 | 要回答的问题 |
-| --- | --- |
-| 源码契约 | 官方 Web 是否仍是唯一入口？插件、原生 Host 和产物边界是否漂移？ |
-| Profile 集成 | 每个默认 Bundle 能否通过官方 CLI 安装和卸载？停用后是否仍被加载？ |
-| 打包 Electron | Client 是否真正进入官方启动图并呈现可交互界面？卸载重启后是否恢复官方基线？ |
-| 断网与预算 | 新用户是否可从随包产物初始化？App、Server、pnpm、tarball、Profile 和冷启动是否在上限内？ |
-| 签名发行 | App、DMG 或 EXE 是否和 commit、哈希、签名者、平台、架构、公证和交互回执绑定？ |
-
-当前 13 个默认 Bundle 已通过逐包源码 Profile 测量。task-board、dshmarket、Git Worktree 和文件/文件夹附件还分别通过打包 macOS arm64 Electron 的安装、Client 激活、停用、官方卸载和卸载后重启。当前断网候选中，精选 tarball 共 1,639,477 bytes，首次 Profile 占用 17,337,154 bytes，官方 Web 冷启动 12,304 ms，均在硬上限内。
-
-常用命令：
-
-```bash
-npm run test:release
-npm run typecheck
-npm run check:release-boundary
-npm run check:release-artifacts
-npm run check:release:budgets
-npm run measure:featured-plugins
-```
-
-详细的附件 Bundle 证据见 [附件输入插件内置报告](docs/reports/2026-08-23_dsh-attachment-plugin-integration.md)，完整发行边界见 [发行证据报告](docs/reports/2026-08-20_dsh-app-release-evidence.md)。开发态真实 DeepSeek-V4-Flash 交互已通过官方 Web、Session history、provider 来源和完整响应校验；正式 Release 仍要求该结果与最终签名产物绑定。
 
 ## 与其他社区桌面发行版
 

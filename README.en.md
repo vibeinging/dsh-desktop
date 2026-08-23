@@ -108,9 +108,9 @@ Open **Settings → Plugin Market** to search, inspect compatibility and permiss
 
 The Git Worktree Bundle identifies the main checkout from the current Session's `cwd`, manages isolated worktrees from the sidebar and Workspace, and creates official Sessions for new workspaces. It uses only DSH Workspaces and Slots, so it remains an independently installable and removable portable Bundle.
 
-## Get and run
+## Get started
 
-The current Preview channel is intended for developers running from source. The repository pins the official DSH npm runtime and default Bundles; it does not require a separate DSH source checkout or source modification.
+The app can currently be run from source. The repository pins the official DSH npm runtime and default Bundles; it does not require a separate DSH source checkout or source modification.
 
 ### Run from source
 
@@ -124,14 +124,14 @@ npm run doctor
 npm run dev:electron
 ```
 
-### macOS Apple Silicon development build
+### Build the macOS Apple Silicon app
 
 ```bash
 npm run package:mac:dir
 open "release/mac-arm64/DSH Desktop.app"
 ```
 
-This command creates an unsigned development build. Public macOS DMGs and Windows installers must come from the release workflow with complete signing, notarization, and receipt evidence; a local directory build never presents itself as a formal release.
+This command creates a local unsigned app. Formal macOS and Windows installers will be published through GitHub Releases.
 
 ## Plugin ecosystem
 
@@ -184,16 +184,16 @@ These levels separate “exists in the community,” “can be installed by the 
 
 </details>
 
-## Developing plugins
+## Plugin compatibility
 
-App capabilities are split into two boundary types:
+DSH Desktop recognizes two Bundle types by capability boundary:
 
 - A `portable` Bundle uses only official DSH services and can be installed in a compatible official Web Profile.
 - A `desktop-adapter` Bundle uses the narrow Host contract provided by DSH Desktop and should report the missing capability directly when used outside the desktop host.
 
-First-party Bundles live in [`packages/`](packages/). Prefer existing community plugins for new capabilities; add an independent Bundle only when the community has no reviewable implementation. Plugins must not modify official DSH source code directly or bypass the Profile by storing a second installation state.
+Standard Bundles compatible with the current official DSH Web can be installed through the market or official CLI without a DSH Desktop rewrite. A plugin that needs windows, file dialogs, or Browser Workspace declares a dependency on the desktop Host; when that capability is missing, it reports the requirement instead of pretending to work.
 
-For the plugin market integration, permissions, and offline boundary, see [Plugin market selection and desktop integration](docs/research/2026-08-22_dsh-plugin-market-selection.md). For the complete architecture and release sequence, see the [distribution migration plan](docs/plans/2026-08-20_dsh-app-发行版转型最终方案.md).
+Plugin authors can use the independent Bundles under [`packages/`](packages/) as examples of official Slots, Host contracts, and packaging. See [Plugin market selection and desktop integration](docs/research/2026-08-22_dsh-plugin-market-selection.md) for market, permission, and offline boundaries.
 
 ## Data and security
 
@@ -204,33 +204,6 @@ For the plugin market integration, permissions, and offline boundary, see [Plugi
 - Project code, third-party Bundles, and visual assets each follow their own licenses and redistribution terms.
 
 See the [privacy notice](PRIVACY.md), [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
-
-## Development and verification
-
-The repository does not treat “can be built” as “can be released.” Verification is divided into independent levels:
-
-| Evidence level | Question it must answer |
-| --- | --- |
-| Source contracts | Is official Web still the only entry point, and have plugin, native Host, or artifact boundaries drifted? |
-| Profile integration | Can every default Bundle be installed and removed through the official CLI, and does disabling really keep it out of the active graph? |
-| Packaged Electron | Does the Client actually join the official boot graph and render an interactive UI, and does official Web return to baseline after removal and restart? |
-| Offline and budgets | Can a new user initialize from packaged artifacts, and are App, Server, pnpm, tarballs, Profile storage, and cold start within their limits? |
-| Signed release | Are the App, DMG, or EXE bound to the commit, hashes, signer, platform, architecture, notarization, and interaction receipts? |
-
-All 13 default Bundles pass per-package source Profile measurement. The task board, dshmarket, Git Worktree, and file/folder attachment Bundles also pass installation, Client activation, disabling, official removal, and post-removal restart in packaged macOS arm64 Electron. In the current offline candidate, curated tarballs total 1,639,477 bytes, first Profile storage is 17,337,154 bytes, and official Web cold start is 12,304 ms; all remain within hard limits.
-
-Common commands:
-
-```bash
-npm run test:release
-npm run typecheck
-npm run check:release-boundary
-npm run check:release-artifacts
-npm run check:release:budgets
-npm run measure:featured-plugins
-```
-
-See the [attachment Bundle integration report](docs/reports/2026-08-23_dsh-attachment-plugin-integration.md) for the latest community-plugin evidence and the [release evidence report](docs/reports/2026-08-20_dsh-app-release-evidence.md) for the complete release boundary. A real DeepSeek-V4-Flash development interaction passes official Web, Session history, provider-origin, and complete-response validation; a formal Release still requires that result to be bound to the final signed artifact.
 
 ## Other community desktop distributions
 
