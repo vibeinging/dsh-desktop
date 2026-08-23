@@ -18,6 +18,7 @@ macOS arm64 `v0.1.0` 已发布。当前 Windows 修复候选为 `v0.1.1`；NSIS 
 - Electron 先启动应用自有的最小 NPM runtime child，再在进程内注册 Profile loader，并通过 `file://` 动态导入官方 DSH CLI；Windows 盘符路径不会再由自定义 loader 当作主模块说明符处理。
 - Windows 验证证明 Electron Builder 的打包钩子新增目录不能作为稳定运行时来源。应用不再复制第二份 CLI，生产环境直接使用随 Server `package-lock.json` 固定并由 `extraResources` 打包的 `server/node_modules/@deepseek-ai/dsh`；Builder 完全退出后会校验包清单和 `lib/bin.js`，缺失时立即阻断。
 - 官方 `dsh plugin` 命令的工作目录固定为用户的 DSH Home，不再使用只读的应用安装目录。Profile、插件库和 pnpm store 仍位于用户数据目录，官方 CLI 与依赖只从安装包读取。
+- 新 Profile 的原子初始化会在临时 `profiles/node_modules` 建立指向安装包依赖的 fallback 链接。清理临时目录前必须先解除这些 symlink 或 Windows junction，禁止递归清理沿链接触及应用安装目录。
 - 正式 macOS/Windows 证据 Workflow 的 job 级回执路径不再引用该阶段不可用的 `runner.temp` 上下文，避免手动 Workflow 在创建 job 前失败；回执统一写入 `.desktop-build/release-evidence` 并随产物上传。
 - `v0.1.0` 候选 `30f9dd8` 的 macOS arm64 CI 完整通过；Windows x64 在目录包和随包 Server smoke 通过后，随包 App smoke 因重复 CLI 目录缺失而超时。安装验收和上传因此被阻断。`v0.1.1` 收敛到随包 npm 依赖这个唯一来源，完成针对性回归后才允许再次运行 Actions。
 

@@ -2,11 +2,14 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   renameSync,
   rmSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -203,6 +206,27 @@ export function dshCommandWorkingDirectory(resolved, env = process.env) {
   return dshHome ? resolve(dshHome) : resolved.root;
 }
 
+/** Unlink installation fallback symlinks before removing an atomic staging home. */
+export function unlinkStagingProfileFallbacks(stagingHome) {
+  const root = join(stagingHome, "profiles", "node_modules");
+  if (!existsSync(root)) return 0;
+  let removed = 0;
+  const visit = (directory) => {
+    for (const name of readdirSync(directory)) {
+      const target = join(directory, name);
+      const stat = lstatSync(target);
+      if (stat.isSymbolicLink()) {
+        unlinkSync(target);
+        removed += 1;
+      } else if (stat.isDirectory()) {
+        visit(target);
+      }
+    }
+  };
+  visit(root);
+  return removed;
+}
+
 function assertInitialProfile(manifest, expectedNames, { requireDependencies = true } = {}) {
   const bundles = manifest?.dsh?.profile?.bundles;
   const dependencies = manifest?.dependencies;
@@ -288,6 +312,7 @@ async function initializeUnlocked({
       bundles: Object.freeze([...(manifest.dsh?.profile?.bundles || [])]),
     });
   } finally {
+    unlinkStagingProfileFallbacks(stagingHome);
     rmSync(stagingHome, { recursive: true, force: true });
   }
 }

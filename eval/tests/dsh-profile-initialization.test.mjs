@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join, resolve } from "node:path";
 import { test } from "node:test";
@@ -10,6 +10,7 @@ import {
   controlledDshPluginEnvironment,
   dshCommandWorkingDirectory,
   ensureDshProfileInitialized,
+  unlinkStagingProfileFallbacks,
 } from "../../server/src/engine/dsh_runtime/profile_initialization.js";
 import {
   featuredPluginNames,
@@ -61,6 +62,24 @@ test("official plugin commands use DSH Home instead of the application install d
     dshCommandWorkingDirectory({ root: "/read-only/app/dsh" }, {}),
     "/read-only/app/dsh",
   );
+});
+
+test("atomic Profile cleanup unlinks installation fallbacks without deleting their targets", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-profile-fallback-cleanup-"));
+  try {
+    const stagingHome = join(root, "staging");
+    const installedPackage = join(root, "application", "node_modules", "@deepseek-ai", "dsh");
+    const fallback = join(stagingHome, "profiles", "node_modules", "@deepseek-ai", "dsh");
+    await mkdir(installedPackage, { recursive: true });
+    await mkdir(resolve(fallback, ".."), { recursive: true });
+    await writeFile(join(installedPackage, "package.json"), '{"name":"@deepseek-ai/dsh"}\n');
+    await symlink(installedPackage, fallback, process.platform === "win32" ? "junction" : "dir");
+    assert.equal(unlinkStagingProfileFallbacks(stagingHome), 1);
+    assert.equal(existsSync(fallback), false);
+    assert.equal(existsSync(join(installedPackage, "package.json")), true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("controlled plugin commands use the packaged pnpm path and stable store", async () => {
