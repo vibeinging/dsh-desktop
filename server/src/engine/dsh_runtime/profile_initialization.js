@@ -273,7 +273,12 @@ export function rebasePublishedProfileLinks(profileDir, fromProfileDir, toProfil
       [sourceRoot.split(sep).join("/"), targetRoot.split(sep).join("/")],
       [sourceRoot.replaceAll("\\", "\\\\"), targetRoot.replaceAll("\\", "\\\\")],
     ];
-    const after = replacements.reduce((text, [from, to]) => text.replaceAll(from, to), before);
+    const rebasedPaths = replacements.reduce((text, [from, to]) => text.replaceAll(from, to), before);
+    const finalVirtualStore = join(targetRoot, "node_modules", ".pnpm");
+    const after = rebasedPaths.replace(
+      /^(\s*virtualStoreDir:\s*).*$/mu,
+      (_line, prefix) => `${prefix}${JSON.stringify(finalVirtualStore)}`,
+    );
     if (after !== before) writeFileSync(modulesStatePath, after);
   }
   return rebased;

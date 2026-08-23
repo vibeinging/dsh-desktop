@@ -114,6 +114,26 @@ test("atomic Profile publication rebases absolute pnpm links and metadata", asyn
   }
 });
 
+test("atomic Profile publication sets the final pnpm virtual store without matching the old path spelling", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-profile-virtual-store-rebase-"));
+  try {
+    const stagingProfile = join(root, "staging", "profiles", "web");
+    const finalProfile = join(root, "home", "profiles", "web");
+    await mkdir(join(stagingProfile, "node_modules"), { recursive: true });
+    await writeFile(
+      join(stagingProfile, "node_modules", ".modules.yaml"),
+      `virtualStoreDir: ${JSON.stringify("C:\\\\Users\\\\RUNNER~1\\\\alternate-staging\\\\profiles\\\\web\\\\node_modules\\\\.pnpm")}\n`,
+    );
+    await mkdir(resolve(finalProfile, ".."), { recursive: true });
+    await rename(stagingProfile, finalProfile);
+    assert.equal(rebasePublishedProfileLinks(finalProfile, stagingProfile, finalProfile), 0);
+    const modules = await readFile(join(finalProfile, "node_modules", ".modules.yaml"), "utf8");
+    assert.equal(modules, `virtualStoreDir: ${JSON.stringify(join(finalProfile, "node_modules", ".pnpm"))}\n`);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("controlled plugin commands use the packaged pnpm path and stable store", async () => {
   const root = await mkdtemp(join(tmpdir(), "dsh-controlled-pnpm-"));
   try {
