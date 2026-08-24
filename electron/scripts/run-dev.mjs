@@ -1,4 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
@@ -21,6 +22,8 @@ function prepareMacDevelopmentApp(electronExecutable) {
   const electronPackageDir = dirname(require.resolve('electron/package.json'))
   const electronVersion = JSON.parse(readFileSync(join(electronPackageDir, 'package.json'), 'utf8')).version
   const sourceApp = dirname(dirname(dirname(electronExecutable)))
+  const iconPath = join(ELECTRON_DIR, 'icons', 'icon.icns')
+  const iconDigest = createHash('sha256').update(readFileSync(iconPath)).digest('hex')
   const cacheDir = join(
     dirname(electronPackageDir),
     '.cache',
@@ -29,7 +32,7 @@ function prepareMacDevelopmentApp(electronExecutable) {
   )
   const developmentApp = join(cacheDir, `${PRODUCT_NAME}.app`)
   const markerPath = join(cacheDir, 'source.txt')
-  const marker = `${electronExecutable}\n`
+  const marker = `${electronExecutable}\n${iconDigest}\n`
 
   if (existsSync(developmentApp) && existsSync(markerPath) && readFileSync(markerPath, 'utf8') === marker) {
     return join(developmentApp, 'Contents', 'MacOS', 'Electron')
@@ -52,7 +55,7 @@ function prepareMacDevelopmentApp(electronExecutable) {
     replacePlistString(plistPath, 'CFBundleName', PRODUCT_NAME)
     replacePlistString(plistPath, 'CFBundleIdentifier', DEV_APP_ID)
     replacePlistString(plistPath, 'CFBundleIconFile', 'icon.icns')
-    copyFileSync(join(ELECTRON_DIR, 'icons', 'icon.icns'), join(preparingApp, 'Contents', 'Resources', 'icon.icns'))
+    copyFileSync(iconPath, join(preparingApp, 'Contents', 'Resources', 'icon.icns'))
 
     // Re-sign the app package after modifying app metadata to avoid macOS launch rejection.
     execFileSync('codesign', ['--force', '--deep', '--sign', '-', preparingApp], { stdio: 'inherit' })
