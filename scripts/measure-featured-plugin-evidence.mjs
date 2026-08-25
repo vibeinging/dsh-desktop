@@ -80,7 +80,7 @@ async function stopServer(child) {
 
 function startServer(env, label) {
   const startedAt = performance.now()
-  const child = spawn(process.execPath, [DSH_CLI, '--profile', 'web', '--port', '0'], {
+  const child = spawn(process.execPath, [DSH_CLI, '--profile', 'web', '--port', '0', '--no-open'], {
     cwd: APP_ROOT,
     env,
     stdio: ['ignore', 'pipe', 'pipe'],
