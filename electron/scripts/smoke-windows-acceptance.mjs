@@ -147,7 +147,7 @@ export async function runWindowsAcceptance({
   unpackedAppPath = argumentValue('unpacked', DEFAULT_UNPACKED_APP),
 } = {}) {
   if (process.platform !== 'win32' || process.arch !== 'x64') {
-    throw new Error(`Windows x64 验收必须在 Windows x64 实机执行，当前为 ${process.platform}/${process.arch}`)
+    throw new Error(`Windows x64 自动验收必须在 Windows x64 运行环境执行，当前为 ${process.platform}/${process.arch}`)
   }
   const installer = await findInstaller(installerPath)
   const unpackedApp = resolve(ELECTRON_DIR, unpackedAppPath)

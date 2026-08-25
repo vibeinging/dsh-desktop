@@ -337,7 +337,7 @@ test('featured-plugin measurement rejects source and artifact drift', async () =
   }
 });
 
-test('Windows acceptance receipt requires every real install lifecycle check', () => {
+test('Windows runner acceptance receipt requires every install lifecycle check', () => {
   const receipt = createWindowsAcceptanceReceipt({
     installer: 'release/dsh-desktop-0.0.1-win-x64.exe',
     unpackedApp: 'release/win-unpacked',

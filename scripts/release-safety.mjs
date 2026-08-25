@@ -502,9 +502,9 @@ function inspectWindowsBundle(root, appPath, { requireEvidence = false } = {}) {
   const receiptPath = join(root, 'release', 'windows-x64-acceptance.json');
   const receipt = readJson(receiptPath);
   const checks = [check(
-    'windows_real_machine_acceptance',
+    'windows_installer_environment_acceptance',
     isWindowsAcceptanceReceipt(receipt) ? 'pass' : 'block',
-    'Windows x64 实机需要保存完整的安装、启动、断网 Profile、恢复、权限边界、清理和卸载验收回执',
+    'Windows x64 运行环境需要保存完整的安装、启动、断网 Profile、恢复、权限边界、清理和卸载自动验收回执；物理设备另走 release-device Eval',
     receiptPath,
   )];
   if (process.platform !== 'win32') {
