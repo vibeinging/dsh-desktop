@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop",
   "private": true,
-  "version": "0.1.7",
+  "version": "0.1.8",
   "license": "MIT",
   "productName": "DSH Desktop",
   "main": "electron/main.js",
