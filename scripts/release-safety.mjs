@@ -379,10 +379,12 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
     checks.push(check(
       'mac_release_configuration',
       mac.hardenedRuntime === true
-        && mac.notarize === true
+        && mac.notarize === false
         && String(scripts['package:mac:project'] || '').includes('forceCodeSigning=true')
+        && String(scripts['package:mac:project'] || '').includes('scripts/notarize-macos-app.mjs')
+        && String(scripts['package:mac:project'] || '').includes('--prepackaged')
         ? 'pass' : 'block',
-      '正式 macOS 构建强制 Developer ID 签名、Hardened Runtime 和公证',
+      '正式 macOS 构建强制 Developer ID 签名，并用 notarytool Keychain 或环境凭据公证 App 和 DMG',
       'electron/package.json',
     ));
     const macEvidenceWorkflow = readText(join(root, '.github', 'workflows', 'macos-release-evidence.yml'));
@@ -427,6 +429,7 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
         && macEvidenceWorkflow.includes('release/*.yml')
         && macEvidenceWorkflow.includes('release/*.blockmap')
         && macPackageScripts.includes('check:update-artifacts:mac')
+        && macPackageScripts.includes('scripts/notarize-macos-app.mjs')
         && macPackageScripts.includes('scripts/notarize-macos-dmg.mjs') ? 'pass' : 'block',
       'macOS 发行证据 workflow 必须覆盖签名、公证、更新器元数据和社区打包 smoke',
       '.github/workflows/macos-release-evidence.yml',

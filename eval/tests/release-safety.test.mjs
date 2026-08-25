@@ -866,6 +866,23 @@ test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   assert.match(electronPackage.scripts['package:mac:project'], /check:update-artifacts:mac/);
 });
 
+test('macOS package notarizes the signed App before producing and notarizing DMG artifacts', () => {
+  const electronPackage = JSON.parse(readFileSync(new URL('../../electron/package.json', import.meta.url), 'utf8'));
+  assert.equal(electronPackage.build.mac.notarize, false);
+  for (const name of ['package:mac:project', 'package:mac:x64:project']) {
+    const command = electronPackage.scripts[name];
+    const signedDirectory = command.indexOf('--dir -c.forceCodeSigning=true');
+    const appNotary = command.indexOf('scripts/notarize-macos-app.mjs');
+    const prepackaged = command.indexOf('--prepackaged');
+    const updateArtifacts = command.indexOf('check:update-artifacts:mac');
+    const dmgNotary = command.indexOf('scripts/notarize-macos-dmg.mjs');
+    assert.ok(signedDirectory >= 0 && appNotary > signedDirectory, `${name} must notarize the signed App`);
+    assert.ok(prepackaged > appNotary, `${name} must package the stapled App`);
+    assert.ok(updateArtifacts > prepackaged && dmgNotary > updateArtifacts, `${name} must verify then notarize DMG`);
+    assert.match(command, /-c\.mac\.notarize=false/);
+  }
+});
+
 test('macOS DMG notarization selects the current architecture and keeps the receipt credential-free', () => {
   assert.equal(
     resolveDmgPath('/workspace', '0.0.1', 'arm64', (candidate) => candidate.endsWith('dsh-desktop-0.0.1-mac-arm64.dmg')),
