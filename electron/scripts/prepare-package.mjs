@@ -246,7 +246,7 @@ export async function preparePackage() {
       filter: includePackagedServerSource,
     })
   }
-  for (const name of ['package.json', 'package-lock.json']) {
+  for (const name of ['package.json', 'package-lock.json', '.npmrc']) {
     await cp(join(SOURCE_SERVER_DIR, name), join(STAGED_SERVER_DIR, name))
   }
   await verifyPackagedBuiltinPlugins()

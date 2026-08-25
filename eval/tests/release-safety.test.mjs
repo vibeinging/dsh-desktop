@@ -836,6 +836,13 @@ test('clean package scripts prepare official Web assets before verifying them', 
   }
 });
 
+test('packaged Server keeps the reviewed npm peer policy during production install', () => {
+  const preparePackage = readFileSync(new URL('../../electron/scripts/prepare-package.mjs', import.meta.url), 'utf8');
+  const serverNpmrc = readFileSync(new URL('../../server/.npmrc', import.meta.url), 'utf8');
+  assert.match(preparePackage, /\['package\.json', 'package-lock\.json', '\.npmrc'\]/);
+  assert.match(serverNpmrc, /^legacy-peer-deps=true$/m);
+});
+
 test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
   const electronPackage = JSON.parse(readFileSync(new URL('../../electron/package.json', import.meta.url), 'utf8'));
