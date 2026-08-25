@@ -296,6 +296,65 @@ test("an existing Profile receives defaults not previously offered without resto
   }
 });
 
+test("an existing Profile retries a default whose first official add failed", async () => {
+  const home = await mkdtemp(join(tmpdir(), "dsh-profile-default-retry-"));
+  try {
+    const api = profileApi();
+    const profileDir = api.resolveProfileDir("web", home);
+    await api.initProfile(profileDir, BASE_BUNDLES);
+    const manifestPath = join(profileDir, "package.json");
+    const names = featuredPluginNames();
+    const library = join(home, "plugin-library", "tarballs");
+    let failed = false;
+    await assert.rejects(
+      ensureDshProfileInitialized({
+        resolved: { appBootPath: "unused" },
+        dshHome: home,
+        env: sourceEnvironment(home),
+        appRoot: APP_ROOT,
+        profileApi: api,
+        commandRunner: async (_resolved, args) => {
+          if (args[0] !== "plugin") return;
+          await mkdir(library, { recursive: true });
+          const prefix = names[0].replace(/^@/, "").replaceAll("/", "-");
+          await writeFile(join(library, `${prefix}-0.0.1.tgz`), "materialized before add failed");
+          failed = true;
+          throw new Error("official add failed");
+        },
+      }),
+      /official add failed/,
+    );
+    assert.equal(failed, true);
+    assert.deepEqual(
+      JSON.parse(await readFile(join(profileDir, PROFILE_FEATURED_STATE_FILENAME), "utf8")).offered,
+      [],
+    );
+
+    const additions = [];
+    const retried = await ensureDshProfileInitialized({
+      resolved: { appBootPath: "unused" },
+      dshHome: home,
+      env: sourceEnvironment(home),
+      appRoot: APP_ROOT,
+      profileApi: api,
+      commandRunner: async (_resolved, args) => {
+        if (args[0] !== "plugin") return;
+        const source = String(args[args.indexOf("-w") + 1] || "").replace(/^file:/, "");
+        const packageName = JSON.parse(await readFile(join(source, "package.json"), "utf8")).name;
+        additions.push(packageName);
+        const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+        manifest.dependencies[packageName] = `file:${source}`;
+        manifest.dsh.profile.bundles.push(packageName);
+        await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+      },
+    });
+    assert.equal(retried.migrated, true);
+    assert.deepEqual(additions, names);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
 test("new Profile publication is atomic when an official command fails", async () => {
   const home = await mkdtemp(join(tmpdir(), "dsh-profile-atomic-failure-"));
   try {

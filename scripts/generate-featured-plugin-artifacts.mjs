@@ -354,9 +354,13 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
   if (sourceText.split(commandMenuHook).length !== 2) {
     throw new Error(`精选 registry 附件命令菜单目标不唯一: ${plugin.name}`)
   }
+  const clientInject = "    const inject = ['slots', 'conversation', 'sessions', 'inputTriggers'];"
+  if (sourceText.split(clientInject).length !== 2) {
+    throw new Error(`精选 registry 附件 Client inject 目标不唯一: ${plugin.name}`)
+  }
   const commandMenuRegistration = `      const attachmentCommands = () => {
         const commandUi = ctx.get('commandUi');
-        if (commandUi === undefined) return () => {};
+        if (commandUi === undefined) throw new Error('The official command UI service is unavailable');
         const zh = typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('zh');
         const choose = (kind, sessionId) => {
           const fail = cause => console.error('[dsh-multimedia-webui-input] attachment command failed:', cause);
@@ -403,6 +407,7 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
     .replace(pickFunction, pickReplacement)
     .replace(pickerHook, `${pickerHook}\n      const imageLimits = props.useProjection('imageLimits');`)
     .replace(filesMenuItem, smartFilesMenuItem)
+    .replace(clientInject, "    const inject = ['slots', 'conversation', 'sessions', 'inputTriggers', 'commandUi'];")
     .replace(commandMenuHook, `${commandMenuRegistration}${commandMenuHook}`)
   const outputSha256 = sha256(Buffer.from(output))
   if (outputSha256 !== transform.output_sha256) {

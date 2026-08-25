@@ -32,7 +32,7 @@
 
 浏览器只读取用户主动选择的 `File`。真正发送时，插件通过同源路由把文件流式写入当前 live Session 的工作区：`<cwd>/.dsh/tmp/attachments/<session>/<send>/`。清理操作需要用户再次确认，并只删除带插件所有权标记的已提交目录。未知目录、其他工作区和未授权路径不在清理范围内。
 
-官方 DSH rc.2 已经负责图片粘贴、拖拽和 `AttachmentRail` 缩略图。上游插件也注册通用文件拖拽，两者同时运行时图片可能进入两条通道。发行生成器因此对固定的 `lib/client.js` 应用 `smart-attachment-picker-v4`：源文件 SHA-256 必须是 `80664dc90259b6312ac86259c5a3ccdacbc3b7674600e37f42404aeccc7834f4`，适配后必须是 `66dfe5824658cf329c09db312be82f26330a2e386fbaac1feb604552d9785e14`，否则停止生成。适配删除上游 document 级 drag/drop effect，让单一文件选择入口按官方 `imageLimits.mediaTypes` 自动分流，并通过官方 `commandUi` 向输入框 `+` 菜单注册文件和文件夹入口；图片通过标准 `File`、`DataTransfer` 和 `DragEvent` 进入官方缩略图轨道，普通文件进入 Session 工作区。文件夹选择、发送引用、设置和清理保持不变。
+官方 DSH rc.2 已经负责图片粘贴、拖拽和 `AttachmentRail` 缩略图。上游插件也注册通用文件拖拽，两者同时运行时图片可能进入两条通道。发行生成器因此对固定的 `lib/client.js` 应用 `smart-attachment-picker-v4`：源文件 SHA-256 必须是 `80664dc90259b6312ac86259c5a3ccdacbc3b7674600e37f42404aeccc7834f4`，适配后必须是 `4d3f63a63c89cb098246ac80ff38a09f7f9c8e2dc5d5a5ef59d9f8b3f3c4e3bf`，否则停止生成。适配删除上游 document 级 drag/drop effect，让单一文件选择入口按官方 `imageLimits.mediaTypes` 自动分流，并通过官方 `commandUi` 向输入框 `+` 菜单注册文件和文件夹入口；图片通过标准 `File`、`DataTransfer` 和 `DragEvent` 进入官方缩略图轨道，普通文件进入 Session 工作区。文件夹选择、发送引用、设置和清理保持不变。
 
 插件不调用 DSH Desktop 的 Electron 文件对话框 Host。它使用浏览器标准文件输入，因此官方 DSH Web、DSH Desktop 和远程 Web 都能采用同一个 Bundle。浏览器不会提供任意本地绝对路径。图片由官方附件服务编码为原生 image block；普通文件复制到 Session 工作区后由模型通过普通 DSH 文件工具读取。
 

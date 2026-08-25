@@ -412,6 +412,7 @@ async function reconcileExistingProfile({
     DSH_HOME: home,
     pnpm_config_lockfile: "false",
   }, { dshHome: home, libraryRoot });
+  writeFeaturedState(profileDir, offered);
   const added = [];
   for (const plugin of candidates) {
     const input = inputsByName.get(plugin.name);

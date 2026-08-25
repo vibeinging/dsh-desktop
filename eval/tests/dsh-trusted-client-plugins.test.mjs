@@ -358,6 +358,8 @@ test("the bundled multimedia input is pinned without inventing a dependency clos
   assert.match(releaseClient, /acceptedImageTypes/);
   assert.match(releaseClient, /workspaceFiles/);
   assert.match(releaseClient, /commandUi\.register/);
+  assert.match(releaseClient, /const inject = \['slots', 'conversation', 'sessions', 'inputTriggers', 'commandUi'\]/);
+  assert.doesNotMatch(releaseClient, /commandUi === undefined\) return/);
   assert.match(releaseClient, /attach-files/);
   assert.match(releaseClient, /attach-folder/);
   assert.match(releaseClient, /community-multimedia-webui-input: command menu/);
