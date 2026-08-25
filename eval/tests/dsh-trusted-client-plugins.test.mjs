@@ -343,7 +343,7 @@ test("the bundled multimedia input is pinned without inventing a dependency clos
   assert.deepEqual(plugin.evidence.package_dependencies, {});
   assert.deepEqual(plugin.evidence.offline_dependencies, []);
   assert.deepEqual(plugin.evidence.release_files, ["cordis.patch.yml", "lib", "README.md", "README.zh.md", "LICENSE"]);
-  assert.equal(plugin.evidence.release_transform.id, "native-image-picker-v2");
+  assert.equal(plugin.evidence.release_transform.id, "smart-attachment-picker-v3");
   assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
   assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile));
   const clientSource = readFileSync(join(resolveFeaturedPackageDir(plugin), plugin.evidence.release_transform.path), "utf8");
@@ -354,12 +354,15 @@ test("the bundled multimedia input is pinned without inventing a dependency clos
   assert.doesNotMatch(releaseClient, /document\.addEventListener\('drop', drop\)/);
   assert.match(releaseClient, /props\.useProjection\('imageLimits'\)/);
   assert.match(releaseClient, /new DragEvent\('drop'/);
-  assert.match(releaseClient, /dshNativeImagePicker/);
-  assert.match(releaseClient, /Choose images/);
+  assert.match(releaseClient, /dshSmartAttachmentPicker/);
+  assert.match(releaseClient, /acceptedImageTypes/);
+  assert.match(releaseClient, /workspaceFiles/);
+  assert.doesNotMatch(releaseClient, /Choose images/);
   assert.match(releaseClient, /Attach files or a folder/);
-  assert.match(packagedSmoke, /DSH_SMOKE_NATIVE_IMAGE_PICKER = '1'/);
-  assert.match(electronMain, /smokeNativeImagePicker/);
+  assert.match(packagedSmoke, /DSH_SMOKE_SMART_ATTACHMENT_PICKER = '1'/);
+  assert.match(electronMain, /smokeSmartAttachmentPicker/);
   assert.match(electronMain, /dsh-native-image-smoke\.png/);
+  assert.match(electronMain, /dsh-workspace-file-smoke\.txt/);
   assert.throws(() => transformFeaturedRegistryClient(plugin, `${clientSource}\n// drift`), /源文件漂移/);
   assert.throws(() => validateFeaturedPackageContract(plugin, {
     ...packageJson,

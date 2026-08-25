@@ -478,10 +478,10 @@
           "LICENSE"
         ],
         "release_transform": {
-          "id": "native-image-picker-v2",
+          "id": "smart-attachment-picker-v3",
           "path": "lib/client.js",
           "source_sha256": "80664dc90259b6312ac86259c5a3ccdacbc3b7674600e37f42404aeccc7834f4",
-          "output_sha256": "d924751b3b46bfa5a5b8f998bdbf69d62bf3b514f9e3edf099ae57d2b2658ba5"
+          "output_sha256": "a58603195621475c7589a398b3854c05e1c3a9b535adf5691d7f04f5dd7720e7"
         },
         "entry": "lib/index.js",
         "client_entry": "lib/client.js",

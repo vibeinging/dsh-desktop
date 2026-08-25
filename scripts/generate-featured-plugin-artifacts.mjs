@@ -268,7 +268,7 @@ export function validateFeaturedRegistryReleaseDependencies(plugin, hostSource) 
 export function transformFeaturedRegistryClient(plugin, sourceText) {
   const transform = plugin.evidence.release_transform
   if (!transform) return sourceText
-  if (transform.id !== "native-image-picker-v2") {
+  if (transform.id !== "smart-attachment-picker-v3") {
     throw new Error(`未知的精选 registry Client 发行适配: ${transform.id}`)
   }
   if (sha256(Buffer.from(sourceText)) !== transform.source_sha256) {
@@ -294,18 +294,21 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
   }
   const pickReplacement = pickMatches[0].replace("\n\n    function Paperclip() {", `
 
-    function pickImages(mediaTypes, onFiles, onError) {
+    function pickFiles(mediaTypes, onPick, onError) {
       const input = document.createElement('input');
       input.type = 'file';
       input.multiple = true;
-      input.accept = mediaTypes.join(',');
       input.hidden = true;
-      input.dataset.dshNativeImagePicker = 'true';
+      input.dataset.dshSmartAttachmentPicker = 'true';
       document.body.appendChild(input);
       const cleanup = () => input.remove();
       input.addEventListener('change', () => {
         try {
-          onFiles([...input.files ?? []]);
+          const acceptedImageTypes = new Set(mediaTypes);
+          const selected = [...input.files ?? []];
+          const images = selected.filter(file => acceptedImageTypes.has(file.type));
+          const workspaceFiles = selected.filter(file => !acceptedImageTypes.has(file.type));
+          onPick(images, filesFromList(workspaceFiles));
         } catch (cause) {
           onError(cause);
         } finally {
@@ -331,27 +334,30 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
     }
 
     function Paperclip() {`)
-  const imageMenuItem = `          h('button', {
+  const smartFilesMenuItem = `          h('button', {
             type: 'button',
             role: 'menuitem',
-            onClick: () => pickImages(imageLimits?.mediaTypes ?? ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], files => {
+            onClick: () => pickFiles(imageLimits?.mediaTypes ?? ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], (images, items) => {
               try {
-                addNativeImages(files);
-                setMessage('');
-                setOpen(false);
+                if (images.length > 0) addNativeImages(images);
+                if (items.length > 0) void accept(items);
+                else {
+                  setMessage('');
+                  setOpen(false);
+                }
               } catch (cause) {
                 setMessage(cause instanceof Error ? cause.message : String(cause));
               }
             }, cause => setMessage(String(cause))),
-          }, 'Choose images'),
-${filesMenuItem}`
+          }, 'Choose files'),`
   const output = sourceText
     .replace(dropEffect, "\n")
     .replace(pickFunction, pickReplacement)
     .replace(pickerHook, `${pickerHook}\n      const imageLimits = props.useProjection('imageLimits');`)
-    .replace(filesMenuItem, imageMenuItem)
-  if (sha256(Buffer.from(output)) !== transform.output_sha256) {
-    throw new Error(`精选 registry Client 发行适配输出漂移: ${plugin.name}`)
+    .replace(filesMenuItem, smartFilesMenuItem)
+  const outputSha256 = sha256(Buffer.from(output))
+  if (outputSha256 !== transform.output_sha256) {
+    throw new Error(`精选 registry Client 发行适配输出漂移: ${plugin.name}; expected=${transform.output_sha256}; actual=${outputSha256}`)
   }
   return output
 }
