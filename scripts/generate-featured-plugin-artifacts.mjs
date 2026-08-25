@@ -268,7 +268,7 @@ export function validateFeaturedRegistryReleaseDependencies(plugin, hostSource) 
 export function transformFeaturedRegistryClient(plugin, sourceText) {
   const transform = plugin.evidence.release_transform
   if (!transform) return sourceText
-  if (transform.id !== "smart-attachment-picker-v3") {
+  if (transform.id !== "smart-attachment-picker-v4") {
     throw new Error(`未知的精选 registry Client 发行适配: ${transform.id}`)
   }
   if (sha256(Buffer.from(sourceText)) !== transform.source_sha256) {
@@ -350,11 +350,60 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
               }
             }, cause => setMessage(String(cause))),
           }, 'Choose files'),`
+  const commandMenuHook = "      const remove = (sessionId, occurrence) => {"
+  if (sourceText.split(commandMenuHook).length !== 2) {
+    throw new Error(`精选 registry 附件命令菜单目标不唯一: ${plugin.name}`)
+  }
+  const commandMenuRegistration = `      const attachmentCommands = () => {
+        const commandUi = ctx.get('commandUi');
+        if (commandUi === undefined) return () => {};
+        const zh = typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('zh');
+        const choose = (kind, sessionId) => {
+          const fail = cause => console.error('[dsh-multimedia-webui-input] attachment command failed:', cause);
+          if (kind === 'folder') {
+            pick('folder', items => void add(sessionId, items).catch(fail), fail);
+            return;
+          }
+          pickFiles(['image/png', 'image/jpeg', 'image/webp', 'image/gif'], (images, items) => {
+            try {
+              if (images.length > 0) addNativeImages(images);
+              if (items.length > 0) void add(sessionId, items).catch(fail);
+            } catch (cause) {
+              fail(cause);
+            }
+          }, fail);
+        };
+        const register = (kind, name, description, label) => commandUi.register({
+          name,
+          description,
+          available: session => {
+            try {
+              return inputFor(String(session.sessionId)).state.getSnapshot().phase === 'plain';
+            } catch {
+              return false;
+            }
+          },
+          ui: {
+            kind: 'popupSelect',
+            options: () => Promise.resolve([{ id: kind, label }]),
+            onSelect: (_option, session) => choose(kind, String(session.sessionId)),
+          },
+        });
+        const disposers = [
+          register('files', 'attach-files', zh ? '从本机选择文件并加入当前消息' : 'Choose files from this device and attach them to the current message', zh ? '选择文件…' : 'Choose files…'),
+          register('folder', 'attach-folder', zh ? '从本机选择文件夹并加入当前消息' : 'Choose a folder from this device and attach it to the current message', zh ? '选择文件夹…' : 'Choose folder…'),
+        ];
+        return () => { for (const dispose of disposers.reverse()) dispose(); };
+      };
+      ctx.effect(attachmentCommands, 'community-multimedia-webui-input: command menu');
+
+`
   const output = sourceText
     .replace(dropEffect, "\n")
     .replace(pickFunction, pickReplacement)
     .replace(pickerHook, `${pickerHook}\n      const imageLimits = props.useProjection('imageLimits');`)
     .replace(filesMenuItem, smartFilesMenuItem)
+    .replace(commandMenuHook, `${commandMenuRegistration}${commandMenuHook}`)
   const outputSha256 = sha256(Buffer.from(output))
   if (outputSha256 !== transform.output_sha256) {
     throw new Error(`精选 registry Client 发行适配输出漂移: ${plugin.name}; expected=${transform.output_sha256}; actual=${outputSha256}`)

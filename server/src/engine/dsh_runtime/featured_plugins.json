@@ -478,10 +478,10 @@
           "LICENSE"
         ],
         "release_transform": {
-          "id": "smart-attachment-picker-v3",
+          "id": "smart-attachment-picker-v4",
           "path": "lib/client.js",
           "source_sha256": "80664dc90259b6312ac86259c5a3ccdacbc3b7674600e37f42404aeccc7834f4",
-          "output_sha256": "a58603195621475c7589a398b3854c05e1c3a9b535adf5691d7f04f5dd7720e7"
+          "output_sha256": "66dfe5824658cf329c09db312be82f26330a2e386fbaac1feb604552d9785e14"
         },
         "entry": "lib/index.js",
         "client_entry": "lib/client.js",
@@ -516,7 +516,8 @@
           "conflicts": [
             "@dsh-community/dsh-paste-input",
             "dsh-universal-attachments",
-            "dsh-file-attachments"
+            "dsh-file-attachments",
+            "dsh-web-enhanced"
           ]
         },
         "profile_install": "official-dsh-plugin-cli",

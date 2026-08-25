@@ -32,7 +32,7 @@
 
 浏览器只读取用户主动选择的 `File`。真正发送时，插件通过同源路由把文件流式写入当前 live Session 的工作区：`<cwd>/.dsh/tmp/attachments/<session>/<send>/`。清理操作需要用户再次确认，并只删除带插件所有权标记的已提交目录。未知目录、其他工作区和未授权路径不在清理范围内。
 
-官方 DSH rc.2 已经负责图片粘贴、拖拽和 `AttachmentRail` 缩略图。上游插件也注册通用文件拖拽，两者同时运行时图片可能进入两条通道。发行生成器因此对固定的 `lib/client.js` 应用 `smart-attachment-picker-v3`：源文件 SHA-256 必须是 `80664dc90259b6312ac86259c5a3ccdacbc3b7674600e37f42404aeccc7834f4`，适配后必须是 `a58603195621475c7589a398b3854c05e1c3a9b535adf5691d7f04f5dd7720e7`，否则停止生成。适配删除上游 document 级 drag/drop effect，并让单一文件选择入口按官方 `imageLimits.mediaTypes` 自动分流；图片通过标准 `File`、`DataTransfer` 和 `DragEvent` 进入官方缩略图轨道，普通文件进入 Session 工作区。文件夹选择、发送引用、设置和清理保持不变。
+官方 DSH rc.2 已经负责图片粘贴、拖拽和 `AttachmentRail` 缩略图。上游插件也注册通用文件拖拽，两者同时运行时图片可能进入两条通道。发行生成器因此对固定的 `lib/client.js` 应用 `smart-attachment-picker-v4`：源文件 SHA-256 必须是 `80664dc90259b6312ac86259c5a3ccdacbc3b7674600e37f42404aeccc7834f4`，适配后必须是 `66dfe5824658cf329c09db312be82f26330a2e386fbaac1feb604552d9785e14`，否则停止生成。适配删除上游 document 级 drag/drop effect，让单一文件选择入口按官方 `imageLimits.mediaTypes` 自动分流，并通过官方 `commandUi` 向输入框 `+` 菜单注册文件和文件夹入口；图片通过标准 `File`、`DataTransfer` 和 `DragEvent` 进入官方缩略图轨道，普通文件进入 Session 工作区。文件夹选择、发送引用、设置和清理保持不变。
 
 插件不调用 DSH Desktop 的 Electron 文件对话框 Host。它使用浏览器标准文件输入，因此官方 DSH Web、DSH Desktop 和远程 Web 都能采用同一个 Bundle。浏览器不会提供任意本地绝对路径。图片由官方附件服务编码为原生 image block；普通文件复制到 Session 工作区后由模型通过普通 DSH 文件工具读取。
 
@@ -40,6 +40,10 @@
 
 该插件与 `@dsh-community/dsh-paste-input`、`dsh-universal-attachments`、`dsh-file-attachments` 等附件输入插件功能重叠。同时启用可能出现重复按钮、重复引用或重复上传。默认 Profile 只内置 `dsh-multimedia-webui-input`；用户若选择其他附件插件，应先通过官方 `dsh plugin --profile web remove dsh-multimedia-webui-input` 卸载默认插件。
 
+2026-08-25 复核了 [`banlanzs/dsh-web-enhanced`](https://github.com/banlanzs/dsh-web-enhanced) 的 `0.21.0` 源码提交 `b290393ff7953b61b9f4aa695cd3b9db69df89c0`。它确实通过官方 `ctx.commandUi.register` 向输入框 `+` 菜单贡献文件和文件夹 mention，但同一个 Bundle 还会无条件挂载工作区文件面板、任务看板、Git 图谱、皮肤、插件管理、余额、模型设置和图片理解；配置只允许调整各能力参数，没有只保留 mention 菜单的总开关。它会和当前精选任务看板、Better Sidebar、插件市场、附件和模型能力表面重复，因此不进入默认 Profile，并被记为冲突插件。
+
+官方命令 UI 当前只公开 `popupSelect`，因此点击 `attach-files` 或 `attach-folder` 后，由同一个官方弹层再确认一次本机文件或文件夹选择。适配没有替换官方 `+` 按钮、命令列表或弹层组件。
+
 ## 发行验收
 
-固定包必须进入 `server/package-lock.json` 和唯一精选清单，由生成器封装为离线 tarball 并保留许可证。回归至少覆盖：精确版本和完整性漂移拒绝、零依赖闭包、官方 Profile 安装、官方输入 Slot 中附件按钮可见、一次混合文件选择把图片送入官方缩略图而不生成工作区图片卡片、把普通文件送入工作区卡片、停用、官方卸载和卸载后重启恢复。静态或源码检查不能替代真实打包 Electron 的 Client 激活证据。
+固定包必须进入 `server/package-lock.json` 和唯一精选清单，由生成器封装为离线 tarball 并保留许可证。回归至少覆盖：精确版本和完整性漂移拒绝、零依赖闭包、官方 Profile 安装、官方输入 Slot 中附件按钮可见、官方 `+` 菜单中的 `attach-files` 与 `attach-folder` 可见、一次混合文件选择把图片送入官方缩略图而不生成工作区图片卡片、把普通文件送入工作区卡片、停用、官方卸载和卸载后重启恢复。静态或源码检查不能替代真实打包 Electron 的 Client 激活证据。

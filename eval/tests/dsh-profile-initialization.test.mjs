@@ -12,6 +12,7 @@ import {
   controlledDshPluginEnvironment,
   dshCommandWorkingDirectory,
   ensureDshProfileInitialized,
+  PROFILE_FEATURED_STATE_FILENAME,
   rebasePublishedProfileLinks,
   unlinkStagingProfileFallbacks,
 } from "../../server/src/engine/dsh_runtime/profile_initialization.js";
@@ -226,6 +227,75 @@ test("a user-disabled Bundle stays out of the layer list on restart", async () =
   }
 });
 
+test("an existing Profile receives defaults not previously offered without restoring a prior removal", async () => {
+  const home = await mkdtemp(join(tmpdir(), "dsh-profile-default-migration-"));
+  try {
+    const api = profileApi();
+    const profileDir = api.resolveProfileDir("web", home);
+    await api.initProfile(profileDir, BASE_BUNDLES);
+    const manifestPath = join(profileDir, "package.json");
+    const names = featuredPluginNames();
+    const installedName = names[0];
+    const removedName = names[1];
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.dependencies[installedName] = "file:installed.tgz";
+    manifest.dsh.profile.bundles.push(installedName);
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    const library = join(home, "plugin-library", "tarballs");
+    await mkdir(library, { recursive: true });
+    const removedPrefix = removedName.replace(/^@/, "").replaceAll("/", "-");
+    await writeFile(join(library, `${removedPrefix}-0.0.1.tgz`), "previously offered");
+
+    const additions = [];
+    const commandRunner = async (_resolved, args) => {
+      if (args[0] !== "plugin") return;
+      const source = String(args[args.indexOf("-w") + 1] || "").replace(/^file:/, "");
+      const packageName = JSON.parse(await readFile(join(source, "package.json"), "utf8")).name;
+      additions.push(packageName);
+      const current = JSON.parse(await readFile(manifestPath, "utf8"));
+      current.dependencies[packageName] = `file:${source}`;
+      current.dsh.profile.bundles.push(packageName);
+      await writeFile(manifestPath, `${JSON.stringify(current, null, 2)}\n`);
+    };
+
+    const result = await ensureDshProfileInitialized({
+      resolved: { appBootPath: "unused" },
+      dshHome: home,
+      env: sourceEnvironment(home),
+      appRoot: APP_ROOT,
+      profileApi: api,
+      commandRunner,
+    });
+    assert.equal(result.created, false);
+    assert.equal(result.migrated, true);
+    assert.deepEqual(additions, names.slice(2));
+    const migrated = JSON.parse(await readFile(manifestPath, "utf8"));
+    assert.equal(Object.hasOwn(migrated.dependencies, removedName), false);
+    assert.equal(migrated.dsh.profile.bundles.includes(removedName), false);
+    const state = JSON.parse(await readFile(join(profileDir, PROFILE_FEATURED_STATE_FILENAME), "utf8"));
+    assert.deepEqual(state.offered, [...names].sort());
+
+    const removedAfterMigration = names[2];
+    delete migrated.dependencies[removedAfterMigration];
+    migrated.dsh.profile.bundles = migrated.dsh.profile.bundles.filter((name) => name !== removedAfterMigration);
+    await writeFile(manifestPath, `${JSON.stringify(migrated, null, 2)}\n`);
+    additions.length = 0;
+    const restarted = await ensureDshProfileInitialized({
+      resolved: { appBootPath: "unused" },
+      dshHome: home,
+      env: sourceEnvironment(home),
+      appRoot: APP_ROOT,
+      profileApi: api,
+      commandRunner,
+    });
+    assert.equal(restarted.migrated, false);
+    assert.deepEqual(additions, []);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
 test("new Profile publication is atomic when an official command fails", async () => {
   const home = await mkdtemp(join(tmpdir(), "dsh-profile-atomic-failure-"));
   try {
@@ -382,6 +452,10 @@ test("the fake official command path receives every curated input in order", asy
     assert.equal(additions, featuredPlugins().length);
     const finalManifest = JSON.parse(await readFile(join(result.profileDir, "package.json"), "utf8"));
     assert.deepEqual(finalManifest.dsh.profile.bundles.slice(2), featuredPluginNames());
+    assert.deepEqual(
+      JSON.parse(await readFile(join(result.profileDir, PROFILE_FEATURED_STATE_FILENAME), "utf8")).offered,
+      [...featuredPluginNames()].sort(),
+    );
     const modules = await readFile(join(result.profileDir, "node_modules", ".modules.yaml"), "utf8");
     assert.doesNotMatch(modules, /\.dsh-profile-init-/);
     await execFileAsync(process.execPath, [pnpmCli, "remove", featuredPluginNames()[0]], {
@@ -419,6 +493,10 @@ test("a safe Profile initializes only the official base and web bundles", async 
     assert.deepEqual(commands, [["--profile", "web", "--dump-config"]]);
     const manifest = JSON.parse(await readFile(join(result.profileDir, "package.json"), "utf8"));
     assert.deepEqual(manifest.dsh.profile.bundles, BASE_BUNDLES);
+    assert.deepEqual(
+      JSON.parse(await readFile(join(result.profileDir, PROFILE_FEATURED_STATE_FILENAME), "utf8")).offered,
+      [],
+    );
   } finally {
     await rm(home, { recursive: true, force: true });
   }

@@ -154,6 +154,19 @@ async function smokeOnboardingState(win) {
 async function smokeSmartAttachmentPicker(win) {
   if (!SMOKE_SMART_ATTACHMENT_PICKER || !win || win.isDestroyed()) return false;
   return win.webContents.executeJavaScript(`(async () => {
+    const commands = [...document.querySelectorAll('button')]
+      .find((element) => ['命令', 'Commands'].includes(element.getAttribute('aria-label')));
+    if (!commands) throw new Error('找不到官方命令菜单按钮');
+    commands.click();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const commandText = [...document.querySelectorAll('[role="option"],button')]
+      .map((element) => (element.innerText || element.textContent || '').trim());
+    if (!commandText.some((text) => text.includes('attach-files'))
+      || !commandText.some((text) => text.includes('attach-folder'))) {
+      throw new Error('官方命令菜单没有文件与文件夹入口');
+    }
+    commands.click();
+    await new Promise((resolve) => setTimeout(resolve, 50));
     const attach = document.querySelector('.dshca-button[aria-label="Attach files or a folder"]');
     if (!attach) throw new Error('找不到附件菜单按钮');
     attach.click();

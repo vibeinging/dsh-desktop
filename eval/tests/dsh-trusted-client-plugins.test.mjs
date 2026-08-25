@@ -343,7 +343,7 @@ test("the bundled multimedia input is pinned without inventing a dependency clos
   assert.deepEqual(plugin.evidence.package_dependencies, {});
   assert.deepEqual(plugin.evidence.offline_dependencies, []);
   assert.deepEqual(plugin.evidence.release_files, ["cordis.patch.yml", "lib", "README.md", "README.zh.md", "LICENSE"]);
-  assert.equal(plugin.evidence.release_transform.id, "smart-attachment-picker-v3");
+  assert.equal(plugin.evidence.release_transform.id, "smart-attachment-picker-v4");
   assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
   assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile));
   const clientSource = readFileSync(join(resolveFeaturedPackageDir(plugin), plugin.evidence.release_transform.path), "utf8");
@@ -357,6 +357,10 @@ test("the bundled multimedia input is pinned without inventing a dependency clos
   assert.match(releaseClient, /dshSmartAttachmentPicker/);
   assert.match(releaseClient, /acceptedImageTypes/);
   assert.match(releaseClient, /workspaceFiles/);
+  assert.match(releaseClient, /commandUi\.register/);
+  assert.match(releaseClient, /attach-files/);
+  assert.match(releaseClient, /attach-folder/);
+  assert.match(releaseClient, /community-multimedia-webui-input: command menu/);
   assert.doesNotMatch(releaseClient, /Choose images/);
   assert.match(releaseClient, /Attach files or a folder/);
   assert.match(packagedSmoke, /DSH_SMOKE_SMART_ATTACHMENT_PICKER = '1'/);

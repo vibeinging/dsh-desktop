@@ -31,6 +31,7 @@ const OFFICIAL_PROFILE_BUNDLES = Object.freeze([
   "@deepseek-ai/dsh-base",
   "@deepseek-ai/dsh-web-app",
 ]);
+export const PROFILE_FEATURED_STATE_FILENAME = ".dsh-desktop-featured.json";
 const initializationQueues = new Map();
 
 function profileError(message, code, details = null) {
@@ -56,6 +57,69 @@ function sha256(path) {
 
 function profilePath(api, dshHome) {
   return resolve(api.resolveProfileDir(PROFILE_NAME, resolve(dshHome)));
+}
+
+function featuredStatePath(profileDir) {
+  return join(profileDir, PROFILE_FEATURED_STATE_FILENAME);
+}
+
+function readFeaturedState(profileDir) {
+  const path = featuredStatePath(profileDir);
+  if (!existsSync(path)) return null;
+  let state;
+  try {
+    state = JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    throw profileError(
+      `无法读取默认插件迁移状态：${path}（${error?.message || error}）`,
+      "DSH_PROFILE_FEATURED_STATE_INVALID",
+    );
+  }
+  const offered = state.offered;
+  if (state.schema_version !== 1 || state.profile !== PROFILE_NAME
+    || !Array.isArray(offered)
+    || offered.some((name) => typeof name !== "string" || !name.trim())
+    || new Set(offered).size !== offered.length) {
+    throw profileError(`默认插件迁移状态无效：${path}`, "DSH_PROFILE_FEATURED_STATE_INVALID");
+  }
+  return new Set(offered);
+}
+
+function writeFeaturedState(profileDir, offered) {
+  const path = featuredStatePath(profileDir);
+  const temporary = `${path}.${process.pid}.${Date.now()}.tmp`;
+  const state = {
+    schema_version: 1,
+    profile: PROFILE_NAME,
+    offered: [...offered].sort(),
+  };
+  try {
+    writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
+    renameSync(temporary, path);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+}
+
+function tarballPrefix(packageName) {
+  return `${packageName.replace(/^@/, "").replaceAll("/", "-")}-`;
+}
+
+function offeredFeaturedPlugins(profileDir, libraryRoot, manifest) {
+  const persisted = readFeaturedState(profileDir);
+  const offered = persisted || new Set();
+  const featuredNames = new Set(featuredPlugins().map((plugin) => plugin.name));
+  for (const name of Object.keys(manifest.dependencies || {})) {
+    if (featuredNames.has(name)) offered.add(name);
+  }
+  if (persisted) return offered;
+  const tarballsDir = join(libraryRoot, "tarballs");
+  const tarballs = existsSync(tarballsDir) ? readdirSync(tarballsDir) : [];
+  for (const name of featuredNames) {
+    const prefix = tarballPrefix(name);
+    if (tarballs.some((filename) => filename.startsWith(prefix) && filename.endsWith(".tgz"))) offered.add(name);
+  }
+  return offered;
 }
 
 function artifactManifest(env) {
@@ -316,6 +380,62 @@ function assertInitialProfile(manifest, expectedNames, { requireDependencies = t
   }
 }
 
+async function reconcileExistingProfile({
+  resolved,
+  home,
+  env,
+  appRoot,
+  api,
+  profileDir,
+  commandRunner,
+}) {
+  if (env.DSH_PROFILE_INITIALIZATION_MODE === "safe") {
+    return Object.freeze({ created: false, profileDir, initialized: false, migrated: false });
+  }
+  const manifest = api.readProfileManifest("dsh-work", profileDir);
+  const libraryRoot = resolve(env.DSH_PROFILE_PLUGIN_LIBRARY || join(home, "plugin-library"));
+  const offered = offeredFeaturedPlugins(profileDir, libraryRoot, manifest);
+  const candidates = featuredPlugins().filter((plugin) => !offered.has(plugin.name));
+  if (candidates.length === 0) {
+    writeFeaturedState(profileDir, offered);
+    return Object.freeze({ created: false, profileDir, initialized: false, migrated: false });
+  }
+  if (env.DSH_RUNTIME_DISTRIBUTION === "source" && env.DSH_FEATURED_PLUGIN_ALLOW_SOURCE !== "1") {
+    return Object.freeze({ created: false, profileDir, initialized: false });
+  }
+  const inputsByName = new Map(pluginInputs(env, appRoot).map((input, index) => [
+    featuredPlugins()[index].name,
+    input,
+  ]));
+  const commandEnv = controlledDshPluginEnvironment({
+    ...env,
+    DSH_HOME: home,
+    pnpm_config_lockfile: "false",
+  }, { dshHome: home, libraryRoot });
+  const added = [];
+  for (const plugin of candidates) {
+    const input = inputsByName.get(plugin.name);
+    const source = materializeTarball(input, plugin, libraryRoot);
+    await commandRunner(resolved, [
+      "plugin", "--profile", PROFILE_NAME, "add", "-w", source,
+      "--save-exact", "--offline", "--ignore-scripts",
+    ], commandEnv);
+    offered.add(plugin.name);
+    added.push(plugin.name);
+  }
+  const migratedManifest = api.readProfileManifest("dsh-work", profileDir);
+  assertInitialProfile(migratedManifest, added);
+  await commandRunner(resolved, ["--profile", PROFILE_NAME, "--dump-config"], commandEnv);
+  writeFeaturedState(profileDir, offered);
+  return Object.freeze({
+    created: false,
+    profileDir,
+    initialized: false,
+    migrated: added.length > 0,
+    added: Object.freeze(added),
+  });
+}
+
 async function initializeUnlocked({
   resolved,
   dshHome,
@@ -330,7 +450,15 @@ async function initializeUnlocked({
   const finalProfileDir = profilePath(api, home);
   const finalManifestPath = join(finalProfileDir, "package.json");
   if (existsSync(finalManifestPath)) {
-    return Object.freeze({ created: false, profileDir: finalProfileDir, initialized: false });
+    return reconcileExistingProfile({
+      resolved,
+      home,
+      env,
+      appRoot: appRoot || resolve(env.DSH_APP_ROOT || process.cwd()),
+      api,
+      profileDir: finalProfileDir,
+      commandRunner,
+    });
   }
   if (existsSync(finalProfileDir)) {
     throw profileError(`DSH Profile 目录存在但缺少 manifest：${finalProfileDir}`, "DSH_PROFILE_INCOMPLETE");
@@ -367,6 +495,10 @@ async function initializeUnlocked({
       requireDependencies: env.DSH_PROFILE_INITIALIZATION_MODE !== "safe",
     });
     await commandRunner(resolved, ["--profile", PROFILE_NAME, "--dump-config"], commandEnv);
+    writeFeaturedState(
+      stagingProfileDir,
+      env.DSH_PROFILE_INITIALIZATION_MODE === "safe" ? [] : featuredPlugins().map((plugin) => plugin.name),
+    );
     mkdirSync(dirname(finalProfileDir), { recursive: true });
     if (existsSync(finalManifestPath) || existsSync(finalProfileDir)) {
       throw profileError("DSH Profile 在初始化期间被其他操作创建", "DSH_PROFILE_INIT_RACE");
@@ -391,7 +523,7 @@ async function initializeUnlocked({
   }
 }
 
-/** Initialize a new Web Profile once; existing Profile state is never changed. */
+/** Initialize a new Web Profile or offer newly bundled defaults to an existing Profile once. */
 export function ensureDshProfileInitialized(options = {}) {
   const key = `${resolve(options.dshHome || ".")}\u0000${PROFILE_NAME}`;
   const previous = initializationQueues.get(key) || Promise.resolve();
