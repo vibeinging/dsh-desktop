@@ -132,8 +132,10 @@ async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
     appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-testid="dsh-worktree-overlay"] [data-testid="dsh-worktree-view"]'
   } else if (clientPlugin !== MULTIMEDIA_INPUT_PLUGIN) {
     delete appEnv.DSH_SMOKE_WORKSPACE_PATH
+    delete appEnv.DSH_SMOKE_NATIVE_IMAGE_PICKER
   }
   if (clientPlugin === MULTIMEDIA_INPUT_PLUGIN) {
+    appEnv.DSH_SMOKE_NATIVE_IMAGE_PICKER = '1'
     appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify([
       'button[aria-label="新建会话"],button[aria-label="New session"]',
     ])

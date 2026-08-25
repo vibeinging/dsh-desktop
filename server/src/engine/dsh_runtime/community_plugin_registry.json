@@ -96,7 +96,7 @@
       ],
       "native_dependencies": [],
       "install_scripts": [],
-      "review_note_zh": "作为独立 Bundle 内置并挂入 conversation.input.left、conversation.input.dock、conversation.input.overlay 和 settings.section；不修改官方 Chat，也不使用 Electron 通用 IPC。发行适配去掉上游通用拖拽监听，避免和官方图片附件通道重复；与其他附件输入插件同时启用仍会产生重复按钮或重复上传。",
+      "review_note_zh": "作为独立 Bundle 内置并挂入 conversation.input.left、conversation.input.dock、conversation.input.overlay 和 settings.section；不修改官方 Chat，也不使用 Electron 通用 IPC。发行适配去掉上游通用拖拽监听，并把用户从图片菜单主动选择的图片交给官方原生图片附件通道；模型声明图片限制时沿用官方限制，普通文件和文件夹仍写入 Session 工作区。与其他附件输入插件同时启用仍会产生重复按钮或重复上传。",
       "priority": 22
     },
     {

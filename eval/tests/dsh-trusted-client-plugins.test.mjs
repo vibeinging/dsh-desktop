@@ -343,14 +343,23 @@ test("the bundled multimedia input is pinned without inventing a dependency clos
   assert.deepEqual(plugin.evidence.package_dependencies, {});
   assert.deepEqual(plugin.evidence.offline_dependencies, []);
   assert.deepEqual(plugin.evidence.release_files, ["cordis.patch.yml", "lib", "README.md", "README.zh.md", "LICENSE"]);
-  assert.equal(plugin.evidence.release_transform.id, "remove-composer-drop-listeners-v1");
+  assert.equal(plugin.evidence.release_transform.id, "native-image-picker-v2");
   assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
   assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile));
   const clientSource = readFileSync(join(resolveFeaturedPackageDir(plugin), plugin.evidence.release_transform.path), "utf8");
   const releaseClient = transformFeaturedRegistryClient(plugin, clientSource);
+  const packagedSmoke = readFileSync(join(APP_ROOT, "electron/scripts/smoke-packaged-featured-plugins.mjs"), "utf8");
+  const electronMain = readFileSync(join(APP_ROOT, "electron/main.js"), "utf8");
   assert.match(clientSource, /document\.addEventListener\('drop', drop\)/);
   assert.doesNotMatch(releaseClient, /document\.addEventListener\('drop', drop\)/);
+  assert.match(releaseClient, /props\.useProjection\('imageLimits'\)/);
+  assert.match(releaseClient, /new DragEvent\('drop'/);
+  assert.match(releaseClient, /dshNativeImagePicker/);
+  assert.match(releaseClient, /Choose images/);
   assert.match(releaseClient, /Attach files or a folder/);
+  assert.match(packagedSmoke, /DSH_SMOKE_NATIVE_IMAGE_PICKER = '1'/);
+  assert.match(electronMain, /smokeNativeImagePicker/);
+  assert.match(electronMain, /dsh-native-image-smoke\.png/);
   assert.throws(() => transformFeaturedRegistryClient(plugin, `${clientSource}\n// drift`), /源文件漂移/);
   assert.throws(() => validateFeaturedPackageContract(plugin, {
     ...packageJson,

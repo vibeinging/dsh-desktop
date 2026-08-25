@@ -478,10 +478,10 @@
           "LICENSE"
         ],
         "release_transform": {
-          "id": "remove-composer-drop-listeners-v1",
+          "id": "native-image-picker-v2",
           "path": "lib/client.js",
           "source_sha256": "80664dc90259b6312ac86259c5a3ccdacbc3b7674600e37f42404aeccc7834f4",
-          "output_sha256": "8146c49bfe3f80396808a962d6e9b10fd1dc8bf5d5437f6a21de26ed2f26b96b"
+          "output_sha256": "d924751b3b46bfa5a5b8f998bdbf69d62bf3b514f9e3edf099ae57d2b2658ba5"
         },
         "entry": "lib/index.js",
         "client_entry": "lib/client.js",

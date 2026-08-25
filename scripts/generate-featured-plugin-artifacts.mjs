@@ -268,7 +268,7 @@ export function validateFeaturedRegistryReleaseDependencies(plugin, hostSource) 
 export function transformFeaturedRegistryClient(plugin, sourceText) {
   const transform = plugin.evidence.release_transform
   if (!transform) return sourceText
-  if (transform.id !== "remove-composer-drop-listeners-v1") {
+  if (transform.id !== "native-image-picker-v2") {
     throw new Error(`未知的精选 registry Client 发行适配: ${transform.id}`)
   }
   if (sha256(Buffer.from(sourceText)) !== transform.source_sha256) {
@@ -277,7 +277,79 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
   const dropEffect = /\n      React\.useEffect\(\(\) => \{\n        const dragover = event => \{[\s\S]*?\n      \}, \[accept, locked\]\);\n/
   const matches = sourceText.match(new RegExp(dropEffect.source, "g")) || []
   if (matches.length !== 1) throw new Error(`精选 registry Client 发行适配目标不唯一: ${plugin.name}`)
-  const output = sourceText.replace(dropEffect, "\n")
+  const pickFunction = /    function pick\(kind, onFiles, onError\) \{[\s\S]*?\n    \}\n\n    function Paperclip\(\) \{/
+  const pickMatches = sourceText.match(new RegExp(pickFunction.source, "g")) || []
+  if (pickMatches.length !== 1) throw new Error(`精选 registry 图片选择器目标不唯一: ${plugin.name}`)
+  const pickerHook = "      const locked = props.input.phase !== 'plain';"
+  if (sourceText.split(pickerHook).length !== 2) {
+    throw new Error(`精选 registry 图片能力 Hook 目标不唯一: ${plugin.name}`)
+  }
+  const filesMenuItem = `          h('button', {
+            type: 'button',
+            role: 'menuitem',
+            onClick: () => pick('files', items => void accept(items), cause => setMessage(String(cause))),
+          }, 'Choose files'),`
+  if (sourceText.split(filesMenuItem).length !== 2) {
+    throw new Error(`精选 registry 图片菜单目标不唯一: ${plugin.name}`)
+  }
+  const pickReplacement = pickMatches[0].replace("\n\n    function Paperclip() {", `
+
+    function pickImages(mediaTypes, onFiles, onError) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true;
+      input.accept = mediaTypes.join(',');
+      input.hidden = true;
+      input.dataset.dshNativeImagePicker = 'true';
+      document.body.appendChild(input);
+      const cleanup = () => input.remove();
+      input.addEventListener('change', () => {
+        try {
+          onFiles([...input.files ?? []]);
+        } catch (cause) {
+          onError(cause);
+        } finally {
+          cleanup();
+        }
+      }, { once: true });
+      input.addEventListener('cancel', cleanup, { once: true });
+      input.click();
+    }
+
+    function addNativeImages(files) {
+      const transfer = new DataTransfer();
+      for (const file of files) transfer.items.add(file);
+      const event = new DragEvent('drop', {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer: transfer,
+      });
+      document.dispatchEvent(event);
+      if (!event.defaultPrevented) {
+        throw new Error('The official image attachment surface is unavailable');
+      }
+    }
+
+    function Paperclip() {`)
+  const imageMenuItem = `          h('button', {
+            type: 'button',
+            role: 'menuitem',
+            onClick: () => pickImages(imageLimits?.mediaTypes ?? ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], files => {
+              try {
+                addNativeImages(files);
+                setMessage('');
+                setOpen(false);
+              } catch (cause) {
+                setMessage(cause instanceof Error ? cause.message : String(cause));
+              }
+            }, cause => setMessage(String(cause))),
+          }, 'Choose images'),
+${filesMenuItem}`
+  const output = sourceText
+    .replace(dropEffect, "\n")
+    .replace(pickFunction, pickReplacement)
+    .replace(pickerHook, `${pickerHook}\n      const imageLimits = props.useProjection('imageLimits');`)
+    .replace(filesMenuItem, imageMenuItem)
   if (sha256(Buffer.from(output)) !== transform.output_sha256) {
     throw new Error(`精选 registry Client 发行适配输出漂移: ${plugin.name}`)
   }

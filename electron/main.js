@@ -82,6 +82,7 @@ const SMOKE_SCREENSHOT_NAME = /^[A-Za-z0-9._-]+$/.test(String(process.env.DSH_SM
   : 'dsh-smoke.png';
 const SMOKE_DISMISS_ONBOARDING = process.env.DSH_SMOKE_DISMISS_ONBOARDING === '1';
 const SMOKE_WORKSPACE_PATH = String(process.env.DSH_SMOKE_WORKSPACE_PATH || '').trim();
+const SMOKE_NATIVE_IMAGE_PICKER = process.env.DSH_SMOKE_NATIVE_IMAGE_PICKER === '1';
 const UPDATE_API_BASE_URL = String(process.env.DSH_UPDATE_API_BASE_URL || '').trim();
 const UPDATE_REPOSITORY = Object.freeze({ owner: 'vibeinging', repo: 'dsh-desktop' });
 const RECOVERY_PAGE = path.join(__dirname, 'recovery.html');
@@ -147,6 +148,44 @@ async function smokeOnboardingState(win) {
     if (!button) return { visible: true, dismissed: false };
     button.click();
     return { visible: true, dismissed: true };
+  })()`);
+}
+
+async function smokeNativeImagePicker(win) {
+  if (!SMOKE_NATIVE_IMAGE_PICKER || !win || win.isDestroyed()) return false;
+  return win.webContents.executeJavaScript(`(async () => {
+    const attach = document.querySelector('.dshca-button[aria-label="Attach files or a folder"]');
+    if (!attach) throw new Error('找不到附件菜单按钮');
+    attach.click();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const chooseImages = [...document.querySelectorAll('button,[role="menuitem"]')]
+      .find((element) => (element.innerText || element.textContent || '').trim() === 'Choose images');
+    if (!chooseImages) throw new Error('找不到 Choose images 菜单项');
+    const originalClick = HTMLInputElement.prototype.click;
+    HTMLInputElement.prototype.click = function smokeFileInputClick() {
+      if (this.dataset.dshNativeImagePicker === 'true') return;
+      return originalClick.call(this);
+    };
+    try {
+      chooseImages.click();
+    } finally {
+      HTMLInputElement.prototype.click = originalClick;
+    }
+    const input = document.querySelector('input[data-dsh-native-image-picker="true"]');
+    if (!input) throw new Error('图片选择器没有创建原生 file input');
+    const raw = atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
+    const bytes = Uint8Array.from(raw, (character) => character.charCodeAt(0));
+    const file = new File([bytes], 'dsh-native-image-smoke.png', { type: 'image/png' });
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    Object.defineProperty(input, 'files', { configurable: true, value: transfer.files });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
+      if (document.querySelector('img[alt="dsh-native-image-smoke.png"]')) return true;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error('官方图片附件预览没有出现');
   })()`);
 }
 
@@ -1522,6 +1561,7 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
         let nextClickIndex = 0;
         let onboardingSettled = !SMOKE_DISMISS_ONBOARDING;
         let workspaceCreated = !SMOKE_WORKSPACE_PATH;
+        let nativeImagePickerVerified = !SMOKE_NATIVE_IMAGE_PICKER;
         while (Date.now() < deadline) {
           state = await mainWindow.webContents.executeJavaScript(`({ title: document.title, officialWeb: Boolean(document.querySelector('#root') && globalThis.__DSH_BOOT__), bodyText: document.body?.innerText?.slice(0, 1200) || '', clientEntries: (globalThis.__DSH_BOOT__?.entries || []).map((entry) => entry.id), controls: [...document.querySelectorAll('button,[role="button"],[role="tab"]')].filter((element) => { const rect = element.getBoundingClientRect(); return rect.width > 0 && rect.height > 0; }).slice(0, 80).map((element) => ({ text: String(element.innerText || element.textContent || '').trim().replace(/\\s+/g, ' '), aria: element.getAttribute('aria-label'), role: element.getAttribute('role') })), expectedSurface: ${JSON.stringify(SMOKE_EXPECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_EXPECT_SELECTOR)}) !== null, rejectedSurfaceAbsent: ${JSON.stringify(SMOKE_REJECT_SELECTOR)} === '' || document.querySelector(${JSON.stringify(SMOKE_REJECT_SELECTOR)}) === null })`);
           if (!onboardingSettled && state.officialWeb) {
@@ -1574,7 +1614,13 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
             })()`);
             if (clicked) nextClickIndex += 1;
           }
-          if (state.officialWeb && nextClickIndex === SMOKE_CLICK_SELECTORS.length && state.expectedSurface) break;
+          if (state.officialWeb && nextClickIndex === SMOKE_CLICK_SELECTORS.length && state.expectedSurface
+            && !nativeImagePickerVerified) {
+            nativeImagePickerVerified = await smokeNativeImagePicker(mainWindow);
+            continue;
+          }
+          if (state.officialWeb && nextClickIndex === SMOKE_CLICK_SELECTORS.length && state.expectedSurface
+            && nativeImagePickerVerified) break;
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
         if (SMOKE_REJECT_SELECTOR && state?.officialWeb) {
@@ -1599,7 +1645,8 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
           }
         }
         const clicksCompleted = nextClickIndex === SMOKE_CLICK_SELECTORS.length;
-        if (state?.officialWeb && clicksCompleted && state.expectedSurface && state.rejectedSurfaceAbsent) {
+        if (state?.officialWeb && clicksCompleted && nativeImagePickerVerified
+          && state.expectedSurface && state.rejectedSurfaceAbsent) {
           await new Promise((resolve) => setTimeout(resolve, 3_000));
           await captureSmokeScreenshot();
         }
@@ -1610,7 +1657,8 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
           console.error(`[smoke] 可见控件: ${JSON.stringify(state.controls || [])}`);
         }
         if (rendererErrors.length) console.error(`[smoke] Renderer 控制台错误: ${rendererErrors.join(' | ')}`);
-        if (!state.officialWeb || !clicksCompleted || !state.expectedSurface || !state.rejectedSurfaceAbsent || rendererErrors.length) process.exitCode = 1;
+        if (!state.officialWeb || !clicksCompleted || !nativeImagePickerVerified
+          || !state.expectedSurface || !state.rejectedSurfaceAbsent || rendererErrors.length) process.exitCode = 1;
       } catch (error) {
         console.error('[smoke] Renderer 验证失败:', error?.message || error);
         process.exitCode = 1;
