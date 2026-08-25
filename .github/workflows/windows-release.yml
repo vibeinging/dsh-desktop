@@ -37,8 +37,17 @@ jobs:
         shell: pwsh
         run: |
           $Version = (Get-Content package.json | ConvertFrom-Json).version
-          if ($env:GITHUB_REF_TYPE -ne 'tag' -or $env:GITHUB_REF_NAME -ne "v$Version") {
-            throw "Release workflow must run from tag v$Version"
+          $ExpectedTag = "v$Version"
+          $IsVersionTag = $env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -eq $ExpectedTag
+          $IsMainRecovery = $env:GITHUB_REF_TYPE -eq 'branch' -and $env:GITHUB_REF_NAME -eq 'main'
+          if (-not $IsVersionTag -and -not $IsMainRecovery) {
+            throw "Release workflow must run from tag $ExpectedTag or main"
+          }
+          if ($IsMainRecovery) {
+            git ls-remote --exit-code --tags origin "refs/tags/$ExpectedTag" | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+              throw "Release tag $ExpectedTag does not exist"
+            }
           }
 
       # 缓存 Electron 发行包与 NSIS 工具链，省去每次冷下载（约 2-4 分钟）

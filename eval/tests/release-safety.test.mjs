@@ -818,6 +818,8 @@ test('release workflows reject wrong refs and missing credentials before depende
   assert.match(windowsSigned, /WIN_CSC_LINK/);
   assert.match(windowsSigned, /Missing required release secret/);
   assert.match(windowsUnsigned, /dsh-desktop-win-x64-unsigned/);
+  assert.match(windowsUnsigned, /IsMainRecovery/);
+  assert.match(windowsUnsigned, /git ls-remote --exit-code --tags origin/);
   assert.match(ci, /branches: \[dev, main\]/);
   assert.doesNotMatch(ci, /tags:/);
 });
@@ -998,6 +1000,8 @@ test('Windows release evidence workflow requires signing, installer acceptance, 
   assert.match(workflow, /release\/\*\.blockmap/);
   assert.match(electronPackage.scripts['package:win:project'], /check:update-artifacts:win/);
   assert.match(electronPackage.scripts['package:win:unsigned:project'], /check:update-artifacts:win/);
+  assert.match(electronPackage.scripts['package:win:project'], /--publish never/);
+  assert.match(electronPackage.scripts['package:win:unsigned:project'], /--publish never/);
   assert.match(electronPackage.scripts['package:win:project'], /release:verify:win -- --allow-blockers/);
 });
 

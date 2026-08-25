@@ -53,9 +53,9 @@
     "package:win:dir": "node ../scripts/run-with-project-node.mjs npm run package:win:dir:project",
     "package:win:dir:project": "npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 --dir && npm run verify:win:runtime",
     "package:win:unsigned": "node ../scripts/run-with-project-node.mjs npm run package:win:unsigned:project",
-    "package:win:unsigned:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 && npm --prefix .. run check:update-artifacts:win && npm run verify:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers",
+    "package:win:unsigned:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 --publish never && npm --prefix .. run check:update-artifacts:win && npm run verify:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers",
     "package:win": "node ../scripts/run-with-project-node.mjs npm run package:win:project",
-    "package:win:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 -c.forceCodeSigning=true && npm --prefix .. run check:update-artifacts:win && npm run verify:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers"
+    "package:win:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 --publish never -c.forceCodeSigning=true && npm --prefix .. run check:update-artifacts:win && npm run verify:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.2",

@@ -438,10 +438,14 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
     ));
   }
   if (scope === 'all' || scope === 'windows') {
+    const windowsSignedPackageScript = String(scripts['package:win:project'] || '');
+    const windowsUnsignedPackageScript = String(scripts['package:win:unsigned:project'] || '');
     checks.push(check(
       'windows_release_configuration',
-      String(scripts['package:win:project'] || '').includes('forceCodeSigning=true') ? 'pass' : 'block',
-      '正式 Windows 构建强制代码签名',
+      windowsSignedPackageScript.includes('forceCodeSigning=true')
+        && windowsSignedPackageScript.includes('--publish never')
+        && windowsUnsignedPackageScript.includes('--publish never') ? 'pass' : 'block',
+      'Windows 构建强制由 workflow 显式发布，正式构建同时强制代码签名',
       'electron/package.json',
     ));
     const windowsEvidenceWorkflow = readText(join(root, '.github', 'workflows', 'windows-release-evidence.yml'));
