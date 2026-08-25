@@ -81,6 +81,8 @@ jobs:
           name: dsh-desktop-win-x64-unsigned
           path: |
             release/*.exe
+            release/*.yml
+            release/*.blockmap
             release/windows-x64-acceptance.json
           if-no-files-found: error
           retention-days: 14

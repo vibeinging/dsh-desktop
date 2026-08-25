@@ -6,6 +6,7 @@ const HISTORY_LIMIT = 20;
 const METADATA_LIMIT_BYTES = 1024 * 1024;
 const DEFAULT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const SUPPORTED_TARGETS = new Set(['darwin-arm64', 'darwin-x64', 'win32-x64']);
+const GITHUB_REPOSITORY_PART = /^[A-Za-z0-9_.-]{1,100}$/;
 
 function trustedApiBaseUrl(value) {
   const raw = String(value || '').trim().replace(/\/$/, '');
@@ -20,6 +21,17 @@ function trustedApiBaseUrl(value) {
     throw new Error('DSH_UPDATE_API_BASE_URL 必须是无凭据、无查询参数的 HTTPS 地址');
   }
   return raw;
+}
+
+function trustedGitHubRepository(value) {
+  if (value == null) return null;
+  const owner = String(value.owner || '').trim();
+  const repo = String(value.repo || '').trim();
+  if (!GITHUB_REPOSITORY_PART.test(owner) || !GITHUB_REPOSITORY_PART.test(repo)
+    || owner === '.' || owner === '..' || repo === '.' || repo === '..') {
+    throw new Error('GitHub 更新仓库名无效');
+  }
+  return Object.freeze({ owner, repo });
 }
 
 function cleanError(error, fallback = '更新失败，请稍后重试') {
@@ -58,6 +70,36 @@ function validReleaseNotes(value) {
   };
 }
 
+function githubReleaseNotes(value) {
+  const raw = Array.isArray(value)
+    ? value.map((item) => (typeof item === 'string' ? item : item?.note))
+    : [value];
+  return raw
+    .filter((item) => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 100);
+}
+
+function sanitizeGitHubUpdateInfo(value, { available, currentVersion, repository }) {
+  const version = String(value?.version || '').trim();
+  if (!version) throw new Error('GitHub Release 缺少版本号');
+  const notes = githubReleaseNotes(value?.releaseNotes);
+  return {
+    current: { version: String(currentVersion), release: null },
+    latest: {
+      id: `github:${repository.owner}/${repository.repo}:${version}`,
+      version,
+      released_at: String(value?.releaseDate || ''),
+      notes: { features: [], improvements: notes, fixes: [] },
+      min_supported_version: '',
+      update_available: Boolean(available),
+      mandatory: false,
+      feed_url: '',
+    },
+  };
+}
+
 function sanitizeMetadata(payload) {
   const data = payload?.data;
   if (!data || data.schema_version !== 1 || !data.current || typeof data.current.version !== 'string') {
@@ -88,6 +130,7 @@ class AppUpdateController {
     this.updater = options.updater;
     this.fetch = options.fetch;
     this.apiBaseUrl = trustedApiBaseUrl(options.apiBaseUrl);
+    this.repository = trustedGitHubRepository(options.repository);
     this.platform = options.platform || process.platform;
     this.arch = options.arch || process.arch;
     this.channel = options.channel || 'stable';
@@ -107,7 +150,11 @@ class AppUpdateController {
     this.historyPath = path.join(this.userDataPath, 'app-update-history.json');
     this.pendingPath = path.join(this.userDataPath, 'pending-app-update.json');
     this.target = `${this.platform}-${this.arch}`;
-    this.enabled = Boolean(this.apiBaseUrl) && this.isPackaged && SUPPORTED_TARGETS.has(this.target);
+    this.updateSource = this.apiBaseUrl ? 'managed' : this.repository ? 'github' : null;
+    this.releasePageUrl = this.repository
+      ? `https://github.com/${this.repository.owner}/${this.repository.repo}/releases/latest`
+      : null;
+    this.enabled = Boolean(this.updateSource) && this.isPackaged && SUPPORTED_TARGETS.has(this.target);
     this.checkPromise = null;
     this.downloadPromise = null;
     this.installPromise = null;
@@ -123,6 +170,8 @@ class AppUpdateController {
       platform: this.platform,
       arch: this.arch,
       channel: this.channel,
+      updateSource: this.updateSource,
+      releasePageUrl: this.releasePageUrl,
       current: null,
       latest: null,
       progress: null,
@@ -243,6 +292,7 @@ class AppUpdateController {
   }
 
   async _fetchMetadata() {
+    if (!this.apiBaseUrl) throw new Error('更新服务地址未配置');
     const query = new URLSearchParams({
       current_version: this.app.getVersion(),
       platform: this.platform,
@@ -271,6 +321,17 @@ class AppUpdateController {
     return candidate;
   }
 
+  _githubFeed() {
+    if (!this.repository) throw new Error('GitHub 更新仓库未配置');
+    return {
+      provider: 'github',
+      owner: this.repository.owner,
+      repo: this.repository.repo,
+      private: false,
+      releaseType: 'release',
+    };
+  }
+
   check() {
     if (!this.enabled) return Promise.resolve(this.getState());
     if (this.checkPromise) return this.checkPromise;
@@ -278,21 +339,45 @@ class AppUpdateController {
     this._setState({ status: 'checking', error: null, updateGate: null });
     this.checkPromise = (async () => {
       try {
-        const metadata = await this._fetchMetadata();
-        atomicWriteJson(this.metadataCachePath, metadata);
-        const latest = metadata.latest;
-        const feedUrl = latest?.feed_url || `${this.apiBaseUrl}/api/desktop/updates/${this.channel}/${this.platform}/${this.arch}`;
-        this.updater.setFeedURL({ provider: 'generic', url: this._trustedFeedUrl(feedUrl), useMultipleRangeRequest: false });
-        const result = await this.updater.checkForUpdates();
-        const updaterVersion = String(result?.updateInfo?.version || '');
-        const available = Boolean(result?.isUpdateAvailable && latest?.update_available && latest.version === updaterVersion);
-        if (result?.isUpdateAvailable && (!latest || latest.version !== updaterVersion)) {
-          throw new Error('更新说明与安装包版本不一致');
+        let metadata;
+        let latest;
+        let available;
+        if (this.updateSource === 'managed') {
+          metadata = await this._fetchMetadata();
+          latest = metadata.latest;
+          const feedUrl = latest?.feed_url || `${this.apiBaseUrl}/api/desktop/updates/${this.channel}/${this.platform}/${this.arch}`;
+          this.updater.setFeedURL({ provider: 'generic', url: this._trustedFeedUrl(feedUrl), useMultipleRangeRequest: false });
+          const result = await this.updater.checkForUpdates();
+          const updaterVersion = String(result?.updateInfo?.version || '');
+          available = Boolean(result?.isUpdateAvailable && latest?.update_available && latest.version === updaterVersion);
+          if (result?.isUpdateAvailable && (!latest || latest.version !== updaterVersion)) {
+            throw new Error('更新说明与安装包版本不一致');
+          }
+          latest = latest ? { ...latest, update_available: available } : null;
+        } else if (this.updateSource === 'github') {
+          this.updater.setFeedURL(this._githubFeed());
+          const result = await this.updater.checkForUpdates();
+          available = Boolean(result?.isUpdateAvailable);
+          const github = sanitizeGitHubUpdateInfo(result?.updateInfo, {
+            available,
+            currentVersion: this.app.getVersion(),
+            repository: this.repository,
+          });
+          metadata = {
+            schema_version: STATE_SCHEMA_VERSION,
+            checked_at: new Date().toISOString(),
+            current: github.current,
+            latest: github.latest,
+          };
+          latest = github.latest;
+        } else {
+          throw new Error('更新源未配置');
         }
+        atomicWriteJson(this.metadataCachePath, metadata);
         this._setState({
           status: available ? 'available' : 'up-to-date',
           current: metadata.current,
-          latest: latest ? { ...latest, update_available: available } : null,
+          latest,
           checkedAt: metadata.checked_at || new Date().toISOString(),
           progress: null,
           error: null,
@@ -387,6 +472,8 @@ class AppUpdateController {
 module.exports = {
   AppUpdateController,
   sanitizeMetadata,
+  sanitizeGitHubUpdateInfo,
   trustedApiBaseUrl,
+  trustedGitHubRepository,
   SUPPORTED_TARGETS,
 };

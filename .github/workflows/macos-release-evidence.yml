@@ -157,6 +157,8 @@ jobs:
           path: |
             release/*.dmg
             release/*.zip
+            release/*.yml
+            release/*.blockmap
             .desktop-build/reports/featured-plugin-evaluation.json
             .desktop-build/release-evidence
             ${{ runner.temp }}/apple-notary-history.json

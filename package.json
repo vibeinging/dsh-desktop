@@ -34,6 +34,8 @@
     "verify:official-web-assets": "node scripts/run-with-project-node.mjs node electron/scripts/verify-official-web-assets.mjs",
     "check:release-boundary": "node scripts/run-with-project-node.mjs node scripts/release-boundary.mjs",
     "check:release-artifacts": "node scripts/run-with-project-node.mjs node scripts/release-boundary.mjs --require-artifacts",
+    "check:update-artifacts:mac": "node scripts/run-with-project-node.mjs node scripts/verify-update-artifacts.mjs --platform macos",
+    "check:update-artifacts:win": "node scripts/run-with-project-node.mjs node scripts/verify-update-artifacts.mjs --platform windows",
     "check:release:budgets": "node scripts/run-with-project-node.mjs node scripts/check-release-budgets.mjs \"release/mac-arm64/DSH Desktop.app\"",
     "package:mac:dir": "node scripts/run-with-project-node.mjs npm --prefix electron run package:mac:dir",
     "package:mac:x64:dir": "node scripts/run-with-project-node.mjs npm --prefix electron run package:mac:x64:dir",

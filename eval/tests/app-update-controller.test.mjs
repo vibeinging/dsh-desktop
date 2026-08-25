@@ -1,13 +1,19 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
 import test from 'node:test'
 
+import { inspectUpdateArtifacts } from '../../scripts/verify-update-artifacts.mjs'
+
 const require = createRequire(import.meta.url)
-const { AppUpdateController } = require('../../electron/app-update-controller.js')
+const {
+  AppUpdateController,
+  trustedGitHubRepository,
+} = require('../../electron/app-update-controller.js')
 
 class FakeUpdater extends EventEmitter {
   constructor() {
@@ -196,6 +202,121 @@ test('desktop updater stays disabled until the app has an explicit HTTPS update 
   assert.equal(controller.getState().enabled, false)
   assert.equal(controller.getState().status, 'disabled')
   controller.destroy()
+})
+
+test('desktop updater uses the fixed public GitHub Release source without a private API', async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), 'dsh-updater-github-'))
+  const updater = new FakeUpdater()
+  updater.checkForUpdates = async () => ({
+    isUpdateAvailable: true,
+    updateInfo: {
+      version: '1.1.0',
+      releaseDate: '2026-08-25T08:00:00Z',
+      releaseNotes: [{ version: '1.1.0', note: 'Better Sidebar 0.16.0' }],
+    },
+  })
+  const controller = new AppUpdateController({
+    app: { getVersion: () => '1.0.0' },
+    updater,
+    fetch: async () => { throw new Error('GitHub mode must not call the private metadata API') },
+    apiBaseUrl: '',
+    repository: { owner: 'vibeinging', repo: 'dsh-desktop' },
+    platform: 'darwin',
+    arch: 'arm64',
+    userDataPath,
+    dataRoot: join(userDataPath, 'data'),
+    isPackaged: true,
+    logger: { info() {}, warn() {}, error() {} },
+  })
+
+  const state = await controller.check()
+  assert.equal(state.enabled, true)
+  assert.equal(state.updateSource, 'github')
+  assert.equal(state.releasePageUrl, 'https://github.com/vibeinging/dsh-desktop/releases/latest')
+  assert.equal(state.status, 'available')
+  assert.equal(state.latest.version, '1.1.0')
+  assert.deepEqual(state.latest.notes.improvements, ['Better Sidebar 0.16.0'])
+  assert.deepEqual(updater.feed, {
+    provider: 'github',
+    owner: 'vibeinging',
+    repo: 'dsh-desktop',
+    private: false,
+    releaseType: 'release',
+  })
+  controller.destroy()
+})
+
+test('desktop updater rejects an invalid GitHub repository identity', () => {
+  assert.throws(
+    () => trustedGitHubRepository({ owner: 'vibeinging/other', repo: 'dsh-desktop' }),
+    /GitHub 更新仓库名无效/,
+  )
+})
+
+test('packaged desktop exposes update UX and publishes updater metadata for both platforms', () => {
+  const electronPackage = JSON.parse(readFileSync(new URL('../../electron/package.json', import.meta.url), 'utf8'))
+  const mainSource = readFileSync(new URL('../../electron/main.js', import.meta.url), 'utf8')
+  const macWorkflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8')
+  const winWorkflow = readFileSync(new URL('../../.github/workflows/windows-release-evidence.yml', import.meta.url), 'utf8')
+  const unsignedWinWorkflow = readFileSync(new URL('../../.github/workflows/windows-release.yml', import.meta.url), 'utf8')
+
+  assert.deepEqual(electronPackage.build.publish, [{
+    provider: 'github',
+    owner: 'vibeinging',
+    repo: 'dsh-desktop',
+    releaseType: 'release',
+  }])
+  assert.match(mainSource, /label: '检查更新…'/)
+  assert.match(mainSource, /buttons: \['下载并安装', '稍后再说'\]/)
+  assert.match(mainSource, /repository: UPDATE_REPOSITORY/)
+  assert.match(electronPackage.scripts['package:mac:project'], /check:update-artifacts:mac/)
+  assert.match(electronPackage.scripts['package:win:project'], /check:update-artifacts:win/)
+  assert.match(electronPackage.scripts['package:win:unsigned:project'], /check:update-artifacts:win/)
+  for (const workflow of [macWorkflow, winWorkflow, unsignedWinWorkflow]) {
+    assert.match(workflow, /release\/\*\.yml/)
+    assert.match(workflow, /release\/\*\.blockmap/)
+  }
+})
+
+test('update artifact contract binds metadata to the current downloadable file', () => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-update-artifacts-'))
+  const release = join(root, 'release')
+  mkdirSync(release)
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '1.2.3' }))
+  const artifactName = 'dsh-desktop-1.2.3-mac-arm64.zip'
+  const artifact = Buffer.from('signed update archive')
+  writeFileSync(join(release, artifactName), artifact)
+  writeFileSync(join(release, `${artifactName}.blockmap`), 'blockmap')
+  writeFileSync(join(release, 'latest-mac.yml'), [
+    'version: 1.2.3',
+    `path: ${artifactName}`,
+    `sha512: ${createHash('sha512').update(artifact).digest('base64')}`,
+    '',
+  ].join('\n'))
+
+  assert.deepEqual(inspectUpdateArtifacts(root, 'macos'), [])
+  writeFileSync(join(release, artifactName), 'tampered archive')
+  assert.match(inspectUpdateArtifacts(root, 'macos').join('\n'), /SHA-512/)
+})
+
+test('Windows update artifact contract requires the EXE blockmap', () => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-update-artifacts-win-'))
+  const release = join(root, 'release')
+  mkdirSync(release)
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '1.2.3' }))
+  const artifactName = 'dsh-desktop-1.2.3-win-x64.exe'
+  const artifact = Buffer.from('signed installer')
+  writeFileSync(join(release, artifactName), artifact)
+  writeFileSync(join(release, 'latest.yml'), [
+    'version: 1.2.3',
+    `path: ${artifactName}`,
+    `sha512: ${createHash('sha512').update(artifact).digest('base64')}`,
+    '',
+  ].join('\n'))
+
+  assert.match(inspectUpdateArtifacts(root, 'windows').join('\n'), /blockmap/)
+  writeFileSync(join(release, `${artifactName}.blockmap`), 'blockmap')
+  assert.deepEqual(inspectUpdateArtifacts(root, 'windows'), [])
 })
 
 test('desktop updater blocks installation when the authoritative Profile preflight fails', async () => {

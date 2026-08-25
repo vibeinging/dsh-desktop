@@ -36,6 +36,10 @@ function validateEvidence(plugin) {
         throw new Error(`${plugin.name} 的 registry 证据缺少 ${field}`);
       }
     }
+    if (evidence.source_dependency_kind !== undefined
+      && !new Set(["dependency", "devDependency"]).has(evidence.source_dependency_kind)) {
+      throw new Error(`${plugin.name} 的 registry 源依赖类型无效`);
+    }
     if (evidence.package_spec !== `${plugin.name}@${evidence.package_version}`) {
       throw new Error(`${plugin.name} 的 package_spec 未固定到清单版本`);
     }
@@ -43,10 +47,33 @@ function validateEvidence(plugin) {
       || Array.isArray(evidence.package_dependencies)) {
       throw new Error(`${plugin.name} 的 registry 证据缺少 package_dependencies`);
     }
+    if (evidence.release_dependencies !== undefined
+      && (!evidence.release_dependencies || typeof evidence.release_dependencies !== "object"
+        || Array.isArray(evidence.release_dependencies)
+        || Object.keys(evidence.release_dependencies).length === 0
+        || Object.entries(evidence.release_dependencies).some(([name, version]) => (
+          evidence.package_dependencies[name] !== version
+        )))) {
+      throw new Error(`${plugin.name} 的发行依赖投影无效`);
+    }
+    if (evidence.release_peer_dependencies !== undefined
+      && (!evidence.release_peer_dependencies || typeof evidence.release_peer_dependencies !== "object"
+        || Array.isArray(evidence.release_peer_dependencies)
+        || Object.keys(evidence.release_peer_dependencies).length === 0
+        || Object.values(evidence.release_peer_dependencies)
+          .some((version) => typeof version !== "string" || !version.trim()))) {
+      throw new Error(`${plugin.name} 的发行 peer 投影无效`);
+    }
     if (!Array.isArray(evidence.offline_dependencies)) {
       throw new Error(`${plugin.name} 的 registry 证据缺少离线依赖闭包`);
     }
-    if (Object.keys(evidence.package_dependencies).length > 0 && evidence.offline_dependencies.length === 0) {
+    if (evidence.offline_dependency_resolution !== undefined
+      && evidence.offline_dependency_resolution !== "package-lock-closure") {
+      throw new Error(`${plugin.name} 的离线依赖解析方式无效`);
+    }
+    if (Object.keys(evidence.package_dependencies).length > 0
+      && evidence.offline_dependencies.length === 0
+      && evidence.offline_dependency_resolution !== "package-lock-closure") {
       throw new Error(`${plugin.name} 的 registry 依赖没有离线闭包`);
     }
     if (evidence.release_files !== undefined
@@ -68,17 +95,21 @@ function validateEvidence(plugin) {
         throw new Error(`${plugin.name} 的 release_transform 无效`);
       }
     }
-    const offlineNames = new Set();
+    const offlinePaths = new Set();
     for (const dependency of evidence.offline_dependencies) {
       if (!dependency || typeof dependency !== "object" || Array.isArray(dependency)
         || ["name", "version", "integrity", "license", "license_path", "license_sha256", "install_path"]
           .some((field) => typeof dependency[field] !== "string" || !dependency[field].trim())
         || !dependency.install_path.startsWith("node_modules/")
         || dependency.install_path.includes("..")
-        || offlineNames.has(dependency.name)) {
+        || (dependency.lock_path !== undefined
+          && (typeof dependency.lock_path !== "string"
+            || !dependency.lock_path.startsWith("node_modules/")
+            || dependency.lock_path.includes("..")))
+        || offlinePaths.has(dependency.install_path)) {
         throw new Error(`${plugin.name} 的离线依赖闭包无效`);
       }
-      offlineNames.add(dependency.name);
+      offlinePaths.add(dependency.install_path);
     }
   }
   if (!evidence.compatibility || typeof evidence.compatibility !== "object"

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 import { join, resolve } from "node:path";
 
@@ -21,6 +21,10 @@ import {
   validateFeaturedPackageComposition,
   validateFeaturedPackageContract,
   validateFeaturedPackageLock,
+  resolveFeaturedOfflineDependencies,
+  resolveFeaturedLicenseDependencies,
+  projectFeaturedRegistryManifest,
+  validateFeaturedRegistryReleaseDependencies,
   transformFeaturedRegistryClient,
 } from "../../scripts/generate-featured-plugin-artifacts.mjs";
 
@@ -232,6 +236,7 @@ test("the curated Profile input has one authoritative list with explicit managea
   assert.equal(plugins.filter((plugin) => plugin.user_manageable).length, plugins.length - 2);
   assert.equal(plugins.some((plugin) => plugin.name === "@linxin666/dsh-client-ui-task-board"), true);
   assert.equal(plugins.some((plugin) => plugin.name === "dsh-multimedia-webui-input"), true);
+  assert.equal(plugins.some((plugin) => plugin.name === "dsh-better-sidebar"), true);
   for (const plugin of plugins) {
     assert.equal(new Set(["workspace-package", "locked-registry-package"]).has(plugin.evidence.source_kind), true);
     assert.equal(plugin.evidence.release_source, "fixed-tarball");
@@ -367,6 +372,70 @@ test("the bundled multimedia input is pinned without inventing a dependency clos
       },
     },
   }), /锁文件漂移/);
+});
+
+test("Better Sidebar is pinned with its complete native and editor dependency closure", () => {
+  const plugin = featuredPlugins().find(({ name }) => name === "dsh-better-sidebar");
+  const packageDir = resolveFeaturedPackageDir(plugin);
+  const packageJson = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
+  const serverPackage = JSON.parse(readFileSync(join(APP_ROOT, "server/package.json"), "utf8"));
+  const serverLockfile = JSON.parse(readFileSync(join(APP_ROOT, "server/package-lock.json"), "utf8"));
+  const dependencies = resolveFeaturedOfflineDependencies(plugin, { appRoot: APP_ROOT, lockfile: serverLockfile });
+  const licenseDependencies = resolveFeaturedLicenseDependencies(plugin, { appRoot: APP_ROOT, lockfile: serverLockfile });
+  assert.equal(serverPackage.dependencies[plugin.name], undefined);
+  assert.equal(serverPackage.devDependencies[plugin.name], "0.16.0");
+  assert.equal(serverLockfile.packages[""]?.devDependencies?.[plugin.name], "0.16.0");
+  assert.equal(serverLockfile.packages[`node_modules/${plugin.name}`]?.dev, true);
+  assert.equal(plugin.evidence.offline_dependency_resolution, "package-lock-closure");
+  assert.deepEqual(plugin.evidence.release_dependencies, {
+    "node-pty": "^1.1.0",
+    schemastery: "^3.18.0",
+    ws: "^8.18.0",
+  });
+  assert.equal(dependencies.length, 6);
+  assert.ok(licenseDependencies.length > 100);
+  assert.equal(new Set(dependencies.map(({ install_path }) => install_path)).size, dependencies.length);
+  assert.deepEqual(
+    dependencies.filter(({ name }) => name === "node-pty").map(({ version, install_path, lock_path }) => ({ version, install_path, lock_path })),
+    [{
+      version: "1.1.0",
+      install_path: "node_modules/node-pty",
+      lock_path: "node_modules/dsh-better-sidebar/node_modules/node-pty",
+    }],
+  );
+  for (const platform of ["darwin-arm64", "darwin-x64", "win32-arm64", "win32-x64"]) {
+    assert.equal(existsSync(join(packageDir, "node_modules/node-pty/prebuilds", platform)), true);
+  }
+  assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
+  const releaseManifest = projectFeaturedRegistryManifest(plugin, packageJson);
+  assert.deepEqual(releaseManifest.dependencies, plugin.evidence.release_dependencies);
+  assert.equal(releaseManifest.peerDependencies["@deepseek-ai/dsh-session"], "0.1.1-rc.2");
+  assert.equal(releaseManifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");
+  assert.equal(releaseManifest.peerDependencies.cordis, undefined);
+  assert.equal(releaseManifest.peerDependencies["@huanlin/dsh-plugin-better-locale"], "^0.1.0");
+  assert.deepEqual(releaseManifest.peerDependenciesMeta["@huanlin/dsh-plugin-better-locale"], { optional: true });
+  assert.equal(packageJson.peerDependencies["@deepseek-ai/dsh-session"], "^0.1.0-rc.8");
+  assert.equal(packageJson.peerDependencies.cordis, undefined);
+  const hostSource = readFileSync(join(packageDir, plugin.evidence.entry), "utf8");
+  assert.doesNotThrow(() => validateFeaturedRegistryReleaseDependencies(plugin, hostSource));
+  assert.throws(
+    () => validateFeaturedRegistryReleaseDependencies(plugin, hostSource.replace('from "ws"', 'from "removed-ws"')),
+    /发行依赖与 Host 入口不一致/,
+  );
+  assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile, {
+    appRoot: APP_ROOT,
+    offlineDependencies: dependencies,
+  }));
+  assert.throws(() => validateFeaturedPackageLock(plugin, {
+    ...serverLockfile,
+    packages: {
+      ...serverLockfile.packages,
+      "node_modules/dsh-better-sidebar/node_modules/node-pty": {
+        ...serverLockfile.packages["node_modules/dsh-better-sidebar/node_modules/node-pty"],
+        integrity: "sha512-drift",
+      },
+    },
+  }, { appRoot: APP_ROOT, offlineDependencies: dependencies }), /锁文件漂移/);
 });
 
 test("the artifact generator rejects curated portability and permission drift", () => {

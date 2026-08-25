@@ -109,6 +109,8 @@ jobs:
           name: dsh-windows-x64-release-evidence-${{ github.run_id }}
           path: |
             release/*.exe
+            release/*.yml
+            release/*.blockmap
             release/windows-x64-acceptance.json
             .desktop-build/reports/featured-plugin-evaluation.json
             .desktop-build/release-evidence

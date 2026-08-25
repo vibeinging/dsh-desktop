@@ -838,6 +838,7 @@ test('clean package scripts prepare official Web assets before verifying them', 
 
 test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/macos-release-evidence.yml', import.meta.url), 'utf8');
+  const electronPackage = JSON.parse(readFileSync(new URL('../../electron/package.json', import.meta.url), 'utf8'));
   assert.match(workflow, /npm run smoke:macos:installer/);
   assert.match(workflow, /macos-installer-evidence\/result\.json/);
   assert.match(workflow, /macos-installer-evidence/);
@@ -853,6 +854,9 @@ test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   assert.match(workflow, /native-host-dialogs-evidence/);
   assert.match(workflow, /xcrun stapler validate/);
   assert.match(workflow, /spctl --assess --type execute/);
+  assert.match(workflow, /release\/\*\.yml/);
+  assert.match(workflow, /release\/\*\.blockmap/);
+  assert.match(electronPackage.scripts['package:mac:project'], /check:update-artifacts:mac/);
 });
 
 test('macOS DMG notarization selects the current architecture and keeps the receipt credential-free', () => {
@@ -917,6 +921,10 @@ test('Windows release evidence workflow requires signing, installer acceptance, 
   assert.match(workflow, /release:verify:win -- --require-evidence/);
   assert.match(workflow, /featured-plugin-evaluation\.json/);
   assert.match(workflow, /windows-x64-acceptance\.json/);
+  assert.match(workflow, /release\/\*\.yml/);
+  assert.match(workflow, /release\/\*\.blockmap/);
+  assert.match(electronPackage.scripts['package:win:project'], /check:update-artifacts:win/);
+  assert.match(electronPackage.scripts['package:win:unsigned:project'], /check:update-artifacts:win/);
   assert.match(electronPackage.scripts['package:win:project'], /release:verify:win -- --allow-blockers/);
 });
 

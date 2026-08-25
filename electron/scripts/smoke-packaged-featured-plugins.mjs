@@ -20,6 +20,7 @@ const PRODUCT_HOST_PROVIDER = '@vibeinging/dsh-work-product-host-ipc'
 const DESKTOP_PROFILE_PROVIDER = '@vibeinging/dsh-desktop-profile-host'
 const WORKTREE_PLUGIN = '@vibeinging/dsh-client-ui-worktree'
 const MULTIMEDIA_INPUT_PLUGIN = 'dsh-multimedia-webui-input'
+const BETTER_SIDEBAR_PLUGIN = 'dsh-better-sidebar'
 const execFileAsync = promisify(execFile)
 
 function requestedOnly() {
@@ -110,6 +111,7 @@ async function runOfficial(args, env, label) {
 
 async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
   const appEnv = { ...env }
+  delete appEnv.DSH_SMOKE_EXPECT_POST_JSON_OK
   delete appEnv.ELECTRON_RUN_AS_NODE
   if (!clientPlugin) {
     delete appEnv.DSH_SMOKE_SCREENSHOT_DIR
@@ -136,6 +138,13 @@ async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
       'button[aria-label="新建会话"],button[aria-label="New session"]',
     ])
     appEnv.DSH_SMOKE_EXPECT_SELECTOR = '.dshca-button[aria-label="Attach files or a folder"]'
+  }
+  if (clientPlugin === BETTER_SIDEBAR_PLUGIN) {
+    appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify([
+      'button[aria-label="新建会话"],button[aria-label="New session"]',
+    ])
+    appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-dsh-panel-host] [data-dsh-toggle-cluster]'
+    appEnv.DSH_SMOKE_EXPECT_POST_JSON_OK = '/sidebar/api/terminal.deps'
   }
   if (clientPlugin === 'dshmarket') {
     appEnv.DEEPSEEK_API_KEY = 'dsh-packaged-market-ui-smoke-not-used'

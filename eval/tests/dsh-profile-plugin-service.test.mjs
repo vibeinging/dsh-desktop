@@ -23,7 +23,10 @@ import {
   featuredPluginNames,
   featuredPlugins,
 } from "../../server/src/engine/dsh_runtime/featured_plugins.js";
-import { generateFeaturedPluginArtifacts } from "../../scripts/generate-featured-plugin-artifacts.mjs";
+import {
+  generateFeaturedPluginArtifacts,
+  projectFeaturedRegistryManifest,
+} from "../../scripts/generate-featured-plugin-artifacts.mjs";
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_NPM_ROOT = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh");
@@ -464,7 +467,8 @@ test("Profile Bundle preflight rejects mutable sources without touching DSH", as
 
 test("the app-owned Profile Bundles use the current public SDK names", () => {
   for (const plugin of featuredPlugins()) {
-    const manifest = JSON.parse(readFileSync(join(APP_ROOT, plugin.package_path, "package.json"), "utf8"));
+    const sourceManifest = JSON.parse(readFileSync(join(APP_ROOT, plugin.package_path, "package.json"), "utf8"));
+    const manifest = projectFeaturedRegistryManifest(plugin, sourceManifest);
     assert.doesNotThrow(() => validateProfileBundleSdk(manifest));
     if (plugin.evidence.source_kind === "workspace-package") {
       assert.equal(manifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");

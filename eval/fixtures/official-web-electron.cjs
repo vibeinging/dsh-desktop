@@ -26,6 +26,7 @@ async function inspectOfficialSurface(window) {
         officialWeb: Boolean(document.querySelector("#root") && globalThis.__DSH_BOOT__),
         modelInheritanceClientLoaded: resources.some((url) => url.includes("/plugins/@vibeinging/dsh-model-inheritance/client.js")),
         taskBoardClientLoaded: resources.some((url) => url.includes("/plugins/@linxin666/dsh-client-ui-task-board/client.js")),
+        betterSidebarClientLoaded: resources.some((url) => url.includes("/plugins/dsh-better-sidebar/client.js")),
         compatClientLoaded: resources.some((url) => url.includes("/plugins/@linxin666/dsh-web-ui-all/client.js")),
         productShellLoaded: resources.some((url) => url.includes("/plugins/@vibeinging/dsh-work-shell/client.js")),
         bodyChildCount: document.body.childElementCount,
@@ -35,6 +36,70 @@ async function inspectOfficialSurface(window) {
     await sleep(200);
   }
   throw new Error(`official Web Client graph did not start: ${JSON.stringify(latest)}`);
+}
+
+async function dismissOfficialPrompts(window) {
+  for (const labels of [
+    ['继续', 'Continue'],
+    ['稍后配置', 'Later'],
+  ]) {
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
+      const clicked = await window.webContents.executeJavaScript(`(() => {
+        const labels = new Set(${JSON.stringify(labels)});
+        const button = [...document.querySelectorAll('button,[role="button"]')]
+          .find((element) => labels.has((element.innerText || element.textContent || '').trim()));
+        button?.click();
+        return Boolean(button);
+      })()`, true).catch(() => false);
+      if (clicked) break;
+      await sleep(200);
+    }
+  }
+}
+
+async function inspectBetterSidebar(window) {
+  await dismissOfficialPrompts(window);
+  const deadline = Date.now() + 30_000;
+  let latest = null;
+  while (Date.now() < deadline) {
+    latest = await window.webContents.executeJavaScript(`(() => {
+      const host = document.querySelector('[data-dsh-panel-host]');
+      const toggle = host?.querySelector('[data-dsh-toggle-cluster]');
+      const rect = host?.getBoundingClientRect();
+      return {
+        host: Boolean(host),
+        toggle: Boolean(toggle),
+        visible: Boolean(rect && rect.width > 0 && rect.height > 0),
+        mounted: Boolean(document.querySelector('[data-dsh-better-sidebar]')),
+      };
+    })()`, true).catch(() => null);
+    if (latest?.host && latest.toggle && latest.visible && latest.mounted) break;
+    await sleep(200);
+  }
+  if (!latest?.host || !latest.toggle || !latest.visible || !latest.mounted) {
+    throw new Error(`Better Sidebar Client 没有挂到官方 Web: ${JSON.stringify(latest)}`);
+  }
+  const terminalDeps = await window.webContents.executeJavaScript(`fetch('/sidebar/api/terminal.deps', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: '{}',
+  }).then(async (response) => ({ status: response.status, body: await response.json() }))`, true);
+  if (terminalDeps?.status !== 200 || terminalDeps?.body?.ok !== true || terminalDeps?.body?.value?.ok !== true) {
+    throw new Error(`Better Sidebar node-pty 依赖不可用: ${JSON.stringify(terminalDeps)}`);
+  }
+  await dismissOfficialPrompts(window);
+  if (screenshotPath) {
+    mkdirSync(dirname(screenshotPath), { recursive: true });
+    writeFileSync(screenshotPath, (await window.webContents.capturePage()).toPNG());
+  }
+  return {
+    betterSidebarHostVisible: latest.visible,
+    betterSidebarToggleVisible: latest.toggle,
+    betterSidebarMounted: latest.mounted,
+    betterSidebarTerminalDeps: true,
+    screenshot: screenshotPath || null,
+  };
 }
 
 async function inspectCompat(window) {
@@ -165,6 +230,7 @@ app.whenReady().then(async () => {
     const result = {
       ...(await inspectOfficialSurface(window)),
       ...(communityUi === "task-board" ? await inspectTaskBoard(window) : {}),
+      ...(communityUi === "better-sidebar" ? await inspectBetterSidebar(window) : {}),
       ...(communityUi === "compat" ? await inspectCompat(window) : {}),
     };
     process.stdout.write(`${RESULT_PREFIX}${JSON.stringify(result)}\n`);

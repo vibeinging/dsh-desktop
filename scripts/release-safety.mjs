@@ -424,8 +424,11 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
     checks.push(check(
       'mac_release_evidence_workflow',
       macWorkflowRequirements.every((fragment) => macEvidenceWorkflow.includes(fragment))
+        && macEvidenceWorkflow.includes('release/*.yml')
+        && macEvidenceWorkflow.includes('release/*.blockmap')
+        && macPackageScripts.includes('check:update-artifacts:mac')
         && macPackageScripts.includes('scripts/notarize-macos-dmg.mjs') ? 'pass' : 'block',
-      'macOS 发行证据 workflow 必须覆盖签名、公证、更新器和社区打包 smoke',
+      'macOS 发行证据 workflow 必须覆盖签名、公证、更新器元数据和社区打包 smoke',
       '.github/workflows/macos-release-evidence.yml',
     ));
   }
@@ -437,6 +440,7 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
       'electron/package.json',
     ));
     const windowsEvidenceWorkflow = readText(join(root, '.github', 'workflows', 'windows-release-evidence.yml'));
+    const windowsPackageScripts = `${scripts['package:win:project'] || ''}\n${scripts['package:win:unsigned:project'] || ''}`;
     const windowsWorkflowRequirements = [
       'workflow_dispatch:',
       'WIN_CSC_LINK:',
@@ -458,8 +462,11 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
     ];
     checks.push(check(
       'windows_release_evidence_workflow',
-      windowsWorkflowRequirements.every((fragment) => windowsEvidenceWorkflow.includes(fragment)) ? 'pass' : 'block',
-      'Windows 发行证据 workflow 必须覆盖签名、安装器验收和 Authenticode 校验',
+      windowsWorkflowRequirements.every((fragment) => windowsEvidenceWorkflow.includes(fragment))
+        && windowsEvidenceWorkflow.includes('release/*.yml')
+        && windowsEvidenceWorkflow.includes('release/*.blockmap')
+        && windowsPackageScripts.includes('check:update-artifacts:win') ? 'pass' : 'block',
+      'Windows 发行证据 workflow 必须覆盖签名、更新器元数据、安装器验收和 Authenticode 校验',
       '.github/workflows/windows-release-evidence.yml',
     ));
   }

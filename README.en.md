@@ -1,174 +1,139 @@
 <h1 align="center">DSH Desktop</h1>
 
 <p align="center">
-  <strong>A plugin-first desktop workbench built around official DSH Web.</strong><br>
-  Curated community Bundles, offline Profiles, Git Worktrees, file attachments, and controlled native capabilities in one Electron app.
+  <strong>Official DSH Web, community plugins, and desktop capabilities in one ready-to-use app.</strong><br>
+  Conversations, files, Git, terminals, tasks, Worktrees, and the plugin market share one DSH Profile.
 </p>
 
-<p align="center"><sub>An independent, community-maintained open-source project with no affiliation, partnership, authorization, or endorsement from DeepSeek.<br>English · <a href="README.md">中文</a> · <a href="README.anime.md">Anime README</a></sub></p>
+<p align="center"><a href="README.md">中文</a> · <a href="README.anime.md">Anime README</a></p>
 
 <p align="center">
-  <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
   <a href="https://github.com/vibeinging/dsh-desktop/releases/latest"><img src="https://img.shields.io/github/v/release/vibeinging/dsh-desktop?display_name=tag&amp;style=flat&amp;color=2563EB" alt="Latest release"></a>
+  <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/runtime-Electron-47848F?style=flat" alt="Electron runtime">
-  <img src="https://img.shields.io/badge/interface-official%20DSH%20Web-2563EB?style=flat" alt="Official DSH Web">
-  <img src="https://img.shields.io/badge/plugins-Profile%20Bundles-7C3AED?style=flat" alt="Profile Bundles">
+  <img src="https://img.shields.io/badge/DSH-0.1.1--rc.2-7C3AED?style=flat" alt="DSH 0.1.1-rc.2">
+  <img src="https://img.shields.io/badge/plugins-Profile%20Bundles-2563EB?style=flat" alt="Profile Bundles">
 </p>
 
 <p align="center">
-  <img src="docs/images/readme/dsh-community-task-board.png" alt="Community task board loaded through the official Profile in DSH Desktop" width="100%">
+  <img src="docs/images/readme/dsh-community-task-board.png" alt="DSH Desktop main interface" width="100%">
 </p>
 
-DSH Desktop is a community-maintained Electron distribution. It pins and runs the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm runtime, composing `dsh-web-app`, Sessions, Agents, Tools, Skills, MCP, and Profile Bundles into a local desktop environment. It does not modify DSH source, maintain a second plugin state, or replace official Web with a private Chat implementation.
+DSH Desktop is a community-maintained desktop distribution. It runs the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm runtime and `dsh-web-app` directly, with a curated set of pinned community Bundles. There is no second Chat implementation or separate plugin database to maintain: the app starts from one official DSH Profile.
 
-This repository owns the desktop distribution layer: it selects community Bundles suitable for the default experience, pins their source, version, dependencies, permissions, and licenses, then verifies installation, disabling, removal, restart, and recovery in real Profiles and Electron. The result is not a list of manual setup steps, but a composable, removable, and reproducible DSH workbench.
+<p align="center">
+  <a href="https://github.com/vibeinging/dsh-desktop/releases/latest"><strong>Download the latest release</strong></a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#getting-started">Get started</a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#installing-more-plugins">Install plugins</a>
+</p>
 
-## The desktop route we commit to
+## Download
 
-| Principle | Product contract | Direct benefit |
+| Platform | Install | Status |
 | --- | --- | --- |
-| Official Web is the only primary interface | The main window loads the official Client graph directly, and desktop UI joins as regular `dshClient` Bundles | DSH Sessions, settings, and Slots can evolve without waiting for a second interface to be rewritten |
-| The Profile is the sole plugin authority | Market, settings, and CLI operate on the same Profile; updates never restore a Bundle the user removed | There is no split state where the desktop claims a plugin is installed while DSH never loaded it |
-| Community implementations come first | The task board, plugin market, and attachment input are independent community Bundles | The same plugins can serve official Web and desktop distributions instead of being trapped in this repository |
-| The default composition is reproducible | New Profiles initialize atomically and offline from pinned tarballs, SHA-256 values, and the packaged pnpm runtime | The default environment does not depend on assembling floating npm packages at first launch, and failed installation cannot publish half a Profile |
-| Native access follows least privilege | Window, file, Browser Workspace, and update methods are exposed only through Session-bound allowlists | Third-party Clients cannot directly access Electron, Node, or general IPC |
-| Failures remain diagnosable and recoverable | Profile or Client startup failures open local recovery while preserving the original Profile | Blank pages, restart loops, and silent configuration rewrites do not hide the failure |
+| macOS Apple Silicon | Download the `.dmg` and drag it to Applications | Developer ID signed and Apple notarized |
+| Windows x64 | Download the `.exe` installer | Use the artifacts published on the current [Release](https://github.com/vibeinging/dsh-desktop/releases/latest) page |
+| macOS Intel / Linux | No formal installer yet | Run from source |
 
-This route is for users and plugin authors who want official DSH Web together with community plugins, controlled native capabilities, a predictable default composition, and explicit permission boundaries.
-
-## Key capabilities
+## Ready on first launch
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <h3>Official DSH Web on desktop</h3>
-      <p>Electron starts a local DSH Web Profile and manages the window, service startup, shutdown, and recovery. The main window loads the official Client graph directly, without the legacy Renderer or a product preload.</p>
+      <h3>Official conversations and Agents</h3>
+      <p>The main window is official DSH Web. DSH owns Sessions, Agents, Tools, Skills, MCP, settings, and history; the app does not maintain a second Chat surface.</p>
     </td>
     <td width="50%" valign="top">
-      <h3>Default plugin market</h3>
-      <p><code>dshmarket@1.17.1</code> mounts in the official settings Slot and provides discovery, compatibility diagnostics, installation, updates, and removal. The market, settings page, and command line read and write the same Profile.</p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <h3>Tasks, attachments, and community capabilities</h3>
-      <p>The community task board provides a five-column workflow, the attachment Bundle adds file and folder selection to official input Slots, and dshmarket discovers additional standard Bundles.</p>
-    </td>
-    <td width="50%" valign="top">
-      <h3>Workspace and output tools</h3>
-      <p>Git Worktree, Project, Conversation, Canvas/Site, Structured UI, Office, and model inheritance live in separate Bundles. Users can remove what they do not need, while plugin authors can reuse the portable capabilities.</p>
+      <h3>Better Sidebar workbench</h3>
+      <p>Files, code and Markdown editing, Git, terminals, web pages, and extension tabs are built in. Version 0.16.0 adds multi-repository and Worktree support, Vue editing, and local Markdown images.</p>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <h3>Narrow native Host</h3>
-      <p>Window, file authorization, Browser Workspace, and update capabilities are exposed only through method allowlists and Session binding. Third-party Clients cannot access Electron, Node, or general IPC.</p>
+      <h3>Plugin market</h3>
+      <p>Discover, install, update, disable, and remove plugins from official settings. The UI, CLI, and app restart all use the same Profile state.</p>
     </td>
     <td width="50%" valign="top">
-      <h3>Offline initialization and recovery</h3>
-      <p>A new Profile initializes atomically from pinned artifacts and the packaged pnpm runtime; existing Profiles remain unchanged during updates. Startup failures open recovery instead of a blank page or silently restoring plugins the user removed.</p>
+      <h3>Tasks, attachments, and Worktrees</h3>
+      <p>A task board, file and folder attachments, Git Worktrees, project tools, Office output, and structured results are independent Bundles that can be composed as needed.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Desktop Host and recovery</h3>
+      <p>The app owns windows, native file selection, updates, startup, and recovery. Formal builds ask before downloading, check the Profile, and install; Profile or Client failures open recovery.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Reproducible defaults</h3>
+      <p>New Profiles initialize offline from pinned packaged artifacts. Normal startup does not rewrite an existing Profile or silently restore plugins the user removed.</p>
     </td>
   </tr>
 </table>
 
-## How it runs
+## Interface
 
-```mermaid
-flowchart LR
-  A[Electron desktop shell] --> B[Official DSH runtime]
-  B --> C[web Profile]
-  C --> D[Official dsh-web-app]
-  C --> E[Community and portable Bundles]
-  C --> F[desktop-adapter Bundles]
-  F --> G[Narrow Native Host]
-  G --> H[macOS / Windows]
-```
-
-The official DSH runtime owns Agents, Sessions, Tools, Skills, MCP, Profiles, and Web UI. Community and portable Bundles use only public DSH services, so they can be installed in a compatible official Web Profile. Only `desktop-adapter` Bundles can call the desktop Host, and then only through declared, Session-bound methods.
-
-This separation keeps official Web and DSH Desktop on one plugin system. UI, Tools, and workflows remain portable by default; only operating-system features such as file dialogs, window control, and the embedded browser require a desktop adapter.
-
-## Current interface
-
-### Official Sessions, questions, and approvals
+### Conversations, questions, and approvals
 
 ![Official DSH Web Session](docs/images/readme/dsh-official-web-session-loopback.png)
 
-Conversations, question cards, tool approvals, queued messages, and history replay remain in the official Session. The screenshot uses a real DeepSeek-V4-Flash conversation; the key is injected only into that temporary process and is written to neither the Profile nor the screenshot.
+Conversations, tool approvals, question cards, queued messages, and history replay stay in the official Session.
 
 ### Plugin market in official settings
 
-![Default plugin market in official Web settings](docs/images/readme/dsh-plugin-market.png)
+![Plugin market in official Web settings](docs/images/readme/dsh-plugin-market.png)
 
-Open **Settings → Plugin Market** to search, inspect compatibility and permissions, and install, update, or remove packages from the active Profile. The market is a regular Client Bundle and does not replace the official settings container.
+The market uses the official settings Slot. It neither replaces settings nor creates a second plugin database.
 
-### Git Worktree in an official Workspace
+### Git Worktree workspace
 
-![Git Worktree Bundle in official Web](docs/images/readme/dsh-worktree-official-web.png)
+![Git Worktree in official Web](docs/images/readme/dsh-worktree-official-web.png)
 
-The Git Worktree Bundle identifies the main checkout from the current Session's `cwd`, manages isolated worktrees from the sidebar and Workspace, and creates official Sessions for new workspaces. It uses only DSH Workspaces and Slots, so it remains an independently installable and removable portable Bundle.
+Create an isolated Worktree from the active Session directory and open an official Session for the new workspace.
 
-## Get started
+## Why this route
 
-Download the macOS Apple Silicon installer from [GitHub Releases](https://github.com/vibeinging/dsh-desktop/releases/latest). It is signed with Developer ID and notarized by Apple, and already contains the official DSH npm runtime and default Bundles. No separate DSH source checkout or modification is required. The Windows x64 installer is still completing real packaged-app acceptance and is not included in this release.
+| Concern | DSH Desktop approach |
+| --- | --- |
+| Depending on a private front end | Load official Web and the official npm runtime directly, without a private Chat fork |
+| Using community plugins | UI, Tools, and workflows keep using official Bundles, Services, and Slots |
+| Avoiding split plugin state | The official Profile is the sole authority for the market, settings, and CLI |
+| Trusting the defaults | Pin versions, integrity, permissions, dependencies, licenses, and offline artifacts |
+| Limiting native access | Files, windows, and Browser Workspace use a small Session-bound method surface |
+| Preserving configuration at startup | Existing Profiles keep user choices; failures preserve the Profile and open recovery |
+| Preserving plugins during app updates | A read-only Profile check runs first; disabled or removed Bundles are not restored |
 
-### Download the desktop app
+Electron is a thin desktop Host. Agents, Sessions, and the plugin system remain in DSH, while product capabilities are Bundles whenever possible. Portable plugins can therefore serve compatible official Web Profiles and DSH Desktop; only operating-system features require an explicit `desktop-adapter`.
 
-- macOS Apple Silicon: download the `.dmg`, open it, and drag `DSH Desktop` to Applications.
-- Windows x64, macOS Intel, and other platforms: no formal installer is available yet; run from source instead.
+## Getting started
 
-### Run from source
+1. Download a supported installer from [Releases](https://github.com/vibeinging/dsh-desktop/releases/latest).
+2. Start the app and choose a working directory or create a Session directly.
+3. Open files, Git, or a terminal from the sidebar, and attach files or folders from the composer.
+4. Open **Settings → Plugin Market** when you need more capabilities.
 
-Requires Node.js 24 or later:
+Model credentials are managed by DSH settings and the local environment. API keys are never written to this README, screenshots, or the plugin manifest.
 
-```bash
-git clone https://github.com/vibeinging/dsh-desktop.git
-cd dsh-desktop
-npm install
-npm run doctor
-npm run dev:electron
-```
+## Installing more plugins
 
-### Build the macOS Apple Silicon app
+Most users should use **Settings → Plugin Market**. The market shows source, version, compatibility, and permissions. A visible listing is not automatically reviewed or bundled by this project, so inspect upstream documentation before installation.
 
-```bash
-npm run package:mac:dir
-open "release/mac-arm64/DSH Desktop.app"
-```
-
-This command creates a local unsigned app for development. Use the GitHub Release page for end-user installers.
-
-## Plugin ecosystem
-
-The DSH Profile is the sole authority for plugin state. A new Profile installs the default Bundles atomically through the official `dsh plugin --profile web` command. Existing Profiles remain read-only during app updates: the app does not restore, remove, or rewrite user choices. Bundles disabled or removed by the user stay disabled or removed after restarts and upgrades.
-
-Most users can open **Settings → Plugin Market**. The command line uses the same Profile:
+The official CLI operates on the same Profile:
 
 ```bash
 dsh plugin --profile web add -w <package>@<exact-version> --save-exact --ignore-scripts
 dsh plugin --profile web remove <package>
 ```
 
-New Profiles install the fixed `dshmarket@1.17.1` release by default. The distribution includes a reviewed fixed tarball, its complete runtime dependency closure, and SHA-256 values; default initialization needs no npm network access and runs no upstream lifecycle scripts. Browsing the market reaches the community catalog, while installation and updates may reach npm or GitHub. WebDAV and Gist are used only after explicit user configuration. A plugin appearing in the market is not necessarily bundled or approved for the distribution.
+A plugin that follows the official DSH Bundle and `dshClient` contracts does not need a DSH Desktop rewrite. Plugins that require windows, native dialogs, or Browser Workspace must explicitly use the narrow desktop Host and report missing capabilities in other hosts.
 
-New Profiles also install `dsh-multimedia-webui-input@0.1.0`. It contributes a file/folder picker through the official `conversation.input.left`, `conversation.input.dock`, `conversation.input.overlay`, and `settings.section` Slots. Files are copied into the active Session workspace only when the message is sent. Official DSH remains responsible for image paste and drop; the bundled adaptation removes the upstream generic drop listeners so images cannot enter both paths. The plugin does not modify official Chat or receive Electron or general IPC access. Enabling another attachment-input plugin at the same time may create duplicate buttons or uploads, so the default Profile keeps a single attachment surface.
+### Default plugins
 
-On the desktop side, `@vibeinging/dsh-desktop-profile-host` exposes only two public structural services: `desktopProfiles` and `desktopPnpm`. The market delegates user-confirmed operations to the packaged pnpm runtime and the official DSH CLI; it cannot acquire Electron permissions or restart the app itself.
-
-### Plugin trust levels
-
-| Level | User experience | Distribution responsibility |
-| --- | --- | --- |
-| Discoverable in the market | The user inspects and explicitly installs a listing | Market visibility is not review, bundling, or endorsement by this distribution |
-| Recorded candidate | The catalog shows compatibility, permissions, conflicts, and known blockers | Pin upstream source and record the review result, but keep it out of the default Profile |
-| Packaged but optional | Install from a pinned local artifact without network access | Preserve licenses, hashes, dependencies, and install/removal evidence |
-| Packaged and default | Install atomically into new Profiles while remaining removable | Verify against current DSH, source Profiles, packaged Electron, offline startup, and removal recovery |
-
-These levels separate “exists in the community,” “can be installed by the user,” and “is suitable as a distribution default.” New defaults are never silently added to an existing Profile during an app update; existing users retain their own composition.
+New Profiles include Better Sidebar, dshmarket, the task board, attachment input, Git Worktree, project tools, Canvas, Office output, structured results, and model inheritance. Every manageable Bundle can be disabled or removed.
 
 <details>
-<summary>View the 13 Bundles installed in a new Profile</summary>
+<summary>View the 14 Bundles installed in a new Profile</summary>
 
 <!-- featured-plugins:start -->
 | Default Bundle | Type | Declared permissions | Official management | Source |
@@ -185,55 +150,67 @@ These levels separate “exists in the community,” “can be installed by the 
 | `@vibeinging/dsh-client-ui-worktree` | portable | no Host permission | `dsh plugin --profile web remove @vibeinging/dsh-client-ui-worktree` | [local package](packages/dsh-worktree) |
 | `@linxin666/dsh-client-ui-task-board` | portable | read current DSH Session, Workspace, and completion history, write task ledger and run records under DSH_HOME, start DSH Session tasks from user actions or Host cron, optionally start a fixed cross-platform sleep-prevention helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [upstream repository](https://github.com/zhu1090093659/dsh-web-ui) |
 | `dsh-multimedia-webui-input` | portable | read files and folders explicitly selected by the user, write attachments under .dsh/tmp/attachments in the active Session workspace, remove only plugin-owned attachment directories after a second user confirmation | `dsh plugin --profile web remove dsh-multimedia-webui-input` | [upstream repository](https://github.com/LCYLYM/dsh-attachments) |
+| `dsh-better-sidebar` | portable | read, search, create, modify, and delete files in the current Session workspace, run Git operations in the current Session workspace, start and stop local terminal processes; model-facing terminal tools are disabled by default, open user-entered web pages or external editors and receive files explicitly uploaded by the user, when enabled by the user, register the sidebar_open model tool to open workspace files, folders, or HTTP(S) pages in the current Session sidebar; disabled by default | `dsh plugin --profile web remove dsh-better-sidebar` | [upstream repository](https://github.com/omdsh-dev/DSH-better-sidebar) |
 | `dshmarket` | portable | read and modify dependencies, Bundle order, and enabled state in the active DSH Profile, install, update, and remove user-confirmed plugins through controlled pnpm, access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services, export or import backups that contain Profile configuration | `dsh plugin --profile web remove dshmarket` | [upstream repository](https://github.com/dsh-market/dsh-market) |
 <!-- featured-plugins:end -->
 
 </details>
 
-## Plugin compatibility
+See [Plugin market selection and desktop integration](docs/research/2026-08-22_dsh-plugin-market-selection.md) for the selection, permission, and offline boundaries.
 
-DSH Desktop recognizes two Bundle types by capability boundary:
+## Run from source
 
-- A `portable` Bundle uses only official DSH services and can be installed in a compatible official Web Profile.
-- A `desktop-adapter` Bundle uses the narrow Host contract provided by DSH Desktop and should report the missing capability directly when used outside the desktop host.
+Node.js 24 or later is required:
 
-Standard Bundles compatible with the current official DSH Web can be installed through the market or official CLI without a DSH Desktop rewrite. A plugin that needs windows, file dialogs, or Browser Workspace declares a dependency on the desktop Host; when that capability is missing, it reports the requirement instead of pretending to work.
+```bash
+git clone https://github.com/vibeinging/dsh-desktop.git
+cd dsh-desktop
+npm install
+npm run doctor
+npm run dev:electron
+```
 
-Plugin authors can use the independent Bundles under [`packages/`](packages/) as examples of official Slots, Host contracts, and packaging. See [Plugin market selection and desktop integration](docs/research/2026-08-22_dsh-plugin-market-selection.md) for market, permission, and offline boundaries.
+Build a local macOS Apple Silicon app:
 
-## Data and security
+```bash
+npm run package:mac:dir
+open "release/mac-arm64/DSH Desktop.app"
+```
 
-- Profiles, Sessions, and local runtime data are stored under `~/.dsh` by default; opening history does not upload that data automatically.
-- Official Web `webContents` has no product preload, Node access, or general IPC.
-- If Profile or Client startup fails, the app opens a local recovery page instead of showing a blank window or silently changing the original Profile.
-- The recovery page can retry, start a safe Profile containing only the official `base` and `web-app`, open directories, remove a specified plugin after confirmation, and export filtered diagnostics.
-- Project code, third-party Bundles, and visual assets each follow their own licenses and redistribution terms.
+Local directory builds are for development. End-user signed installers are published through GitHub Releases.
+
+## Data and permissions
+
+- Profiles, Sessions, and local runtime data are stored under `~/.dsh` by default.
+- Official Web has no product preload, Node access, or general IPC.
+- Files and directories enter the active Session only after explicit user selection or a declared plugin permission.
+- Plugin startup failure does not silently rewrite the original Profile; recovery can retry, start safely, remove a problem plugin, and export filtered diagnostics.
+- Formal builds check this project's public GitHub Releases and download or install only after user confirmation.
+- Third-party Bundles, native binaries, and visual assets retain their upstream licenses and redistribution terms.
 
 See the [privacy notice](PRIVACY.md), [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
 
-## Other community desktop distributions
+## Difference from other community desktop projects
 
-[anywhere-labs/deepseek-harness-desktop](https://github.com/anywhere-labs/deepseek-harness-desktop) and this project are both independent community distributions, but they choose different desktop routes. The anywhere-labs project combines a complete desktop Shell, tray, terminal, updates, and cross-platform installers. This project pins the official npm runtime, keeps official Web as the only primary interface, and focuses on independent community Bundles, reproducible offline Profile artifacts, and a narrow Native Host.
+DSH Desktop chooses one official Web interface, one official Profile authority, curated community Bundles, and a narrow Native Host. It does not build a second full front end; it makes the desktop experience a reliable distribution of the DSH plugin ecosystem.
 
-Neither project is the official DeepSeek Harness desktop client. This repository makes no “more official” claim; its stable boundaries are one official Web interface, one Profile authority, community plugins first, reproducible defaults, and least-privilege native access. See the [source-backed comparison](docs/research/2026-08-22_dsh-desktop-distribution-differences.md) for implementation-level differences.
+[DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) is another independent community distribution with more emphasis on a complete desktop shell and cross-platform client experience. [dataelement/dsh-desktop](https://github.com/dataelement/dsh-desktop) is also an independent community project. Their code, releases, and product routes are separate; users can choose by interface, plugin model, and available platform artifacts.
 
 ## Related projects
 
 | Project | Relationship |
 | --- | --- |
-| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Provides the core Agent, Session, Tool, Skill, MCP, Profile, and official Web |
-| [Cordis](https://github.com/cordiverse/cordis) | Provides the plugin foundation |
-| [dsh-market](https://github.com/dsh-market/dsh-market) | The visual plugin market bundled by default |
-| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Upstream community repository for the current task board |
-| [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) | An independent community distribution centered on a complete desktop Shell and cross-platform installers |
-| [dshfind](https://www.dshfind.com/en) | A community for learning, sharing, and discovering DSH plugins |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Agent, Session, Tool, Skill, MCP, Profile, and official Web runtime |
+| [Cordis](https://github.com/cordiverse/cordis) | Plugin foundation |
+| [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | Default workspace sidebar, editor, Git, and terminal |
+| [dsh-market](https://github.com/dsh-market/dsh-market) | Default plugin market |
+| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Upstream community repository for the default task board |
+| [dshfind](https://www.dshfind.com/zh) | DSH learning, sharing, and plugin discovery community |
 
 ## Relationship to DeepSeek Harness
 
-DSH Desktop is an independent community project built on DeepSeek Harness and the Cordis plugin model. Upstream provides the core runtime, plugin system, and Web UI; this project provides the Electron wrapper, offline initialization for new Profiles, curated community Bundles, narrow native Host, recovery page, and desktop release verification.
-
-This project has no affiliation, partnership, authorization, or endorsement from DeepSeek. “DeepSeek Harness” is used only to describe compatibility and technical origins accurately.
+DSH Desktop is an independent community project built on the DeepSeek Harness and Cordis plugin systems. “DeepSeek Harness” is used only to describe compatibility and technical origin. This project has no affiliation, partnership, authorization, or endorsement from DeepSeek.
 
 ## License
 
-Project code is available under the [MIT License](LICENSE). Sources and distribution terms for third-party components, fixed tarballs, native binaries, and visual assets are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Project code is released under the [MIT License](LICENSE). Sources and redistribution terms for third-party components, pinned tarballs, native binaries, and visual assets are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

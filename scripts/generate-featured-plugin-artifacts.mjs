@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto"
 import { execFile } from "node:child_process"
+import { readdirSync, readFileSync, statSync } from "node:fs"
 import { cp, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path"
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 
@@ -70,6 +71,25 @@ export function validateFeaturedPackageContract(plugin, manifest) {
       || JSON.stringify(manifest.dependencies || {}) !== JSON.stringify(plugin.evidence.package_dependencies)) {
       throw new Error(`精选 registry 插件版本或依赖闭包漂移: ${plugin.name}`)
     }
+    if (plugin.evidence.release_dependencies !== undefined) {
+      const releaseDependencies = plugin.evidence.release_dependencies
+      if (!releaseDependencies || typeof releaseDependencies !== "object" || Array.isArray(releaseDependencies)
+        || Object.keys(releaseDependencies).length === 0
+        || Object.entries(releaseDependencies).some(([name, version]) => (
+          plugin.evidence.package_dependencies[name] !== version
+        ))) {
+        throw new Error(`精选 registry 插件发行依赖投影无效: ${plugin.name}`)
+      }
+    }
+    if (plugin.evidence.release_peer_dependencies !== undefined
+      && (!plugin.evidence.release_peer_dependencies
+        || typeof plugin.evidence.release_peer_dependencies !== "object"
+        || Array.isArray(plugin.evidence.release_peer_dependencies)
+        || Object.keys(plugin.evidence.release_peer_dependencies).length === 0
+        || Object.values(plugin.evidence.release_peer_dependencies)
+          .some((version) => typeof version !== "string" || !version.trim()))) {
+      throw new Error(`精选 registry 插件发行 peer 投影无效: ${plugin.name}`)
+    }
     const clientExport = manifest.exports?.["./client"]
     const clientEntry = typeof clientExport === "string" ? clientExport : clientExport?.default
     if (manifest.dsh?.client?.platform !== "web"
@@ -95,6 +115,155 @@ export function validateFeaturedPackageContract(plugin, manifest) {
   return portability
 }
 
+/** Apply the reviewed dependency and peer projection used only by a fixed registry release tarball. */
+export function projectFeaturedRegistryManifest(plugin, manifest) {
+  if (plugin.evidence.source_kind !== "locked-registry-package") return structuredClone(manifest)
+  return {
+    ...structuredClone(manifest),
+    ...(plugin.evidence.release_dependencies === undefined
+      ? {}
+      : { dependencies: { ...plugin.evidence.release_dependencies } }),
+    ...(plugin.evidence.release_peer_dependencies === undefined
+      ? {}
+      : { peerDependencies: { ...plugin.evidence.release_peer_dependencies } }),
+  }
+}
+
+function installedDirectory(path) {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+function resolveInstalledDependency(parentDir, packageName, serverRoot) {
+  let current = parentDir
+  for (;;) {
+    const candidate = join(current, "node_modules", ...packageName.split("/"))
+    if (inside(serverRoot, candidate) && installedDirectory(candidate)) return candidate
+    const next = dirname(current)
+    if (next === current || !inside(serverRoot, next)) break
+    current = next
+  }
+  throw new Error(`精选 registry 插件依赖没有安装: ${packageName}`)
+}
+
+function dependencyLicenseFile(packageDir) {
+  const name = readdirSync(packageDir)
+    .filter((entry) => /^(license|licence|copying|notice)(\.|$)/i.test(entry))
+    .sort((left, right) => left.localeCompare(right))[0]
+  return name ? join(packageDir, name) : join(packageDir, "package.json")
+}
+
+function dependencyLicenseId(locked, manifest, licenseBytes) {
+  const declared = locked?.license || manifest?.license
+  if (typeof declared === "string" && declared.trim()) return declared
+  const text = licenseBytes.toString("utf8")
+  if (/The MIT License \(MIT\)[\s\S]*Permission is hereby granted, free of charge/i.test(text)) return "MIT"
+  throw new Error(`精选 registry 插件依赖缺少可核对的 SPDX 许可证: ${manifest?.name || "unknown"}`)
+}
+
+/** Resolve one registry Bundle's complete installed dependency tree from the exact server lockfile. */
+export function resolveFeaturedOfflineDependencies(plugin, {
+  appRoot = SCRIPT_ROOT,
+  lockfile = null,
+} = {}) {
+  if (plugin.evidence.source_kind !== "locked-registry-package") return []
+  if (plugin.evidence.offline_dependency_resolution !== "package-lock-closure") {
+    return plugin.evidence.offline_dependencies
+  }
+  const root = resolve(appRoot)
+  const serverRoot = join(root, "server")
+  const packageRoot = resolveFeaturedPackageDir(plugin, { appRoot: root })
+  const packageLock = lockfile || JSON.parse(readFileSync(join(serverRoot, "package-lock.json"), "utf8"))
+  const packagePrefix = `${relative(serverRoot, packageRoot).split(sep).join("/")}/`
+  const rootDependencies = plugin.evidence.release_dependencies || plugin.evidence.package_dependencies
+  const seen = new Map()
+  const queue = [{
+    dir: packageRoot,
+    dependencies: rootDependencies,
+    optionalDependencies: {},
+  }]
+  while (queue.length > 0) {
+    const parent = queue.shift()
+    const names = [...new Set([
+      ...Object.keys(parent.dependencies || {}),
+      ...Object.keys(parent.optionalDependencies || {}),
+    ])].sort((left, right) => left.localeCompare(right))
+    for (const name of names) {
+      let packageDir
+      try {
+        packageDir = resolveInstalledDependency(parent.dir, name, serverRoot)
+      } catch (error) {
+        if (Object.hasOwn(parent.optionalDependencies || {}, name)) continue
+        throw error
+      }
+      const lockPath = relative(serverRoot, packageDir).split(sep).join("/")
+      if (seen.has(lockPath)) continue
+      const manifest = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"))
+      seen.set(lockPath, { packageDir, manifest })
+      queue.push({
+        dir: packageDir,
+        dependencies: manifest.dependencies || {},
+        optionalDependencies: manifest.optionalDependencies || {},
+      })
+    }
+  }
+  return [...seen.entries()]
+    .map(([lockPath, { packageDir, manifest }]) => {
+      const locked = packageLock?.packages?.[lockPath]
+      if (!locked || locked.version !== manifest.version
+        || typeof locked.integrity !== "string" || !locked.integrity) {
+        throw new Error(`精选 registry 插件锁文件缺少完整依赖证据: ${lockPath}`)
+      }
+      const installPath = lockPath.startsWith(packagePrefix)
+        ? lockPath.slice(packagePrefix.length)
+        : lockPath
+      const licensePath = dependencyLicenseFile(packageDir)
+      const licenseBytes = readFileSync(licensePath)
+      return {
+        name: manifest.name,
+        version: manifest.version,
+        integrity: locked.integrity,
+        license: dependencyLicenseId(locked, manifest, licenseBytes),
+        license_path: relative(root, licensePath).split(sep).join("/"),
+        license_sha256: sha256(licenseBytes),
+        install_path: installPath,
+        ...(installPath === lockPath ? {} : { lock_path: lockPath }),
+      }
+    })
+    .sort((left, right) => left.install_path.localeCompare(right.install_path))
+}
+
+/** Resolve licenses for the complete upstream dependency tree, including code embedded in Client chunks. */
+export function resolveFeaturedLicenseDependencies(plugin, options = {}) {
+  if (plugin.evidence.source_kind !== "locked-registry-package") return []
+  if (plugin.evidence.offline_dependency_resolution !== "package-lock-closure"
+    || plugin.evidence.release_dependencies === undefined) {
+    return resolveFeaturedOfflineDependencies(plugin, options)
+  }
+  return resolveFeaturedOfflineDependencies({
+    ...plugin,
+    evidence: { ...plugin.evidence, release_dependencies: undefined },
+  }, options)
+}
+
+/** Verify that a pruned registry release keeps every dependency imported by the built Host entry. */
+export function validateFeaturedRegistryReleaseDependencies(plugin, hostSource) {
+  if (plugin.evidence.source_kind !== "locked-registry-package"
+    || plugin.evidence.release_dependencies === undefined) return
+  const sourceDependencies = new Set(Object.keys(plugin.evidence.package_dependencies))
+  const imports = new Set([
+    ...[...hostSource.matchAll(/^import[\s\S]*?from\s+["']([^"']+)["'];?$/gm)].map((match) => match[1]),
+    ...[...hostSource.matchAll(/\brequire(?:Impl)?\(["']([^"']+)["']\)/g)].map((match) => match[1]),
+  ].filter((specifier) => sourceDependencies.has(specifier)))
+  const expected = Object.keys(plugin.evidence.release_dependencies).sort()
+  if (JSON.stringify([...imports].sort()) !== JSON.stringify(expected)) {
+    throw new Error(`精选 registry 插件发行依赖与 Host 入口不一致: ${plugin.name}`)
+  }
+}
+
 /** Apply an exact, hash-bound release adaptation to a registry Client bundle. */
 export function transformFeaturedRegistryClient(plugin, sourceText) {
   const transform = plugin.evidence.release_transform
@@ -116,11 +285,16 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
 }
 
 /** Validate an exact registry package and its offline dependency closure against server/package-lock.json. */
-export function validateFeaturedPackageLock(plugin, lockfile) {
+export function validateFeaturedPackageLock(plugin, lockfile, options = {}) {
   if (plugin.evidence.source_kind !== "locked-registry-package") return
-  const rootDependencies = lockfile?.packages?.[""]?.dependencies || {}
+  const offlineDependencies = options.offlineDependencies
+    || resolveFeaturedOfflineDependencies(plugin, { ...options, lockfile })
+  const dependencyField = plugin.evidence.source_dependency_kind === "devDependency"
+    ? "devDependencies"
+    : "dependencies"
+  const rootDependencies = lockfile?.packages?.[""]?.[dependencyField] || {}
   if (rootDependencies[plugin.name] !== plugin.evidence.package_version) {
-    throw new Error(`精选 registry 插件不是 server 的精确直接依赖: ${plugin.name}`)
+    throw new Error(`精选 registry 插件不是 server 的精确直接${dependencyField}: ${plugin.name}`)
   }
   const records = [{
     name: plugin.name,
@@ -128,11 +302,11 @@ export function validateFeaturedPackageLock(plugin, lockfile) {
     integrity: plugin.evidence.package_integrity,
     license: plugin.evidence.declared_license,
     lock_path: `node_modules/${plugin.name}`,
-  }, ...plugin.evidence.offline_dependencies]
+  }, ...offlineDependencies]
   for (const record of records) {
     const locked = lockfile?.packages?.[record.lock_path || record.install_path]
     if (!locked || locked.version !== record.version || locked.integrity !== record.integrity
-      || locked.license !== record.license) {
+      || (locked.license !== undefined && locked.license !== record.license)) {
       throw new Error(`精选 registry 插件锁文件漂移: ${record.name}`)
     }
   }
@@ -165,8 +339,12 @@ async function prepareRegistryPackSource(plugin, sourceDir, root) {
   try {
     await cp(sourceDir, staged, { recursive: true })
     const manifestPath = join(staged, "package.json")
-    const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
-    manifest.bundleDependencies = Object.keys(plugin.evidence.package_dependencies)
+    const manifest = projectFeaturedRegistryManifest(
+      plugin,
+      JSON.parse(await readFile(manifestPath, "utf8")),
+    )
+    const releaseDependencies = manifest.dependencies || {}
+    manifest.bundleDependencies = Object.keys(releaseDependencies)
     if (plugin.evidence.release_files) manifest.files = [...plugin.evidence.release_files]
     await writeFile(manifestPath, json(manifest))
     if (plugin.evidence.release_transform) {
@@ -175,9 +353,15 @@ async function prepareRegistryPackSource(plugin, sourceDir, root) {
       await writeFile(clientPath, transformFeaturedRegistryClient(plugin, source))
     }
     for (const dependency of plugin.evidence.offline_dependencies) {
-      const dependencySource = join(root, "server", dependency.install_path)
+      const dependencySource = join(root, "server", dependency.lock_path || dependency.install_path)
       const dependencyManifest = JSON.parse(await readFile(join(dependencySource, "package.json"), "utf8"))
-      if (dependencyManifest.version !== dependency.version || dependencyManifest.license !== dependency.license) {
+      const dependencyLicensePath = dependencyLicenseFile(dependencySource)
+      const dependencyLicense = dependencyLicenseId(
+        {},
+        dependencyManifest,
+        readFileSync(dependencyLicensePath),
+      )
+      if (dependencyManifest.version !== dependency.version || dependencyLicense !== dependency.license) {
         throw new Error(`精选 registry 插件离线依赖安装态漂移: ${dependency.name}`)
       }
       const target = join(staged, dependency.install_path)
@@ -267,14 +451,36 @@ export async function generateFeaturedPluginArtifacts({
     const sourceDir = resolveFeaturedPackageDir(plugin, { appRoot: root })
     const manifest = JSON.parse(await readFile(join(sourceDir, "package.json"), "utf8"))
     const portability = validateFeaturedPackageContract(plugin, manifest)
-    validateFeaturedPackageLock(plugin, serverLockfile)
+    const offlineDependencies = resolveFeaturedOfflineDependencies(plugin, {
+      appRoot: root,
+      lockfile: serverLockfile,
+    })
+    const licenseDependencies = resolveFeaturedLicenseDependencies(plugin, {
+      appRoot: root,
+      lockfile: serverLockfile,
+    })
+    const resolvedPlugin = offlineDependencies === plugin.evidence.offline_dependencies
+      ? plugin
+      : {
+          ...plugin,
+          evidence: {
+            ...plugin.evidence,
+            offline_dependencies: offlineDependencies,
+            license_dependencies: licenseDependencies,
+          },
+        }
+    validateFeaturedPackageLock(resolvedPlugin, serverLockfile, { offlineDependencies })
     await validateFeaturedPackageComposition(
       plugin,
       await readFile(join(sourceDir, plugin.evidence.source_entry || plugin.evidence.entry), "utf8"),
       await readFile(join(sourceDir, "cordis.patch.yml"), "utf8"),
     )
+    validateFeaturedRegistryReleaseDependencies(
+      plugin,
+      await readFile(join(sourceDir, plugin.evidence.entry), "utf8"),
+    )
     const prepared = plugin.evidence.source_kind === "locked-registry-package"
-      ? await prepareRegistryPackSource(plugin, sourceDir, root)
+      ? await prepareRegistryPackSource(resolvedPlugin, sourceDir, root)
       : { sourceDir, temporaryRoot: null }
     let packed
     try {
@@ -288,7 +494,7 @@ export async function generateFeaturedPluginArtifacts({
     const bytes = await readFile(target)
     const file = await stat(target)
     records.push({
-      ...plugin,
+      ...resolvedPlugin,
       version: manifest.version,
       tarball,
       sha256: sha256(bytes),
@@ -306,7 +512,8 @@ export async function generateFeaturedPluginArtifacts({
     plugins: records.map((record) => ({
       ...record,
       license_file: primaryLicenseFile(record),
-      bundled_license_files: [...new Set((record.evidence.offline_dependencies || [])
+      bundled_license_files: [...new Set((record.evidence.license_dependencies
+        || record.evidence.offline_dependencies || [])
         .map(bundledLicenseFile))],
     })),
   }
@@ -318,7 +525,8 @@ export async function generateFeaturedPluginArtifacts({
     licenseInputs.set(primaryFile, record.evidence.source_kind === "locked-registry-package"
       ? { path: record.evidence.license_path, sha256: record.evidence.license_sha256 }
       : { path: `legal/licenses/${record.package_license}.txt`, sha256: null })
-    for (const dependency of record.evidence.offline_dependencies || []) {
+    for (const dependency of record.evidence.license_dependencies
+      || record.evidence.offline_dependencies || []) {
       licenseInputs.set(bundledLicenseFile(dependency), {
         path: dependency.license_path,
         sha256: dependency.license_sha256,
@@ -366,7 +574,8 @@ export async function generateFeaturedPluginArtifacts({
     "",
     ...records.flatMap(({ name, version, package_license, package_path, sha256: hash, evidence }) => [
       `- ${name}@${version} — ${package_license}; license ${primaryLicenseFile({ name, version, package_license, evidence })}; source ${package_path}; SHA-256 ${hash}${evidence.declared_license && evidence.declared_license !== package_license ? `; package.json declares ${evidence.declared_license} while bundled LICENSE is ${package_license}` : ""}`,
-      ...(evidence.offline_dependencies || []).map((dependency) => `  - bundled dependency ${dependency.name}@${dependency.version} — ${dependency.license}; license ${bundledLicenseFile(dependency)}; registry integrity ${dependency.integrity}`),
+      ...(evidence.license_dependencies || evidence.offline_dependencies || [])
+        .map((dependency) => `  - bundled or embedded dependency ${dependency.name}@${dependency.version} — ${dependency.license}; license ${bundledLicenseFile(dependency)}; registry integrity ${dependency.integrity}`),
     ]),
     "",
   ].join("\n")
