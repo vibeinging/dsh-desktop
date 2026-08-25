@@ -52,6 +52,11 @@ import {
   resolveDmgPath,
 } from '../../electron/scripts/notarize-macos-dmg.mjs';
 import { BUNDLED_PNPM_FILES } from '../../electron/scripts/prepare-package.mjs';
+import {
+  isMachODescription,
+  isMachOMagic,
+  synchronizeFeaturedArtifactProjections,
+} from '../../scripts/sign-featured-macos-native-artifacts.mjs';
 
 test('release safety rejects adhoc macOS signatures and accepts Developer ID signatures', () => {
   assert.deepEqual(classifyMacSignatureOutput('Signature=adhoc\nTeamIdentifier=not set'), {
@@ -871,15 +876,59 @@ test('macOS package notarizes the signed App before producing and notarizing DMG
   assert.equal(electronPackage.build.mac.notarize, false);
   for (const name of ['package:mac:project', 'package:mac:x64:project']) {
     const command = electronPackage.scripts[name];
+    const prepare = command.indexOf(name.includes('x64') ? 'prepare:mac:x64' : 'prepare:mac');
+    const nestedNativeSigning = command.indexOf('seal:featured-plugins:mac');
+    const measurement = command.indexOf('measure:featured-plugins');
     const signedDirectory = command.indexOf('--dir -c.forceCodeSigning=true');
     const appNotary = command.indexOf('scripts/notarize-macos-app.mjs');
     const prepackaged = command.indexOf('--prepackaged');
     const updateArtifacts = command.indexOf('check:update-artifacts:mac');
     const dmgNotary = command.indexOf('scripts/notarize-macos-dmg.mjs');
+    assert.ok(prepare >= 0 && nestedNativeSigning > prepare, `${name} must sign nested plugin binaries after generation`);
+    assert.ok(measurement > nestedNativeSigning && signedDirectory > measurement, `${name} must measure signed plugin tarballs before packaging`);
     assert.ok(signedDirectory >= 0 && appNotary > signedDirectory, `${name} must notarize the signed App`);
     assert.ok(prepackaged > appNotary, `${name} must package the stapled App`);
     assert.ok(updateArtifacts > prepackaged && dmgNotary > updateArtifacts, `${name} must verify then notarize DMG`);
     assert.match(command, /-c\.mac\.notarize=false/);
+  }
+});
+
+test('macOS featured artifact signing recognizes Mach-O and synchronizes every hash projection', async () => {
+  assert.equal(isMachODescription('Mach-O 64-bit bundle arm64'), true);
+  assert.equal(isMachODescription('ELF 64-bit LSB shared object'), false);
+  assert.equal(isMachOMagic(Buffer.from('cffaedfe', 'hex')), true);
+  assert.equal(isMachOMagic(Buffer.from('7f454c46', 'hex')), false);
+  const root = await mkdtemp(join(tmpdir(), 'dsh-featured-signing-'));
+  try {
+    const oldHash = createHash('sha256').update('before').digest('hex');
+    const tarball = 'plugin.tgz';
+    writeFileSync(join(root, tarball), 'after');
+    writeFileSync(join(root, 'manifest.json'), JSON.stringify({
+      schema_version: 1,
+      profile: 'desktop',
+      plugins: [{ name: '@example/plugin', tarball, sha256: oldHash, size_bytes: 6 }],
+    }));
+    writeFileSync(join(root, 'profile-install.json'), JSON.stringify({
+      commands: [{ name: '@example/plugin', tarball, sha256: oldHash }],
+    }));
+    writeFileSync(join(root, 'test-expected.json'), JSON.stringify({
+      tarballs: [{ name: '@example/plugin', tarball, sha256: oldHash, size_bytes: 6 }],
+    }));
+    writeFileSync(join(root, 'evaluation.json'), JSON.stringify({
+      plugins: [{ name: '@example/plugin', tarball, sha256: oldHash, size_bytes: 6 }],
+    }));
+    writeFileSync(join(root, 'THIRD_PARTY_NOTICES.md'), `- @example/plugin SHA-256 ${oldHash}\n`);
+    await synchronizeFeaturedArtifactProjections(root);
+    const expectedHash = createHash('sha256').update('after').digest('hex');
+    assert.equal(JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')).plugins[0].sha256, expectedHash);
+    assert.equal(JSON.parse(readFileSync(join(root, 'profile-install.json'), 'utf8')).commands[0].sha256, expectedHash);
+    assert.deepEqual(JSON.parse(readFileSync(join(root, 'test-expected.json'), 'utf8')).tarballs[0], {
+      name: '@example/plugin', tarball, sha256: expectedHash, size_bytes: 5,
+    });
+    assert.equal(JSON.parse(readFileSync(join(root, 'evaluation.json'), 'utf8')).plugins[0].sha256, expectedHash);
+    assert.match(readFileSync(join(root, 'THIRD_PARTY_NOTICES.md'), 'utf8'), new RegExp(expectedHash));
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

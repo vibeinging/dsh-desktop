@@ -35,3 +35,5 @@ npm run eval:release-device:verify -- --receipt <result.json> --artifact <candid
 ## 发版规则
 
 公开 macOS 产物前需要对应 macOS 架构的通过回执；公开 Windows 产物前需要 Windows x64 通过回执。签名、公证、Gatekeeper、Authenticode、真实模型和自动 smoke 仍由各自门禁负责，不能被真机人工勾选替代。
+
+macOS 正式构建还必须检查精选 Bundle tarball 内的原生文件。生成 tarball 后，构建脚本使用同一 Developer ID、时间戳和 hardened runtime 签署其中所有 Mach-O 文件，同步安装与测量清单哈希，再重新执行逐包 Profile 测量。这样可以覆盖 `dsh-better-sidebar` 离线依赖中的 `node-pty` 等嵌套原生文件；只签署 Electron App 外层不能满足 Apple 公证要求。

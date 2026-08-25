@@ -381,6 +381,7 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
       mac.hardenedRuntime === true
         && mac.notarize === false
         && String(scripts['package:mac:project'] || '').includes('forceCodeSigning=true')
+        && String(scripts['package:mac:project'] || '').includes('seal:featured-plugins:mac')
         && String(scripts['package:mac:project'] || '').includes('scripts/notarize-macos-app.mjs')
         && String(scripts['package:mac:project'] || '').includes('--prepackaged')
         ? 'pass' : 'block',
@@ -429,6 +430,7 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
         && macEvidenceWorkflow.includes('release/*.yml')
         && macEvidenceWorkflow.includes('release/*.blockmap')
         && macPackageScripts.includes('check:update-artifacts:mac')
+        && macPackageScripts.includes('seal:featured-plugins:mac')
         && macPackageScripts.includes('scripts/notarize-macos-app.mjs')
         && macPackageScripts.includes('scripts/notarize-macos-dmg.mjs') ? 'pass' : 'block',
       'macOS 发行证据 workflow 必须覆盖签名、公证、更新器元数据和社区打包 smoke',
