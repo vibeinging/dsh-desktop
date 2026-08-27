@@ -1,15 +1,17 @@
 <h1 align="center">DSH Desktop</h1>
 
 <p align="center">
-  <strong>Official DSH Web, community plugins, and desktop capabilities in one ready-to-use app.</strong><br>
+  <strong>DSH Desktop Bundle Edition — official DSH Web, community plugins, and desktop capabilities in one ready-to-use app.</strong><br>
   Conversations, files, Git, terminals, tasks, Worktrees, and the plugin market share one DSH Profile.
 </p>
 
-<p align="center"><a href="README.md">中文</a> · <a href="README.anime.md">Anime README</a></p>
+<p align="center"><a href="README.md">中文</a></p>
 
 <p align="center">
+  <a href="https://dshdesktopstation.com/"><img src="https://img.shields.io/badge/website-dshdesktopstation.com-8B5CF6?style=flat" alt="Official website"></a>
   <a href="https://github.com/vibeinging/dsh-desktop/releases/latest"><img src="https://img.shields.io/github/v/release/vibeinging/dsh-desktop?display_name=tag&amp;style=flat&amp;color=2563EB" alt="Latest release"></a>
   <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
+  <a href="https://dshfind.com/en/plugins/vibeinging/dsh-desktop?ref=badge"><img src="https://dshfind.com/api/badge/vibeinging/dsh-desktop?lang=en" alt="dshfind"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/DSH-0.1.1--rc.2-7C3AED?style=flat" alt="DSH 0.1.1-rc.2">
   <img src="https://img.shields.io/badge/plugins-Profile%20Bundles-2563EB?style=flat" alt="Profile Bundles">
@@ -19,9 +21,11 @@
   <img src="docs/images/readme/dsh-community-task-board.png" alt="DSH Desktop main interface" width="100%">
 </p>
 
-DSH Desktop is a community-maintained desktop distribution. It runs the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm runtime and `dsh-web-app` directly, with a curated set of pinned community Bundles. There is no second Chat implementation or separate plugin database to maintain: the app starts from one official DSH Profile.
+DSH Desktop (Bundle Edition) is a community-maintained desktop distribution. It runs the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm runtime and `dsh-web-app` directly, with a curated set of pinned community Bundles. There is no second Chat implementation or separate plugin database to maintain: the app starts from one official DSH Profile.
 
 <p align="center">
+  <a href="https://dshdesktopstation.com/"><strong>Website</strong></a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="https://github.com/vibeinging/dsh-desktop/releases/latest"><strong>Download the latest release</strong></a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="#getting-started">Get started</a>
@@ -36,6 +40,8 @@ DSH Desktop is a community-maintained desktop distribution. It runs the official
 | macOS Apple Silicon | Download the `.dmg` and drag it to Applications | Developer ID signed and Apple notarized |
 | Windows x64 | Download the `.exe` installer | Use the artifacts published on the current [Release](https://github.com/vibeinging/dsh-desktop/releases/latest) page |
 | macOS Intel / Linux | No formal installer yet | Run from source |
+
+Direct download links and file sizes are listed on the [website download page](https://dshdesktopstation.com/#download); first-run questions (Gatekeeper, SmartScreen, API keys, slow downloads) are covered in the [website FAQ](https://dshdesktopstation.com/#faq).
 
 ## Ready on first launch
 
@@ -92,6 +98,24 @@ The market uses the official settings Slot. It neither replaces settings nor cre
 
 Create an isolated Worktree from the active Session directory and open an official Session for the new workspace.
 
+### Multi-agent teams (bundled by default since v0.2.0)
+
+![DSH Desktop running the agent-teams multi-agent collaboration plugin](docs/images/readme/dsh-agent-teams.png)
+
+Want to assemble sub-agent teams inside the official Web? Since v0.2.0 the popular community plugin [dsh-agent-teams](https://github.com/NanmiCoder/dsh-agent-teams) (`@nanmicoder/dsh-agent-teams`) ships by default: the current session acts as the captain — creating teams, assigning roles and summarizing results — while persistent members claim dependency-aware tasks with a live progress panel and a plan-first, approve-then-run workflow. Use the `/agent-teams` slash command in any session; the screenshot above is this app running the plugin for real (Blue Fantasy skin, task DAG and member panel).
+
+### Optional: skin center
+
+![DSH Desktop running the Blue Fantasy dark skin from the skin center](docs/images/readme/dsh-skin-blue-fantasy-applied.png)
+
+The app keeps the official Web look by default. For a personalized interface, install the community-maintained [skin center](https://github.com/zhu1090093659/dsh-web) (`@linxin666/dsh-client-ui-skin-center`) from the plugin market: dozens of skins can be tried instantly, applied to disk, and reverted to the official look at any time.
+
+```bash
+dsh plugin --profile web add @linxin666/dsh-client-ui-skin-center
+```
+
+Skin assets carry their own upstream licenses (some CC BY-NC-SA or including character copyrights), so the skin center is not bundled by default; users opt in via the plugin market.
+
 ## Why this route
 
 | Concern | DSH Desktop approach |
@@ -130,10 +154,10 @@ A plugin that follows the official DSH Bundle and `dshClient` contracts does not
 
 ### Default plugins
 
-New Profiles include Better Sidebar, dshmarket, the task board, attachment input, Git Worktree, project tools, Canvas, Office output, structured results, and model inheritance. Every manageable Bundle can be disabled or removed.
+New Profiles include Better Sidebar, dshmarket, the task board, attachment input, Git Worktree, **multi-agent teams (new in v0.2.0)**, project tools, Canvas, Office output, structured results, and model inheritance. Every manageable Bundle can be disabled or removed.
 
 <details>
-<summary>View the 14 Bundles installed in a new Profile</summary>
+<summary>View the 15 Bundles installed in a new Profile</summary>
 
 <!-- featured-plugins:start -->
 | Default Bundle | Type | Declared permissions | Official management | Source |
@@ -152,6 +176,7 @@ New Profiles include Better Sidebar, dshmarket, the task board, attachment input
 | `dsh-multimedia-webui-input` | portable | read files and folders explicitly selected by the user, write attachments under .dsh/tmp/attachments in the active Session workspace, remove only plugin-owned attachment directories after a second user confirmation | `dsh plugin --profile web remove dsh-multimedia-webui-input` | [upstream repository](https://github.com/LCYLYM/dsh-attachments) |
 | `dsh-better-sidebar` | portable | read, search, create, modify, and delete files in the current Session workspace, run Git operations in the current Session workspace, start and stop local terminal processes; model-facing terminal tools are disabled by default, open user-entered web pages or external editors and receive files explicitly uploaded by the user, when enabled by the user, register the sidebar_open model tool to open workspace files, folders, or HTTP(S) pages in the current Session sidebar; disabled by default | `dsh plugin --profile web remove dsh-better-sidebar` | [upstream repository](https://github.com/omdsh-dev/DSH-better-sidebar) |
 | `dshmarket` | portable | read and modify dependencies, Bundle order, and enabled state in the active DSH Profile, install, update, and remove user-confirmed plugins through controlled pnpm, access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services, export or import backups that contain Profile configuration | `dsh plugin --profile web remove dshmarket` | [upstream repository](https://github.com/dsh-market/dsh-market) |
+| `@nanmicoder/dsh-agent-teams` | portable | read and resume DSH sub-agent sessions in the current profile, write team, task and message state under .agent-teams/ in the current workspace, register the /agent-teams command and team Web UI to create and manage sub-agent teams on user request | `dsh plugin --profile web remove @nanmicoder/dsh-agent-teams` | [upstream repository](https://github.com/NanmiCoder/dsh-agent-teams) |
 <!-- featured-plugins:end -->
 
 </details>
@@ -200,11 +225,13 @@ DSH Desktop chooses one official Web interface, one official Profile authority, 
 
 | Project | Relationship |
 | --- | --- |
+| [dsh-website](https://github.com/vibeinging/dsh-website) | Official website of this project (DSH Desktop Station · [dshdesktopstation.com](https://dshdesktopstation.com/)) |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Agent, Session, Tool, Skill, MCP, Profile, and official Web runtime |
 | [Cordis](https://github.com/cordiverse/cordis) | Plugin foundation |
 | [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | Default workspace sidebar, editor, Git, and terminal |
 | [dsh-market](https://github.com/dsh-market/dsh-market) | Default plugin market |
 | [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Upstream community repository for the default task board |
+| [dsh-web](https://github.com/zhu1090093659/dsh-web) | Upstream community ecosystem package for the skin center and task board (Apache-2.0) |
 | [dshfind](https://www.dshfind.com/zh) | DSH learning, sharing, and plugin discovery community |
 
 ## Relationship to DeepSeek Harness

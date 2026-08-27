@@ -8,22 +8,39 @@
       "default": true,
       "user_manageable": false,
       "portability": "desktop-adapter",
-      "permissions": ["dsh-work-parent-ipc", "browser-workspace-host", "file-dialog-host", "window-host"],
+      "permissions": [
+        "dsh-work-parent-ipc",
+        "browser-workspace-host",
+        "file-dialog-host",
+        "window-host"
+      ],
       "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "workspace-package",
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "dsh-work-product-host-ipc",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
         "composition": {
           "plugin_id": "dsh-work-product-host-ipc",
-          "requires": ["webServer", "agents"],
-          "provides": ["productHost", "officeArtifactHost", "browserWorkspaceHost", "fileDialogHost", "windowHost"],
+          "requires": [
+            "webServer",
+            "agents"
+          ],
+          "provides": [
+            "productHost",
+            "officeArtifactHost",
+            "browserWorkspaceHost",
+            "fileDialogHost",
+            "windowHost"
+          ],
           "routes": [],
           "slots": [],
           "conflicts": []
@@ -32,9 +49,19 @@
         "profile_uninstall": "official-dsh-plugin-cli",
         "desktop_runtime_required": true,
         "regression": {
-          "unit": ["eval/tests/dsh-product-host.test.mjs", "eval/tests/browser-workspace.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-offline.mjs", "electron/scripts/smoke-browser-workspace.mjs", "electron/scripts/smoke-packaged-native-host.mjs"]
+          "unit": [
+            "eval/tests/dsh-product-host.test.mjs",
+            "eval/tests/browser-workspace.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-offline.mjs",
+            "electron/scripts/smoke-browser-workspace.mjs",
+            "electron/scripts/smoke-packaged-native-host.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
       }
@@ -45,14 +72,21 @@
       "default": true,
       "user_manageable": false,
       "portability": "desktop-adapter",
-      "permissions": ["dsh-profile-filesystem", "controlled-pnpm-runtime", "dsh-cli-runtime"],
+      "permissions": [
+        "dsh-profile-filesystem",
+        "controlled-pnpm-runtime",
+        "dsh-cli-runtime"
+      ],
       "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "workspace-package",
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "dsh-desktop-profile-host",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "registry-access-only-through-user-requested-plugin-operations",
@@ -60,7 +94,10 @@
         "composition": {
           "plugin_id": "dsh-desktop-profile-host",
           "requires": [],
-          "provides": ["desktopProfiles", "desktopPnpm"],
+          "provides": [
+            "desktopProfiles",
+            "desktopPnpm"
+          ],
           "routes": [],
           "slots": [],
           "conflicts": []
@@ -69,9 +106,16 @@
         "profile_uninstall": "official-dsh-plugin-cli",
         "desktop_runtime_required": true,
         "regression": {
-          "unit": ["eval/tests/dsh-desktop-profile-host.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-initialization.test.mjs", "eval/tests/dsh-profile-plugin-service.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-featured-plugins.mjs"]
+          "unit": [
+            "eval/tests/dsh-desktop-profile-host.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-initialization.test.mjs",
+            "eval/tests/dsh-profile-plugin-service.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-featured-plugins.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball; Profile mutation lifecycle and cold start are release-smoke measurements"
       }
@@ -89,7 +133,10 @@
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "dsh-desktop-chrome",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "not-declared",
@@ -105,9 +152,17 @@
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-desktop-chrome.test.mjs", "eval/tests/dsh-official-web-only.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-featured-plugins.mjs"]
+          "unit": [
+            "eval/tests/dsh-desktop-chrome.test.mjs",
+            "eval/tests/dsh-official-web-only.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-featured-plugins.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball, Profile storage, Client activation, and cold Web start"
       }
@@ -118,21 +173,30 @@
       "default": true,
       "user_manageable": true,
       "portability": "desktop-adapter",
-      "permissions": ["product-host"],
+      "permissions": [
+        "product-host"
+      ],
       "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "workspace-package",
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "dsh-work-project-tools",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
         "composition": {
           "plugin_id": "dsh-work-project-tools",
-          "requires": ["agents", "tools", "productHost"],
+          "requires": [
+            "agents",
+            "tools",
+            "productHost"
+          ],
           "provides": [],
           "routes": [],
           "slots": [],
@@ -141,9 +205,16 @@
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-product-host.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+          "unit": [
+            "eval/tests/dsh-product-host.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-offline.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
       }
@@ -154,21 +225,30 @@
       "default": true,
       "user_manageable": true,
       "portability": "desktop-adapter",
-      "permissions": ["product-host"],
+      "permissions": [
+        "product-host"
+      ],
       "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "workspace-package",
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "dsh-work-canvas-tools",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
         "composition": {
           "plugin_id": "dsh-work-canvas-tools",
-          "requires": ["agents", "tools", "productHost"],
+          "requires": [
+            "agents",
+            "tools",
+            "productHost"
+          ],
           "provides": [],
           "routes": [],
           "slots": [],
@@ -177,9 +257,16 @@
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-product-host.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+          "unit": [
+            "eval/tests/dsh-product-host.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-offline.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
       }
@@ -190,21 +277,30 @@
       "default": true,
       "user_manageable": true,
       "portability": "desktop-adapter",
-      "permissions": ["product-host"],
+      "permissions": [
+        "product-host"
+      ],
       "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "workspace-package",
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "dsh-work-structured-ui-tools",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
         "composition": {
           "plugin_id": "dsh-work-structured-ui-tools",
-          "requires": ["agents", "tools", "productHost"],
+          "requires": [
+            "agents",
+            "tools",
+            "productHost"
+          ],
           "provides": [],
           "routes": [],
           "slots": [],
@@ -213,9 +309,16 @@
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-product-host.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+          "unit": [
+            "eval/tests/dsh-product-host.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-offline.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
       }
@@ -233,14 +336,19 @@
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "dsh-model-inheritance",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
         "composition": {
           "plugin_id": "dsh-model-inheritance",
-          "requires": ["agents"],
+          "requires": [
+            "agents"
+          ],
           "provides": [],
           "routes": [],
           "slots": [],
@@ -249,9 +357,18 @@
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-product-host.test.mjs", "eval/tests/dsh-official-web-plugin-compat.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-profile-authority.mjs", "electron/scripts/smoke-packaged-official-web-flow.mjs"]
+          "unit": [
+            "eval/tests/dsh-product-host.test.mjs",
+            "eval/tests/dsh-official-web-plugin-compat.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-profile-authority.mjs",
+            "electron/scripts/smoke-packaged-official-web-flow.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
       }
@@ -262,21 +379,29 @@
       "default": true,
       "user_manageable": true,
       "portability": "desktop-adapter",
-      "permissions": ["product-host"],
+      "permissions": [
+        "product-host"
+      ],
       "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "workspace-package",
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "product-bridge",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
         "composition": {
           "plugin_id": "product-bridge",
-          "requires": ["agents", "productHost"],
+          "requires": [
+            "agents",
+            "productHost"
+          ],
           "provides": [],
           "routes": [],
           "slots": [],
@@ -285,9 +410,16 @@
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-product-host.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+          "unit": [
+            "eval/tests/dsh-product-host.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-offline.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
       }
@@ -298,21 +430,30 @@
       "default": true,
       "user_manageable": true,
       "portability": "desktop-adapter",
-      "permissions": ["office-artifact-host"],
+      "permissions": [
+        "office-artifact-host"
+      ],
       "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "workspace-package",
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "dsh-work-office-tools",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "not-declared",
         "client": false,
         "composition": {
           "plugin_id": "dsh-work-office-tools",
-          "requires": ["agents", "tools", "officeArtifactHost"],
+          "requires": [
+            "agents",
+            "tools",
+            "officeArtifactHost"
+          ],
           "provides": [],
           "routes": [],
           "slots": [],
@@ -321,9 +462,16 @@
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-product-host.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-offline.mjs"]
+          "unit": [
+            "eval/tests/dsh-product-host.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-offline.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball; profile storage and cold start are release-smoke measurements"
       }
@@ -342,26 +490,47 @@
         "release_source": "fixed-tarball",
         "entry": "src/index.js",
         "patch_id": "dsh-worktree",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
-        "runtime_requirements": ["system-git"],
+        "runtime_requirements": [
+          "system-git"
+        ],
         "network": "loopback-session-bound-route-only",
         "client": true,
         "composition": {
           "plugin_id": "dsh-worktree",
-          "requires": ["webServer", "sessions"],
+          "requires": [
+            "webServer",
+            "sessions"
+          ],
           "provides": [],
-          "routes": ["/dsh-worktree"],
-          "slots": ["conversation.view", "sidebar.footer.action", "shell.overlay"],
+          "routes": [
+            "/dsh-worktree"
+          ],
+          "slots": [
+            "conversation.view",
+            "sidebar.footer.action",
+            "shell.overlay"
+          ],
           "conflicts": []
         },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-worktree.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-plugin-service.test.mjs", "eval/tests/dsh-profile-initialization.test.mjs"],
-          "electron": ["electron/scripts/smoke-packaged-featured-plugins.mjs"]
+          "unit": [
+            "eval/tests/dsh-worktree.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-featured-plugins.mjs"
+          ]
         },
         "cost_measurement": "per-plugin tarball, Profile storage, Client activation, and cold Web start"
       }
@@ -373,8 +542,18 @@
       "default": true,
       "user_manageable": true,
       "portability": "portable",
-      "permissions": ["读取当前 DSH Session、Workspace 与完成历史", "在 DSH_HOME 写入任务账本和执行记录", "按用户操作或 Host cron 启动 DSH Session 任务", "可选启动固定的跨平台防休眠 helper"],
-      "permissions_en": ["read current DSH Session, Workspace, and completion history", "write task ledger and run records under DSH_HOME", "start DSH Session tasks from user actions or Host cron", "optionally start a fixed cross-platform sleep-prevention helper"],
+      "permissions": [
+        "读取当前 DSH Session、Workspace 与完成历史",
+        "在 DSH_HOME 写入任务账本和执行记录",
+        "按用户操作或 Host cron 启动 DSH Session 任务",
+        "可选启动固定的跨平台防休眠 helper"
+      ],
+      "permissions_en": [
+        "read current DSH Session, Workspace, and completion history",
+        "write task ledger and run records under DSH_HOME",
+        "start DSH Session tasks from user actions or Host cron",
+        "optionally start a fixed cross-platform sleep-prevention helper"
+      ],
       "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "locked-registry-package",
@@ -385,7 +564,9 @@
         "declared_license": "Apache-2.0",
         "license_path": "server/node_modules/@linxin666/dsh-client-ui-task-board/LICENSE",
         "license_sha256": "02e1e3ebf73df5c1840c842a8e93b40942bf6e53a66acbe6c5643fc8664ff97d",
-        "package_dependencies": { "schemastery": "^3.18.0" },
+        "package_dependencies": {
+          "schemastery": "^3.18.0"
+        },
         "offline_dependencies": [
           {
             "name": "schemastery",
@@ -418,25 +599,50 @@
         "entry": "lib/index.js",
         "source_entry": "src/index.ts",
         "patch_id": "ui-task-board",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "declared_dsh_sdk": "^0.1.1-rc.1", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "declared_dsh_sdk": "^0.1.1-rc.1",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "loopback-same-origin-only",
         "client": true,
         "composition": {
           "plugin_id": "ui-task-board",
-          "requires": ["systemPrompt", "apiProxy", "webServer", "agents", "commands"],
+          "requires": [
+            "systemPrompt",
+            "apiProxy",
+            "webServer",
+            "agents",
+            "commands"
+          ],
           "provides": [],
-          "routes": ["/api/task-board/state", "/api/task-board/events", "/api/task-board/action"],
+          "routes": [
+            "/api/task-board/state",
+            "/api/task-board/events",
+            "/api/task-board/action"
+          ],
           "slots": [],
-          "conflicts": ["@linxin666/dsh-web-ui-all"]
+          "conflicts": [
+            "@linxin666/dsh-web-ui-all"
+          ]
         },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-trusted-client-plugins.test.mjs", "eval/tests/dsh-profile-plugin-service.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-initialization.test.mjs", "eval/tests/dsh-community-task-board.test.mjs"],
-          "electron": ["eval/tests/dsh-community-task-board.test.mjs", "electron/scripts/smoke-packaged-featured-plugins.mjs"]
+          "unit": [
+            "eval/tests/dsh-trusted-client-plugins.test.mjs",
+            "eval/tests/dsh-profile-plugin-service.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-initialization.test.mjs",
+            "eval/tests/dsh-community-task-board.test.mjs"
+          ],
+          "electron": [
+            "eval/tests/dsh-community-task-board.test.mjs",
+            "electron/scripts/smoke-packaged-featured-plugins.mjs"
+          ]
         },
         "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, and cold Web start"
       }
@@ -544,8 +750,20 @@
       "default": true,
       "user_manageable": true,
       "portability": "portable",
-      "permissions": ["读取、搜索、创建、修改和删除当前 Session 工作区文件", "在当前 Session 工作区执行 Git 操作", "启动和停止本地终端进程；模型终端工具默认关闭", "打开用户输入的网页或外部编辑器，并接收用户主动上传的文件", "用户开启后向模型注册 sidebar_open 工具，用于在当前会话侧栏打开工作区文件、文件夹或 HTTP(S) 页面；默认关闭"],
-      "permissions_en": ["read, search, create, modify, and delete files in the current Session workspace", "run Git operations in the current Session workspace", "start and stop local terminal processes; model-facing terminal tools are disabled by default", "open user-entered web pages or external editors and receive files explicitly uploaded by the user", "when enabled by the user, register the sidebar_open model tool to open workspace files, folders, or HTTP(S) pages in the current Session sidebar; disabled by default"],
+      "permissions": [
+        "读取、搜索、创建、修改和删除当前 Session 工作区文件",
+        "在当前 Session 工作区执行 Git 操作",
+        "启动和停止本地终端进程；模型终端工具默认关闭",
+        "打开用户输入的网页或外部编辑器，并接收用户主动上传的文件",
+        "用户开启后向模型注册 sidebar_open 工具，用于在当前会话侧栏打开工作区文件、文件夹或 HTTP(S) 页面；默认关闭"
+      ],
+      "permissions_en": [
+        "read, search, create, modify, and delete files in the current Session workspace",
+        "run Git operations in the current Session workspace",
+        "start and stop local terminal processes; model-facing terminal tools are disabled by default",
+        "open user-entered web pages or external editors and receive files explicitly uploaded by the user",
+        "when enabled by the user, register the sidebar_open model tool to open workspace files, folders, or HTTP(S) pages in the current Session sidebar; disabled by default"
+      ],
       "license": "MIT",
       "evidence": {
         "source_kind": "locked-registry-package",
@@ -620,26 +838,64 @@
         "client_entry": "lib/client.js",
         "source_entry": "src/index.ts",
         "patch_id": "better-sidebar",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "declared_peer_sdk": "^0.1.0-rc.8", "cordis": "^4.0.1" },
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "declared_peer_sdk": "^0.1.0-rc.8",
+          "cordis": "^4.0.1"
+        },
         "lifecycle_scripts": [],
-        "ignored_dependency_lifecycle_scripts": ["node-pty@1.1.0 install", "node-pty@1.1.0 postinstall"],
-        "native_dependencies": ["node-pty@1.1.0"],
+        "ignored_dependency_lifecycle_scripts": [
+          "node-pty@1.1.0 install",
+          "node-pty@1.1.0 postinstall"
+        ],
+        "native_dependencies": [
+          "node-pty@1.1.0"
+        ],
         "network": "loopback-sidebar-api-websocket-agent-open-push-and-user-opened-url-probe",
         "client": true,
         "composition": {
           "plugin_id": "better-sidebar",
-          "requires": ["webServer", "sessions", "webRuntime", "tools"],
-          "provides": ["betterSidebar"],
-          "routes": ["/sidebar/api/*", "/sidebar/upload", "/sidebar/bundle/*", "/sidebar/file", "/sidebar/html", "/sidebar/ws/terminal", "/sidebar/ws/agent-terminals", "/sidebar/ws/agent-opens"],
-          "slots": ["conversation.chat.turnTail", "settings.section"],
-          "conflicts": ["duplicate dsh-better-sidebar mount after an aggregate Bundle"]
+          "requires": [
+            "webServer",
+            "sessions",
+            "webRuntime",
+            "tools"
+          ],
+          "provides": [
+            "betterSidebar"
+          ],
+          "routes": [
+            "/sidebar/api/*",
+            "/sidebar/upload",
+            "/sidebar/bundle/*",
+            "/sidebar/file",
+            "/sidebar/html",
+            "/sidebar/ws/terminal",
+            "/sidebar/ws/agent-terminals",
+            "/sidebar/ws/agent-opens"
+          ],
+          "slots": [
+            "conversation.chat.turnTail",
+            "settings.section"
+          ],
+          "conflicts": [
+            "duplicate dsh-better-sidebar mount after an aggregate Bundle"
+          ]
         },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-trusted-client-plugins.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-initialization.test.mjs", "eval/tests/dsh-profile-plugin-service.test.mjs"],
-          "electron": ["eval/fixtures/official-web-electron.cjs", "electron/scripts/smoke-packaged-featured-plugins.mjs"]
+          "unit": [
+            "eval/tests/dsh-trusted-client-plugins.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-initialization.test.mjs",
+            "eval/tests/dsh-profile-plugin-service.test.mjs"
+          ],
+          "electron": [
+            "eval/fixtures/official-web-electron.cjs",
+            "electron/scripts/smoke-packaged-featured-plugins.mjs"
+          ]
         },
         "cost_measurement": "complete lockfile-derived dependency closure, native prebuilds, fixed tarball, Profile storage, Client activation, terminal dependency probe, and cold Web start"
       }
@@ -651,8 +907,18 @@
       "default": true,
       "user_manageable": true,
       "portability": "portable",
-      "permissions": ["读取和修改当前 DSH Profile 的依赖、Bundle 顺序和启停状态", "通过受控 pnpm 安装、更新和卸载用户确认的插件", "访问插件目录、npm、GitHub 以及用户配置的 WebDAV 或 Gist", "导出或导入包含 Profile 配置的备份"],
-      "permissions_en": ["read and modify dependencies, Bundle order, and enabled state in the active DSH Profile", "install, update, and remove user-confirmed plugins through controlled pnpm", "access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services", "export or import backups that contain Profile configuration"],
+      "permissions": [
+        "读取和修改当前 DSH Profile 的依赖、Bundle 顺序和启停状态",
+        "通过受控 pnpm 安装、更新和卸载用户确认的插件",
+        "访问插件目录、npm、GitHub 以及用户配置的 WebDAV 或 Gist",
+        "导出或导入包含 Profile 配置的备份"
+      ],
+      "permissions_en": [
+        "read and modify dependencies, Bundle order, and enabled state in the active DSH Profile",
+        "install, update, and remove user-confirmed plugins through controlled pnpm",
+        "access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services",
+        "export or import backups that contain Profile configuration"
+      ],
       "license": "MIT",
       "evidence": {
         "source_kind": "locked-registry-package",
@@ -663,7 +929,10 @@
         "declared_license": "MIT",
         "license_path": "server/node_modules/dshmarket/LICENSE",
         "license_sha256": "5c4b7168fe83192a2c6a1cbd674fbc6e8489eeb22222b96ace1f5cc5b1f654fa",
-        "package_dependencies": { "js-yaml": "^4.1.0", "undici": "^7.29.0" },
+        "package_dependencies": {
+          "js-yaml": "^4.1.0",
+          "undici": "^7.29.0"
+        },
         "offline_dependencies": [
           {
             "name": "js-yaml",
@@ -697,27 +966,122 @@
         "client_entry": "client/client.js",
         "source_entry": "src/index.ts",
         "patch_id": "dsh-market",
-        "compatibility": { "dsh_sdk": "0.1.1-rc.2", "declared_settings_sdk": "^0.1.0-rc.7", "cordis": "^4.0.1" },
-        "lifecycle_scripts": ["prepare", "prepack"],
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "declared_settings_sdk": "^0.1.0-rc.7",
+          "cordis": "^4.0.1"
+        },
+        "lifecycle_scripts": [
+          "prepare",
+          "prepack"
+        ],
         "native_dependencies": [],
         "network": "awesome-dsh-plugin-npm-github-and-user-configured-backup-services",
         "client": true,
         "composition": {
           "plugin_id": "dsh-market",
-          "requires": ["webServer", "loader"],
+          "requires": [
+            "webServer",
+            "loader"
+          ],
           "provides": [],
-          "routes": ["/dsh-market/*"],
-          "slots": ["settings.section", "settings.plugin.item", "shell.overlay"],
+          "routes": [
+            "/dsh-market/*"
+          ],
+          "slots": [
+            "settings.section",
+            "settings.plugin.item",
+            "shell.overlay"
+          ],
           "conflicts": []
         },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
-          "unit": ["eval/tests/dsh-trusted-client-plugins.test.mjs"],
-          "profile": ["eval/tests/dsh-profile-initialization.test.mjs", "eval/tests/dsh-profile-plugin-service.test.mjs"],
-          "electron": ["eval/dsh-market-ui-smoke.mjs", "electron/scripts/smoke-packaged-featured-plugins.mjs"]
+          "unit": [
+            "eval/tests/dsh-trusted-client-plugins.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-initialization.test.mjs",
+            "eval/tests/dsh-profile-plugin-service.test.mjs"
+          ],
+          "electron": [
+            "eval/dsh-market-ui-smoke.mjs",
+            "electron/scripts/smoke-packaged-featured-plugins.mjs"
+          ]
         },
         "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, Client activation, and cold Web start"
+      }
+    },
+    {
+      "name": "@nanmicoder/dsh-agent-teams",
+      "package_path": "server/node_modules/@nanmicoder/dsh-agent-teams",
+      "repository": "https://github.com/NanmiCoder/dsh-agent-teams",
+      "default": true,
+      "user_manageable": true,
+      "portability": "portable",
+      "permissions": [
+        "读取与续接当前 Profile 中的 DSH 子智能体会话",
+        "在当前工作区 .agent-teams/ 写入团队、任务与消息状态",
+        "注册 /agent-teams 命令与团队 Web UI，按用户指令创建和管理子智能体团队"
+      ],
+      "permissions_en": [
+        "read and resume DSH sub-agent sessions in the current profile",
+        "write team, task and message state under .agent-teams/ in the current workspace",
+        "register the /agent-teams command and team Web UI to create and manage sub-agent teams on user request"
+      ],
+      "license": "MIT",
+      "evidence": {
+        "source_kind": "locked-registry-package",
+        "release_source": "fixed-tarball",
+        "package_spec": "@nanmicoder/dsh-agent-teams@0.1.13",
+        "package_version": "0.1.13",
+        "package_integrity": "sha512-1r762+78NCwomc8t6cSx847AmEuAORKdIkIcdtgxB0Gk1qgjDUsJcwZ8O2oGFBICt+72pAwtj1n0yYGU1DLJTg==",
+        "declared_license": "MIT",
+        "license_path": "server/node_modules/@nanmicoder/dsh-agent-teams/LICENSE",
+        "license_sha256": "e4e722cd6f8bb374affe13b571a262e0e03d68407da555abf1b046eb7889d4ea",
+        "package_dependencies": {},
+        "offline_dependencies": [],
+        "entry": "lib/index.js",
+        "source_entry": "lib/index.js",
+        "patch_id": "agent-teams",
+        "compatibility": {
+          "dsh_sdk": "0.1.1-rc.2",
+          "cordis": "^4.0.1"
+        },
+        "lifecycle_scripts": [],
+        "native_dependencies": [],
+        "network": "loopback-same-origin-only",
+        "client": true,
+        "composition": {
+          "plugin_id": "agent-teams",
+          "requires": [
+            "tools",
+            "llm",
+            "subagents",
+            "systemPrompt",
+            "agents"
+          ],
+          "provides": [],
+          "routes": [],
+          "slots": [],
+          "conflicts": []
+        },
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": [
+            "eval/tests/dsh-profile-plugin-service.test.mjs",
+            "eval/tests/dsh-trusted-client-plugins.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-initialization.test.mjs"
+          ],
+          "electron": [
+            "electron/scripts/smoke-packaged-offline.mjs"
+          ]
+        },
+        "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, and cold Web start"
       }
     }
   ]
