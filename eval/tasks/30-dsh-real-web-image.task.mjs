@@ -83,6 +83,10 @@ export default {
     try {
       const model = await api('GET', `/api/agent/projects/${pid}/model`).catch(() => null);
       if (!model?.json?.data?.model_name) assert.blocked('隔离环境没有可用的真实 PRIMARY 模型');
+      const currentModel = (model?.json?.data?.items || []).find((item) => item?.is_enabled === true);
+      if (currentModel?.capabilities?.supports_image_input !== true) {
+        assert.blocked('隔离环境当前 PRIMARY 模型不支持图片输入');
+      }
 
       const imagePath = createColorFixture(root);
       const image = await driver.askAgent(

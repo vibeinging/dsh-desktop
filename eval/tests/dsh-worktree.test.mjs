@@ -58,6 +58,13 @@ test("the Worktree Bundle is an additive official Web plugin", () => {
   assert.match(client, /ctx\.slots\.inject\("sidebar\.footer\.action"/);
   assert.match(client, /ctx\.slots\.inject\("shell\.overlay"/);
   assert.match(client, /ctx\.workspaces\.create/);
+  assert.match(client, /\.dsh-worktree-overlay \{[\s\S]*position: absolute/);
+  assert.doesNotMatch(client, /\.dsh-worktree-overlay \{[\s\S]*?position: fixed/);
+  assert.match(client, /width: min\(920px, calc\(100% - 24px\)\)/);
+  assert.match(client, /event\.key !== "Escape"/);
+  assert.match(client, /previous\.replaceWith\(style\)/);
+  assert.match(client, /function WorktreeSidebarAction\(\{ wide \}\) \{\s+useEffect\(installStyle, \[\]\);/);
+  assert.doesNotMatch(client, /ctx\.effect\(\(\) => installStyle\(\)/);
   assert.match(packagedSmoke, /dsh-worktree-sidebar-action/);
   assert.match(packagedSmoke, /dsh-worktree-view/);
   assert.match(packagedSmoke, /feature\/worktree-preview/);
@@ -124,18 +131,46 @@ test("Host actions trust the Session cwd and reject deleting its active Worktree
 
 test("the generated browser bundle registers three official UI slots through lifecycle seams", () => {
   let descriptor;
+  let styleElement;
+  const document = {
+    createElement: () => ({
+      remove() {
+        if (styleElement === this) styleElement = undefined;
+      },
+      replaceWith(next) {
+        styleElement = next;
+      },
+    }),
+    getElementById: () => styleElement,
+    head: {
+      append(style) {
+        styleElement = style;
+      },
+    },
+  };
   runInNewContext(readFileSync(join(PACKAGE_DIR, "lib", "client.js"), "utf8"), {
+    document,
     window: { __ModuleLoader__: { load: (value) => { descriptor = value; } } },
   });
   assert.equal(descriptor.id, "@vibeinging/dsh-client-ui-worktree");
-  const React = { createElement() {}, useCallback() {}, useEffect() {}, useMemo() {}, useState() {} };
+  const effectCleanups = [];
+  const React = {
+    createElement() {},
+    useCallback() {},
+    useEffect(install) {
+      effectCleanups.push(install());
+    },
+    useMemo() {},
+    useState() {},
+    useSyncExternalStore() {},
+  };
   const plugin = descriptor.factory((id) => {
     assert.equal(id, "react");
     return React;
   });
   const registrations = [];
   const ctx = {
-    effect: () => () => {},
+    effect: () => assert.fail("Worktree 样式不能挂在插件级 effect 上"),
     slots: {
       inject: (name, install) => {
         assert.ok(["conversation.view", "sidebar.footer.action", "shell.overlay"].includes(name));
@@ -161,4 +196,9 @@ test("the generated browser bundle registers three official UI slots through lif
   ]);
   assert.ok(registrations.every(({ entry, component }) => entry.id === "worktree" && typeof component === "function"));
   assert.equal(registrations[0].entry.order, 20);
+  registrations[1].component({ wide: true });
+  assert.equal(styleElement?.id, "dsh-worktree-client-style");
+  assert.match(styleElement?.textContent || "", /\.dsh-worktree-sidebar-action/);
+  effectCleanups[0]();
+  assert.equal(styleElement, undefined);
 });

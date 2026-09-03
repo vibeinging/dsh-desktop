@@ -8,6 +8,8 @@ import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { fetchOfficialWebHtml } from "./official-web-test-helpers.mjs";
+
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_CLI = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh/lib/bin.js");
 const MODEL_INHERITANCE_PACKAGE = resolve(APP_ROOT, "packages/dsh-model-inheritance");
@@ -47,7 +49,7 @@ function waitForOfficialSurface(child) {
     const timeout = setTimeout(() => rejectSurface(new Error(`official Web Profile did not start:\n${output}`)), 30_000);
     const inspect = (chunk) => {
       output += chunk.toString();
-      const match = output.match(/dsh web: (http:\/\/127\.0\.0\.1:\d+)/);
+      const match = output.match(/dsh web: (http:\/\/127\.0\.0\.1:\d+\/\?token=[^\s]+)/);
       if (!match) return;
       clearTimeout(timeout);
       resolveSurface(match[1]);
@@ -99,10 +101,7 @@ test("our portable Bundle installs and runs in an unmodified official Web Profil
       stdio: ["ignore", "pipe", "pipe"],
     });
     const surface = await waitForOfficialSurface(server);
-    const html = await fetch(surface).then((response) => {
-      assert.equal(response.ok, true);
-      return response.text();
-    });
+    const html = await fetchOfficialWebHtml(surface);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-model-inheritance\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-work-shell\/client\.js\?rev=/);
 
@@ -140,10 +139,7 @@ test("our portable Bundle installs and runs in an unmodified official Web Profil
       stdio: ["ignore", "pipe", "pipe"],
     });
     const restoredSurface = await waitForOfficialSurface(server);
-    const restoredHtml = await fetch(restoredSurface).then((response) => {
-      assert.equal(response.ok, true);
-      return response.text();
-    });
+    const restoredHtml = await fetchOfficialWebHtml(restoredSurface);
     assert.doesNotMatch(restoredHtml, /\/plugins\/@vibeinging\/dsh-model-inheritance\/client\.js\?rev=/);
     const restoredOutput = await runCommand(ELECTRON_EXECUTABLE, [ELECTRON_FIXTURE], {
       cwd: APP_ROOT,

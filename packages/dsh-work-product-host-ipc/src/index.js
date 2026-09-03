@@ -153,6 +153,8 @@ export function createProductHostServices(transport) {
   const productHost = Object.freeze({
     projectList: (request, context) => call(transport, "projectList", request, context),
     conversationList: (request, context) => call(transport, "conversationList", request, context),
+    conversationCreateScope: (context) => call(transport, "conversationCreateScope", {}, context),
+    conversationCreate: (request, context) => call(transport, "conversationCreate", request, context),
     conversationContext: (request, context) => call(transport, "conversationContext", request, context),
     capabilitySnapshot: (context) => call(transport, "capabilitySnapshot", {}, context),
     skillList: (context) => call(transport, "skillList", {}, context),
@@ -262,9 +264,14 @@ export function apply(ctx) {
   if (!ctx.webServer?.port) throw new Error("dsh-work product Host requires a listening Web server");
   const publishReady = () => {
     if (!ctx.get("webServer")?.port) return;
+    const surface = `http://127.0.0.1:${ctx.webServer.port}/`;
+    const connection = ctx.get("connection");
+    const url = typeof connection?.authenticatedUrl === "function"
+      ? connection.authenticatedUrl(surface)
+      : surface;
     sendRuntimeParentMessage(process, {
       type: "client-ready",
-      url: `http://127.0.0.1:${ctx.webServer.port}/`,
+      url,
     });
     sendRuntimeParentMessage(process, {
       type: "ready",

@@ -18,12 +18,16 @@ test("DSH session attachment adopts the App cwd and accounts the Session under t
   const result = await ensureDshWorkspaceSession(client, {
     sessionId: "dsh-1",
     cwd: "/repo",
+    agentPreset: "standard",
   });
 
   assert.equal(result.sessionId, "dsh-1");
   assert.deepEqual(calls, [
     { method: "workspace.create", payload: { path: "/repo" } },
-    { method: "session.create", payload: { workspaceId: "workspace-1", sessionId: "dsh-1" } },
+    {
+      method: "session.create",
+      payload: { workspaceId: "workspace-1", sessionId: "dsh-1", agentPreset: "standard" },
+    },
   ]);
 });
 

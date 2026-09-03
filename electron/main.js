@@ -13,10 +13,12 @@ const {
   app,
   BrowserWindow,
   WebContentsView,
+  View,
   dialog,
   screen,
   shell,
   nativeImage,
+  nativeTheme,
   Menu,
   net,
   session,
@@ -28,6 +30,8 @@ const { spawn } = require('node:child_process');
 const { normalizeWebSearchSettings, applyWebSearchEnv } = require('./web-search-settings');
 const { normalizeProxyUrl } = require('./network-proxy-settings');
 const { AppUpdateController } = require('./app-update-controller');
+const { handleAppUpdateRequest } = require('./app-update-requests');
+const { AppUpdateView } = require('./app-update-view');
 const { loadOrCreateRendererSurfacePort } = require('./renderer-surface-port');
 const { BROWSER_PARTITION, BrowserWorkspaceController } = require('./browser-workspace');
 const {
@@ -83,7 +87,9 @@ const SMOKE_SCREENSHOT_NAME = /^[A-Za-z0-9._-]+$/.test(String(process.env.DSH_SM
 const SMOKE_DISMISS_ONBOARDING = process.env.DSH_SMOKE_DISMISS_ONBOARDING === '1';
 const SMOKE_WORKSPACE_PATH = String(process.env.DSH_SMOKE_WORKSPACE_PATH || '').trim();
 const SMOKE_SMART_ATTACHMENT_PICKER = process.env.DSH_SMOKE_SMART_ATTACHMENT_PICKER === '1';
-const UPDATE_API_BASE_URL = String(process.env.DSH_UPDATE_API_BASE_URL || '').trim();
+const UPDATE_API_BASE_URL = String(process.env.DSH_UPDATE_API_BASE_URL === undefined
+  ? 'https://dshdesktopstation.com'
+  : process.env.DSH_UPDATE_API_BASE_URL).trim();
 const UPDATE_REPOSITORY = Object.freeze({ owner: 'vibeinging', repo: 'dsh-desktop' });
 const RECOVERY_PAGE = path.join(__dirname, 'recovery.html');
 
@@ -249,8 +255,7 @@ let browserWorkspace = null;
 const pending = new Map(); // id → {handle,fail,timer}: route backend messages by id
 let reqSeq = 0;
 let appUpdateController = null;
-let appUpdatePromptPromise = null;
-let lastPromptedUpdateVersion = '';
+let appUpdateView = null;
 const CLOSE_BEHAVIOR_VALUES = new Set(['ask', 'minimize', 'quit']);
 
 const BROWSER_NATIVE_DECISIONS = new Set(['allow_once', 'allow_always', 'deny_always', 'deny']);
@@ -345,6 +350,7 @@ function ensureBrowserWorkspace() {
       getParentWindow: () => mainWindow,
       userDataPath: app.getPath('userData'),
       downloadDirectory: path.join(app.getPath('userData'), 'browser-downloads'),
+      onBeforeInput: (event, input) => appUpdateView?.onContentInput(event, input),
       sendEvent: (channel, payload) => {
         try {
           if (backendProc?.connected) backendProc.send({ type: 'desktop-native-event', channel, payload });
@@ -668,7 +674,20 @@ function configureApplicationMenu() {
         { role: 'about' },
         {
           label: '检查更新…',
+          accelerator: 'CommandOrControl+Shift+U',
+          enabled: app.isPackaged,
           click: () => { void checkForAppUpdatesManually(); },
+        },
+        {
+          id: 'dsh-install-update',
+          label: '下载并安装更新…',
+          enabled: appUpdateController?.getState().status === 'available',
+          click: () => {
+            const controller = initializeAppUpdater();
+            if (controller?.getState().status === 'available') {
+              handleAppUpdateRequest(controller, 'install', { version: controller.getState().latest?.version });
+            }
+          },
         },
         { type: 'separator' },
         { role: 'hide' },
@@ -983,6 +1002,7 @@ function stopBackendGracefully() {
 
 function sendAppUpdateState(state = appUpdateController?.getState()) {
   if (!state) return;
+  appUpdateView?.setState(state);
   console.info('[updater] 状态:', JSON.stringify({ status: state.status, version: state.latest?.version || null }));
   if (mainWindow && !mainWindow.isDestroyed()) {
     const progress = state.status === 'downloading' && Number.isFinite(state.progress?.percent)
@@ -990,95 +1010,14 @@ function sendAppUpdateState(state = appUpdateController?.getState()) {
       : -1;
     mainWindow.setProgressBar(progress);
   }
-  if (!SMOKE_UPDATE && state.status === 'available') {
-    setTimeout(() => { void promptForAvailableUpdate(state); }, 250).unref?.();
-  }
-}
-
-function updateNotesText(state) {
-  const notes = [
-    ...(state.latest?.notes?.features || []),
-    ...(state.latest?.notes?.improvements || []),
-    ...(state.latest?.notes?.fixes || []),
-  ].filter((item) => typeof item === 'string' && item.trim()).slice(0, 8);
-  const lines = [
-    `当前版本：${state.currentVersion}`,
-    `新版本：${state.latest?.version || '未知'}`,
-  ];
-  if (notes.length) lines.push('', '更新内容：', ...notes.map((item) => `- ${item.trim()}`));
-  return lines.join('\n').slice(0, 4_000);
-}
-
-async function showUpdateMessage(options) {
-  const win = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
-  return win ? dialog.showMessageBox(win, options) : dialog.showMessageBox(options);
-}
-
-function promptForAvailableUpdate(state = appUpdateController?.getState(), { force = false } = {}) {
-  const version = String(state?.latest?.version || '').trim();
-  if (!version || state?.status !== 'available') return Promise.resolve(state);
-  if (!force && version === lastPromptedUpdateVersion) return Promise.resolve(state);
-  if (appUpdatePromptPromise) return appUpdatePromptPromise;
-  lastPromptedUpdateVersion = version;
-  appUpdatePromptPromise = (async () => {
-    const result = await showUpdateMessage({
-      type: 'info',
-      title: 'DSH Desktop 更新',
-      message: `发现新版本 ${version}`,
-      detail: updateNotesText(state),
-      buttons: ['下载并安装', '稍后再说'],
-      defaultId: 0,
-      cancelId: 1,
-      noLink: true,
-    });
-    if (result.response !== 0) return appUpdateController?.getState() || state;
-    const next = await appUpdateController.downloadAndInstall();
-    if (next.status === 'error') {
-      await showUpdateMessage({
-        type: 'error',
-        title: '更新失败',
-        message: '无法完成更新',
-        detail: next.error || '请稍后重试，或前往 GitHub Releases 手动下载。',
-        buttons: ['好'],
-      });
-    }
-    return next;
-  })().finally(() => { appUpdatePromptPromise = null; });
-  return appUpdatePromptPromise;
+  const menuItem = Menu.getApplicationMenu()?.getMenuItemById('dsh-install-update');
+  if (menuItem) menuItem.enabled = state.status === 'available';
 }
 
 async function checkForAppUpdatesManually() {
   const controller = initializeAppUpdater();
-  if (!controller?.getState().enabled) {
-    await showUpdateMessage({
-      type: 'info',
-      title: '检查更新',
-      message: '开发版不执行自动更新',
-      detail: '请在已签名的 macOS 或 Windows 安装包中使用该功能。',
-      buttons: ['好'],
-    });
-    return controller?.getState() || null;
-  }
-  const state = await controller.check();
-  if (state.status === 'available') return promptForAvailableUpdate(state, { force: true });
-  if (state.status === 'up-to-date') {
-    await showUpdateMessage({
-      type: 'info',
-      title: '检查更新',
-      message: '当前已是最新版本',
-      detail: `当前版本：${state.currentVersion}`,
-      buttons: ['好'],
-    });
-  } else if (state.status === 'error') {
-    await showUpdateMessage({
-      type: 'error',
-      title: '检查更新失败',
-      message: '无法获取最新版本',
-      detail: state.error || '请检查网络后重试。',
-      buttons: ['好'],
-    });
-  }
-  return state;
+  appUpdateView?.focus();
+  return controller ? controller.check() : null;
 }
 
 function initializeAppUpdater() {
@@ -1089,7 +1028,9 @@ function initializeAppUpdater() {
       app,
       updater: autoUpdater,
       fetch: (url, options) => net.fetch(url, options),
-      apiBaseUrl: UPDATE_API_BASE_URL,
+    apiBaseUrl: UPDATE_API_BASE_URL,
+    collectAnonymousStats: process.env.DSH_UPDATE_STATS_DISABLED !== '1',
+    allowGitHubFallback: true,
       repository: UPDATE_REPOSITORY,
       platform: process.platform,
       arch: process.arch,
@@ -1248,6 +1189,8 @@ function recoveryPluginCandidates(dshHome = DATA_ROOT) {
 
 function destroyMainWindowImmediately() {
   const previous = mainWindow;
+  appUpdateView?.dispose();
+  appUpdateView = null;
   mainWindow = null;
   destroyBrowserWorkspace();
   try { previous?.destroy(); } catch { /* The window may already be closing. */ }
@@ -1522,6 +1465,23 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
   });
   mainWindowKind = 'official-web';
   const officialWindow = mainWindow;
+  if (initializeAppUpdater()?.getState().enabled) {
+    const updateView = new AppUpdateView({
+      window: officialWindow, WebContentsView, View, nativeTheme,
+      getController: initializeAppUpdater,
+      integratedChrome: useIntegratedChrome,
+    });
+    appUpdateView = updateView;
+    void updateView.ready.catch((error) => {
+      console.error('[updater] 更新控件加载失败:', error.message);
+      updateView.dispose();
+      if (appUpdateView === updateView) appUpdateView = null;
+    });
+    officialWindow.once('closed', () => {
+      updateView.dispose();
+      if (appUpdateView === updateView) appUpdateView = null;
+    });
+  }
   mainWindow.center();
   lockPageZoom(mainWindow);
   let surfaceLoadRetried = false;
@@ -1781,10 +1741,16 @@ function requestBackend(req = {}, { timeoutMs = API_REQUEST_TIMEOUT_MS } = {}) {
 function normalizeRendererSurface(value) {
   const url = new URL(String(value || ''));
   if (url.protocol !== 'http:' || url.hostname !== '127.0.0.1' || !url.port
-    || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
-    throw new Error('DSH Client 必须使用受信任的 loopback HTTP origin');
+    || url.username || url.password || url.pathname !== '/' || url.hash) {
+    throw new Error('DSH Client 必须使用受信任的 loopback HTTP 启动地址');
   }
-  return `${url.origin}/`;
+  const tokenNames = [...url.searchParams.keys()];
+  const tokens = url.searchParams.getAll('token');
+  if (tokenNames.some((name) => name !== 'token') || tokens.length > 1
+    || (tokens.length === 1 && !tokens[0])) {
+    throw new Error('DSH Client 启动地址包含无效认证参数');
+  }
+  return url.href;
 }
 
 async function resolveRendererSurface() {

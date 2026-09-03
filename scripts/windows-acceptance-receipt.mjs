@@ -1,14 +1,16 @@
-export const WINDOWS_ACCEPTANCE_RECEIPT_VERSION = 'dsh.windows-x64-acceptance.v1'
+export const WINDOWS_ACCEPTANCE_RECEIPT_VERSION = 'dsh.windows-x64-acceptance.v2'
 
 export const WINDOWS_ACCEPTANCE_CHECKS = Object.freeze([
-  'installer-install',
+  'installer-custom-directory',
   'installed-server-smoke',
   'installed-app-smoke',
+  'installed-data-root-separation',
   'installed-official-web-permission-smoke',
   'installed-offline-profile-smoke',
   'installed-recovery-smoke',
   'installed-profile-authority-smoke',
   'uninstaller',
+  'dsh-data-preserved-after-uninstall',
   'cleanup',
 ])
 

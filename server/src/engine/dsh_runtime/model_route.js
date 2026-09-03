@@ -45,6 +45,9 @@ export function dshModelOptions(catalog) {
       source: "dsh",
       is_enabled: false,
       capabilities: {
+        ...(Array.isArray(model?.inputModalities)
+          ? { supports_image_input: model.inputModalities.includes("image") }
+          : {}),
         reasoning_efforts: efforts.map((effort) => effort.id),
         reasoning_effort_options: efforts.map((effort) => ({
           value: effort.id,

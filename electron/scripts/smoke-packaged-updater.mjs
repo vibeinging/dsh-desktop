@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 
 import { resolvePackagedLayout } from './packaged-layout.mjs'
+import { nextPatchVersion } from './updater-smoke-version.mjs'
 
 const require = createRequire(import.meta.url)
 const { createPackage, extractAll, extractFile } = require('@electron/asar')
@@ -16,7 +17,8 @@ const run = promisify(execFile)
 const appInput = process.argv[2] || '../release/mac-arm64/DSH Desktop.app'
 const { appPath, executable, resourcesDir } = resolvePackagedLayout(appInput)
 const currentApp = appPath || appInput
-const targetVersion = '0.0.2'
+const currentVersion = JSON.parse(extractFile(join(currentApp, 'Contents', 'Resources', 'app.asar'), 'package.json').toString()).version
+const targetVersion = nextPatchVersion(currentVersion)
 const tempDir = await mkdtemp(join(tmpdir(), 'dsh-packaged-updater-'))
 const oldApp = join(tempDir, 'old', 'DSH Desktop.app')
 const updatedApp = join(tempDir, 'updated', 'DSH Desktop.app')
@@ -27,6 +29,7 @@ const serverDir = join(resourcesDir, 'server')
 const dshCli = join(serverDir, 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
 const pnpmBinDir = join(resourcesDir, 'pnpm-bin')
 const featuredArtifactDir = join(resourcesDir, 'featured-plugins')
+const keepTemp = process.env.DSH_PACKAGED_UPDATER_KEEP_TEMP === '1'
 const output = []
 let child
 let server
@@ -207,13 +210,13 @@ function startUpdateServer({ tls, archive }) {
     data: {
       schema_version: 1,
       checked_at: '2026-08-20T00:00:00.000Z',
-      current: { version: '0.0.1' },
+      current: { version: currentVersion },
       latest: {
         id: 'packaged-updater-smoke',
         version: targetVersion,
         released_at: '2026-08-20T00:00:00.000Z',
         notes: { features: ['真实 updater 替换回归'], improvements: [], fixes: [] },
-        min_supported_version: '0.0.1',
+        min_supported_version: currentVersion,
         update_available: true,
         mandatory: false,
         feed_url: '',
@@ -340,7 +343,11 @@ try {
   try { child?.kill() } catch { /* ignore */ }
   terminateTempApps()
   try { server?.close() } catch { /* ignore */ }
-  try { await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }) } catch (error) {
-    console.warn(`[smoke] updater 临时目录清理失败(已忽略): ${error.code || error.message}`)
+  if (keepTemp) {
+    console.warn(`[smoke] updater 保留临时目录用于诊断: ${tempDir}`)
+  } else {
+    try { await rm(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 }) } catch (error) {
+      console.warn(`[smoke] updater 临时目录清理失败(已忽略): ${error.code || error.message}`)
+    }
   }
 }

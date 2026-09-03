@@ -3,6 +3,8 @@
 // Everything runs in the real renderer via CDP -> window.electronAPI (ipc) -> process channel -> registry use case. No HTTP.
 // Task files should only use these high-level actions for assertions and avoid CDP/ipc internals.
 
+import { randomUUID } from 'node:crypto';
+import { createOfficialWebUnaryRequest } from '../../electron/scripts/official-web-runtime-api.mjs';
 import { makeUiDriver } from './ui-driver.mjs';
 
 const DEFAULT_STREAM_TIMEOUT_MS = 360000;
@@ -62,6 +64,24 @@ export function makeDriver(session) {
         `headers:{'Content-Type':'application/json'},` +
         `body:${body != null ? JSON.stringify(JSON.stringify(body)) : 'null'}})`,
     );
+
+  const officialRpc = async (method, payload = {}) => {
+    const request = createOfficialWebUnaryRequest(method, payload, randomUUID());
+    const response = await ev(`
+      const request = ${JSON.stringify(request.body)};
+      const response = await fetch(${JSON.stringify(`/api/${request.endpoint}`)}, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(request),
+      });
+      return { status: response.status, body: await response.text() };
+    `);
+    if (response?.status !== 200) throw new Error(`官方 Web RPC ${method} HTTP ${response?.status || 0}`);
+    const envelope = JSON.parse(response.body);
+    if (envelope.rpcId !== request.body.rpcId) throw new Error(`官方 Web RPC ${method} 返回了错误 rpcId`);
+    if (!envelope.result?.ok) throw new Error(`官方 Web RPC ${method} 失败: ${JSON.stringify(envelope.result?.error || envelope)}`);
+    return envelope.result.value;
+  };
 
   const activateProject = async (projectOrId) => {
     let project = typeof projectOrId === 'object' ? projectOrId : null;
@@ -762,10 +782,41 @@ export function makeDriver(session) {
 
   const agentRequestBody = buildAgentRequestBody;
 
+  const dismissOfficialPrompt = async ({ labels, bodyNeedles, timeoutMs = 15000 }) => {
+    const deadline = Date.now() + timeoutMs;
+    let observed = false;
+    while (Date.now() <= deadline) {
+      const state = await ev(`
+        const labels = new Set(${JSON.stringify(labels)});
+        const needles = ${JSON.stringify(bodyNeedles)};
+        const body = document.body?.innerText || '';
+        const present = needles.some((needle) => body.includes(needle));
+        if (!present) return { present: false, clicked: false };
+        const button = [...document.querySelectorAll('button,[role="button"]')].find((candidate) => {
+          const rect = candidate.getBoundingClientRect();
+          const text = String(candidate.innerText || candidate.textContent || '').trim();
+          return rect.width > 0 && rect.height > 0 && !candidate.disabled && labels.has(text);
+        });
+        button?.click();
+        return { present: true, clicked: Boolean(button) };
+      `).catch(() => ({ present: false, clicked: false }));
+      if (state.present) observed = true;
+      else if (observed) return true;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    return !observed;
+  };
+
   return {
     ui,
     raw: {
       api,
+      officialRpc,
+      dismissOfficialModelPrompt: () => dismissOfficialPrompt({
+        labels: ['稍后配置', 'Later'],
+        bodyNeedles: ['添加一个 API Key 开始使用', 'Add an API Key to get started'],
+        timeoutMs: 5000,
+      }),
       streamBlocks,
       ev,
       cdp: session.cdp,
@@ -794,6 +845,14 @@ export function makeDriver(session) {
           { timeout: 5000, label: '功能测试已关闭首次引导' },
         );
       }
+      await dismissOfficialPrompt({
+        labels: ['继续', 'Continue'],
+        bodyNeedles: ['内测声明', 'Internal testing'],
+      });
+      await dismissOfficialPrompt({
+        labels: ['稍后配置', 'Later'],
+        bodyNeedles: ['添加一个 API Key 开始使用', 'Add an API Key to get started'],
+      });
       return true;
     },
 

@@ -62,7 +62,12 @@ export default {
         `标题写“真实 Site ${stamp}”，kind 必须是 site，language 必须是 html。`,
         `完整单文件 HTML 的可见 h1 必须包含 ${firstMarker}，并包含一个按钮。`,
         '工具完成后简短确认。',
-      ].join('\n'), { title: `真实Site-${stamp}`, searchMode: 'off', timeoutMs: 300_000 });
+      ].join('\n'), {
+        title: `真实Site-${stamp}`,
+        autoApprove: true,
+        searchMode: 'off',
+        timeoutMs: 300_000,
+      });
       sid = created.sid || '';
       assert.ok(hasTool(created, 'canvas_create'), '真实模型实际调用 canvas_create', { criterion: 'site.created' });
 
@@ -80,7 +85,7 @@ export default {
         `请修改刚才创建的 Site：把 ${firstMarker} 替换成 ${secondMarker}。`,
         '必须先调用 canvas_inspect 取得当前版本，再使用返回的 current_version_id 调用 canvas_edit。',
         '不能只给修改建议。',
-      ].join('\n'), { searchMode: 'off', timeoutMs: 300_000 });
+      ].join('\n'), { autoApprove: true, searchMode: 'off', timeoutMs: 300_000 });
       assert.ok(hasTool(edited, 'canvas_inspect'), '修改前真实调用 canvas_inspect', { criterion: 'site.edited' });
       assert.ok(hasTool(edited, 'canvas_edit'), '真实调用 canvas_edit 保存修改', { criterion: 'site.edited' });
 

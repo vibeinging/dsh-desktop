@@ -256,7 +256,7 @@ async function captureBrowserScreenshot(webContents, bounds) {
 }
 
 class BrowserWorkspaceController {
-  constructor({ WebContentsView, browserSession, getParentWindow, userDataPath, downloadDirectory, sendEvent, isDev = false }) {
+  constructor({ WebContentsView, browserSession, getParentWindow, userDataPath, downloadDirectory, sendEvent, onBeforeInput, isDev = false }) {
     if (typeof WebContentsView !== 'function') throw new Error('Electron WebContentsView 不可用');
     this.WebContentsView = WebContentsView;
     this.browserSession = browserSession;
@@ -264,6 +264,7 @@ class BrowserWorkspaceController {
     this.userDataPath = userDataPath;
     this.downloadDirectory = path.resolve(downloadDirectory || path.join(userDataPath, 'browser-downloads'));
     this.sendEvent = sendEvent;
+    this.onBeforeInput = onBeforeInput;
     this.isDev = isDev;
     this.tabs = [];
     this.activeTabId = null;
@@ -551,6 +552,7 @@ class BrowserWorkspaceController {
 
   wireTab(tab) {
     const contents = tab.view.webContents;
+    if (this.onBeforeInput) contents.on('before-input-event', this.onBeforeInput);
     contents.setWindowOpenHandler(({ url }) => {
       if (isAllowedBrowserNavigation(url) && this.tabs.length < MAX_BROWSER_TABS) {
         this.createTab(url);

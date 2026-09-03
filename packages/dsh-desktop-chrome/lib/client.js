@@ -3,12 +3,25 @@ window.__ModuleLoader__.load({
   factory() {
     const inject = [];
     const titlebarHeight = 36;
+    const overlayMargin = 12;
     const titlebarId = "dsh-desktop-titlebar";
     const css = `
 html[data-dsh-desktop-chrome="mac"] #root {
   box-sizing: border-box;
   height: 100vh;
   padding-top: ${titlebarHeight}px;
+}
+
+html[data-dsh-desktop-chrome="mac"] [data-dsh-panel] {
+  padding-top: ${titlebarHeight}px;
+}
+
+html[data-dsh-desktop-chrome="mac"] [data-dsh-toggle-cluster] {
+  top: ${titlebarHeight + 3}px;
+}
+
+html[data-dsh-desktop-chrome="mac"] body > [role="menu"] {
+  max-height: calc(100dvh - ${titlebarHeight + (overlayMargin * 2)}px);
 }
 
 #${titlebarId} {

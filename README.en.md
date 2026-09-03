@@ -13,7 +13,7 @@
   <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
   <a href="https://dshfind.com/en/plugins/vibeinging/dsh-desktop?ref=badge"><img src="https://dshfind.com/api/badge/vibeinging/dsh-desktop?lang=en" alt="dshfind"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/DSH-0.1.1--rc.2-7C3AED?style=flat" alt="DSH 0.1.1-rc.2">
+  <img src="https://img.shields.io/badge/DSH-0.1.2--rc.1-7C3AED?style=flat" alt="DSH 0.1.2-rc.1">
   <img src="https://img.shields.io/badge/plugins-Profile%20Bundles-2563EB?style=flat" alt="Profile Bundles">
 </p>
 
@@ -28,6 +28,8 @@ DSH Desktop (Bundle Edition) is a community-maintained desktop distribution. It 
   &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="https://github.com/vibeinging/dsh-desktop/releases/latest"><strong>Download the latest release</strong></a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="https://dshdesktopstation.com/en/remote/"><strong>Mobile remote</strong></a>
+  &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="#getting-started">Get started</a>
   &nbsp;&nbsp;·&nbsp;&nbsp;
   <a href="#installing-more-plugins">Install plugins</a>
@@ -38,10 +40,12 @@ DSH Desktop (Bundle Edition) is a community-maintained desktop distribution. It 
 | Platform | Install | Status |
 | --- | --- | --- |
 | macOS Apple Silicon | Download the `.dmg` and drag it to Applications | Developer ID signed and Apple notarized |
-| Windows x64 | Download the `.exe` installer | Use the artifacts published on the current [Release](https://github.com/vibeinging/dsh-desktop/releases/latest) page |
+| Windows x64 | Download the `.exe`, then choose the install scope and app directory | Use the artifacts published on the current [Release](https://github.com/vibeinging/dsh-desktop/releases/latest) page |
 | macOS Intel / Linux | No formal installer yet | Run from source |
 
 Direct download links and file sizes are listed on the [website download page](https://dshdesktopstation.com/#download); first-run questions (Gatekeeper, SmartScreen, API keys, slow downloads) are covered in the [website FAQ](https://dshdesktopstation.com/#faq).
+
+The app directory contains only the installed application. Profiles, plugins, Sessions, and other DSH data use a separate data directory; changing the app location does not move or delete that data.
 
 ## Ready on first launch
 
@@ -53,7 +57,7 @@ Direct download links and file sizes are listed on the [website download page](h
     </td>
     <td width="50%" valign="top">
       <h3>Better Sidebar workbench</h3>
-      <p>Files, code and Markdown editing, Git, terminals, web pages, and extension tabs are built in. Version 0.16.0 adds multi-repository and Worktree support, Vue editing, and local Markdown images.</p>
+      <p>Files, code and Markdown editing, Git, terminals, web pages, and extension tabs are built in. Version 0.18.0-alpha.0 targets the current alpha SDK while retaining multi-repository and Worktree support, Vue editing, and local Markdown images.</p>
     </td>
   </tr>
   <tr>
@@ -74,6 +78,16 @@ Direct download links and file sizes are listed on the [website download page](h
     <td width="50%" valign="top">
       <h3>Reproducible defaults</h3>
       <p>New Profiles initialize offline from pinned packaged artifacts. Normal startup does not rewrite an existing Profile or silently restore plugins the user removed.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Mobile remote access</h3>
+      <p>After signing in and enabling this computer, continue the same Workspace and Session from Android, Remote Web, or another Desktop. The Host creates outbound connections only and opens no public listening port.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Explicit service boundary</h3>
+      <p>A third-party service currently provides accounts, the device directory, signaling, and relay. See the <a href="https://dshdesktopstation.com/en/remote/">mobile remote guide</a> for connection methods, security boundaries, and removal.</p>
     </td>
   </tr>
 </table>
@@ -98,12 +112,6 @@ The market uses the official settings Slot. It neither replaces settings nor cre
 
 Create an isolated Worktree from the active Session directory and open an official Session for the new workspace.
 
-### Multi-agent teams (bundled by default since v0.2.0)
-
-![DSH Desktop running the agent-teams multi-agent collaboration plugin](docs/images/readme/dsh-agent-teams.png)
-
-Want to assemble sub-agent teams inside the official Web? Since v0.2.0 the popular community plugin [dsh-agent-teams](https://github.com/NanmiCoder/dsh-agent-teams) (`@nanmicoder/dsh-agent-teams`) ships by default: the current session acts as the captain — creating teams, assigning roles and summarizing results — while persistent members claim dependency-aware tasks with a live progress panel and a plan-first, approve-then-run workflow. Use the `/agent-teams` slash command in any session; the screenshot above is this app running the plugin for real (Blue Fantasy skin, task DAG and member panel).
-
 ### Optional: skin center
 
 ![DSH Desktop running the Blue Fantasy dark skin from the skin center](docs/images/readme/dsh-skin-blue-fantasy-applied.png)
@@ -115,6 +123,18 @@ dsh plugin --profile web add @linxin666/dsh-client-ui-skin-center
 ```
 
 Skin assets carry their own upstream licenses (some CC BY-NC-SA or including character copyrights), so the skin center is not bundled by default; users opt in via the plugin market.
+
+### Bundled by default: mobile remote access
+
+New Profiles include the exactly pinned [`ds-harness-remote@0.4.1`](https://github.com/liguobao/ds-harness-remote/tree/v0.4.1), while the current trial line uses DSH `0.1.2-rc.1`. Although the upstream `0.4.1` peer range includes alpha releases, it still calls a Settings helper removed in alpha.2. The desktop package therefore applies a SHA-256-bound compatibility projection to that fixed tarball without modifying official DSH or the upstream repository source. Existing Profiles receive this new default once after an upgrade; disabling or removing it prevents later app updates from restoring it. Open Remote in the sidebar, sign in, and enable remote access for this computer. You can then use [Remote Web](https://dsh.r2049.cn/app), the Android app, or another Desktop to open the same Host Workspaces and Sessions, continue conversations, send images, and respond to permission requests.
+
+Special thanks to [DeepSeek Harness Remote Web](https://dsh.r2049.cn/app) for providing the remote entry point and supporting services currently available to the community, allowing DSH Desktop users to continue working from a phone or browser.
+
+```bash
+dsh plugin --profile web remove ds-harness-remote
+```
+
+The Host creates outbound connections only and opens no public listening port. Remote tries LAN, P2P, TURN, and Relay in order; every path carries Noise IK encrypted application traffic. The default currently uses the third-party `dsh.r2049.cn` account, device directory, signaling, and relay service. Remote access is unavailable until the user signs in and enables the current computer. Authorized devices can control the Harness through a fixed API allowlist, while the Agent can still run tools under the Host's normal permissions. The project does not yet provide a supported self-hosted Server, and its independent cryptographic review, real cross-network two-device coverage, and long-running stability validation remain incomplete. Remove the Bundle if remote access is not needed.
 
 ## Why this route
 
@@ -154,10 +174,10 @@ A plugin that follows the official DSH Bundle and `dshClient` contracts does not
 
 ### Default plugins
 
-New Profiles include Better Sidebar, dshmarket, the task board, attachment input, Git Worktree, **multi-agent teams (new in v0.2.0)**, project tools, Canvas, Office output, structured results, and model inheritance. Every manageable Bundle can be disabled or removed.
+New Profiles include Better Sidebar, dshmarket, the task board, attachment input, Git Worktree, mobile remote access, session window teams, project tools, Canvas, Office output, structured results, and model inheritance. Every manageable Bundle can be disabled or removed.
 
 <details>
-<summary>View the 15 Bundles installed in a new Profile</summary>
+<summary>View the 16 Bundles installed in a new Profile</summary>
 
 <!-- featured-plugins:start -->
 | Default Bundle | Type | Declared permissions | Official management | Source |
@@ -173,10 +193,11 @@ New Profiles include Better Sidebar, dshmarket, the task board, attachment input
 | `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [local package](packages/dsh-office-tools) |
 | `@vibeinging/dsh-client-ui-worktree` | portable | no Host permission | `dsh plugin --profile web remove @vibeinging/dsh-client-ui-worktree` | [local package](packages/dsh-worktree) |
 | `@linxin666/dsh-client-ui-task-board` | portable | read current DSH Session, Workspace, and completion history, write task ledger and run records under DSH_HOME, start DSH Session tasks from user actions or Host cron, optionally start a fixed cross-platform sleep-prevention helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [upstream repository](https://github.com/zhu1090093659/dsh-web-ui) |
+| `ds-harness-remote` | portable | connect to the external dsh.r2049.cn account, device directory, signaling, TURN, and Relay services, allow authorized Web, Android, or Desktop devices on the same account to read and control the current Harness Workspace, Session, models, permissions, settings, and credential writes, store long-lived X25519 device identity keys and device credentials under DSH_HOME, serve remote requests through a fixed Harness API allowlist without direct Shell, PTY, or general file RPC; the Harness Agent can still run tools under its normal permissions | `dsh plugin --profile web remove ds-harness-remote` | [upstream repository](https://github.com/liguobao/ds-harness-remote) |
 | `dsh-multimedia-webui-input` | portable | read files and folders explicitly selected by the user, write attachments under .dsh/tmp/attachments in the active Session workspace, remove only plugin-owned attachment directories after a second user confirmation | `dsh plugin --profile web remove dsh-multimedia-webui-input` | [upstream repository](https://github.com/LCYLYM/dsh-attachments) |
 | `dsh-better-sidebar` | portable | read, search, create, modify, and delete files in the current Session workspace, run Git operations in the current Session workspace, start and stop local terminal processes; model-facing terminal tools are disabled by default, open user-entered web pages or external editors and receive files explicitly uploaded by the user, when enabled by the user, register the sidebar_open model tool to open workspace files, folders, or HTTP(S) pages in the current Session sidebar; disabled by default | `dsh plugin --profile web remove dsh-better-sidebar` | [upstream repository](https://github.com/omdsh-dev/DSH-better-sidebar) |
 | `dshmarket` | portable | read and modify dependencies, Bundle order, and enabled state in the active DSH Profile, install, update, and remove user-confirmed plugins through controlled pnpm, access the plugin catalog, npm, GitHub, and user-configured WebDAV or Gist services, export or import backups that contain Profile configuration | `dsh plugin --profile web remove dshmarket` | [upstream repository](https://github.com/dsh-market/dsh-market) |
-| `@nanmicoder/dsh-agent-teams` | portable | read and resume DSH sub-agent sessions in the current profile, write team, task and message state under .agent-teams/ in the current workspace, register the /agent-teams command and team Web UI to create and manage sub-agent teams on user request | `dsh plugin --profile web remove @nanmicoder/dsh-agent-teams` | [upstream repository](https://github.com/NanmiCoder/dsh-agent-teams) |
+| `@vibeinging/dsh-session-teams` | portable | read, route and relay messages and tasks across visible conversation windows in the current profile, including sub-agent handoff, write team, task and visible-window relay state through the official Session API in the Profile session store, create top-level conversation windows on demand and compose sub-agent teams scheduled with the current workspace, model, and permissions | `dsh plugin --profile web remove @vibeinging/dsh-session-teams` | [upstream repository](https://github.com/vibeinging/dsh-session-teams) |
 <!-- featured-plugins:end -->
 
 </details>
@@ -206,7 +227,7 @@ Local directory builds are for development. End-user signed installers are publi
 
 ## Data and permissions
 
-- Profiles, Sessions, and local runtime data are stored under `~/.dsh` by default.
+- Profiles, plugins, Sessions, and local runtime data are stored under `~/.dsh` by default, can be changed with `DSH_DATA_ROOT`, and remain independent of the app directory.
 - Official Web has no product preload, Node access, or general IPC.
 - Files and directories enter the active Session only after explicit user selection or a declared plugin permission.
 - Plugin startup failure does not silently rewrite the original Profile; recovery can retry, start safely, remove a problem plugin, and export filtered diagnostics.

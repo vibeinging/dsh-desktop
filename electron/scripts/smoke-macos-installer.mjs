@@ -117,7 +117,7 @@ async function main() {
         screenshotRefs,
         sourceDmg: basename(dmgPath),
         copiedApp: 'DSH Desktop.app',
-        communityCandidate: '@linxin666/dsh-client-ui-task-board@0.2.7',
+        communityCandidate: '@linxin666/dsh-client-ui-task-board@0.3.9',
       }
       await mkdir(dirname(resultPath), { recursive: true })
     }

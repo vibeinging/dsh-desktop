@@ -16,7 +16,13 @@ import {
   effectiveDshPlanMode,
   resolveDshModelTarget,
 } from "../../server/src/engine/dsh_runtime/workspace_runtime.js";
-import { DshRuntimeClient, normalizeDshClientSurface } from "../../server/src/engine/dsh_runtime/client.js";
+import {
+  DshRuntimeClient,
+  mergeDshProviderDirectory,
+  normalizeDshClientLaunchUrl,
+  normalizeDshClientSurface,
+  usesDshRemoteStreamProtocol,
+} from "../../server/src/engine/dsh_runtime/client.js";
 import {
   npmRuntimeEntryUrl,
   registerProfileModuleLoader,
@@ -75,7 +81,7 @@ test("DSH runtime locator keeps source and npm distributions behind one seat", {
     env: { DSH_RUNTIME_DISTRIBUTION: "source", DSH_SOURCE_ROOT },
   });
   assert.equal(source.distribution, "source");
-  assert.match(source.appBootPath, /packages\/ui\/app-boot\/lib\/index\.js$/);
+  assert.match(source.appBootPath, /packages\/(?:ui|boot)\/app-boot\/lib\/index\.js$/);
   assert.match(source.entryPath, /apps\/cli\/src\/bin\.ts$/);
   assert.match(source.installAnchor, /apps\/cli\/package\.json$/);
   assert.match(source.profileBootPath, /apps\/cli\/src\/profile-boot\.ts$/);
@@ -88,7 +94,7 @@ test("DSH runtime locator keeps source and npm distributions behind one seat", {
   });
   assert.equal(npm.launch, "cli");
   assert.equal(npm.version, DSH_RUNTIME_VERSION);
-  assert.match(npm.appBootPath, /packages\/ui\/app-boot\/lib\/index\.js$/);
+  assert.match(npm.appBootPath, /packages\/(?:ui|boot)\/app-boot\/lib\/index\.js$/);
   assert.match(npm.entryPath, /apps\/cli\/lib\/bin\.js$/);
   assert.match(npm.installAnchor, /apps\/cli\/package\.json$/);
   assert.throws(
@@ -112,6 +118,54 @@ test("the npm runtime wrapper loads the DSH entry through a file URL", () => {
   const entry = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh/lib/bin.js");
   assert.match(npmRuntimeEntryUrl(entry), /^file:\/\//);
   assert.equal(registerProfileModuleLoader({}), false);
+});
+
+test("DSH provider compatibility joins active routes with editable settings namespaces", () => {
+  assert.deepEqual(mergeDshProviderDirectory(
+    [{ id: "deepseek-official", name: "DeepSeek" }, { id: "fixed", name: "Fixed" }],
+    [
+      {
+        provider: "deepseek-official",
+        displayName: "DeepSeek",
+        settingsNs: "llm-deepseek",
+        settingsPath: [],
+      },
+      {
+        provider: "openai",
+        displayName: "OpenAI",
+        settingsNs: "llm-pi-ai",
+        settingsPath: ["providers", "openai"],
+      },
+    ],
+  ), [
+    {
+      id: "deepseek-official",
+      name: "DeepSeek",
+      provider: "deepseek-official",
+      displayName: "DeepSeek",
+      settingsNs: "llm-deepseek",
+      settingsPath: [],
+      provider_name: "DeepSeek",
+      registered: true,
+    },
+    {
+      id: "openai",
+      name: "OpenAI",
+      provider: "openai",
+      displayName: "OpenAI",
+      settingsNs: "llm-pi-ai",
+      settingsPath: ["providers", "openai"],
+      provider_name: "OpenAI",
+      registered: false,
+    },
+    {
+      id: "fixed",
+      name: "Fixed",
+      provider: "fixed",
+      provider_name: "Fixed",
+      registered: true,
+    },
+  ]);
 });
 
 test("packaged Electron launches the official CLI from an app-owned runtime path", () => {
@@ -159,6 +213,41 @@ test("DSH client surface accepts only an exact loopback HTTP origin", () => {
   assert.throws(
     () => normalizeDshClientSurface("https://127.0.0.1:3080/"),
     { code: "DSH_CLIENT_SURFACE_INVALID" },
+  );
+});
+
+test("DSH alpha launch URLs preserve the token only for client authentication", () => {
+  assert.deepEqual(normalizeDshClientLaunchUrl("http://127.0.0.1:3080/?token=launch-token"), {
+    surface: "http://127.0.0.1:3080/",
+    launchUrl: "http://127.0.0.1:3080/?token=launch-token",
+    hasLaunchToken: true,
+  });
+  assert.deepEqual(normalizeDshClientLaunchUrl("http://127.0.0.1:3080/"), {
+    surface: "http://127.0.0.1:3080/",
+    launchUrl: "http://127.0.0.1:3080/",
+    hasLaunchToken: false,
+  });
+  assert.equal(usesDshRemoteStreamProtocol("0.1.1-rc.2"), false);
+  assert.equal(usesDshRemoteStreamProtocol("0.1.2-alpha.1"), true);
+  assert.throws(
+    () => normalizeDshClientLaunchUrl("http://127.0.0.1:3080/?token=one&token=two"),
+    { code: "DSH_CLIENT_SURFACE_INVALID" },
+  );
+  assert.throws(
+    () => normalizeDshClientLaunchUrl("http://127.0.0.1:3080/?session=unexpected"),
+    { code: "DSH_CLIENT_SURFACE_INVALID" },
+  );
+});
+
+test("DSH browser launch keeps the authenticated URL separate from the API surface", async () => {
+  const client = new DshRuntimeClient();
+  client.clientSurface = "http://127.0.0.1:3080/";
+  client.clientLaunchUrl = "http://127.0.0.1:3080/?token=launch-token";
+  client.waitForClientSurface = async () => client.clientSurface;
+
+  assert.equal(
+    await client.waitForClientLaunchUrl(),
+    "http://127.0.0.1:3080/?token=launch-token",
   );
 });
 
@@ -271,8 +360,21 @@ class FakeWebSocket extends EventTarget {
     super();
     this.url = String(url);
     this.closed = false;
+    this.sent = [];
     FakeWebSocket.sockets.push(this);
     queueMicrotask(() => this.dispatchEvent(new Event("open")));
+  }
+
+  send(serialized) {
+    this.sent.push(JSON.parse(serialized));
+    const request = this.sent.at(-1);
+    if (request?.type !== "open") return;
+    const value = request.endpoint === "$events"
+      ? { type: "ready", clientId: "client-1", host: { home: "/tmp/dsh" } }
+      : { type: "snapshot", records: [], hasMore: false, cursor: -1, projections: null };
+    queueMicrotask(() => this.dispatchEvent(new MessageEvent("message", {
+      data: JSON.stringify({ type: "item", streamId: request.streamId, value }),
+    })));
   }
 
   frame(message) {
@@ -286,9 +388,136 @@ class FakeWebSocket extends EventTarget {
   }
 }
 
-test("DSH runtime opens current mux and host WebSockets before reporting ready", async () => {
+class ModernFakeWebSocket extends EventTarget {
+  static sockets = [];
+
+  constructor(url, options) {
+    super();
+    this.url = String(url);
+    this.options = options;
+    this.readyState = 0;
+    this.sent = [];
+    ModernFakeWebSocket.sockets.push(this);
+    queueMicrotask(() => {
+      this.readyState = 1;
+      this.dispatchEvent(new Event("open"));
+    });
+  }
+
+  send(serialized) {
+    this.sent.push(JSON.parse(serialized));
+    const request = this.sent.at(-1);
+    if (request?.type !== "open") return;
+    const frameValue = request.endpoint === "$events"
+      ? { type: "ready", clientId: "client-1", host: { home: "/tmp/dsh" } }
+      : { type: "snapshot", records: [], hasMore: false, cursor: -1, projections: null };
+    queueMicrotask(() => this.dispatchEvent(new MessageEvent("message", {
+      data: JSON.stringify({ type: "item", streamId: request.streamId, value: frameValue }),
+    })));
+  }
+
+  close() {
+    if (this.readyState === 3) return;
+    this.readyState = 3;
+    this.dispatchEvent(new Event("close"));
+  }
+}
+
+test("DSH alpha client authenticates the launch URL and maps prompt requests to the Remote descriptor", async () => {
+  ModernFakeWebSocket.sockets = [];
+  const child = new EventEmitter();
+  child.connected = true;
+  child.send = (message, callback) => {
+    callback?.();
+    if (message?.type !== "shutdown") return;
+    queueMicrotask(() => {
+      child.connected = false;
+      child.emit("exit", 0, null);
+    });
+  };
+  child.disconnect = () => { child.connected = false; };
+  child.kill = () => {};
+  const fetches = [];
+  const client = new DshRuntimeClient({
+    env: {
+      DSH_RUNTIME_DISTRIBUTION: "npm",
+      DSH_APP_ROOT: APP_ROOT,
+      ...(await featuredArtifactEnv()),
+    },
+    spawn: () => {
+      queueMicrotask(() => {
+        child.emit("message", { type: "client-ready", url: "http://127.0.0.1:3080/?token=launch-token" });
+        child.emit("message", { type: "ready", distribution: "npm", version: "0.1.2-alpha.1" });
+      });
+      return child;
+    },
+    WebSocket: ModernFakeWebSocket,
+    fetch: async (url, init) => {
+      fetches.push({ url: String(url), init });
+      if (init?.redirect === "manual") {
+        return new Response(null, {
+          status: 303,
+          headers: { "set-cookie": "dsh_session=session-cookie; Path=/" },
+        });
+      }
+      const request = JSON.parse(init.body);
+      return new Response(JSON.stringify({
+        type: "server-response",
+        rpcId: request.rpcId,
+        result: { ok: true, value: { accepted: true } },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+
+  try {
+    await client.start();
+    assert.equal(client.remoteStreamProtocol, true);
+    const result = await client.request("session.prompt", {
+      sessionId: "session-1",
+      mode: "queue",
+      content: [{ type: "text", text: "你好" }],
+    }, { rpcId: "request-1" });
+    assert.deepEqual(result, { accepted: true });
+    assert.equal(fetches[0].url, "http://127.0.0.1:3080/?token=launch-token");
+    assert.equal(fetches[1].url, "http://127.0.0.1:3080/api/session/prompt");
+    assert.equal(fetches[1].init.headers.cookie, "dsh_session=session-cookie");
+    assert.deepEqual(JSON.parse(fetches[1].init.body), {
+      type: "client-request",
+      rpcId: "request-1",
+      method: "session/prompt",
+      payload: {
+        args: {
+          request: {
+            requestId: "request-1",
+            sessionId: "session-1",
+            mode: "queue",
+            content: [{ type: "text", text: "你好" }],
+          },
+        },
+      },
+    });
+    assert.deepEqual(
+      await client.request("session.list", { limit: 20 }, { rpcId: "request-list" }),
+      { accepted: true },
+    );
+    assert.equal(fetches[2].url, "http://127.0.0.1:3080/api/session/list");
+    assert.deepEqual(JSON.parse(fetches[2].init.body), {
+      type: "client-request",
+      rpcId: "request-list",
+      method: "session/list",
+      payload: { args: { _request: { limit: 20 } } },
+    });
+    assert.equal(ModernFakeWebSocket.sockets[0].options.headers.cookie, "dsh_session=session-cookie");
+    assert.equal(ModernFakeWebSocket.sockets[0].sent[0].endpoint, "$events");
+  } finally {
+    await client.close();
+  }
+});
+
+test("DSH runtime opens the current Remote mux before reporting ready", async () => {
   FakeWebSocket.sockets = [];
   const apiMethods = [];
+  const apiRequests = [];
   const nativeSessionEvents = [];
   const child = new EventEmitter();
   child.connected = true;
@@ -331,6 +560,7 @@ test("DSH runtime opens current mux and host WebSockets before reporting ready",
     fetch: async (_url, init) => {
       const request = JSON.parse(init.body);
       apiMethods.push(request.method);
+      apiRequests.push(request);
       const value = request.method === "settings.describe"
         ? { namespaces: [{ ns: "ui-theme", revision: 0, value: { preference: "system" } }] }
         : { value: { preference: "dark" } };
@@ -351,20 +581,112 @@ test("DSH runtime opens current mux and host WebSockets before reporting ready",
     { type: "released", sessionId: "dsh-native-1" },
   ]);
   assert.deepEqual(apiMethods, []);
-  assert.deepEqual(FakeWebSocket.sockets.map((socket) => socket.url).sort(), [
-    "ws://127.0.0.1:3080/api/events.host",
-    "ws://127.0.0.1:3080/api/events.mux",
+  assert.deepEqual(FakeWebSocket.sockets.map((socket) => socket.url), [
+    "ws://127.0.0.1:3080/api/remote.mux",
   ]);
-  const event = new Promise((resolveEvent) => client.once("mux", resolveEvent));
-  FakeWebSocket.sockets.find((socket) => socket.url.endsWith("events.mux")).frame({
-    type: "server-request",
-    rpcId: "event-1",
-    method: "session/event",
-    payload: { type: "session/event", sessionId: "session-1", event: { type: "turn/start" } },
+  const event = new Promise((resolveEvent) => client.once("host", resolveEvent));
+  const muxSocket = FakeWebSocket.sockets[0];
+  const open = muxSocket.sent[0];
+  muxSocket.frame({
+    type: "item",
+    streamId: open.streamId,
+    value: { type: "emit", event: "api-session/status", args: ["session-1", true] },
   });
   assert.deepEqual(await event, {
-    rpcId: "event-1",
-    payload: { type: "session/event", sessionId: "session-1", event: { type: "turn/start" } },
+    rpcId: null,
+    payload: { type: "host/session-status", sessionId: "session-1", running: true },
+  });
+
+  const questionRequested = new Promise((resolveEvent) => client.once("mux", resolveEvent));
+  muxSocket.frame({
+    type: "item",
+    streamId: open.streamId,
+    value: {
+      type: "waterfall",
+      event: "user-questions/request",
+      eventId: "question-event-1",
+      agentId: "session-1",
+      request: {
+        questions: [{ id: "config", question: "请选择配置", options: [{ label: "推荐" }] }],
+      },
+    },
+  });
+  assert.deepEqual(await questionRequested, {
+    rpcId: "question-event-1",
+    payload: {
+      type: "question/requested",
+      sessionId: "session-1",
+      questions: [{ id: "config", question: "请选择配置", options: [{ label: "推荐" }] }],
+    },
+  });
+  assert.deepEqual(await client.respond("question-event-1", {
+    sessionId: "session-1",
+    answer: { answers: [{ id: "config", selected: ["推荐"] }] },
+  }), { accepted: true });
+  assert.deepEqual(apiRequests.find((request) => request.method === "$events/result"), {
+    type: "client-request",
+    rpcId: "question-event-1",
+    method: "$events/result",
+    payload: {
+      args: {
+        clientId: "client-1",
+        eventId: "question-event-1",
+        outcome: {
+          kind: "result",
+          value: { answers: [{ id: "config", selected: ["推荐"] }] },
+        },
+      },
+    },
+  });
+
+  const questionResolved = new Promise((resolveEvent) => client.once("mux", resolveEvent));
+  muxSocket.frame({
+    type: "item",
+    streamId: open.streamId,
+    value: { type: "cancel", eventId: "question-event-1" },
+  });
+  assert.deepEqual(await questionResolved, {
+    rpcId: "question-event-1",
+    payload: {
+      type: "question/resolved",
+      sessionId: "session-1",
+      questionRpcId: "question-event-1",
+    },
+  });
+
+  const approvalRequested = new Promise((resolveEvent) => client.once("mux", resolveEvent));
+  muxSocket.frame({
+    type: "item",
+    streamId: open.streamId,
+    value: {
+      type: "waterfall",
+      event: "approval/request",
+      eventId: "approval-event-1",
+      agentId: "session-1",
+      request: { toolName: "canvas_create", callId: "tool-call-1", reason: "写入 Canvas" },
+    },
+  });
+  assert.deepEqual(await approvalRequested, {
+    rpcId: "approval-event-1",
+    payload: {
+      type: "approval/requested",
+      sessionId: "session-1",
+      approvalId: "approval-event-1",
+      toolName: "canvas_create",
+      callId: "tool-call-1",
+      reason: "写入 Canvas",
+    },
+  });
+  assert.deepEqual(await client.respond("approval-event-1", {
+    sessionId: "session-1",
+    approvalId: "approval-event-1",
+    outcome: "allowed-once",
+  }), { accepted: true });
+  const approvalResponse = apiRequests.filter((request) => request.method === "$events/result").at(-1);
+  assert.deepEqual(approvalResponse?.payload?.args, {
+    clientId: "client-1",
+    eventId: "approval-event-1",
+    outcome: { kind: "result", value: "allowed-once" },
   });
   await client.close();
 });
@@ -830,7 +1152,7 @@ test("DSH workspace runtime leaves questions to the formal Client interaction ow
   assert.deepEqual(notifications.map((entry) => entry.method), ["turn/started", "item/completed", "turn/completed"]);
 });
 
-test("DSH workspace runtime sends validated images through the rc.2 prompt contract", async (t) => {
+test("DSH workspace runtime sends validated images through the current prompt contract", async (t) => {
   const dir = await mkdtemp(join(tmpdir(), "dsh-workspace-image-"));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const imagePath = join(dir, "screen.png");
@@ -929,11 +1251,22 @@ test("DSH workspace runtime selects the exact provider route and reasoning effor
   });
 });
 
-test("DSH model options do not invent a modality that rc.2 omits from its catalog", () => {
+test("DSH model options do not invent a modality omitted from the current catalog", () => {
   const [option] = dshModelOptions({
     groups: [{ id: "deepseek", name: "DeepSeek", models: [{ id: "deepseek-chat", name: "DeepSeek Chat" }] }],
   });
   assert.equal(option.capabilities.supports_image_input, undefined);
+});
+
+test("DSH model options expose image input declared by the current catalog", () => {
+  const [option] = dshModelOptions({
+    groups: [{
+      id: "deepseek",
+      name: "DeepSeek",
+      models: [{ id: "vision", name: "Vision", inputModalities: ["text", "image"] }],
+    }],
+  });
+  assert.equal(option.capabilities.supports_image_input, true);
 });
 
 test("DSH workspace runtime rejects an incompatible persisted session without splitting history", async () => {
@@ -1138,10 +1471,12 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
     assert.equal(themeSettings.value.preference, "system");
     assert.equal(themeSettings.user?.preference, undefined);
     const surface = await client.waitForClientSurface();
-    const html = await fetch(surface).then((response) => response.text());
+    const html = await fetch(surface, {
+      headers: { cookie: client.clientAuthCookie },
+    }).then((response) => response.text());
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-work-shell\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-theme-pack\/client\.js\?rev=/);
-    assert.match(html, /\/plugins\/@deepseek-ai\/dsh-client-ui-permission-presets\/client\.js\?rev=/);
+    assert.match(html, /@deepseek-ai\/dsh-client-ui-permission-presets\/client\.js/);
     assert.doesNotMatch(html, /dsh-theme-pack|profile_themes|profileThemes/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-product-client\/client\.js\?rev=/);
     assert.doesNotMatch(html, /\/plugins\/@deepseek-ai\/dsh-turn-navigator\/client\.js\?rev=/);
@@ -1157,7 +1492,7 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
           name: "screen.png",
         }],
       }),
-      (error) => error?.code === "attachment-error"
+      (error) => error?.code === "session/attachment-invalid"
         && error?.details?.reason === "MODEL_DOES_NOT_SUPPORT_IMAGES",
     );
     const history = await client.request("session.history", { sessionId });

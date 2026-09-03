@@ -11,10 +11,9 @@ import { resolvePackagedLayout } from '../../electron/scripts/packaged-layout.mj
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ELECTRON_DIR = path.resolve(__dirname, '..', '..', 'electron'); // eval/lib → electron
-const RENDERER_DIR = path.resolve(__dirname, '..', '..', 'renderer');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const APP_PAGE_RE = /(?:localhost|127\.0\.0\.1):\d+|index\.html|file:\/\//;
-const DEFAULT_RENDERER_PORT = Number(process.env.DSH_RENDERER_PORT || 52731);
+const APP_PAGE_RE = /^http:\/\/127\.0\.0\.1:\d+\/(?:\?|$)/;
+const DEFAULT_SERVER_PORT = 52838;
 const SERVER_NATIVE_SQLITE = path.resolve(__dirname, '..', '..', 'server', 'node_modules', 'better-sqlite3', 'build', 'Release', 'better_sqlite3.node');
 const requireFromElectron = createRequire(path.join(ELECTRON_DIR, 'package.json'));
 
@@ -42,15 +41,97 @@ export function createCdpEventHub() {
 }
 
 export function resolveRendererLaunchMode({
-  isolate = true,
-  hasExplicitRendererUrl = false,
   packagedApp = false,
-  defaultRendererReady = false,
 } = {}) {
   if (packagedApp) return 'packaged-app';
-  if (hasExplicitRendererUrl) return 'explicit-renderer-url';
-  if (isolate) return 'dedicated-dev-server';
-  return defaultRendererReady ? 'shared-dev-server' : 'dedicated-dev-server';
+  return 'official-web';
+}
+
+/** Build command-line arguments for the isolated eval Electron only. */
+export function createEvalElectronArgs({ port, packaged = false, isolated = false } = {}) {
+  const args = [
+    ...(packaged ? [] : ['.']),
+    `--remote-debugging-port=${Number(port)}`,
+    '--disable-web-security',
+  ];
+  if (isolated && process.platform === 'darwin') args.push('--use-mock-keychain');
+  return args;
+}
+
+/** Build the isolated eval-only product API adapter injected by CDP into official Web. */
+export function createEvalApiBridgeScript({ apiBaseUrl } = {}) {
+  const parsed = new URL(String(apiBaseUrl || ''));
+  if (parsed.protocol !== 'http:' || parsed.hostname !== '127.0.0.1' || !parsed.port
+    || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
+    throw new Error('Eval API 必须使用不带认证信息的 loopback HTTP 根地址');
+  }
+  const normalizedBase = parsed.origin;
+  return `(() => {
+    const apiBase = ${JSON.stringify(normalizedBase)};
+    const requestUrl = (value) => {
+      const url = String(value || '');
+      if (!url.startsWith('/api/') || url.startsWith('//')) throw new Error('Eval 只允许访问本地 /api/ 路径');
+      return apiBase + url;
+    };
+    const apiRequest = async (request = {}) => {
+      const response = await fetch(requestUrl(request.url), {
+        method: String(request.method || 'GET').toUpperCase(),
+        headers: request.headers || {},
+        body: request.body == null ? undefined : request.body,
+        credentials: 'omit',
+      });
+      const body = await response.text();
+      let json = null;
+      if (body) {
+        try { json = JSON.parse(body); } catch { json = null; }
+      }
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        body,
+        json,
+      };
+    };
+    const streamStart = (request = {}, onMessage) => {
+      if (typeof onMessage !== 'function') throw new TypeError('streamStart 需要消息回调');
+      const controller = new AbortController();
+      void (async () => {
+        try {
+          const response = await fetch(requestUrl(request.url), {
+            method: String(request.method || 'GET').toUpperCase(),
+            headers: request.headers || {},
+            body: request.body == null ? undefined : request.body,
+            credentials: 'omit',
+            signal: controller.signal,
+          });
+          onMessage({ type: 'head', status: response.status, headers: Object.fromEntries(response.headers.entries()) });
+          if (!response.body) {
+            onMessage({ type: 'end' });
+            return;
+          }
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            if (chunk) onMessage({ type: 'data', chunk });
+          }
+          const tail = decoder.decode();
+          if (tail) onMessage({ type: 'data', chunk: tail });
+          onMessage({ type: 'end' });
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          onMessage({ type: 'error', error: String(error?.message || error || 'stream error') });
+        }
+      })();
+      return () => controller.abort();
+    };
+    Object.defineProperty(window, 'electronAPI', {
+      configurable: true,
+      value: Object.freeze({ apiRequest, streamStart }),
+    });
+  })();`;
 }
 
 function rendererModuleIdentity(rawUrl, rendererUrl) {
@@ -113,12 +194,12 @@ function isTruthy(value) {
   return /^(1|true|yes|on)$/i.test(String(value || '').trim());
 }
 
-function createEvalEnv(rendererUrl, { isolate = true } = {}) {
+function createEvalEnv({ isolate = true, serverPort } = {}) {
   const evalDataRoot = String(process.env.DSH_EVAL_DATA_ROOT || '').trim();
   const base = {
     ...process.env,
-    DSH_DEV_URL: rendererUrl,
     DSH_NODE_BIN: resolveBackendNode(),
+    DSH_SERVER_PORT: String(serverPort),
     ...(evalDataRoot
       ? {
           DSH_DATA_ROOT: path.resolve(evalDataRoot),
@@ -129,6 +210,7 @@ function createEvalEnv(rendererUrl, { isolate = true } = {}) {
     // This changes only Chromium window state; HOME/DSH_DATA_ROOT and the real app database stay unchanged.
     DSH_USER_DATA_DIR: process.env.DSH_USER_DATA_DIR || path.join(tmpdir(), `dsh-electron-eval-${process.pid}`),
   };
+  delete base.DSH_DEV_URL;
 
   const shouldIsolate = isolate && !isTruthy(process.env.DSH_EVAL_REUSE_DATA);
   if (!shouldIsolate) {
@@ -239,16 +321,6 @@ function isPortOpen(port) {
   });
 }
 
-async function waitForRenderer(port, child, timeoutMs = 30000) {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (child?.exitCode != null) return false;
-    if (await isDshRenderer(port)) return true;
-    await sleep(250);
-  }
-  return false;
-}
-
 async function fetchJson(url, { timeoutMs = 1500 } = {}) {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeoutMs);
@@ -258,27 +330,6 @@ async function fetchJson(url, { timeoutMs = 1500 } = {}) {
     return await res.json();
   } finally {
     clearTimeout(timer);
-  }
-}
-
-async function fetchText(url, { timeoutMs = 1500 } = {}) {
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: ac.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.text();
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function isDshRenderer(port) {
-  try {
-    const text = await fetchText(`http://127.0.0.1:${port}/src/store/basic.ts`);
-    return text.includes('useBasicStore');
-  } catch {
-    return false;
   }
 }
 
@@ -294,20 +345,17 @@ async function findFreePort(start) {
 /** Connect to an existing debug port if available; otherwise start an Electron instance and cleanly close it after use. Returns { evalJs, cdp, close }. */
 export async function openSession({ port = 9333, reuseExisting = false, isolate = true, keepData = false } = {}) {
   let child = null;
-  let rendererChild = null;
   let runtime = null;
   let reusedExisting = false;
   const packagedAppInput = String(process.env.DSH_EVAL_PACKAGED_APP || '').trim();
   const childStdio = isTruthy(process.env.DSH_EVAL_VERBOSE)
     ? ['ignore', 'inherit', 'inherit']
     : 'ignore';
-  const explicitRendererUrl = String(process.env.DSH_DEV_URL || '').trim();
-  let rendererUrl = explicitRendererUrl || `http://127.0.0.1:${DEFAULT_RENDERER_PORT}`;
-  let rendererMode = resolveRendererLaunchMode({
-    isolate,
-    hasExplicitRendererUrl: Boolean(explicitRendererUrl),
-    packagedApp: Boolean(packagedAppInput),
-  });
+  let rendererMode = resolveRendererLaunchMode({ packagedApp: Boolean(packagedAppInput) });
+  const configuredServerPort = Number(process.env.DSH_SERVER_PORT || process.env.SERVER_PORT || 0);
+  const serverPort = Number.isInteger(configuredServerPort) && configuredServerPort > 0
+    ? configuredServerPort
+    : await findFreePort(DEFAULT_SERVER_PORT);
   let existingDebugger = false;
   try {
     await fetchJson(`http://localhost:${port}/json/version`);
@@ -318,59 +366,22 @@ export async function openSession({ port = 9333, reuseExisting = false, isolate 
   }
   if (existingDebugger) reusedExisting = true;
   if (!existingDebugger) {
-    if (!explicitRendererUrl && !packagedAppInput) {
-      let rendererPort = DEFAULT_RENDERER_PORT;
-      let rendererReady = false;
-      if (isolate) {
-        // Data isolation is not enough for UI evals: sharing an actively watched
-        // Vite process lets an unrelated HMR remount reset component-local state.
-        rendererPort = await findFreePort(rendererPort);
-      } else {
-        rendererReady = await isDshRenderer(rendererPort);
-        if (!rendererReady && (await isPortOpen(rendererPort))) {
-          rendererPort = await findFreePort(rendererPort + 1);
-        }
-      }
-      rendererUrl = `http://127.0.0.1:${rendererPort}`;
-      rendererMode = resolveRendererLaunchMode({ isolate, defaultRendererReady: rendererReady });
-      if (!rendererReady) {
-        rendererChild = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1'], {
-          cwd: RENDERER_DIR,
-          env: {
-            ...process.env,
-            VITE_APP_DEV_PORT: String(rendererPort),
-            VITE_DEV_PORT: String(rendererPort),
-          },
-          stdio: childStdio,
-          detached: process.platform !== 'win32',
-          shell: process.platform === 'win32',
-        });
-        const ready = await waitForRenderer(rendererPort, rendererChild);
-        if (!ready) {
-          await stopChildTree(rendererChild);
-          throw new Error(`renderer 未能在 ${rendererPort} 端口启动`);
-        }
-      }
-    }
-    runtime = createEvalEnv(rendererUrl, { isolate });
+    runtime = createEvalEnv({ isolate, serverPort });
     const env = runtime.env;
     console.info(`[eval] 启动 Electron: mode=${env.DSH_EVAL_MODE || 'normal'} HOME=${env.HOME || process.env.HOME || ''} DB=${env.DB_SQLITE_PATH || '(default ~/.dsh/local.db)'}${packagedAppInput ? ` package=${packagedAppInput}` : ''}`);
     if (packagedAppInput) {
       const layout = resolvePackagedLayout(packagedAppInput);
       delete env.DSH_DEV_URL;
-      child = spawn(layout.executable, [`--remote-debugging-port=${port}`], {
+      child = spawn(layout.executable, createEvalElectronArgs({ port, packaged: true }), {
         cwd: path.dirname(layout.executable),
         env,
         stdio: childStdio,
       });
     } else {
-      const electronArgs = ['.', `--remote-debugging-port=${port}`];
-      // Isolated macOS smoke runs have no operator to answer a Keychain prompt.
-      // Chromium's test keychain keeps the real Electron safeStorage API in the
-      // path without touching the user's login keychain.
-      if (env.DSH_EVAL_MODE === 'isolated' && process.platform === 'darwin') {
-        electronArgs.push('--use-mock-keychain');
-      }
+      const electronArgs = createEvalElectronArgs({
+        port,
+        isolated: env.DSH_EVAL_MODE === 'isolated',
+      });
       child = spawn(resolveElectronExecutable(), electronArgs, {
         cwd: ELECTRON_DIR,
         env,
@@ -390,7 +401,6 @@ export async function openSession({ port = 9333, reuseExisting = false, isolate 
   }
   if (!page) {
     try { child?.kill(); } catch { /* ignore */ }
-    await stopChildTree(rendererChild);
     throw new Error(`连不上 CDP(:${port})`);
   }
   if (reusedExisting) rendererMode = 'reused-running-app';
@@ -429,6 +439,9 @@ export async function openSession({ port = 9333, reuseExisting = false, isolate 
   await cmd('Runtime.enable', {}, { timeoutMs: 5000 });
   await cmd('Page.enable', {}, { timeoutMs: 5000 }).catch(() => {});
   await cmd('Debugger.enable', {}, { timeoutMs: 5000 });
+  const bridgeSource = createEvalApiBridgeScript({ apiBaseUrl: `http://127.0.0.1:${serverPort}` });
+  await cmd('Page.addScriptToEvaluateOnNewDocument', { source: bridgeSource }, { timeoutMs: 5000 });
+  await cmd('Runtime.evaluate', { expression: bridgeSource, returnByValue: true }, { timeoutMs: 5000 });
 
   const evalJs = async (expr, opts = {}) => {
     const r = await cmd('Runtime.evaluate', { expression: `(async()=>{${expr}})()`, awaitPromise: true, returnByValue: true }, opts);
@@ -439,7 +452,7 @@ export async function openSession({ port = 9333, reuseExisting = false, isolate 
   let ready = false;
   while (Date.now() < d2) {
     try {
-      if (await evalJs(`return !!(window.electronAPI&&window.electronAPI.apiRequest)`, { timeoutMs: 1500 })) {
+      if (await evalJs(`return !!(window.__DSH_BOOT__ && window.electronAPI?.apiRequest)`, { timeoutMs: 1500 })) {
         ready = true;
         break;
       }
@@ -449,8 +462,7 @@ export async function openSession({ port = 9333, reuseExisting = false, isolate 
   if (!ready) {
     try { ws.close(); } catch { /* ignore */ }
     if (child) { try { child.kill(); } catch { /* ignore */ } }
-    await stopChildTree(rendererChild);
-    throw new Error(`渲染层未就绪: window.electronAPI.apiRequest 不可用(:${port})`);
+    throw new Error(`官方 Web Eval 传输未就绪(:${port})`);
   }
 
   const info = {
@@ -463,10 +475,11 @@ export async function openSession({ port = 9333, reuseExisting = false, isolate 
     renderer: {
       mode: rendererMode,
       url: observedRendererUrl,
-      dedicated: rendererMode === 'dedicated-dev-server',
-      launched_by_eval: Boolean(rendererChild),
+      dedicated: false,
+      launched_by_eval: false,
       revision_monitor: 'cdp-debugger-script-hash',
     },
+    product_api: `http://127.0.0.1:${serverPort}`,
   };
 
   return {
@@ -482,7 +495,7 @@ export async function openSession({ port = 9333, reuseExisting = false, isolate 
           ? Promise.resolve()
           : new Promise((resolve) => child.once('exit', resolve));
         try {
-          await evalJs('return await window.electronAPI.evalQuitApplication()', { timeoutMs: 3000 });
+          await cmd('Browser.close', {}, { timeoutMs: 3000 });
         } catch {
           try { child.kill(); } catch { /* ignore */ }
         }
@@ -495,7 +508,6 @@ export async function openSession({ port = 9333, reuseExisting = false, isolate 
       try { ws.close(); } catch { /* ignore */ }
       stopRevisionMonitor();
       events.clear();
-      await stopChildTree(rendererChild);
       if (runtime?.cleanupRoot && !keepData && !preserveData) {
         try {
           rmSync(runtime.cleanupRoot, { recursive: true, force: true });

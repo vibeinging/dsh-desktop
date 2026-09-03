@@ -19,7 +19,7 @@ const DEFAULT_UNPACKED_APP = join(RELEASE_DIR, 'win-unpacked')
 const configuredTimeoutMs = Number(process.env.DSH_WINDOWS_ACCEPTANCE_TIMEOUT_MS)
 const DEFAULT_TIMEOUT_MS = Number.isFinite(configuredTimeoutMs) && configuredTimeoutMs > 0
   ? configuredTimeoutMs
-  : 360_000
+  : 600_000
 
 function argumentValue(name, fallback = null) {
   const index = process.argv.indexOf(`--${name}`)
@@ -109,11 +109,12 @@ async function waitForGone(paths, label, timeoutMs = DEFAULT_TIMEOUT_MS) {
   throw new Error(`${label} 超时: ${paths.filter((path) => existsSync(path)).join(', ')}`)
 }
 
-async function runNodeSmoke(scriptName, appPath, label, extraArgs = []) {
+async function runNodeSmoke(scriptName, appPath, label, extraArgs = [], extraEnv = {}) {
   return runProcess(process.execPath, [join(SCRIPT_DIR, scriptName), appPath, ...extraArgs], {
     env: {
       ...process.env,
       DSH_SMOKE_TIMEOUT_MS: process.env.DSH_SMOKE_TIMEOUT_MS || '180000',
+      ...extraEnv,
     },
   }).then((output) => {
     console.log(`[windows-acceptance] ${label}\n${output.trim()}`)
@@ -156,6 +157,8 @@ export async function runWindowsAcceptance({
   const checks = []
   const acceptanceRoot = await mkdtemp(join(tmpdir(), 'dsh-windows-acceptance-'))
   const installDir = join(acceptanceRoot, 'installed')
+  const dataRoot = join(acceptanceRoot, 'dsh-data')
+  const profileManifest = join(dataRoot, 'profiles', 'web', 'package.json')
   const installedExecutable = join(installDir, 'DSH Desktop.exe')
   const installedResources = join(installDir, 'resources')
   const temporaryReceipt = `${RECEIPT_PATH}.tmp-${process.pid}`
@@ -165,13 +168,22 @@ export async function runWindowsAcceptance({
     await rm(RECEIPT_PATH, { force: true })
     await mkdir(installDir, { recursive: true })
 
-    await runChecked('installer-install', checks, async () => {
+    await runChecked('installer-custom-directory', checks, async () => {
       await runProcess(installer, ['/S', `/D=${installDir}`])
       await waitForPath(installedExecutable, 'NSIS 安装后的主程序')
       await waitForPath(installedResources, 'NSIS 安装后的 resources')
     })
     await runChecked('installed-server-smoke', checks, () => runNodeSmoke('smoke-packaged-server.mjs', installDir, '随安装程序 Server smoke 通过'))
-    await runChecked('installed-app-smoke', checks, () => runNodeSmoke('smoke-packaged-app.mjs', installDir, '随安装程序 App smoke 通过'))
+    await runChecked('installed-app-smoke', checks, () => runNodeSmoke(
+      'smoke-packaged-app.mjs',
+      installDir,
+      '随安装程序 App smoke 通过',
+      [],
+      { DSH_SMOKE_DATA_ROOT: dataRoot },
+    ))
+    await runChecked('installed-data-root-separation', checks, async () => {
+      await waitForPath(profileManifest, '安装目录之外的 DSH Profile')
+    })
     await runChecked('installed-official-web-permission-smoke', checks, () => runNodeSmoke(
       'smoke-packaged-official-web-flow.mjs',
       installDir,
@@ -186,6 +198,9 @@ export async function runWindowsAcceptance({
     await runChecked('uninstaller', checks, async () => {
       await runProcess(uninstaller, ['/S'])
       await waitForGone([installedExecutable, installedResources, uninstaller], 'NSIS 卸载后的文件')
+    })
+    await runChecked('dsh-data-preserved-after-uninstall', checks, async () => {
+      await waitForPath(profileManifest, '卸载后保留的 DSH Profile', 30_000)
     })
     await runChecked('cleanup', checks, async () => {
       await rm(acceptanceRoot, { recursive: true, force: true, maxRetries: 20, retryDelay: 500 })
@@ -202,7 +217,7 @@ export async function runWindowsAcceptance({
     await writeFile(temporaryReceipt, `${JSON.stringify(receipt, null, 2)}\n`)
     await rename(temporaryReceipt, RECEIPT_PATH)
     passed = true
-    console.log(`[windows-acceptance] PASS Windows x64 安装、运行、断网 Profile、恢复、权限边界、卸载和清理；回执=${RECEIPT_PATH}`)
+    console.log(`[windows-acceptance] PASS Windows x64 自定义目录安装、运行、独立 DSH 数据、断网 Profile、恢复、权限边界、卸载保留和清理；回执=${RECEIPT_PATH}`)
     return receipt
   } finally {
     if (!passed) {
@@ -225,6 +240,6 @@ if (isMain) {
   }
 }
 
-if (WINDOWS_ACCEPTANCE_CHECKS.length !== 9) {
+if (WINDOWS_ACCEPTANCE_CHECKS.length !== 11) {
   throw new Error('Windows 验收项数量发生漂移，请同步回执校验和验收脚本')
 }

@@ -1,7 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { createStreamEvent, StreamEventType } from '../../server/src/engine/stream/agent_stream_protocol.js';
+import { bindTransportStreamAbort } from '../../server/src/transport/http_server.js';
 import { createTransportStream } from '../../server/src/transport/stream_events.js';
+
+test('HTTP eval streams ignore request completion and abort on response disconnect', () => {
+  const req = new EventEmitter();
+  const res = new EventEmitter();
+  const controller = new AbortController();
+  const unbind = bindTransportStreamAbort(req, res, controller);
+
+  req.emit('close');
+  assert.equal(controller.signal.aborted, false);
+  res.emit('close');
+  assert.equal(controller.signal.aborted, true);
+  unbind();
+});
 
 test('transport failure creates a complete turn when the route emitted nothing', () => {
   const events = [];

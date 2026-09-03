@@ -12,6 +12,17 @@ import { createTransportStream } from './stream_events.js';
 
 const match = makeRouter(ROUTES);
 
+/** Abort an eval stream only when the request is interrupted or its response disconnects. */
+export function bindTransportStreamAbort(req, res, controller) {
+  const abort = () => controller.abort();
+  req.once('aborted', abort);
+  res.once('close', abort);
+  return () => {
+    req.off('aborted', abort);
+    res.off('close', abort);
+  };
+}
+
 function isLocalOrigin(origin) {
   if (!origin) return true;
   try {
@@ -55,7 +66,7 @@ export function startHttpServer(port) {
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         const controller = new AbortController();
-        req.on('close', () => controller.abort());
+        const unbindAbort = bindTransportStreamAbort(req, res, controller);
         const stream = createTransportStream(
           (event) => { try { res.write(`data: ${JSON.stringify(event)}\n\n`); } catch { /* closed */ } },
           { threadId: params.sid || null },
@@ -66,6 +77,7 @@ export function startHttpServer(port) {
           const m = e instanceof ApiError ? e.message : '服务错误: ' + (e?.message || e);
           stream.fail(m);
         } finally {
+          unbindAbort();
           try { res.write('data: [DONE]\n\n'); res.end(); } catch { /* closed */ }
         }
         return;

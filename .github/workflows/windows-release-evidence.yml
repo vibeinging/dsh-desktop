@@ -23,7 +23,6 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       DSH_RELEASE_COMMIT_SHA: ${{ github.sha }}
       DSH_NATIVE_HOST_WINDOW_RESULT_FILE: .desktop-build\release-evidence\native-host-window-evidence\result.json
-      DSH_NATIVE_HOST_DIALOGS_RESULT_FILE: .desktop-build\release-evidence\native-host-dialogs-evidence\result.json
 
     steps:
       - name: Checkout
@@ -90,14 +89,6 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force (Split-Path -Parent $env:DSH_NATIVE_HOST_RESULT_FILE) | Out-Null
           npm run smoke:native-host
-
-      - name: Smoke session-bound native file and directory dialogs
-        shell: pwsh
-        env:
-          DSH_NATIVE_HOST_RESULT_FILE: ${{ env.DSH_NATIVE_HOST_DIALOGS_RESULT_FILE }}
-        run: |
-          New-Item -ItemType Directory -Force (Split-Path -Parent $env:DSH_NATIVE_HOST_RESULT_FILE) | Out-Null
-          npm run smoke:native-host:dialogs
 
       - name: Verify signed release and bound evidence
         run: npm run release:verify:win -- --require-evidence

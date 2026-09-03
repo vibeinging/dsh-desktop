@@ -8,6 +8,8 @@ import { dirname, join, resolve } from 'node:path'
 
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 import { pathWithPackagedBin, systemOnlyPath } from './packaged-smoke-environment.mjs'
+import { findOfficialWebCdpTarget } from './official-web-cdp-target.mjs'
+import { createOfficialWebUnaryRequest } from './official-web-runtime-api.mjs'
 import {
   artifactReference,
   createReleaseEvidenceReceipt,
@@ -266,7 +268,7 @@ async function waitForTarget(port) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/json`)
       const targets = await response.json()
-      const target = targets.find((item) => item.type === 'page' && item.webSocketDebuggerUrl)
+      const target = findOfficialWebCdpTarget(targets)
       if (target) return target
     } catch {
       // Electron is still starting.
@@ -342,14 +344,56 @@ async function waitFor(predicate, label) {
   throw new Error(`等待官方 Web ${label} 超时\n${output.join('')}`)
 }
 
+async function dismissPrompt({ labels, bodyNeedles, description }) {
+  const startedAt = Date.now()
+  const deadline = startedAt + 15_000
+  let observed = false
+  let latest = null
+  while (Date.now() < deadline) {
+    latest = await evaluate(`(() => {
+      const labels = new Set(${JSON.stringify(labels)});
+      const bodyNeedles = ${JSON.stringify(bodyNeedles)};
+      const body = document.body.innerText || '';
+      const present = bodyNeedles.some((needle) => body.includes(needle));
+      if (!present) return { present: false, button: null };
+      const target = [...document.querySelectorAll('button,[role="button"]')].find((element) => {
+        const rect = element.getBoundingClientRect();
+        const text = (element.innerText || element.textContent || '').trim();
+        return rect.width > 0 && rect.height > 0 && !element.disabled && labels.has(text);
+      });
+      target?.click();
+      return { present: true, button: target ? (target.innerText || target.textContent || '').trim() : null };
+    })()`)
+    if (latest?.present) observed = true
+    else if (observed || Date.now() - startedAt >= 5_000) return
+    await sleep(200)
+  }
+  throw new Error(`${description}未在超时前关闭: ${JSON.stringify(latest)}`)
+}
+
+async function dismissOfficialPrompts() {
+  await dismissPrompt({
+    labels: ['继续', 'Continue'],
+    bodyNeedles: ['内测声明', 'Internal testing'],
+    description: '官方 Web 首次提示',
+  })
+  await dismissPrompt({
+    labels: ['稍后配置', 'Later'],
+    bodyNeedles: ['添加一个 API Key 开始使用', 'Add an API Key to get started'],
+    description: '官方 Web 模型配置提示',
+  })
+}
+
 async function rpc(method, payload = {}) {
-  const raw = await evaluate(`(() => fetch('/api/${JSON.stringify(method).slice(1, -1)}', {
+  const request = createOfficialWebUnaryRequest(method, payload, crypto.randomUUID())
+  const raw = await evaluate(`(() => fetch(${JSON.stringify(`/api/${request.endpoint}`)}, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ type: 'client-request', rpcId: crypto.randomUUID(), method: ${JSON.stringify(method)}, payload: ${JSON.stringify(payload)} }),
+    body: ${JSON.stringify(JSON.stringify(request.body))},
   }).then(async (response) => ({ status: response.status, body: await response.text() })))()`)
   if (raw?.status !== 200) throw new Error(`官方 Web RPC ${method} HTTP ${raw?.status || 'unknown'}`)
   const envelope = JSON.parse(raw.body)
+  if (envelope.rpcId !== request.body.rpcId) throw new Error(`官方 Web RPC ${method} 返回了错误 rpcId`)
   if (!envelope.result?.ok) throw new Error(`官方 Web RPC ${method} 失败：${JSON.stringify(envelope.result?.error || envelope)}`)
   return envelope.result.value
 }
@@ -376,17 +420,15 @@ async function clickByAria(labels) {
 }
 
 async function fillAndSend(text) {
-  await waitFor(`Boolean([...document.querySelectorAll('textarea')].find((textarea) => !textarea.readOnly))`, '会话输入框')
+  const selector = '[data-composer-input][contenteditable="true"]'
+  await waitFor(`Boolean(document.querySelector(${JSON.stringify(selector)}))`, '会话输入框')
   await evaluate(`(() => {
-    const textarea = [...document.querySelectorAll('textarea')].find((item) => !item.readOnly);
-    textarea?.focus();
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-    setter?.call(textarea, ${JSON.stringify(text)});
-    textarea?.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ${JSON.stringify(text)} }));
-    textarea?.dispatchEvent(new Event('change', { bubbles: true }));
-    return Boolean(textarea);
+    const editor = document.querySelector(${JSON.stringify(selector)});
+    editor?.focus();
+    return Boolean(editor);
   })()`)
-  await waitFor(`([...document.querySelectorAll('textarea')].find((textarea) => !textarea.readOnly)?.value || '') === ${JSON.stringify(text)}`, '输入内容')
+  await cdp.send('Input.insertText', { text })
+  await waitFor(`(document.querySelector(${JSON.stringify(selector)})?.textContent || '').trim() === ${JSON.stringify(text)}`, '输入内容')
   await clickByAria(['发送消息', 'Send message'])
 }
 
@@ -422,13 +464,7 @@ try {
   await cdp.open()
   await cdp.send('Runtime.enable')
   await waitFor('Boolean(document.querySelector("#root"))', '官方 Web 根节点')
-  await evaluate(`(() => {
-    for (const text of ['继续', 'Continue', '稍后配置', 'Later']) {
-      const target = [...document.querySelectorAll('button,[role="button"]')].find((node) => (node.innerText || node.textContent || '').trim() === text);
-      target?.click();
-    }
-    return true;
-  })()`)
+  await dismissOfficialPrompts()
   const workspacePath = join(tempDir, 'workspace')
   await mkdir(workspacePath, { recursive: true })
   await rpc('workspace.create', { path: workspacePath })

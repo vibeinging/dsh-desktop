@@ -47,6 +47,30 @@ test("desktop package preparation installs the Agent runtime and verifies every 
   }
 });
 
+test("desktop package preparation requires Node to match both target version and architecture", async () => {
+  const { packageNodeMatchesTarget } = await import("../../electron/scripts/prepare-package.mjs");
+  assert.equal(packageNodeMatchesTarget({
+    version: "v24.20.0",
+    platform: "darwin",
+    arch: "x64",
+  }, "darwin", "x64"), true);
+  assert.equal(packageNodeMatchesTarget({
+    version: "v24.20.0",
+    platform: "darwin",
+    arch: "arm64",
+  }, "darwin", "x64"), false);
+  assert.equal(packageNodeMatchesTarget({
+    version: "v22.12.0",
+    platform: "darwin",
+    arch: "x64",
+  }, "darwin", "x64"), false);
+  assert.equal(packageNodeMatchesTarget({
+    version: "v24.20.0",
+    platform: "win32",
+    arch: "x64",
+  }, "darwin", "x64"), false);
+});
+
 test("desktop packager declares both Codex local marketplace source forms", () => {
   const source = readFileSync("electron/scripts/prepare-package.mjs", "utf8");
   assert.match(source, /typeof plugin\.source === ['"]string['"]/);

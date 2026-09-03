@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop",
   "productName": "DSH Desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "description": "DSH Desktop，基于 DeepSeek Harness 和 Electron 构建的社区桌面应用",
   "author": "vibeinging",
@@ -37,6 +37,7 @@
     "smoke:packaged-official-web-showcase": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-official-web-flow.mjs \"../release/mac-arm64/DSH Desktop.app\" --showcase-model",
     "smoke:packaged-updater": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-updater.mjs \"../release/mac-arm64/DSH Desktop.app\"",
     "smoke:browser-workspace": "node ../scripts/run-with-project-node.mjs exec ./node_modules/.bin/electron scripts/browser-workspace-smoke.cjs",
+    "smoke:update-ui": "node ../scripts/run-with-project-node.mjs exec ./node_modules/.bin/electron scripts/app-update-ui-smoke.cjs",
     "smoke:mac:x64:server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs \"../release/mac/DSH Desktop.app\"",
     "smoke:mac:x64:app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs \"../release/mac/DSH Desktop.app\"",
     "smoke:win:server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs ../release/win-unpacked",
@@ -90,6 +91,11 @@
     "files": [
       "main.js",
       "app-update-controller.js",
+      "app-update-requests.js",
+      "app-update-view.js",
+      "app-update-preload.js",
+      "app-update-ui.mjs",
+      "app-update.html",
       "runtime-recovery.js",
       "recovery.html",
       "browser-workspace.js",
@@ -175,6 +181,11 @@
       "target": [
         "nsis"
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
     },
     "artifactName": "dsh-desktop-${version}-${os}-${arch}.${ext}"
   }

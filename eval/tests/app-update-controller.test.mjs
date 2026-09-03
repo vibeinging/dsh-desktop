@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, statSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
@@ -13,6 +13,7 @@ const require = createRequire(import.meta.url)
 const {
   AppUpdateController,
   trustedGitHubRepository,
+  getOrCreateUpdateClientId,
 } = require('../../electron/app-update-controller.js')
 
 class FakeUpdater extends EventEmitter {
@@ -65,6 +66,82 @@ function updateResponse() {
     }),
   }
 }
+
+test('update client IDs persist across launches and versions but differ across data directories', () => {
+  const first = mkdtempSync(join(tmpdir(), 'dsh-update-id-a-'))
+  const second = mkdtempSync(join(tmpdir(), 'dsh-update-id-b-'))
+  const id = getOrCreateUpdateClientId(first)
+  assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+  assert.equal(getOrCreateUpdateClientId(first), id)
+  assert.notEqual(getOrCreateUpdateClientId(second), id)
+  assert.equal(statSync(join(first, 'app-update-client.json')).mode & 0o777, 0o600)
+})
+
+test('anonymous update IDs travel only in headers and never enter updater state or query strings', async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), 'dsh-update-id-wire-'))
+  const seen = []
+  const controller = new AppUpdateController({
+    app: { getVersion: () => '1.0.0' }, updater: new FakeUpdater(),
+    fetch: async (url, options) => { seen.push({ url, headers: options.headers }); return updateResponse() },
+    apiBaseUrl: 'https://updates.dsh.example', platform: 'darwin', arch: 'arm64', userDataPath,
+    dataRoot: join(userDataPath, 'data'), isPackaged: true,
+    logger: { info() {}, warn() {}, error() {} },
+  })
+  await controller.check()
+  await controller.check()
+  const id = getOrCreateUpdateClientId(userDataPath)
+  assert.equal(seen.length, 2)
+  for (const request of seen) {
+    assert.equal(request.headers['X-DSH-Client-Id'], id)
+    assert.ok(!request.url.includes(id))
+    assert.ok(!request.url.includes('client_id'))
+    assert.deepEqual(Object.keys(request.headers).sort(), ['Accept', 'X-DSH-Client-Id'])
+  }
+  assert.ok(!JSON.stringify(controller.getState()).includes(id))
+  controller.destroy()
+})
+
+test('opted-out and disabled clients do not create IDs, and damaged IDs are not reported or replaced', async () => {
+  for (const mode of ['opt-out', 'development', 'damaged']) {
+    const userDataPath = mkdtempSync(join(tmpdir(), 'dsh-update-id-skip-'))
+    const idPath = join(userDataPath, 'app-update-client.json')
+    if (mode === 'damaged') writeFileSync(idPath, JSON.stringify({ schemaVersion: 1, id: 'person@example.com' }))
+    const controller = new AppUpdateController({
+      app: { getVersion: () => '1.0.0' }, updater: new FakeUpdater(),
+      fetch: async (_url, options) => { assert.equal(options.headers['X-DSH-Client-Id'], undefined); return updateResponse() },
+      apiBaseUrl: 'https://updates.dsh.example', platform: 'darwin', arch: 'arm64', userDataPath,
+      dataRoot: join(userDataPath, 'data'), isPackaged: mode !== 'development', collectAnonymousStats: mode !== 'opt-out',
+      logger: { info() {}, warn() {}, error() {} },
+    })
+    await controller.check()
+    assert.equal(existsSync(idPath), mode === 'damaged')
+    if (mode === 'damaged') assert.equal(JSON.parse(readFileSync(idPath, 'utf8')).id, 'person@example.com')
+    controller.destroy()
+  }
+})
+
+test('managed service failures fall back only to the configured GitHub source and recover next check', async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), 'dsh-update-fallback-'))
+  const updater = new FakeUpdater()
+  let available = false
+  const controller = new AppUpdateController({
+    app: { getVersion: () => '1.0.0' }, updater,
+    fetch: async () => { if (!available) throw new Error('service offline'); return updateResponse() },
+    apiBaseUrl: 'https://updates.dsh.example', repository: { owner: 'vibeinging', repo: 'dsh-desktop' }, allowGitHubFallback: true,
+    platform: 'darwin', arch: 'arm64', userDataPath, dataRoot: join(userDataPath, 'data'), isPackaged: true,
+    logger: { info() {}, warn() {}, error() {} },
+  })
+  assert.equal((await controller.check()).status, 'available')
+  assert.equal(controller.getState().updateSource, 'github')
+  assert.equal(updater.feed.provider, 'github')
+  assert.equal(updater.feed.repo, 'dsh-desktop')
+  assert.equal(updater.allowDowngrade, false)
+  assert.equal(updater.autoDownload, false)
+  available = true
+  assert.equal((await controller.check()).updateSource, 'managed')
+  assert.equal(updater.feed.provider, 'generic')
+  controller.destroy()
+})
 
 test('desktop updater checks metadata, downloads on demand, and preserves data paths', async () => {
   const userDataPath = mkdtempSync(join(tmpdir(), 'dsh-updater-'))
@@ -267,7 +344,9 @@ test('packaged desktop exposes update UX and publishes updater metadata for both
     releaseType: 'release',
   }])
   assert.match(mainSource, /label: '检查更新…'/)
-  assert.match(mainSource, /buttons: \['下载并安装', '稍后再说'\]/)
+  assert.doesNotMatch(mainSource, /promptForAvailableUpdate|发现新版本/)
+  assert.match(mainSource, /handleAppUpdateRequest/)
+  assert.equal(electronPackage.build.files.includes('app-update-requests.js'), true)
   assert.match(mainSource, /repository: UPDATE_REPOSITORY/)
   assert.match(electronPackage.scripts['package:mac:project'], /check:update-artifacts:mac/)
   assert.match(electronPackage.scripts['package:win:project'], /check:update-artifacts:win/)

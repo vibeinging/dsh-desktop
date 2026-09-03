@@ -118,8 +118,8 @@ async function runPackagedApp(label, overrides = {}) {
 try {
   const artifactManifest = JSON.parse(await readFile(join(featuredArtifactDir, 'manifest.json'), 'utf8'))
   const candidateArtifact = artifactManifest.plugins?.find((plugin) => plugin.name === candidateName)
-  if (!candidateArtifact?.tarball || candidateArtifact.version !== '0.2.7') {
-    throw new Error(`随包精选清单缺少 ${candidateName}@0.2.7`)
+  if (!candidateArtifact?.tarball || candidateArtifact.version !== '0.3.9') {
+    throw new Error(`随包精选清单缺少 ${candidateName}@0.3.9`)
   }
   await runPackagedApp('首次启动并激活默认任务看板', {
     DSH_SMOKE_EXPECT_SELECTOR: '[data-dsh-taskboard-board]',

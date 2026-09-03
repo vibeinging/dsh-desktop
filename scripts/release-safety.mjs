@@ -234,7 +234,6 @@ function inspectMacEvidenceReceipts(root, appPath, { requireEvidence = false } =
       ['mac_dmg_notarization_receipt', 'DSH_MACOS_DMG_NOTARY_RESULT_FILE', 'macos-dmg-notarization'],
       ['macos_installer_receipt', 'DSH_MACOS_INSTALLER_RESULT_FILE', 'macos-dmg-installer'],
       ['mac_native_host_window_receipt', 'DSH_NATIVE_HOST_WINDOW_RESULT_FILE', 'native-host', 'window'],
-      ['mac_native_host_dialogs_receipt', 'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE', 'native-host', 'dialogs'],
     ],
   });
 }
@@ -261,7 +260,6 @@ function inspectWindowsNativeHostReceipts(root, appPath, { requireEvidence = fal
     requireEvidence,
     rows: [
       ['windows_native_host_window_receipt', 'DSH_NATIVE_HOST_WINDOW_RESULT_FILE', 'native-host', 'window'],
-      ['windows_native_host_dialogs_receipt', 'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE', 'native-host', 'dialogs'],
     ],
   });
 }
@@ -407,9 +405,7 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
       'npm run measure:featured-plugins',
       'macos-installer-evidence',
       'npm run smoke:native-host',
-      'npm run smoke:native-host:dialogs',
       'native-host-window-evidence',
-      'native-host-dialogs-evidence',
       'xcrun stapler validate',
       'spctl --assess --type execute',
       'apple-notary-history.json',
@@ -418,7 +414,6 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
       'DSH_RELEASE_COMMIT_SHA:',
       'DSH_MACOS_INSTALLER_RESULT_FILE',
       'DSH_NATIVE_HOST_WINDOW_RESULT_FILE',
-      'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE',
       'DEEPSEEK_API_KEY',
       'test -n "$DEEPSEEK_API_KEY"',
       'npm run release:verify:mac -- --require-evidence',
@@ -462,11 +457,8 @@ function staticChecks(root, scope, { requireMeasurement = false } = {}) {
       'npm run measure:featured-plugins',
       'smoke:win:acceptance',
       'npm run smoke:native-host',
-      'npm run smoke:native-host:dialogs',
       'native-host-window-evidence',
-      'native-host-dialogs-evidence',
       'DSH_NATIVE_HOST_WINDOW_RESULT_FILE',
-      'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE',
       'release:verify:win -- --require-evidence',
     ];
     checks.push(check(

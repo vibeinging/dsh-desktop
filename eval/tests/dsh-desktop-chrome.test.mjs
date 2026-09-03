@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
+  DESKTOP_OVERLAY_MARGIN,
   DESKTOP_TITLEBAR_HEIGHT,
   DESKTOP_TITLEBAR_ID,
   desktopChromeCss,
@@ -62,6 +63,8 @@ test("the desktop chrome is an official DSH Client Bundle", () => {
   assert.match(source, /export function apply\(ctx\)/);
   assert.match(built, /^window\.__ModuleLoader__\.load\(\{/);
   assert.match(built, /id: "@vibeinging\/dsh-desktop-chrome"/);
+  assert.match(built, /const overlayMargin = 12/);
+  assert.match(built, /body > \[role="menu"\]/);
   assert.match(built, /return \{ apply, inject \};/);
   assert.doesNotMatch(built, /\bexport\s/);
 });
@@ -89,12 +92,16 @@ test("the title bar reserves one compact drag strip and cleans up with the Clien
   });
 
   assert.equal(DESKTOP_TITLEBAR_HEIGHT, 36);
+  assert.equal(DESKTOP_OVERLAY_MARGIN, 12);
   assert.equal(fake.documentElement.dataset.dshDesktopChrome, "mac");
   assert.equal(fake.head.length, 1);
   assert.equal(fake.body.length, 1);
   assert.equal(fake.body[0].id, DESKTOP_TITLEBAR_ID);
   assert.equal(fake.body[0].attributes["aria-hidden"], "true");
   assert.match(desktopChromeCss, /#root[\s\S]*padding-top: 36px/);
+  assert.match(desktopChromeCss, /\[data-dsh-panel\][\s\S]*padding-top: 36px/);
+  assert.match(desktopChromeCss, /\[data-dsh-toggle-cluster\][\s\S]*top: 39px/);
+  assert.match(desktopChromeCss, /body > \[role="menu"\][\s\S]*max-height: calc\(100dvh - 60px\)/);
   assert.match(desktopChromeCss, /-webkit-app-region: drag/);
 
   dispose();
@@ -136,9 +143,9 @@ test("Electron only selects integrated chrome from the authoritative enabled Cli
 test("new Profile initialization completes before desktop chrome reads the Client graph", async () => {
   const calls = [];
   const data = await resolveDesktopClientSurface({
-    async waitForClientSurface() {
-      calls.push("client-surface");
-      return "http://127.0.0.1:3000/";
+    async waitForClientLaunchUrl() {
+      calls.push("client-launch-url");
+      return "http://127.0.0.1:3000/?token=launch-token";
     },
     async readProfileState() {
       calls.push("profile-state");
@@ -152,9 +159,9 @@ test("new Profile initialization completes before desktop chrome reads the Clien
     },
   });
 
-  assert.deepEqual(calls, ["client-surface", "profile-state"]);
+  assert.deepEqual(calls, ["client-launch-url", "profile-state"]);
   assert.deepEqual(data, {
-    url: "http://127.0.0.1:3000/",
+    url: "http://127.0.0.1:3000/?token=launch-token",
     desktop_chrome: true,
   });
 });

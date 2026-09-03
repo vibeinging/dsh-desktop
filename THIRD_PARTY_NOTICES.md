@@ -14,11 +14,13 @@
 | yiTrace DB | 0.1.8 | MIT | 随包 Trace 存储模块 |
 | SheetJS Community Edition | 0.20.3 | Apache-2.0 | 表格文件读取；许可证文本随 npm 包分发 |
 | VexDB Lite | 上游发行版 v0.0.17；随包文件见来源记录 | MIT | SQLite 向量扩展；许可证与来源见 `server/vendor/vexdb_lite/LICENSE` 和 `RELEASE-PROVENANCE.md` |
-| DeepSeek Harness npm runtime | 0.1.1-rc.2 | MIT | 官方 `@deepseek-ai/dsh`、`@deepseek-ai/dsh-web-app` 和 Cordis npm 包；不修改官方源码 |
+| DeepSeek Harness npm runtime | 0.1.2-alpha.4 | MIT | 官方 `@deepseek-ai/dsh`、`@deepseek-ai/dsh-web-app` 和 Cordis npm 包；当前为试用线，不修改官方源码 |
 | DSH Desktop first-party Bundles | 当前仓库版本 | BSD-3-Clause | `@vibeinging/*` 包通过官方 Profile 组合；许可证原文随包位于 `featured-plugins/licenses/BSD-3-Clause.txt`，逐包来源、权限和 SHA-256 由精选清单生成；默认清单不包含自研主题、替换 Shell 或工作台目录 |
-| DSH task board | `@linxin666/dsh-client-ui-task-board@0.2.7` | BSD-3-Clause | 新 Profile 默认安装的独立社区 Bundle；固定 tarball 同时封装 MIT 许可的 `schemastery@3.18.0`、`cosmokit@1.8.1` 和 `@standard-schema/spec@1.1.0`，逐项许可证原文、来源、完整性和权限由精选清单生成 |
-| DSH Multimedia WebUI Input | `dsh-multimedia-webui-input@0.1.0` | MIT | 新 Profile 默认安装的独立社区 Bundle；固定 tarball 没有运行依赖、原生依赖或安装脚本，通过官方输入和设置 Slot 提供附件入口，许可证原文、来源、完整性和权限由精选清单生成 |
-| DSH Plugin Market | `dshmarket@1.17.1` | MIT | 新 Profile 默认安装的社区市场 Bundle；固定 tarball 同时封装 MIT 许可的 `js-yaml@4.3.1` 和 `undici@7.29.0`，以及 Python-2.0 许可的 `argparse@2.0.1`；逐项许可证原文、来源、完整性和权限由精选清单生成，市场内展示的其他插件不随发行包分发 |
+| DSH task board | `@linxin666/dsh-client-ui-task-board@0.3.9` | Apache-2.0 | 新 Profile 默认安装的独立社区 Bundle；固定 tarball 同时封装 MIT 许可的 `schemastery@3.18.0`、`cosmokit@1.8.1` 和 `@standard-schema/spec@1.1.0`，逐项许可证原文、来源、完整性和权限由精选清单生成 |
+| DSH Remote | `ds-harness-remote@0.4.1` | MIT | 新 Profile 默认安装且可卸载的独立社区 Bundle；上游 package.json 漏写 license，但 tarball 内 LICENSE 是 MIT 原文，发行投影按该原文和 SHA-256 补写 MIT；发行包只对该固定 tarball 投影新的 Settings namespace 调用；固定 tarball 封装完整运行依赖闭包，禁用可选原生 WebRTC 安装脚本，默认连接第三方 `dsh.r2049.cn` 账号、信令、TURN 与 Relay 服务 |
+| DSH Multimedia WebUI Input | `dsh-multimedia-webui-input@0.1.0` | MIT | 新 Profile 默认安装的独立社区 Bundle；固定 tarball 没有运行依赖、原生依赖或安装脚本，通过官方输入和设置 Slot 提供附件入口；发行包按固定 tarball 的 SHA-256 投影匹配的 Client 依赖；许可证原文、来源、完整性和权限由精选清单生成 |
+| DSH Plugin Market | `dshmarket@1.17.1` | MIT | 新 Profile 默认安装的社区市场 Bundle；固定 tarball 同时封装 MIT 许可的 `js-yaml@4.3.1` 和 `undici@7.29.0`，以及 Python-2.0 许可的 `argparse@2.0.1`；发行包按固定 tarball 的 SHA-256 投影匹配的 Settings 调用和 SDK 依赖；逐项许可证原文、来源、完整性和权限由精选清单生成，市场内展示的其他插件不随发行包分发 |
+| DSH Session Teams | `@vibeinging/dsh-session-teams@0.1.1` | BSD-3-Clause | 新 Profile 默认安装且可卸载的独立社区 Bundle，面向 DSH `0.1.2-rc.1`；固定 tarball 同时封装 MIT 许可的 `@deepseek-ai/schemastery@3.18.2`、`@deepseek-ai/cosmokit@1.8.3`、`@standard-schema/spec@1.1.0` 和 `zod@4.4.3`；只通过官方 Session API 读写当前 Profile 的会话与团队状态，不建立外部网络连接；逐项许可证原文、来源、完整性和权限由精选清单生成 |
 
 ## OpenAI Agent Runtime
 
@@ -49,4 +51,4 @@ SHA-256 和来源记录。由于 v0.0.17 没有 Windows 预编译包，当前 Wi
 
 ## 社区插件和皮肤资产
 
-社区插件不是 DeepSeek 或 DSH 官方产品。发行包内置经过逐包审查的任务看板、`dsh-multimedia-webui-input` 和 `dshmarket`，不携带 `dsh-web-ui` 聚合包或未审查的皮肤资产。任务看板的 `package.json` 声明 Apache-2.0，但 npm tarball 内 `LICENSE` 是带作者署名的 BSD-3-Clause；发行包按 tarball 内原文保留 BSD-3-Clause 许可证和署名，并在生成的公告中记录这项元数据差异。附件插件只处理用户主动选择的文件，并在发送时写入当前 Session 工作区；发行适配去掉上游通用拖拽监听，图片粘贴和拖拽继续由官方 DSH 处理。和其他附件输入插件同时启用仍可能重复注册输入入口。`dshmarket` 只提供目录与 Profile 管理界面，市场内展示的其他插件并未随发行包内置；用户确认安装后的来源、权限和许可由对应插件负责。其他默认候选必须通过固定来源、依赖、权限、许可证、真实 Electron 启动和卸载回归。没有可核对再分发许可的皮肤、插图、字体、音频和视频不得进入安装包。
+社区插件不是 DeepSeek 或 DSH 官方产品。发行包内置经过逐包审查的任务看板、`ds-harness-remote`、`dsh-multimedia-webui-input`、`dshmarket` 和 Agent Teams，不携带 `dsh-web-ui` 聚合包或未审查的皮肤资产。任务看板 `0.3.9` 的 package.json 和 tarball 许可证均为 Apache-2.0。Remote 只有在用户登录并启用当前电脑后才提供远程访问，默认使用第三方账号、设备目录、信令、TURN 和 Relay 服务；不需要时可以卸载。附件插件只处理用户主动选择的文件，并在发送时写入当前 Session 工作区；发行适配去掉上游通用拖拽监听，图片粘贴和拖拽继续由官方 DSH 处理。和其他附件输入插件同时启用仍可能重复注册输入入口。`dshmarket` 只提供目录与 Profile 管理界面，市场内展示的其他插件并未随发行包内置；用户确认安装后的来源、权限和许可由对应插件负责。Agent Teams 的发行投影把旧 `conversationEvents` 服务调用迁移到官方 `uiConversation.events` 注册表。这些兼容投影只作用于清单中固定来源和 SHA-256 的发行 tarball，不写入官方 DSH 或社区插件源码仓库。其他默认候选必须通过固定来源、依赖、权限、许可证、真实 Electron 启动和卸载回归。没有可核对再分发许可的皮肤、插图、字体、音频和视频不得进入安装包。

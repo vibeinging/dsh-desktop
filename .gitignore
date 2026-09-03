@@ -56,6 +56,8 @@ renderer/.env.*
 /docs/design/*
 !/docs/design/2026-08-22_dsh-worktree-client-bundle.md
 !/docs/design/2026-08-25_app-update.md
+!/docs/design/2026-08-28_nonmodal-update-control.md
+!/docs/design/2026-08-31_profile-plugin-content-migration.md
 !/docs/reports/
 /docs/reports/*
 !/docs/reports/2026-08-20_dsh-app-release-evidence.md

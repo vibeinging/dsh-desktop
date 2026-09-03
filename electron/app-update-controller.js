@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 
 const STATE_SCHEMA_VERSION = 1;
 const HISTORY_LIMIT = 20;
@@ -7,6 +8,29 @@ const METADATA_LIMIT_BYTES = 1024 * 1024;
 const DEFAULT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const SUPPORTED_TARGETS = new Set(['darwin-arm64', 'darwin-x64', 'win32-x64']);
 const GITHUB_REPOSITORY_PART = /^[A-Za-z0-9_.-]{1,100}$/;
+const UPDATE_CLIENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// This random installation ID never identifies an account or a physical device.
+function getOrCreateUpdateClientId(userDataPath) {
+  const filePath = path.join(userDataPath, 'app-update-client.json');
+  const read = () => {
+    const value = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (value?.schemaVersion !== 1 || typeof value.id !== 'string' || !UPDATE_CLIENT_ID.test(value.id)) {
+      throw new Error('Invalid persisted update client ID');
+    }
+    return value.id.toLowerCase();
+  };
+  try { return read(); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  fs.mkdirSync(userDataPath, { recursive: true });
+  const id = randomUUID();
+  try {
+    fs.writeFileSync(filePath, JSON.stringify({ schemaVersion: 1, id }) + '\n', { mode: 0o600, flag: 'wx' });
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    return read();
+  }
+  return id;
+}
 
 function trustedApiBaseUrl(value) {
   const raw = String(value || '').trim().replace(/\/$/, '');
@@ -155,6 +179,14 @@ class AppUpdateController {
       ? `https://github.com/${this.repository.owner}/${this.repository.repo}/releases/latest`
       : null;
     this.enabled = Boolean(this.updateSource) && this.isPackaged && SUPPORTED_TARGETS.has(this.target);
+    this.allowGitHubFallback = Boolean(options.allowGitHubFallback && this.repository);
+    this.clientId = null;
+    if (this.enabled && this.apiBaseUrl && options.collectAnonymousStats !== false) {
+      try { this.clientId = getOrCreateUpdateClientId(this.userDataPath); } catch {
+        // A missing or damaged ID must not create changing identities or block updates.
+        this.logger.warn?.('[updater] 更新客户端标识不可用，已跳过匿名统计');
+      }
+    }
     this.checkPromise = null;
     this.downloadPromise = null;
     this.installPromise = null;
@@ -301,7 +333,7 @@ class AppUpdateController {
       locale: this.locale,
     });
     const response = await this.fetch(`${this.apiBaseUrl}/api/desktop/releases/check?${query}`, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...(this.clientId ? { 'X-DSH-Client-Id': this.clientId } : {}) },
       signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) throw new Error(`更新服务请求失败（${response.status}）`);
@@ -332,6 +364,35 @@ class AppUpdateController {
     };
   }
 
+  async _checkManaged() {
+    const metadata = await this._fetchMetadata();
+    let latest = metadata.latest;
+    const feedUrl = latest?.feed_url || `${this.apiBaseUrl}/api/desktop/updates/${this.channel}/${this.platform}/${this.arch}`;
+    this.updater.setFeedURL({ provider: 'generic', url: this._trustedFeedUrl(feedUrl), useMultipleRangeRequest: false });
+    const result = await this.updater.checkForUpdates();
+    const updaterVersion = String(result?.updateInfo?.version || '');
+    const available = Boolean(result?.isUpdateAvailable && latest?.update_available && latest.version === updaterVersion);
+    if (result?.isUpdateAvailable && (!latest || latest.version !== updaterVersion)) {
+      throw new Error('更新说明与安装包版本不一致');
+    }
+    latest = latest ? { ...latest, update_available: available } : null;
+    return { metadata, latest, available };
+  }
+
+  async _checkGitHub() {
+    this.updater.setFeedURL(this._githubFeed());
+    const result = await this.updater.checkForUpdates();
+    const available = Boolean(result?.isUpdateAvailable);
+    const github = sanitizeGitHubUpdateInfo(result?.updateInfo, {
+      available, currentVersion: this.app.getVersion(), repository: this.repository,
+    });
+    return {
+      metadata: { schema_version: STATE_SCHEMA_VERSION, checked_at: new Date().toISOString(), ...github },
+      latest: github.latest,
+      available,
+    };
+  }
+
   check() {
     if (!this.enabled) return Promise.resolve(this.getState());
     if (this.checkPromise) return this.checkPromise;
@@ -339,43 +400,25 @@ class AppUpdateController {
     this._setState({ status: 'checking', error: null, updateGate: null });
     this.checkPromise = (async () => {
       try {
-        let metadata;
-        let latest;
-        let available;
+        let checked;
+        let activeSource = this.updateSource;
         if (this.updateSource === 'managed') {
-          metadata = await this._fetchMetadata();
-          latest = metadata.latest;
-          const feedUrl = latest?.feed_url || `${this.apiBaseUrl}/api/desktop/updates/${this.channel}/${this.platform}/${this.arch}`;
-          this.updater.setFeedURL({ provider: 'generic', url: this._trustedFeedUrl(feedUrl), useMultipleRangeRequest: false });
-          const result = await this.updater.checkForUpdates();
-          const updaterVersion = String(result?.updateInfo?.version || '');
-          available = Boolean(result?.isUpdateAvailable && latest?.update_available && latest.version === updaterVersion);
-          if (result?.isUpdateAvailable && (!latest || latest.version !== updaterVersion)) {
-            throw new Error('更新说明与安装包版本不一致');
+          try { checked = await this._checkManaged(); } catch (error) {
+            if (!this.allowGitHubFallback) throw error;
+            this.logger.warn?.('[updater] 更新服务暂不可用，改用固定 GitHub Releases 更新源');
+            checked = await this._checkGitHub();
+            activeSource = 'github';
           }
-          latest = latest ? { ...latest, update_available: available } : null;
         } else if (this.updateSource === 'github') {
-          this.updater.setFeedURL(this._githubFeed());
-          const result = await this.updater.checkForUpdates();
-          available = Boolean(result?.isUpdateAvailable);
-          const github = sanitizeGitHubUpdateInfo(result?.updateInfo, {
-            available,
-            currentVersion: this.app.getVersion(),
-            repository: this.repository,
-          });
-          metadata = {
-            schema_version: STATE_SCHEMA_VERSION,
-            checked_at: new Date().toISOString(),
-            current: github.current,
-            latest: github.latest,
-          };
-          latest = github.latest;
+          checked = await this._checkGitHub();
         } else {
           throw new Error('更新源未配置');
         }
+        const { metadata, latest, available } = checked;
         atomicWriteJson(this.metadataCachePath, metadata);
         this._setState({
           status: available ? 'available' : 'up-to-date',
+          updateSource: activeSource,
           current: metadata.current,
           latest,
           checkedAt: metadata.checked_at || new Date().toISOString(),
@@ -476,4 +519,5 @@ module.exports = {
   trustedApiBaseUrl,
   trustedGitHubRepository,
   SUPPORTED_TARGETS,
+  getOrCreateUpdateClientId,
 };

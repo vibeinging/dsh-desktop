@@ -20,8 +20,8 @@ export function desktopChromeEnabled(profileState) {
 }
 
 /** Resolve the Client first because its startup owns new Profile initialization. */
-export async function resolveDesktopClientSurface({ waitForClientSurface, readProfileState }) {
-  const url = await waitForClientSurface();
+export async function resolveDesktopClientSurface({ waitForClientLaunchUrl, readProfileState }) {
+  const url = await waitForClientLaunchUrl();
   const profileState = await readProfileState();
   return { url, desktop_chrome: desktopChromeEnabled(profileState) };
 }
@@ -73,7 +73,7 @@ export async function getDshClientSurface() {
     const profileService = getDshProfilePluginService();
     return {
       data: await resolveDesktopClientSurface({
-        waitForClientSurface: () => runtime.waitForClientSurface(),
+        waitForClientLaunchUrl: () => runtime.waitForClientLaunchUrl(),
         readProfileState: () => profileService.state(),
       }),
       message: "获取 DSH Client 地址成功",

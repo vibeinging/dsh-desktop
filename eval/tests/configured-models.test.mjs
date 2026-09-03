@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import {
+  dshBaseUrl,
   normalizeConfiguredModelRows,
   readConfiguredModels,
   seedConfiguredModels,
@@ -37,6 +38,11 @@ test('configured model rows keep one enabled model per category and parse extra 
   assert.equal(models.length, 1);
   assert.equal(models[0].model_name, 'primary-new');
   assert.deepEqual(models[0].extra_config, { supports_image_input: true });
+});
+
+test('DSH base URL keeps the API namespace but removes a complete chat endpoint', () => {
+  assert.equal(dshBaseUrl('https://model.invalid/v1/'), 'https://model.invalid/v1');
+  assert.equal(dshBaseUrl('https://model.invalid/v1/chat/completions'), 'https://model.invalid/v1');
 });
 
 test('configured models are read from a local database and seeded without leaking secrets in summary', async () => {
@@ -72,8 +78,26 @@ test('configured models are read from a local database and seeded without leakin
       return { status: 200, json: { data: { id: 'model-id' } } };
     }, { models });
 
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 3);
     assert.equal(calls[0].body.api_key, 'top-secret-key');
+    assert.deepEqual(calls[1], {
+      method: 'POST',
+      url: '/api/dsh/models/settings/mutate',
+      body: {
+        ns: 'llm-deepseek',
+        ops: [
+          { op: 'set', path: ['apiKeyEnv'], value: 'DEEPSEEK_API_KEY' },
+          { op: 'set', path: ['baseURL'], value: 'https://model.invalid/v1' },
+          {
+            op: 'set',
+            path: ['models'],
+            value: [{ id: 'real-primary', name: 'Real Primary', inputModalities: ['text'] }],
+          },
+        ],
+      },
+    });
+    assert.equal(calls[2].url, '/api/dsh/models/credentials');
+    assert.equal(calls[2].body.value, 'top-secret-key');
     assert.deepEqual(summary.models, [{
       category: 'PRIMARY',
       model_name: 'real-primary',
@@ -85,6 +109,24 @@ test('configured models are read from a local database and seeded without leakin
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('configured model seed rejects an unsupported primary API format before DSH writes', async () => {
+  const calls = [];
+  await assert.rejects(
+    () => seedConfiguredModels(async (method, url, body) => {
+      calls.push({ method, url, body });
+      return { status: 200 };
+    }, {
+      models: [{
+        model_name: 'responses-primary', display_name: 'Responses', category: 'PRIMARY',
+        api_base: 'https://model.invalid/v1', api_key: 'secret', api_format: 'responses',
+        supports_streaming: true, dimension: null, extra_config: {},
+      }],
+    }),
+    /chat_completions/,
+  );
+  assert.equal(calls.length, 1);
 });
 
 test('configured model seed requires an active primary model', async () => {

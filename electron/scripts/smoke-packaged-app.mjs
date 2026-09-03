@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 
 const appInput = process.argv[2]
@@ -10,6 +10,8 @@ const { executable } = resolvePackagedLayout(appInput)
 // can be noticeably slower on quit, while native architecture may be faster. Server still keeps 30s startup timeout.
 const timeoutMs = Number(process.env.DSH_SMOKE_TIMEOUT_MS || 180_000)
 const tempDir = await mkdtemp(join(tmpdir(), 'dsh-packaged-app-'))
+const configuredDataRoot = String(process.env.DSH_SMOKE_DATA_ROOT || '').trim()
+const dataRoot = configuredDataRoot ? resolve(configuredDataRoot) : join(tempDir, 'data')
 const output = []
 let child
 
@@ -21,9 +23,9 @@ try {
   Object.assign(env, {
     DSH_SMOKE_TEST: '1',
     DSH_USER_DATA_DIR: join(tempDir, 'user-data'),
-    DSH_DATA_ROOT: join(tempDir, 'data'),
-    DSH_AGENT_RUNTIME_HOME: join(tempDir, 'agent_runtime'),
-    DSH_SKILLS_ROOT: join(tempDir, 'data', 'skills'),
+    DSH_DATA_ROOT: dataRoot,
+    DSH_AGENT_RUNTIME_HOME: join(dataRoot, 'agent_runtime'),
+    DSH_SKILLS_ROOT: join(dataRoot, 'skills'),
   })
   child = spawn(executable, [], {
     env,
