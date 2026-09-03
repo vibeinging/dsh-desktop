@@ -171,12 +171,13 @@ test('stream driver supports both durable and legacy governed eval writes', () =
 test('eval runner cleanly exits the Electron process it started', () => {
   const cdp = readFileSync(path.join(process.cwd(), 'eval/lib/cdp.mjs'), 'utf8');
   const runner = readFileSync(path.join(process.cwd(), 'eval/run.mjs'), 'utf8');
-  assert.match(cdp, /evalQuitApplication/);
+  assert.match(cdp, /cmd\('Browser\.close'/);
   assert.match(cdp, /spawn\(resolveElectronExecutable\(\)/);
   assert.match(cdp, /child\.kill\('SIGKILL'\)/);
   assert.match(cdp, /process\.kill\(-child\.pid, signal\)/);
   assert.match(cdp, /DSH_EVAL_PACKAGED_APP/);
   assert.match(cdp, /resolvePackagedLayout\(packagedAppInput\)/);
+  assert.doesNotMatch(cdp, /RENDERER_DIR|npm', \['run', 'dev'/);
   assert.match(runner, /await session\?\.close\?\.\(\{/);
   assert.match(runner, /await session\?\.close\?\.\(\{ preserveData: true \}\)\.catch/);
 });

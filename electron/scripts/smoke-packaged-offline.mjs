@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { lstat, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 import { systemOnlyPath } from './packaged-smoke-environment.mjs'
 
@@ -86,7 +86,17 @@ try {
   const artifactRoot = join(resourcesDir, 'featured-plugins')
   const artifactManifest = JSON.parse(await readFile(join(artifactRoot, 'manifest.json'), 'utf8'))
   for (const plugin of artifactManifest.plugins) {
-    const tarball = await readFile(join(libraryRoot, plugin.tarball))
+    const dependency = manifest.dependencies?.[plugin.name]
+    if (typeof dependency !== 'string' || !dependency.startsWith('file:')) {
+      throw new Error(`稳定插件库依赖不是本地 tarball：${plugin.name}`)
+    }
+    const dependencyPath = resolve(join(dataRoot, 'profiles', 'web'), dependency.slice('file:'.length))
+    const dependencyRelative = relative(libraryRoot, dependencyPath)
+    if (dependencyRelative === '..' || dependencyRelative.startsWith(`..${sep}`)
+      || isAbsolute(dependencyRelative)) {
+      throw new Error(`稳定插件库依赖越出本地库：${plugin.name}`)
+    }
+    const tarball = await readFile(dependencyPath)
     if (sha256(tarball) !== plugin.sha256) throw new Error(`稳定插件库哈希错误：${plugin.name}`)
   }
   const storageBytes = await directoryBytes(dataRoot)

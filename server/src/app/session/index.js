@@ -290,6 +290,7 @@ export async function createSession(ctx, input) {
     description = null,
     skill_names = null,
     report_template_id = null,
+    agent_preset = null,
     temporary = false,
   } = input.body || {};
 
@@ -321,7 +322,7 @@ export async function createSession(ctx, input) {
     try {
       const cwd = await workspaceRoot(ctx, pid, id);
       await client.start();
-      const attached = await ensureDshWorkspaceSession(client, { cwd });
+      const attached = await ensureDshWorkspaceSession(client, { cwd, agentPreset: agent_preset });
       dshSessionId = attached.sessionId;
       if (String(title || "").trim()) {
         await client.request("session.rename", { sessionId: dshSessionId, title: String(title).trim() });

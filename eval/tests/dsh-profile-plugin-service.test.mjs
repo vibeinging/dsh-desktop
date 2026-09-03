@@ -133,9 +133,9 @@ test("Profile Bundle compatibility separates Host, Session, capabilities, and Cl
     name: "@example/mixed-plugin",
     dsh: { client: { platform: "web" } },
     peerDependencies: {
-      "@deepseek-ai/dsh-agent": "^0.1.1-rc.2",
-      "@deepseek-ai/dsh-tools": "^0.1.1-rc.2",
-      "@deepseek-ai/dsh-mcp-client": "^0.1.1-rc.2",
+      "@deepseek-ai/dsh-agent": "^0.1.2-alpha.4",
+      "@deepseek-ai/dsh-tools": "^0.1.2-alpha.4",
+      "@deepseek-ai/dsh-mcp-client": "^0.1.2-alpha.4",
     },
   }).map(({ id, status }) => ({ id, status })), [
     { id: "host", status: "profile_checked" },
@@ -265,16 +265,32 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
   assert.doesNotThrow(() => validateProfileBundleSdk({
     name: "@example/current",
     peerDependencies: {
-      "@deepseek-ai/cordis": "^4.0.1",
-      "@deepseek-ai/dsh-tools": "^0.1.1-rc.2",
+      "@deepseek-ai/cordis": "^4.0.2",
+      "@deepseek-ai/dsh-tools": "^0.1.2-alpha.4",
     },
   }));
   assert.doesNotThrow(() => validateProfileBundleSdk({
     name: "@example/current-compatible-prerelease-range",
     peerDependencies: {
-      "@deepseek-ai/dsh-agent": "^0.1.1-rc.1",
-      "@deepseek-ai/dsh-commands": "^0.1.1-rc.1",
+      "@deepseek-ai/dsh-agent": "^0.1.2-alpha.1",
+      "@deepseek-ai/dsh-commands": "^0.1.2-alpha.1",
     },
+  }));
+  assert.doesNotThrow(() => validateProfileBundleSdk({
+    name: "ds-harness-remote",
+    version: "0.4.1",
+    dependencies: {
+      "@deepseek-ai/schemastery": "^3.18.1",
+      qrcode: "^1.5.4",
+      werift: "0.24.4",
+      zod: "^3.24.1",
+    },
+    peerDependencies: {
+      "@deepseek-ai/cordis": ">=4.0.1 <5",
+      "@deepseek-ai/dsh-api-gateway": ">=0.1.1-rc.2 <0.1.2 || >=0.1.2-alpha.1 <0.2.0",
+      "@deepseek-ai/dsh-settings": ">=0.1.0-rc.6 <0.1.2 || >=0.1.2-alpha.1 <0.2.0",
+    },
+    dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
   }));
   assert.throws(() => validateProfileBundleSdk({
     name: "@example/older-prerelease-line",
@@ -287,8 +303,8 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
   assert.doesNotThrow(() => validateProfileBundleSdk({
     name: "@example/current-with-optional-legacy-peer",
     peerDependencies: {
-      "@deepseek-ai/cordis": "^4.0.1",
-      "@deepseek-ai/dsh-tools": "^0.1.1-rc.2",
+      "@deepseek-ai/cordis": "^4.0.2",
+      "@deepseek-ai/dsh-tools": "^0.1.2-alpha.4",
       cordis: "^4.0.0-rc.7",
     },
     peerDependenciesMeta: { cordis: { optional: true } },
@@ -296,7 +312,7 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
   assert.throws(() => validateProfileBundleSdk({
     name: "@example/legacy-runtime-cordis",
     dependencies: {
-      "@deepseek-ai/cordis": "^4.0.1",
+      "@deepseek-ai/cordis": "^4.0.2",
       cordis: "^4.0.0-rc.7",
     },
   }), { code: "DSH_PROFILE_LEGACY_SDK" });
@@ -328,7 +344,7 @@ test("community plugin manifests report every current DSH migration blocker", ()
     },
     {
       code: "DSH_PROFILE_LEGACY_SDK",
-      message: "dsh-better-sidebar 有 1 个 DSH SDK 包不属于当前 0.1.1-rc.2 发布线",
+      message: "dsh-better-sidebar 有 1 个 DSH SDK 包不属于当前 0.1.2-rc.1 发布线",
     },
   ]);
   assert.deepEqual(inspectProfileBundleManifest({
@@ -349,13 +365,13 @@ test("current DSH browser plugins declare one verifiable client bundle", () => {
       bundle: { patch: "./cordis.patch.yml" },
       client: {
         platform: "web",
-        inject: ["@deepseek-ai/dsh-client-runtime"],
+        inject: ["@deepseek-ai/dsh-client-ui-slots"],
       },
     },
     exports: { "./client": { default: "./lib/client.js" } },
     peerDependencies: {
-      "@deepseek-ai/cordis": "^4.0.1",
-      "@deepseek-ai/dsh-client-runtime": "^0.1.1-rc.2",
+      "@deepseek-ai/cordis": "^4.0.2",
+      "@deepseek-ai/dsh-client-ui-slots": "^0.1.2-alpha.4",
     },
   }), []);
   assert.deepEqual(inspectProfileBundleManifest({
@@ -405,7 +421,7 @@ test("community dsh.client Bundles stay out of the privileged Electron renderer"
     integrity: "sha512-vuPCcZfBgJijpVyNpb9VJgSuIB+7Zo+4RsZiDN3m6We3T7uekDcr1FlbcB4+xNKFCnxaJKCKb1ROBCoXbyCfbQ==",
   }), [{
     code: "DSH_PROFILE_CLIENT_SDK_MISMATCH",
-    message: "@linxin666/dsh-chat-recovery@0.2.5 需要 DSH 0.1.0-rc.8，当前发行版固定为 0.1.1-rc.2",
+    message: "@linxin666/dsh-chat-recovery@0.2.5 需要 DSH 0.1.0-rc.8，当前发行版固定为 0.1.2-rc.1",
   }]);
   assert.equal(inspectCommunityClientIsolation({
     name: "@linxin666/dsh-client-ui-task-board",
@@ -651,7 +667,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
       { code: "PLUGIN_UNINSTALL_NOT_ALLOWED" },
     );
     assert.equal(productBridge.product, null);
-    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-22");
+    assert.equal(catalog.recommended_plugins_updated_at, "2026-08-31");
     assert.equal(catalog.recommended_plugins_source, "https://github.com/awesome-dsh-plugin/awesome-dsh-plugin");
     assert.equal(catalog.recommended_plugins[0].source, "dshmarket@1.17.1");
     assert.deepEqual(
@@ -695,21 +711,49 @@ test("the Profile catalog is projected from the official Web Profile order", {
         repository: "https://github.com/zhu1090093659/dsh-web-ui",
         stars: 2278,
         category: "productivity",
-        source: "@linxin666/dsh-client-ui-task-board@0.2.7",
-        compatibility: "bundled-default-dual-face",
+        source: "@linxin666/dsh-client-ui-task-board@0.3.9",
+        compatibility: "bundled-default-alpha-native",
         release_policy: "bundled-default",
-        reviewed_at: "2026-08-21",
-        reviewed_commit: "92655dbefeaf08cb60429f4b487c33137889a3f7",
-        package_integrity: "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
-        package_size_bytes: 246542,
-        license: "BSD-3-Clause",
-        declared_license: "Apache-2.0",
-        license_note_zh: "package.json 声明 Apache-2.0，但 npm tarball 内 LICENSE 是 BSD-3-Clause；发行包保留 tarball 内 BSD-3-Clause 原文与作者署名。",
+        reviewed_at: "2026-08-31",
+        package_integrity: "sha512-xkjPPZCLH4AjNnTb2RGG9nMXzsFuCBFdcucYnL3UMaHs6/G+rADZpneyHNKeVggGlqSkbZ7qnM43zEYfudzjgw==",
+        package_size_bytes: 1193256,
+        license: "Apache-2.0",
         permissions: ["读取当前 DSH Session、Workspace 与完成历史", "在 DSH_HOME 写入任务账本和执行记录", "按用户操作或 Host cron 启动 DSH Session 任务", "可选启动固定的跨平台防休眠 helper"],
         native_dependencies: [],
         install_scripts: [],
-        review_note_zh: "作为独立 Bundle 内置，不安装聚合包；Host 侧持有任务账本、cron 调度和默认关闭的防休眠 helper，不创建 Electron 启停器、插件市场或通用原生桥。已通过当前官方 Web 和 Electron 的安装、启动、停用、卸载、重启回归。",
+        review_note_zh: "作为独立 Bundle 内置，不安装聚合包；0.3.9 原生声明 DSH >=0.1.2-alpha.1，并改用 Typert Gateway 与 Workspace Registry。Host 侧持有任务账本、cron 调度和默认关闭的防休眠 helper，不创建 Electron 启停器、插件市场或通用原生桥。",
         priority: 21,
+      },
+    );
+    assert.deepEqual(
+      catalog.recommended_plugins.find((plugin) => plugin.id === "ds-harness-remote"),
+      {
+        id: "ds-harness-remote",
+        name: "DSH Remote",
+        description: "Continue the current Harness from Android, Remote Web, or another Desktop over an encrypted remote channel.",
+        description_zh: "通过加密远程通道，从 Android、Remote Web 或另一台 Desktop 继续使用当前 Harness。",
+        repository: "https://github.com/liguobao/ds-harness-remote",
+        stars: 130,
+        category: "remote",
+        source: "ds-harness-remote@0.4.1",
+        compatibility: "bundled-default-alpha-reviewed",
+        release_policy: "bundled-default-user-manageable",
+        reviewed_at: "2026-08-31",
+        reviewed_commit: "814a0dd45f1c971995c0cc93319fdced20c69749",
+        package_integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+        package_size_bytes: 3417598,
+        license: "MIT",
+        license_note_zh: "上游 npm 包的 package.json 没有 license 字段，但 tarball 内 LICENSE 是 MIT 原文；发行投影补写 MIT，并按 LICENSE SHA-256 固定。",
+        permissions: [
+          "连接 dsh.r2049.cn 的外部账号、设备目录、信令、TURN 与 Relay 服务",
+          "从同一账号下的 Web、Android 或另一台 Desktop 读取并控制当前 Harness 的 Workspace、Session、模型、权限、设置与凭据写入",
+          "使用长期 X25519 设备身份和 Noise IK 端到端加密；托管服务仍可见账号、设备、连接时间、流量大小与必要网络元数据",
+          "通过固定 Harness API 白名单运行远程请求；不开放直接 Shell、PTY 或通用文件 RPC，但 Harness Agent 仍可按原权限运行工具",
+        ],
+        native_dependencies: ["可选 @roamhq/wrtc 原生 WebRTC；安装脚本禁用时自动回退到纯 TypeScript werift 或加密 Relay"],
+        ignored_dependency_lifecycle_scripts: ["@roamhq/wrtc 可选原生构建脚本"],
+        review_note_zh: "作为可卸载的默认 Bundle 固定到 npm 0.4.1，并通过完整性、依赖、Client 图、Profile 初始化和 Electron 启动检查。Host 不开放公网监听端口，业务流量使用 Noise IK 加密，并在 WebRTC 不可用时回退加密 Relay。插件默认连接第三方 dsh.r2049.cn；只有用户登录并启用当前电脑后才提供远程访问。该项目尚无受支持的自建 Server，独立密码安全审查、真实双机跨网和长期稳定性验证仍未完成。",
+        priority: 22,
       },
     );
     const skinCenter = catalog.recommended_plugins.find((plugin) => plugin.id === "dsh-web-ui-skin-center");
@@ -774,7 +818,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         compatibility: "sdk-migration-required",
         checked_at: "2026-08-16",
         checked_commit: "5d4628929aa2695cab7b4534670c0ca3c9cd7652",
-        preflight_blocker: "Two DSH SDK dependency ranges do not match the exact 0.1.1-rc.2 release line.",
+        preflight_blocker: "Two DSH SDK dependency ranges do not match the exact 0.1.2-alpha.4 release line.",
       }, {
         id: "distill",
         stars: 19,

@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
 import { resolveCommitSha } from './release-evidence-receipt.mjs'
+import { normalizeDshClientLaunchUrl } from '../server/src/engine/dsh_runtime/client.js'
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const FEATURED_ARTIFACT_DIR = join(APP_ROOT, '.desktop-build', 'featured-plugins')
@@ -25,6 +26,65 @@ function argument(name, fallback) {
 
 function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex')
+}
+
+/** Remove credentials and launch tokens before command output enters release evidence. */
+export function redactFeaturedMeasurementOutput(value) {
+  return String(value || '')
+    .replace(/([?&](?:token|api[_-]?key|secret|password)=)[^&#\s]+/gi, '$1[redacted]')
+    .replace(/\b(authorization|cookie)\b\s*[:=]\s*(?:Bearer\s+)?[^\s,;]+/gi, (_match, key) => `${key}=[redacted]`)
+    .replace(/\b(DEEPSEEK_API_KEY|NPM_TOKEN|DSH_[A-Z0-9_]*(?:TOKEN|KEY|SECRET|PASSWORD)[A-Z0-9_]*)\s*=\s*[^\s,;]+/g, (_match, key) => `${key}=[redacted]`)
+}
+
+function cookieFromResponse(response) {
+  const cookies = typeof response.headers?.getSetCookie === 'function'
+    ? response.headers.getSetCookie()
+    : []
+  const header = cookies[0] || response.headers?.get('set-cookie') || ''
+  return String(header).split(';', 1)[0].trim() || null
+}
+
+/** Authenticate the DSH launch URL, then read the clean loopback Web surface. */
+export async function fetchFeaturedMeasurementWeb(launchUrl, { fetchImpl = fetch } = {}) {
+  const launch = normalizeDshClientLaunchUrl(launchUrl)
+  if (!launch.hasLaunchToken) return fetchImpl(launch.surface)
+  const authenticated = await fetchImpl(launch.launchUrl, { redirect: 'manual' })
+  if (authenticated.status !== 303) {
+    throw new Error(`DSH Web 客户端认证失败（HTTP ${authenticated.status}）`)
+  }
+  const cookie = cookieFromResponse(authenticated)
+  if (!cookie) throw new Error('DSH Web 客户端认证没有返回会话 Cookie')
+  return fetchImpl(launch.surface, { headers: { cookie } })
+}
+
+/** Read the official Client graph injected into the authenticated Web HTML. */
+export function parseFeaturedClientBootGraph(html) {
+  const source = String(html || '')
+  const marker = 'globalThis["__DSH_BOOT__"] = '
+  const start = source.indexOf(marker)
+  if (start < 0) throw new Error('官方 Web HTML 缺少 __DSH_BOOT__ 启动图')
+  const jsonStart = start + marker.length
+  const end = source.indexOf('</script>', jsonStart)
+  if (end < 0) throw new Error('官方 Web HTML 的 __DSH_BOOT__ 启动图没有结束标签')
+  let graph
+  try {
+    graph = JSON.parse(source.slice(jsonStart, end).trim())
+  } catch (error) {
+    throw new Error('官方 Web HTML 的 __DSH_BOOT__ 启动图不是有效 JSON', { cause: error })
+  }
+  if (typeof graph !== 'object' || graph === null || !Array.isArray(graph.entries) || !Array.isArray(graph.batches)) {
+    throw new Error('官方 Web HTML 的 __DSH_BOOT__ 启动图结构无效')
+  }
+  return graph
+}
+
+/** Locate one Client package in both the official graph and its startup batch. */
+export function inspectFeaturedClientBoot(html, pluginName) {
+  const graph = parseFeaturedClientBootGraph(html)
+  return {
+    entry: graph.entries.find((entry) => entry?.id === pluginName) || null,
+    batch: graph.batches.find((batch) => Array.isArray(batch?.entries) && batch.entries.includes(pluginName)) || null,
+  }
 }
 
 async function directoryBytes(path) {
@@ -49,7 +109,7 @@ function runOfficial(args, { env, label, timeoutMs = 120_000 } = {}) {
     child.stderr.on('data', collect)
     const timer = setTimeout(() => {
       child.kill('SIGKILL')
-      rejectCommand(new Error(`${label} 超时\n${output}`))
+      rejectCommand(new Error(`${label} 超时\n${redactFeaturedMeasurementOutput(output)}`))
     }, timeoutMs)
     child.once('error', (error) => {
       clearTimeout(timer)
@@ -58,7 +118,7 @@ function runOfficial(args, { env, label, timeoutMs = 120_000 } = {}) {
     child.once('exit', (code, signal) => {
       clearTimeout(timer)
       if (code === 0) resolveCommand(output)
-      else rejectCommand(new Error(`${label} 失败 code=${code} signal=${signal || 'none'}\n${output}`))
+      else rejectCommand(new Error(`${label} 失败 code=${code} signal=${signal || 'none'}\n${redactFeaturedMeasurementOutput(output)}`))
     })
   })
 }
@@ -89,16 +149,17 @@ function startServer(env, label) {
   return new Promise((resolveStart, rejectStart) => {
     const timer = setTimeout(() => {
       void stopServer(child)
-      rejectStart(new Error(`${label} 启动超时\n${output}`))
+      rejectStart(new Error(`${label} 启动超时\n${redactFeaturedMeasurementOutput(output)}`))
     }, 45_000)
     const inspect = (chunk) => {
       output += chunk.toString()
-      const match = output.match(/dsh web: (http:\/\/127\.0\.0\.1:\d+)/)
+      const match = output.match(/dsh web: (http:\/\/127\.0\.0\.1:\d+\/\?token=[^\s]+)/)
       if (!match) return
       clearTimeout(timer)
+      const launch = normalizeDshClientLaunchUrl(match[1])
       resolveStart({
         child,
-        url: match[1],
+        launchUrl: launch.launchUrl,
         coldWebMs: Math.round(performance.now() - startedAt),
         getOutput: () => output,
       })
@@ -112,7 +173,7 @@ function startServer(env, label) {
     child.once('exit', (code, signal) => {
       if (child.exitCode === null) return
       clearTimeout(timer)
-      rejectStart(new Error(`${label} 失败 code=${code} signal=${signal || 'none'}\n${output}`))
+      rejectStart(new Error(`${label} 失败 code=${code} signal=${signal || 'none'}\n${redactFeaturedMeasurementOutput(output)}`))
     })
   })
 }
@@ -198,18 +259,22 @@ async function measurePlugin(plugin, artifact) {
     server = firstStart.child
     let html
     try {
-      const response = await fetch(firstStart.url)
+      const response = await fetchFeaturedMeasurementWeb(firstStart.launchUrl)
       if (!response.ok) throw new Error(`${plugin.name} Web 返回 ${response.status}`)
       html = await response.text()
     } catch (error) {
       await new Promise((resolveDelay) => setTimeout(resolveDelay, 500))
-      throw new Error(`${plugin.name} Web 访问失败：${error?.message || error}; exit=${firstStart.child.exitCode}\n${firstStart.getOutput()}`)
+      throw new Error(`${plugin.name} Web 访问失败：${error?.message || error}; exit=${firstStart.child.exitCode}\n${redactFeaturedMeasurementOutput(firstStart.getOutput())}`)
     }
-    if (!plugin.evidence.client && html.includes(`/plugins/${plugin.name}/client.js?rev=`)) {
+    const clientBoot = inspectFeaturedClientBoot(html, plugin.name)
+    if (!plugin.evidence.client && clientBoot.entry) {
       throw new Error(`${plugin.name} 声称无 Client 但被官方 Web 投影`)
     }
-    if (plugin.evidence.client && !html.includes(`/plugins/${plugin.name}/client.js?rev=`)) {
+    if (plugin.evidence.client && !clientBoot.entry) {
       throw new Error(`${plugin.name} 声称提供 Client 但没有进入官方 Web 启动图`)
+    }
+    if (plugin.evidence.client && !clientBoot.batch) {
+      throw new Error(`${plugin.name} 声称提供 Client 但没有进入官方 Web 启动批次`)
     }
     await stopServer(server)
     server = null

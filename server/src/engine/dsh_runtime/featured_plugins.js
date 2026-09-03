@@ -40,12 +40,33 @@ function validateEvidence(plugin) {
       && !new Set(["dependency", "devDependency"]).has(evidence.source_dependency_kind)) {
       throw new Error(`${plugin.name} 的 registry 源依赖类型无效`);
     }
+    if (evidence.license_metadata !== undefined
+      && evidence.license_metadata !== "missing-package-json-field") {
+      throw new Error(`${plugin.name} 的 registry 许可证元数据状态无效`);
+    }
     if (evidence.package_spec !== `${plugin.name}@${evidence.package_version}`) {
       throw new Error(`${plugin.name} 的 package_spec 未固定到清单版本`);
     }
     if (!evidence.package_dependencies || typeof evidence.package_dependencies !== "object"
       || Array.isArray(evidence.package_dependencies)) {
       throw new Error(`${plugin.name} 的 registry 证据缺少 package_dependencies`);
+    }
+    if (evidence.package_optional_dependencies !== undefined
+      && (!evidence.package_optional_dependencies
+        || typeof evidence.package_optional_dependencies !== "object"
+        || Array.isArray(evidence.package_optional_dependencies)
+        || Object.values(evidence.package_optional_dependencies)
+          .some((version) => typeof version !== "string" || !version.trim()))) {
+      throw new Error(`${plugin.name} 的 registry 可选依赖证据无效`);
+    }
+    if (evidence.release_optional_dependencies !== undefined
+      && (!evidence.release_optional_dependencies
+        || typeof evidence.release_optional_dependencies !== "object"
+        || Array.isArray(evidence.release_optional_dependencies)
+        || Object.entries(evidence.release_optional_dependencies).some(([name, version]) => (
+          evidence.package_optional_dependencies?.[name] !== version
+        )))) {
+      throw new Error(`${plugin.name} 的发行可选依赖投影无效`);
     }
     if (evidence.release_dependencies !== undefined
       && (!evidence.release_dependencies || typeof evidence.release_dependencies !== "object"
@@ -249,6 +270,16 @@ export function featuredPluginTarballName(name, version) {
   const safeVersion = String(version || "").replace(/[^0-9A-Za-z.+-]/g, "-");
   if (!safeName || !safeVersion) throw new Error("精选插件 tarball 缺少包名或版本");
   return `${safeName}-${safeVersion}.tgz`;
+}
+
+/** Return the content-addressed filename used by the mutable local plugin library. */
+export function featuredPluginLibraryTarballName(tarball, hash) {
+  const filename = String(tarball || "");
+  const sha256 = String(hash || "").toLowerCase();
+  if (!/^[A-Za-z0-9._+-]+\.tgz$/.test(filename) || !/^[0-9a-f]{64}$/.test(sha256)) {
+    throw new Error("精选插件本地 tarball 缺少有效文件名或 SHA-256");
+  }
+  return `${filename.slice(0, -4)}-${sha256}.tgz`;
 }
 
 export const FEATURED_PLUGIN_APP_ROOT = APP_ROOT;

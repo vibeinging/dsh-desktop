@@ -9,11 +9,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  adoptNativeDshProductSession,
   createSessionProductHostDispatcher,
   createProductHostDispatcher,
   nullProductHostDispatcher,
   overrideServices,
 } from "../../server/src/engine/dsh_runtime/product_host_dispatcher.js";
+import { resolveNativeProductSessionContext } from "../../server/src/engine/dsh_runtime/client.js";
 import {
   apply as applyProductBridge,
   createDshWorkInstructionMessage,
@@ -77,6 +79,11 @@ test("the IPC adapter exposes narrow product, file-dialog, window, and Office Ho
   });
   const signal = new AbortController().signal;
   await services.productHost.projectList({ search: "alpha" }, { sessionId: "dsh-product", signal });
+  await services.productHost.conversationCreateScope({ sessionId: "dsh-product", signal });
+  await services.productHost.conversationCreate(
+    { title: "Development", agentPreset: "standard" },
+    { sessionId: "dsh-product", signal },
+  );
   await services.productHost.conversationContext({}, { sessionId: "dsh-product", signal });
   await services.productHost.capabilitySnapshot({ sessionId: "dsh-product", signal });
   await services.officeArtifactHost.edit(
@@ -97,6 +104,16 @@ test("the IPC adapter exposes narrow product, file-dialog, window, and Office Ho
     sessionId: "dsh-product",
     method: "projectList",
     payload: { search: "alpha" },
+    signal,
+  }, {
+    sessionId: "dsh-product",
+    method: "conversationCreateScope",
+    payload: {},
+    signal,
+  }, {
+    sessionId: "dsh-product",
+    method: "conversationCreate",
+    payload: { title: "Development", agentPreset: "standard" },
     signal,
   }, {
     sessionId: "dsh-product",
@@ -170,7 +187,7 @@ test("session dispatcher rejects an unknown DSH session", async () => {
   assert.equal(reply.result.error.code, "product-unavailable");
 });
 
-test("native-only Session authorization exposes only Electron Host methods", async () => {
+test("native-only Session authorization exposes creation scope and Electron Host methods", async () => {
   const calls = [];
   const dispatcher = createSessionProductHostDispatcher({
     nativeHost: {
@@ -192,6 +209,14 @@ test("native-only Session authorization exposes only Electron Host methods", asy
   assert.deepEqual(nativeReply.result, { ok: true, value: { state: "visible" } });
   assert.deepEqual(calls, [{ sessionId: "dsh-native", method: "windowGetState", payload: {} }]);
 
+  const scopeReply = await dispatcher.handle({
+    id: "native-create-scope",
+    sessionId: "dsh-native",
+    method: "conversationCreateScope",
+    payload: {},
+  });
+  assert.deepEqual(scopeReply.result, { ok: true, value: { mode: "dsh" } });
+
   const businessReply = await dispatcher.handle({
     id: "native-business",
     sessionId: "dsh-native",
@@ -211,6 +236,314 @@ test("native-only Session authorization exposes only Electron Host methods", asy
   assert.equal(releasedReply.result.ok, false);
   assert.equal(releasedReply.result.error.code, "product-unavailable");
   await dispatcher.dispose();
+});
+
+test("native Session context requires exact official Workspace membership", () => {
+  const context = resolveNativeProductSessionContext("dsh-native", {
+    items: [{
+      workspaceId: "workspace-1",
+      path: "/workspace",
+      title: "Workspace",
+      sessionIds: ["dsh-native"],
+    }],
+  }, {
+    items: [{
+      sessionId: "dsh-native",
+      cwd: "/workspace",
+      projections: { values: { title: "Native conversation" } },
+    }],
+  });
+  assert.deepEqual(context, {
+    dshSessionId: "dsh-native",
+    workspaceId: "workspace-1",
+    cwd: "/workspace",
+    workspaceTitle: "Workspace",
+    title: "Native conversation",
+  });
+  assert.equal(resolveNativeProductSessionContext("dsh-other", {
+    items: [{ workspaceId: "workspace-1", path: "/workspace", sessionIds: ["dsh-native"] }],
+  }, { items: [{ sessionId: "dsh-other", cwd: "/workspace" }] }), null);
+  assert.equal(resolveNativeProductSessionContext("dsh-native", {
+    items: [{ workspaceId: "workspace-1", path: "/workspace", sessionIds: ["dsh-native"] }],
+  }, { items: [{ sessionId: "dsh-native", cwd: "/other" }] }), null);
+});
+
+test("an unambiguous App project Workspace adopts its native DSH Session", async () => {
+  const inserted = [];
+  const db = {
+    async query(sql, params = []) {
+      if (sql.includes("FROM sessions s")) return [];
+      if (sql.includes("FROM project_source_folders psf")) {
+        assert.deepEqual(params, ["/workspace"]);
+        return [{ project_id: "project-1", user_id: "user-1" }];
+      }
+      if (sql.includes("INSERT INTO sessions")) {
+        inserted.push(params);
+        return [];
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    },
+    async queryOne() { return null; },
+    transaction() {},
+  };
+  const binding = await adoptNativeDshProductSession(db, {
+    dshSessionId: "dsh-native",
+    workspaceId: "workspace-1",
+    cwd: "/workspace",
+    title: "Native conversation",
+  });
+  assert.equal(binding.dshSessionId, "dsh-native");
+  assert.equal(binding.projectId, "project-1");
+  assert.equal(binding.userId, "user-1");
+  assert.equal(binding.db, db);
+  assert.equal(inserted.length, 1);
+  assert.equal(inserted[0][1], "project-1");
+  assert.equal(inserted[0][2], "user-1");
+  assert.equal(inserted[0][3], "Native conversation");
+  assert.deepEqual(JSON.parse(inserted[0][4]), {
+    runtime_backend: "dsh",
+    dsh_runtime_session_id: "dsh-native",
+    dsh_runtime_cwd: "/workspace",
+    dsh_runtime_workspace_id: "workspace-1",
+  });
+});
+
+test("native DSH Session adoption reuses its durable App binding and refreshes the title", async () => {
+  const updates = [];
+  const db = {
+    async query(sql, params = []) {
+      if (sql.includes("FROM sessions s")) return [{
+        id: "app-existing",
+        project_id: "project-1",
+        created_by: "user-1",
+        title: "Old title",
+        session_config: JSON.stringify({
+          dsh_runtime_session_id: "dsh-native",
+          dsh_runtime_cwd: "/workspace",
+          dsh_runtime_workspace_id: "workspace-1",
+        }),
+      }];
+      if (sql.includes("UPDATE sessions SET title")) {
+        updates.push(params);
+        return [];
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    },
+    async queryOne(sql) {
+      if (sql.includes("FROM projects p")) return { id: "project-1" };
+      return null;
+    },
+    transaction() {},
+  };
+  const binding = await adoptNativeDshProductSession(db, {
+    dshSessionId: "dsh-native",
+    workspaceId: "workspace-1",
+    cwd: "/workspace",
+    workspaceTitle: "Official Workspace",
+    title: "Current title",
+  });
+  assert.equal(binding.appSessionId, "app-existing");
+  assert.equal(binding.projectId, "project-1");
+  assert.deepEqual(updates, [["app-existing", "Current title"]]);
+});
+
+test("a single-user desktop creates one App project mapping for an official DSH Workspace", async () => {
+  const writes = [];
+  const tx = {
+    query(sql, params = []) {
+      if (sql.includes("FROM project_source_folders psf")) return [];
+      if (sql.includes("FROM users")) {
+        return [{ id: "user-1", company_id: "company-1" }];
+      }
+      writes.push({ sql, params });
+      return [];
+    },
+    queryOne(sql) {
+      if (sql.includes("FROM roles")) return { id: "role-admin" };
+      return null;
+    },
+  };
+  const db = {
+    async query(sql, params = []) {
+      if (sql.includes("FROM sessions s")) return [];
+      if (sql.includes("FROM project_source_folders psf")) return [];
+      if (sql.includes("INSERT INTO sessions")) {
+        writes.push({ sql, params });
+        return [];
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    },
+    async queryOne() { return null; },
+    transaction(work, options) {
+      assert.deepEqual(options, { mode: "immediate" });
+      return work(tx);
+    },
+  };
+  const binding = await adoptNativeDshProductSession(db, {
+    dshSessionId: "dsh-native",
+    workspaceId: "workspace-1",
+    cwd: "/workspace",
+    workspaceTitle: "Official Workspace",
+    title: "Native conversation",
+  });
+  assert.equal(binding.userId, "user-1");
+  assert.ok(binding.projectId);
+  assert.equal(writes.filter(({ sql }) => sql.includes("INSERT INTO projects")).length, 1);
+  assert.equal(writes.filter(({ sql }) => sql.includes("INSERT INTO project_members")).length, 1);
+  const folderWrite = writes.find(({ sql }) => sql.includes("INSERT INTO project_source_folders"));
+  assert.equal(folderWrite.params[1], binding.projectId);
+  assert.equal(folderWrite.params[2], "/workspace");
+  assert.equal(folderWrite.params[3], "Official Workspace");
+  const sessionWrite = writes.find(({ sql }) => sql.includes("INSERT INTO sessions"));
+  assert.equal(sessionWrite.params[1], binding.projectId);
+  assert.equal(sessionWrite.params[2], "user-1");
+});
+
+test("an unmapped official DSH Workspace stays native-only when App user identity is ambiguous", async () => {
+  const db = {
+    async query(sql) {
+      if (sql.includes("FROM sessions s") || sql.includes("FROM project_source_folders psf")) return [];
+      throw new Error(`unexpected query: ${sql}`);
+    },
+    async queryOne() { return null; },
+    transaction(work) {
+      return work({
+        query(sql) {
+          if (sql.includes("FROM project_source_folders psf")) return [];
+          if (sql.includes("FROM users")) return [
+            { id: "user-1", company_id: "company-1" },
+            { id: "user-2", company_id: "company-1" },
+          ];
+          throw new Error(`unexpected transaction query: ${sql}`);
+        },
+        queryOne() { return null; },
+      });
+    },
+  };
+  assert.equal(await adoptNativeDshProductSession(db, {
+    dshSessionId: "dsh-native",
+    workspaceId: "workspace-1",
+    cwd: "/workspace",
+    workspaceTitle: "Official Workspace",
+    title: "Native conversation",
+  }), null);
+});
+
+test("native Session adoption upgrades ProductHost scope without trusting child identity", async () => {
+  const contexts = [];
+  const previous = overrideServices({
+    adoptNativeDshSession: async (context) => {
+      contexts.push(context);
+      return {
+        db: emptyDb,
+        dshSessionId: context.dshSessionId,
+        appSessionId: "app-adopted",
+        userId: "user-parent",
+        projectId: "project-parent",
+      };
+    },
+  });
+  const dispatcher = createSessionProductHostDispatcher({
+    resolveNativeSessionContext: async (sessionId) => ({
+      dshSessionId: sessionId,
+      workspaceId: "workspace-1",
+      cwd: "/workspace",
+      title: "Native conversation",
+      userId: "forged-user",
+      projectId: "forged-project",
+    }),
+  });
+  dispatcher.registerNativeHostSession("dsh-native");
+  try {
+    const reply = await dispatcher.handle({
+      id: "native-adopt",
+      sessionId: "dsh-native",
+      method: "conversationCreateScope",
+      payload: {},
+    });
+    assert.deepEqual(reply.result, { ok: true, value: { mode: "product" } });
+    assert.deepEqual(contexts, [{
+      dshSessionId: "dsh-native",
+      workspaceId: "workspace-1",
+      cwd: "/workspace",
+      title: "Native conversation",
+      userId: "forged-user",
+      projectId: "forged-project",
+    }]);
+  } finally {
+    overrideServices(previous);
+    await dispatcher.dispose();
+  }
+});
+
+test("concurrent ProductHost requests share one native Session adoption", async () => {
+  let adoptionCount = 0;
+  let releaseAdoption;
+  const previous = overrideServices({
+    adoptNativeDshSession: async (context) => {
+      adoptionCount += 1;
+      await new Promise((resolve) => { releaseAdoption = resolve; });
+      return {
+        db: emptyDb,
+        dshSessionId: context.dshSessionId,
+        appSessionId: "app-adopted",
+        userId: "user-parent",
+        projectId: "project-parent",
+      };
+    },
+  });
+  const dispatcher = createSessionProductHostDispatcher({
+    resolveNativeSessionContext: async (sessionId) => ({
+      dshSessionId: sessionId,
+      workspaceId: "workspace-1",
+      cwd: "/workspace",
+      title: "Native conversation",
+    }),
+  });
+  dispatcher.registerNativeHostSession("dsh-native");
+  try {
+    const first = dispatcher.handle({
+      id: "native-adopt-first",
+      sessionId: "dsh-native",
+      method: "conversationCreateScope",
+      payload: {},
+    });
+    const second = dispatcher.handle({
+      id: "native-adopt-second",
+      sessionId: "dsh-native",
+      method: "conversationCreateScope",
+      payload: {},
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(adoptionCount, 1);
+    releaseAdoption();
+    const replies = await Promise.all([first, second]);
+    assert.deepEqual(replies.map((reply) => reply.result.value), [{ mode: "product" }, { mode: "product" }]);
+  } finally {
+    overrideServices(previous);
+    await dispatcher.dispose();
+  }
+});
+
+test("ambiguous App project Workspace remains DSH-only", async () => {
+  const db = {
+    async query(sql) {
+      if (sql.includes("FROM sessions s")) return [];
+      if (sql.includes("FROM project_source_folders psf")) return [
+        { project_id: "project-1", user_id: "user-1" },
+        { project_id: "project-2", user_id: "user-2" },
+      ];
+      throw new Error(`unexpected query: ${sql}`);
+    },
+    async queryOne() { return null; },
+    transaction() {},
+  };
+  assert.equal(await adoptNativeDshProductSession(db, {
+    dshSessionId: "dsh-native",
+    workspaceId: "workspace-1",
+    cwd: "/workspace",
+    title: "Native conversation",
+  }), null);
 });
 
 test("session dispatcher rejects an unknown method even when bound", async () => {
@@ -344,6 +677,67 @@ test("session dispatcher forwards conversationList with projectId from binding",
   assert.equal(reply.result.value.items.length, 2);
   assert.equal(reply.result.value.items[0].id, "c1");
   assert.equal(reply.result.value.items[1].archived, true);
+});
+
+test("session dispatcher creates one App-bound DSH conversation from the caller binding", async () => {
+  let captured = null;
+  const previous = overrideServices({
+    createAgentSession: async (ctx, input) => {
+      captured = { ctx, input };
+      return {
+        data: {
+          id: "app-created",
+          title: input.body.title,
+          session_config: JSON.stringify({ dsh_runtime_session_id: "dsh-created" }),
+        },
+      };
+    },
+  });
+  const dispatcher = createSessionProductHostDispatcher();
+  bindSession(dispatcher, { projectId: "project-bound", userId: "user-bound" });
+  try {
+    const scopeReply = await dispatcher.handle({
+      id: "product-create-scope",
+      sessionId: "dsh-s1",
+      method: "conversationCreateScope",
+      payload: {},
+    });
+    assert.deepEqual(scopeReply.result, { ok: true, value: { mode: "product" } });
+
+    const reply = await dispatcher.handle({
+      id: "create-conversation",
+      sessionId: "dsh-s1",
+      method: "conversationCreate",
+      payload: {
+        title: "Development",
+        agentPreset: "standard",
+        projectId: "forged-project",
+        userId: "forged-user",
+      },
+    });
+
+    assert.equal(reply.result.ok, true);
+    assert.deepEqual(reply.result.value, {
+      appSessionId: "app-created",
+      dshSessionId: "dsh-created",
+      title: "Development",
+    });
+    assert.equal(captured.ctx.userId, "user-bound");
+    assert.deepEqual(captured.input, {
+      params: { pid: "project-bound" },
+      query: {},
+      body: {
+        title: "Development",
+        source_type: "agent",
+        source_id: "project-bound",
+        action_type: "agentic_chat",
+        agent_preset: "standard",
+      },
+    });
+  } finally {
+    overrideServices(previous);
+    await dispatcher.dispose();
+  }
 });
 
 test("conversationContext returns parent-selected instructions without accepting identity from the child", async () => {

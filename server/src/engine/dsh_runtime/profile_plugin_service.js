@@ -35,8 +35,8 @@ const DSH_WORK_HOST_COMPONENTS = new Map([
   ["sites", "dsh-work/sites"],
 ]);
 const DSH_WORK_HOST_ICONS = new Set(["archive", "dashboard", "file", "terminal", "world"]);
-const CURRENT_DSH_SDK_VERSION = "0.1.1-rc.2";
-const CURRENT_CORDIS_VERSION = "4.0.1";
+const CURRENT_DSH_SDK_VERSION = "0.1.2-rc.1";
+const CURRENT_CORDIS_VERSION = "4.0.2";
 const COMMUNITY_PLUGIN_REGISTRY = readJson(new URL("./community_plugin_registry.json", import.meta.url));
 const EXACT_REGISTRY_SPEC = /^(?<name>(?:@[a-z0-9._~-]+\/)?[a-z0-9._~-]+)@(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/;
 const EXACT_EXTERNAL_GIT_SPEC = /^github:(?<owner>[a-z0-9._-]+)\/(?<repo>[a-z0-9._-]+)#(?<commit>[0-9a-f]{40})$/i;
@@ -280,15 +280,36 @@ export function normalizeProfileBundleSource(value, { allowLocal = false } = {})
   );
 }
 
-function currentReleaseRange(value, version) {
+function currentReleaseRange(value, version, { allowCompound = false } = {}) {
   const range = String(value || "").trim();
-  if (!/^(?:\^|~)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(range)) return false;
-  return semver.satisfies(version, range);
+  if (!allowCompound && !/^(?:\^|~)?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(range)) return false;
+  if (!semver.validRange(range)) return false;
+  return semver.satisfies(version, range, { includePrerelease: allowCompound });
+}
+
+function sameDependencyProjection(actual, expected) {
+  const actualEntries = Object.entries(actual || {}).sort(([left], [right]) => left.localeCompare(right));
+  const expectedEntries = Object.entries(expected || {}).sort(([left], [right]) => left.localeCompare(right));
+  return actualEntries.length === expectedEntries.length
+    && actualEntries.every(([name, version], index) => (
+      name === expectedEntries[index][0] && version === expectedEntries[index][1]
+    ));
+}
+
+function reviewedReleaseAllowsCompoundSdkRanges(manifest) {
+  const policy = reviewedCommunityClientPolicy(String(manifest?.name || ""));
+  return Boolean(
+    policy
+    && policy.version === manifest?.version
+    && policy.bundlePatch === manifest?.dsh?.bundle?.patch
+    && (policy.dependencies === undefined || sameDependencyProjection(manifest?.dependencies, policy.dependencies)),
+  );
 }
 
 /** Require one coherent official SDK release before a Bundle reaches the live tree. */
 export function validateProfileBundleSdk(manifest) {
   const dependencies = { ...manifest?.dependencies, ...manifest?.peerDependencies };
+  const allowCompound = reviewedReleaseAllowsCompoundSdkRanges(manifest);
   const optionalLegacyCordisPeer = Boolean(
     manifest?.peerDependencies?.cordis
     && manifest?.peerDependenciesMeta?.cordis?.optional === true
@@ -301,7 +322,7 @@ export function validateProfileBundleSdk(manifest) {
     );
   }
   if (dependencies["@deepseek-ai/cordis"]
-    && !currentReleaseRange(dependencies["@deepseek-ai/cordis"], CURRENT_CORDIS_VERSION)) {
+    && !currentReleaseRange(dependencies["@deepseek-ai/cordis"], CURRENT_CORDIS_VERSION, { allowCompound })) {
     throw profileError(
       `${manifest.name} 的 @deepseek-ai/cordis 版本不属于当前 ${CURRENT_CORDIS_VERSION} 发布线`,
       "DSH_PROFILE_LEGACY_SDK",
@@ -311,7 +332,7 @@ export function validateProfileBundleSdk(manifest) {
     if (!name.startsWith("@deepseek-ai/dsh-")) return false;
     const optionalPeer = manifest?.dependencies?.[name] === undefined
       && manifest?.peerDependenciesMeta?.[name]?.optional === true;
-    return !optionalPeer && !currentReleaseRange(version, CURRENT_DSH_SDK_VERSION);
+    return !optionalPeer && !currentReleaseRange(version, CURRENT_DSH_SDK_VERSION, { allowCompound });
   });
   if (mismatchedDsh.length) {
     throw profileError(
@@ -639,7 +660,9 @@ export function inspectProfileBundleManifest(manifest, {
   } catch (error) {
     const legacyCount = Object.entries({ ...manifest?.dependencies, ...manifest?.peerDependencies })
       .filter(([name, version]) => name.startsWith("@deepseek-ai/dsh-")
-        && !currentReleaseRange(version, CURRENT_DSH_SDK_VERSION))
+        && !currentReleaseRange(version, CURRENT_DSH_SDK_VERSION, {
+          allowCompound: reviewedReleaseAllowsCompoundSdkRanges(manifest),
+        }))
       .length;
     issues.push({
       code: error?.code || "DSH_PROFILE_LEGACY_SDK",
@@ -971,7 +994,12 @@ export class DshProfilePluginService {
     }
     const candidateName = `dsh-work-candidate-${randomUUID()}`;
     const candidateDir = context.api.resolveProfileDir(candidateName, context.dshHome);
-    context.api.initProfile(candidateDir, context.api.PROFILE_TEMPLATES?.web || context.api.DEFAULT_PROFILE_BUNDLES);
+    const profileTemplate = context.api.PROFILE_TEMPLATES?.web;
+    const templateBundles = Array.isArray(profileTemplate)
+      ? profileTemplate
+      : profileTemplate?.bundles || context.api.DEFAULT_PROFILE_BUNDLES;
+    const templatePatchReload = Array.isArray(profileTemplate) ? undefined : profileTemplate?.patchReload;
+    context.api.initProfile(candidateDir, templateBundles, templatePatchReload);
     try {
       await this.run(context.resolved, context.dshHome, [
         "plugin", "--profile", candidateName, "add", "-w", source, "--save-exact", "--ignore-scripts",

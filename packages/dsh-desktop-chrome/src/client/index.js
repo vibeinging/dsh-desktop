@@ -3,6 +3,7 @@
 export const inject = [];
 
 export const DESKTOP_TITLEBAR_HEIGHT = 36;
+export const DESKTOP_OVERLAY_MARGIN = 12;
 export const DESKTOP_TITLEBAR_ID = "dsh-desktop-titlebar";
 
 export const desktopChromeCss = `
@@ -10,6 +11,18 @@ html[data-dsh-desktop-chrome="mac"] #root {
   box-sizing: border-box;
   height: 100vh;
   padding-top: ${DESKTOP_TITLEBAR_HEIGHT}px;
+}
+
+html[data-dsh-desktop-chrome="mac"] [data-dsh-panel] {
+  padding-top: ${DESKTOP_TITLEBAR_HEIGHT}px;
+}
+
+html[data-dsh-desktop-chrome="mac"] [data-dsh-toggle-cluster] {
+  top: ${DESKTOP_TITLEBAR_HEIGHT + 3}px;
+}
+
+html[data-dsh-desktop-chrome="mac"] body > [role="menu"] {
+  max-height: calc(100dvh - ${DESKTOP_TITLEBAR_HEIGHT + (DESKTOP_OVERLAY_MARGIN * 2)}px);
 }
 
 #${DESKTOP_TITLEBAR_ID} {

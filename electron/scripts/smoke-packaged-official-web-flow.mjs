@@ -9,6 +9,11 @@ import { fileURLToPath } from 'node:url'
 
 import { resolvePackagedLayout } from './packaged-layout.mjs'
 import { systemOnlyPath } from './packaged-smoke-environment.mjs'
+import { findOfficialWebCdpTarget } from './official-web-cdp-target.mjs'
+import {
+  createOfficialWebSessionFollowFrame,
+  createOfficialWebUnaryRequest,
+} from './official-web-runtime-api.mjs'
 import {
   createLiveModelEvidenceReceipt,
   inspectLiveModelHistory,
@@ -281,7 +286,7 @@ async function waitForTarget(port) {
     try {
       const response = await fetch(`http://127.0.0.1:${port}/json`)
       const targets = await response.json()
-      const target = targets.find((item) => item.type === 'page' && item.webSocketDebuggerUrl)
+      const target = findOfficialWebCdpTarget(targets)
       if (target) return target
     } catch {
       // Electron has not opened DevTools yet.
@@ -362,7 +367,7 @@ async function waitFor(predicate, label) {
       url: location.href,
       title: document.title,
       body: (document.body?.innerText || '').slice(0, 4000),
-      inputs: [...document.querySelectorAll('textarea')].map((item) => ({ value: item.value, readOnly: item.readOnly })),
+      inputs: [...document.querySelectorAll('[data-composer-input]')].map((item) => ({ text: item.textContent, editable: item.contentEditable })),
       queueDocks: document.querySelectorAll('[data-queue-dock]').length,
       approvals: document.querySelectorAll('[data-approval-key]').length,
       sendButtons: [...document.querySelectorAll('button')]
@@ -387,6 +392,46 @@ async function clickTextIfPresent(texts) {
   })()`)
 }
 
+async function dismissPrompt({ labels, bodyNeedles, description }) {
+  const startedAt = Date.now()
+  const deadline = startedAt + 15_000
+  let observed = false
+  let latest = null
+  while (Date.now() < deadline) {
+    latest = await evaluate(`(() => {
+      const labels = new Set(${JSON.stringify(labels)});
+      const bodyNeedles = ${JSON.stringify(bodyNeedles)};
+      const body = document.body.innerText || '';
+      const present = bodyNeedles.some((needle) => body.includes(needle));
+      if (!present) return { present: false, button: null };
+      const target = [...document.querySelectorAll('button,[role="button"]')].find((element) => {
+        const rect = element.getBoundingClientRect();
+        const text = (element.innerText || element.textContent || '').trim();
+        return rect.width > 0 && rect.height > 0 && !element.disabled && labels.has(text);
+      });
+      target?.click();
+      return { present: true, button: target ? (target.innerText || target.textContent || '').trim() : null };
+    })()`)
+    if (latest?.present) observed = true
+    else if (observed || Date.now() - startedAt >= 5_000) return
+    await sleep(200)
+  }
+  throw new Error(`${description}未在超时前关闭: ${JSON.stringify(latest)}`)
+}
+
+async function dismissOfficialPrompts() {
+  await dismissPrompt({
+    labels: ['继续', 'Continue'],
+    bodyNeedles: ['内测声明', 'Internal testing'],
+    description: '官方 Web 首次提示',
+  })
+  await dismissPrompt({
+    labels: ['稍后配置', 'Later'],
+    bodyNeedles: ['添加一个 API Key 开始使用', 'Add an API Key to get started'],
+    description: '官方 Web 模型配置提示',
+  })
+}
+
 async function clickButtonByAria(texts) {
   const serialized = JSON.stringify(texts)
   const clicked = await evaluate(`(() => {
@@ -401,17 +446,11 @@ async function clickButtonByAria(texts) {
 }
 
 async function rpc(method, payload = {}) {
-  const serializedMethod = JSON.stringify(method)
-  const serializedPayload = JSON.stringify(payload)
+  if (method === 'session.history') return readSessionHistory(payload)
+  const request = createOfficialWebUnaryRequest(method, payload, randomUUID())
   const raw = await evaluate(`(() => {
-    const method = ${serializedMethod};
-    const request = {
-      type: 'client-request',
-      rpcId: crypto.randomUUID(),
-      method,
-      payload: ${serializedPayload},
-    };
-    return fetch('/api/' + method, {
+    const request = ${JSON.stringify(request.body)};
+    return fetch(${JSON.stringify(`/api/${request.endpoint}`)}, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(request),
@@ -419,10 +458,58 @@ async function rpc(method, payload = {}) {
   })()`)
   if (!raw || raw.status !== 200) throw new Error(`官方 Web RPC ${method} HTTP ${raw?.status || 'unknown'}`)
   const envelope = JSON.parse(raw.body)
+  if (envelope.rpcId !== request.body.rpcId) throw new Error(`官方 Web RPC ${method} 返回了错误 rpcId`)
   if (!envelope.result?.ok) {
     throw new Error(`官方 Web RPC ${method} 失败: ${JSON.stringify(envelope.result?.error || envelope)}`)
   }
   return envelope.result.value
+}
+
+async function readSessionHistory(payload) {
+  const streamId = randomUUID()
+  const frame = createOfficialWebSessionFollowFrame({
+    sessionId: String(payload.sessionId || ''),
+    maxMessages: payload.maxMessages,
+    streamId,
+  })
+  const raw = await evaluate(`(() => new Promise((resolve) => {
+    const streamId = ${JSON.stringify(streamId)};
+    const socketUrl = new URL('/api/remote.mux', location.href);
+    socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(socketUrl);
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { socket.close(); } catch {}
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish({ ok: false, error: 'session/follow timeout' }), 20000);
+    socket.addEventListener('open', () => socket.send(${JSON.stringify(JSON.stringify(frame))}));
+    socket.addEventListener('message', (event) => {
+      let message;
+      try { message = JSON.parse(event.data); } catch { return; }
+      if (message?.streamId !== streamId) return;
+      if (message.type === 'item') {
+        try { socket.send(JSON.stringify({ type: 'cancel', streamId })); } catch {}
+        finish({ ok: true, value: message.value });
+      } else if (message.type === 'error') {
+        finish({ ok: false, error: message.error?.message || 'session/follow error' });
+      } else if (message.type === 'end') {
+        finish({ ok: false, error: 'session/follow ended without snapshot' });
+      }
+    });
+    socket.addEventListener('error', () => finish({ ok: false, error: 'session/follow websocket error' }));
+  }))()`)
+  if (!raw?.ok || raw.value?.type !== 'snapshot') {
+    throw new Error(`官方 Web session/follow 失败: ${raw?.error || JSON.stringify(raw?.value || raw)}`)
+  }
+  return {
+    events: Array.isArray(raw.value.records) ? raw.value.records : [],
+    hasMore: raw.value.hasMore === true,
+    projections: raw.value.projections,
+  }
 }
 
 async function findSmokeSession() {
@@ -471,35 +558,25 @@ async function captureScreenshot(name = 'official-web-session-flow.png') {
 }
 
 async function fillComposer(text) {
-  await waitFor(`Boolean([...document.querySelectorAll('textarea')].find((textarea) => !textarea.readOnly))`, '会话输入框')
+  const selector = '[data-composer-input][contenteditable="true"]'
+  await waitFor(`Boolean(document.querySelector(${JSON.stringify(selector)}))`, '会话输入框')
   await evaluate(`(() => {
-    const textarea = [...document.querySelectorAll('textarea')].find((item) => !item.readOnly);
-    textarea?.focus();
-    return Boolean(textarea);
+    const editor = document.querySelector(${JSON.stringify(selector)});
+    editor?.focus();
+    return Boolean(editor);
   })()`)
   await cdp.send('Input.insertText', { text })
-  await evaluate(`(() => {
-    const textarea = [...document.querySelectorAll('textarea')].find((item) => !item.readOnly);
-    if (!textarea || textarea.value) return textarea?.value || '';
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-    setter?.call(textarea, ${JSON.stringify(text)});
-    textarea.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: ${JSON.stringify(text)} }));
-    textarea.dispatchEvent(new Event('change', { bubbles: true }));
-    return textarea.value;
-  })()`)
-  await waitFor(`([...document.querySelectorAll('textarea')].find((textarea) => !textarea.readOnly)?.value || '') === ${JSON.stringify(text)}`, '输入内容')
+  await waitFor(`(document.querySelector(${JSON.stringify(selector)})?.textContent || '').trim() === ${JSON.stringify(text)}`, '输入内容')
 }
 
 async function clearComposer() {
-  await evaluate(`(() => {
-    const textarea = [...document.querySelectorAll('textarea')].find((item) => !item.readOnly);
-    if (!textarea) return false;
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-    setter?.call(textarea, '');
-    textarea.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
-    textarea.dispatchEvent(new Event('change', { bubbles: true }));
-    return textarea.value === '';
-  })()`)
+  const selector = '[data-composer-input][contenteditable="true"]'
+  await evaluate(`document.querySelector(${JSON.stringify(selector)})?.focus()`)
+  await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'a', code: 'KeyA', modifiers: 4, commands: ['selectAll'] })
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers: 4 })
+  await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Backspace', code: 'Backspace', commands: ['deleteBackward'] })
+  await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace' })
+  await waitFor(`!(document.querySelector(${JSON.stringify(selector)})?.textContent || '').trim()`, '清空输入内容')
 }
 
 try {
@@ -548,10 +625,7 @@ try {
   if (!initial.entries.includes('@deepseek-ai/dsh-client-ui-conversation')) throw new Error('官方 Web 未加载会话 Client')
   if (!initial.entries.includes('@deepseek-ai/dsh-client-ui-workspace')) throw new Error('官方 Web 未加载工作区 Client')
 
-  await clickTextIfPresent(['继续', 'Continue'])
-  await sleep(300)
-  await clickTextIfPresent(['稍后配置', 'Later'])
-  await waitFor(`Boolean(document.querySelector('#root')) && !document.body.innerText.includes('内部测试')`, '完成首次提示')
+  await dismissOfficialPrompts()
 
   await rpc('workspace.create', { path: workspaceDir })
   await waitFor(`(document.body.innerText || '').includes('workspace')`, '显示工作区')
@@ -618,7 +692,7 @@ try {
     }
     output.push(`[smoke] INFO 问题/审批/队列请求链已由本地 fake DeepSeek 驱动; queue_screenshot=${queuedScreenshot}; question_screenshot=${questionScreenshot}; approval_screenshot=${approvalScreenshot}`)
   }
-  await waitFor(`(document.body.innerText || '').includes('Session log') || (document.body.innerText || '').includes('会话日志')`, 'Session log')
+  await waitFor(`['Session log', 'Session 日志', '会话日志'].some((label) => (document.body.innerText || '').includes(label))`, 'Session log')
 
   const smokeSession = await findSmokeSession()
   const session = smokeSession.session

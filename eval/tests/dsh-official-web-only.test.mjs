@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
+import { findOfficialWebCdpTarget } from "../../electron/scripts/official-web-cdp-target.mjs";
+import {
+  createOfficialWebSessionFollowFrame,
+  createOfficialWebUnaryRequest,
+} from "../../electron/scripts/official-web-runtime-api.mjs";
+import { nextPatchVersion } from "../../electron/scripts/updater-smoke-version.mjs";
+
 const appRoot = new URL("../..", import.meta.url);
 const rootPackage = JSON.parse(readFileSync(new URL("package.json", appRoot), "utf8"));
 const electronMain = readFileSync(new URL("electron/main.js", appRoot), "utf8");
@@ -14,6 +21,57 @@ const defaultDevScript = readFileSync(new URL("scripts/dev.mjs", appRoot), "utf8
 const bootstrapScript = readFileSync(new URL("scripts/bootstrap.mjs", appRoot), "utf8");
 const doctorScript = readFileSync(new URL("scripts/doctor.mjs", appRoot), "utf8");
 const auditScript = readFileSync(new URL("scripts/audit-production.mjs", appRoot), "utf8");
+
+test("packaged smoke selects the loopback official Web instead of local utility pages", () => {
+  const target = findOfficialWebCdpTarget([
+    {
+      type: "page",
+      url: "file:///Applications/DSH%20Desktop.app/Contents/Resources/app-update.html",
+      webSocketDebuggerUrl: "ws://127.0.0.1/devtools/page/update",
+    },
+    {
+      type: "page",
+      url: "http://127.0.0.1:43000/",
+      webSocketDebuggerUrl: "ws://127.0.0.1/devtools/page/official-web",
+    },
+  ]);
+
+  assert.equal(target?.url, "http://127.0.0.1:43000/");
+  assert.equal(findOfficialWebCdpTarget([{
+    type: "page",
+    url: "http://localhost:43000/",
+    webSocketDebuggerUrl: "ws://127.0.0.1/devtools/page/wrong-host",
+  }]), undefined);
+});
+
+test("packaged updater smoke always targets a newer patch version", () => {
+  assert.equal(nextPatchVersion("0.2.1"), "0.2.2");
+  assert.equal(nextPatchVersion("0.2.1-beta.3"), "0.2.2");
+  assert.throws(() => nextPatchVersion("not-a-version"), /不支持的 App 版本/);
+});
+
+test("packaged smoke uses the current official Web Remote protocol", () => {
+  const listed = createOfficialWebUnaryRequest("session.list", {}, "rpc-list");
+  assert.equal(listed.endpoint, "session/list");
+  assert.deepEqual(listed.body.payload.args, { _request: {} });
+
+  const created = createOfficialWebUnaryRequest("workspace.create", { path: "/tmp/workspace" }, "rpc-workspace");
+  assert.deepEqual(created.body.payload.args, { request: { path: "/tmp/workspace" } });
+
+  const prompted = createOfficialWebUnaryRequest("session.prompt", { sessionId: "session-1" }, "rpc-prompt");
+  assert.equal(prompted.body.payload.args.request.requestId, "rpc-prompt");
+
+  assert.deepEqual(createOfficialWebSessionFollowFrame({
+    sessionId: "session-1",
+    maxMessages: 100,
+    streamId: "stream-1",
+  }), {
+    type: "open",
+    streamId: "stream-1",
+    endpoint: "session/follow",
+    payload: { args: { request: { address: { kind: "session", sessionId: "session-1" }, maxMessages: 100 } } },
+  });
+});
 
 test("Electron's main window has one official DSH Web surface", () => {
   const createWindowStart = electronMain.indexOf("function createWindow(");
@@ -44,7 +102,7 @@ test("macOS window controls use Profile chrome with a native safe fallback", () 
   assert.match(electronMain, /integratedDesktopChrome = response\.json\?\.data\?\.desktop_chrome === true/);
 });
 
-test("the release package does not ship a product preload bridge", () => {
+test("the official Web entry has no preload or global IPC bridge", () => {
   assert.equal(electronPackage.build.files.includes("preload.js"), false);
   assert.equal(electronPackage.build.extraResources.some((entry) => String(entry.from || "").includes("renderer")), false);
   assert.doesNotMatch(electronMain, /\bipcMain\b/);
@@ -107,11 +165,13 @@ test("the packaged official Web interaction smoke stays on official question, ap
   assert.match(officialWebFlowSmoke, /data-question-key/);
   assert.match(officialWebFlowSmoke, /data-approval-key/);
   assert.match(officialWebFlowSmoke, /data-queue-dock/);
+  assert.match(officialWebFlowSmoke, /data-composer-input/);
   assert.match(officialWebFlowSmoke, /mode: 'queue'/);
   assert.match(officialWebFlowSmoke, /approvalMarkerPath/);
   assert.match(officialWebFlowSmoke, /name === 'bash' \|\| name === 'pwsh'/);
   assert.match(officialWebFlowSmoke, /Set-Content -LiteralPath/);
   assert.match(officialWebFlowSmoke, /function: \{ name: selectedShellTool/);
+  assert.match(officialWebFlowSmoke, /async function dismissOfficialPrompts/);
   assert.doesNotMatch(officialWebFlowSmoke, /function: \{ name: 'bash'/);
 });
 
@@ -121,5 +181,7 @@ test("the native Host smoke keeps file-dialog coverage behind an explicit manual
   assert.match(nativeHostSmoke, /native_host_file_dialog_smoke/);
   assert.match(nativeHostSmoke, /releaseEvidenceChecks\('native-host', nativeHostMode\)/);
   assert.match(nativeHostSmoke, /nativeHostMode/);
+  assert.match(nativeHostSmoke, /data-composer-input/);
+  assert.match(nativeHostSmoke, /async function dismissOfficialPrompts/);
   assert.match(nativeHostSmoke, /native-host-dialogs.*result\.json/);
 });

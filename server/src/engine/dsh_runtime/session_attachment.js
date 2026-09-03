@@ -5,7 +5,7 @@
  * Workspace protocol here keeps the App shell and the embedded DSH client on
  * the same project instead of showing a second workspace picker.
  */
-export async function ensureDshWorkspaceSession(client, { sessionId = null, cwd } = {}) {
+export async function ensureDshWorkspaceSession(client, { sessionId = null, cwd, agentPreset = null } = {}) {
   const path = String(cwd || "").trim();
   if (!path) {
     const error = new Error("挂接 DSH 会话需要工作目录");
@@ -23,9 +23,11 @@ export async function ensureDshWorkspaceSession(client, { sessionId = null, cwd 
   }
 
   const requestedSessionId = String(sessionId || "").trim();
+  const requestedAgentPreset = String(agentPreset || "").trim();
   const createdSession = await client.request("session.create", {
     workspaceId,
     ...(requestedSessionId ? { sessionId: requestedSessionId } : {}),
+    ...(requestedAgentPreset ? { agentPreset: requestedAgentPreset } : {}),
   });
   const resolvedSessionId = String(createdSession?.sessionId || "").trim();
   if (!resolvedSessionId) {

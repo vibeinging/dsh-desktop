@@ -169,7 +169,7 @@ export function createWorktreeClient(React) {
 .dsh-worktree-sidebar-action:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring, #5474cc); outline-offset: 2px; }
 .dsh-worktree-branch-mark { width: 14px; height: 14px; }
 .dsh-worktree-overlay {
-  position: fixed;
+  position: absolute;
   inset: 0;
   display: flex;
   justify-content: flex-end;
@@ -178,7 +178,9 @@ export function createWorktreeClient(React) {
 }
 .dsh-worktree-overlay-panel {
   position: relative;
-  width: min(920px, calc(100vw - 72px));
+  box-sizing: border-box;
+  width: min(920px, calc(100% - 24px));
+  max-width: 100%;
   height: 100%;
   border-left: 1px solid var(--dsw-alias-border-l1, rgb(35 39 47 / 13%));
   background: var(--dsw-alias-bg-base, #f7f7f9);
@@ -485,6 +487,7 @@ export function createWorktreeClient(React) {
   }
 
   function WorktreeSidebarAction({ wide }) {
+    useEffect(installStyle, []);
     return h("button", {
       type: "button",
       className: "dsh-worktree-sidebar-action",
@@ -497,6 +500,16 @@ export function createWorktreeClient(React) {
   function WorktreeOverlay({ useSessions, useWorkspaces, createWorkspace, deleteWorkspace, startSession }) {
     const open = useOverlayOpen();
     const sessionId = useSessions((state) => state.current);
+    useEffect(() => {
+      if (!open) return undefined;
+      const onKeyDown = (event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        setOverlayOpen(false);
+      };
+      document.addEventListener("keydown", onKeyDown);
+      return () => document.removeEventListener("keydown", onKeyDown);
+    }, [open]);
     if (!open) return null;
     return h("div", {
       className: "dsh-worktree-overlay",
@@ -520,16 +533,16 @@ export function createWorktreeClient(React) {
   }
 
   function installStyle(documentRef = document) {
-    if (documentRef.getElementById(styleId)) return () => {};
     const style = documentRef.createElement("style");
     style.id = styleId;
     style.textContent = css;
-    documentRef.head.append(style);
+    const previous = documentRef.getElementById(styleId);
+    if (previous) previous.replaceWith(style);
+    else documentRef.head.append(style);
     return () => style.remove();
   }
 
   function apply(ctx) {
-    ctx.effect(() => installStyle(), "dsh worktree: view styles");
     const workspaceActions = () => ({
       createWorkspace: (path) => ctx.workspaces.create({ path }),
       deleteWorkspace: (workspaceId) => ctx.workspaces.delete(workspaceId),

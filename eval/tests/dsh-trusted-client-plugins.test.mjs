@@ -10,6 +10,7 @@ import {
   reviewedCommunityClientReview,
   reviewedCommunityClientPolicy,
   reviewedMultimediaInputDependencies,
+  reviewedHarnessRemoteDependencies,
   reviewedTaskBoardDependencies,
 } from "../../server/src/engine/dsh_runtime/community_client_review.js";
 import {
@@ -26,7 +27,14 @@ import {
   projectFeaturedRegistryManifest,
   validateFeaturedRegistryReleaseDependencies,
   transformFeaturedRegistryClient,
+  transformFeaturedRegistryHost,
 } from "../../scripts/generate-featured-plugin-artifacts.mjs";
+import {
+  fetchFeaturedMeasurementWeb,
+  inspectFeaturedClientBoot,
+  parseFeaturedClientBootGraph,
+  redactFeaturedMeasurementOutput,
+} from "../../scripts/measure-featured-plugin-evidence.mjs";
 
 const APP_ROOT = resolve(import.meta.dirname, "../..");
 
@@ -149,16 +157,16 @@ test("only audited community Client releases may enter the product Client graph"
   assert.equal(isReviewedCommunityClient({
     name: "@linxin666/dsh-client-ui-task-board",
     manifest: {
-      version: "0.2.7",
+      version: "0.3.9",
       dependencies: taskBoardDependencies,
       dsh: { bundle: { patch: "./cordis.patch.yml" } },
     },
-    integrity: "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
+    integrity: "sha512-xkjPPZCLH4AjNnTb2RGG9nMXzsFuCBFdcucYnL3UMaHs6/G+rADZpneyHNKeVggGlqSkbZ7qnM43zEYfudzjgw==",
   }), true);
   assert.equal(isReviewedCommunityClient({
     name: "@linxin666/dsh-client-ui-task-board",
     manifest: {
-      version: "0.2.7",
+      version: "0.3.9",
       dependencies: taskBoardDependencies,
       dsh: { bundle: { patch: "./cordis.patch.yml" } },
     },
@@ -167,15 +175,15 @@ test("only audited community Client releases may enter the product Client graph"
   assert.equal(isReviewedCommunityClient({
     name: "@linxin666/dsh-client-ui-task-board",
     manifest: {
-      version: "0.2.7",
+      version: "0.3.9",
       dependencies: { ...taskBoardDependencies, schemastery: "^3.19.0" },
       dsh: { bundle: { patch: "./cordis.patch.yml" } },
     },
   }), false);
   assert.deepEqual(reviewedCommunityClientReview({
     name: "@linxin666/dsh-client-ui-task-board",
-    manifest: { version: "0.2.7", dependencies: taskBoardDependencies, dsh: { bundle: { patch: "./cordis.patch.yml" } } },
-    integrity: "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
+    manifest: { version: "0.3.9", dependencies: taskBoardDependencies, dsh: { bundle: { patch: "./cordis.patch.yml" } } },
+    integrity: "sha512-xkjPPZCLH4AjNnTb2RGG9nMXzsFuCBFdcucYnL3UMaHs6/G+rADZpneyHNKeVggGlqSkbZ7qnM43zEYfudzjgw==",
   }), {
     session: "任务看板创建独立 DSH Session 执行任务，并读取 Workspace、Session 状态和完成历史",
     capabilities: [
@@ -183,6 +191,52 @@ test("only audited community Client releases may enter the product Client graph"
       "在 DSH_HOME 写入任务账本和执行记录",
       "按用户操作或 Host cron 启动 DSH Session 任务",
       "可选启动固定的系统防休眠 helper",
+    ],
+  });
+
+  const harnessRemoteDependencies = reviewedHarnessRemoteDependencies();
+  assert.deepEqual(harnessRemoteDependencies, {
+    "@deepseek-ai/schemastery": "^3.18.1",
+    qrcode: "^1.5.4",
+    werift: "0.24.4",
+    zod: "^3.24.1",
+  });
+  const remotePolicy = reviewedCommunityClientPolicy("ds-harness-remote");
+  assert.equal(remotePolicy.version, "0.4.1");
+  assert.equal(remotePolicy.requiredDshRuntime, "0.1.2-rc.1");
+  assert.equal(isReviewedCommunityClient({
+    name: "ds-harness-remote",
+    manifest: {
+      version: "0.4.1",
+      dependencies: harnessRemoteDependencies,
+      dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
+    },
+    integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+  }), true);
+  assert.equal(isReviewedCommunityClient({
+    name: "ds-harness-remote",
+    manifest: {
+      version: "0.4.1",
+      dependencies: { ...harnessRemoteDependencies, werift: "0.24.5" },
+      dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
+    },
+    integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+  }), false);
+  assert.deepEqual(reviewedCommunityClientReview({
+    name: "ds-harness-remote",
+    manifest: {
+      version: "0.4.1",
+      dependencies: harnessRemoteDependencies,
+      dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
+    },
+    integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+  }), {
+    session: "同一 Remote 账号下的已授权设备可通过固定白名单读取并控制 Host 的 Workspace、Session、模型、权限、设置与凭据写入；移除设备后连接和凭据失效",
+    capabilities: [
+      "通过 dsh.r2049.cn 的外部账号、设备凭据和 membership 授权 Host、Web、Android 与另一台 Desktop",
+      "通过 Noise IK 加密的 LAN、P2P、TURN 或 Relay 链路远程控制当前 Harness",
+      "只暴露固定 Harness API 白名单和受限只读文件预览，不暴露直接 Shell、PTY 或通用文件 RPC",
+      "在 DSH_HOME 保存长期 X25519 身份私钥和设备凭据；托管服务可见账号、设备与必要网络元数据",
     ],
   });
 
@@ -256,6 +310,78 @@ test("the curated Profile input has one authoritative list with explicit managea
   }
 });
 
+test("featured plugin measurement authenticates alpha Web without retaining launch secrets", async () => {
+  const requests = [];
+  const response = await fetchFeaturedMeasurementWeb(
+    "http://127.0.0.1:3080/?token=launch-secret",
+    {
+      fetchImpl: async (url, init = {}) => {
+        requests.push({ url: String(url), init });
+        if (requests.length === 1) {
+          return new Response(null, {
+            status: 303,
+            headers: { "set-cookie": "dsh_session=session-secret; HttpOnly; SameSite=Strict" },
+          });
+        }
+        return new Response("<html>authenticated</html>", { status: 200 });
+      },
+    },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(requests.map(({ url }) => url), [
+    "http://127.0.0.1:3080/?token=launch-secret",
+    "http://127.0.0.1:3080/",
+  ]);
+  assert.deepEqual(requests[0].init, { redirect: "manual" });
+  assert.deepEqual(requests[1].init, { headers: { cookie: "dsh_session=session-secret" } });
+  const redacted = redactFeaturedMeasurementOutput(
+    "dsh web: http://127.0.0.1:3080/?token=launch-secret Authorization: Bearer bearer-secret",
+  );
+  assert.doesNotMatch(redacted, /launch-secret|bearer-secret/);
+  assert.match(redacted, /token=\[redacted\]/);
+  assert.match(redacted, /Authorization=\[redacted\]/i);
+});
+
+test("featured plugin measurement rejects a failed alpha Web authentication", async () => {
+  await assert.rejects(
+    () => fetchFeaturedMeasurementWeb("http://127.0.0.1:3080/?token=launch-secret", {
+      fetchImpl: async () => new Response(null, { status: 401 }),
+    }),
+    /认证失败（HTTP 401）/,
+  );
+});
+
+test("featured plugin measurement reads alpha.4 combo batches from the official boot graph", () => {
+  const graph = {
+    rev: "boot-revision",
+    entries: [
+      { id: "@deepseek-ai/dsh-client-modules", url: "/plugins/??@deepseek-ai/dsh-client-modules/client.js&rev=one", rev: "one" },
+      { id: "@vibeinging/dsh-client-ui-worktree", url: "/plugins/??@vibeinging/dsh-client-ui-worktree/client.js&rev=two", rev: "two" },
+    ],
+    batches: [
+      {
+        phase: "application",
+        url: "/plugins/??@deepseek-ai/dsh-client-ui-chat/client.js,@vibeinging/dsh-client-ui-worktree/client.js&rev=batch",
+        rev: "batch",
+        entries: ["@deepseek-ai/dsh-client-ui-chat", "@vibeinging/dsh-client-ui-worktree"],
+      },
+    ],
+  };
+  const html = `<html><head><script>globalThis["__DSH_BOOT__"] = ${JSON.stringify(graph)}</script></head></html>`;
+  assert.deepEqual(parseFeaturedClientBootGraph(html), graph);
+  const activation = inspectFeaturedClientBoot(html, "@vibeinging/dsh-client-ui-worktree");
+  assert.equal(activation.entry?.id, "@vibeinging/dsh-client-ui-worktree");
+  assert.equal(activation.batch?.phase, "application");
+  assert.deepEqual(inspectFeaturedClientBoot(html, "@example/host-only"), { entry: null, batch: null });
+});
+
+test("featured plugin measurement rejects a missing official boot graph", () => {
+  assert.throws(
+    () => parseFeaturedClientBootGraph("<html><head></head></html>"),
+    /缺少 __DSH_BOOT__/,
+  );
+});
+
 test("the curated list keeps package names, source paths, and SPDX licenses aligned", () => {
   const serverLockfile = JSON.parse(readFileSync(join(APP_ROOT, "server/package-lock.json"), "utf8"));
   for (const plugin of featuredPlugins()) {
@@ -314,12 +440,63 @@ test("the curated registry package rejects lock, license, and dependency drift",
   }), /锁文件漂移/);
 });
 
+test("the bundled Remote plugin is pinned with an offline dependency closure", async () => {
+  const plugin = featuredPlugins().find(({ name }) => name === "ds-harness-remote");
+  const packageDir = resolveFeaturedPackageDir(plugin);
+  const packageJson = JSON.parse(readFileSync(join(packageDir, "package.json"), "utf8"));
+  const serverLockfile = JSON.parse(readFileSync(join(APP_ROOT, "server/package-lock.json"), "utf8"));
+  const offlineDependencies = resolveFeaturedOfflineDependencies(plugin, {
+    appRoot: APP_ROOT,
+    lockfile: serverLockfile,
+  });
+  assert.equal(plugin.default, true);
+  assert.equal(plugin.user_manageable, true);
+  assert.equal(packageJson.license, undefined);
+  const releaseManifest = projectFeaturedRegistryManifest(plugin, packageJson);
+  const clientSource = readFileSync(join(packageDir, plugin.evidence.release_transform.path), "utf8");
+  const releaseClient = transformFeaturedRegistryClient(plugin, clientSource);
+  const hostSource = readFileSync(join(packageDir, plugin.evidence.release_host_transform.path), "utf8");
+  const releaseHost = transformFeaturedRegistryHost(plugin, hostSource);
+  assert.equal(releaseManifest.license, "MIT");
+  assert.deepEqual(releaseManifest.optionalDependencies, {});
+  assert.deepEqual(plugin.evidence.lifecycle_scripts, []);
+  assert.equal(plugin.evidence.offline_dependency_resolution, "package-lock-closure");
+  assert.equal(offlineDependencies.some(({ name }) => name === "werift"), true);
+  assert.equal(offlineDependencies.some(({ name }) => name === "qrcode"), true);
+  assert.equal(offlineDependencies.some(({ name }) => name === "@roamhq/wrtc"), false);
+  assert.match(clientSource, /ctx\.effect\(installStyle, "ds-harness-remote: client styles"\)/);
+  assert.doesNotMatch(releaseClient, /ctx\.effect\(installStyle, "ds-harness-remote: client styles"\)/);
+  assert.match(releaseClient, /function RemoteWorkspaceAction\(props\) \{\s+React\.useEffect\(installStyle, \[\]\);/);
+  assert.throws(() => transformFeaturedRegistryClient(plugin, `${clientSource}\n// drift`), /源文件漂移/);
+  assert.doesNotMatch(releaseHost, /settingsNamespace/);
+  assert.match(releaseHost, /settings\?\.register\("ds-harness-remote", Config/);
+  assert.throws(() => transformFeaturedRegistryHost(plugin, `${hostSource}\n// drift`), /源文件漂移/);
+  assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
+  assert.throws(() => validateFeaturedPackageContract({
+    ...plugin,
+    evidence: { ...plugin.evidence, license_metadata: undefined },
+  }, packageJson), /声明许可证漂移/);
+  assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile, {
+    appRoot: APP_ROOT,
+    offlineDependencies,
+  }));
+  assert.doesNotThrow(() => validateFeaturedPackageComposition(
+    plugin,
+    readFileSync(join(packageDir, plugin.evidence.source_entry), "utf8"),
+    readFileSync(join(packageDir, "cordis.patch.yml"), "utf8"),
+  ));
+});
+
 test("the bundled plugin market is pinned to its audited package and nested dependency closure", () => {
   const plugin = featuredPlugins().find(({ name }) => name === "dshmarket");
   const packageJson = JSON.parse(readFileSync(join(resolveFeaturedPackageDir(plugin), "package.json"), "utf8"));
   const serverLockfile = JSON.parse(readFileSync(join(APP_ROOT, "server/package-lock.json"), "utf8"));
+  const hostSource = readFileSync(join(resolveFeaturedPackageDir(plugin), plugin.evidence.release_host_transform.path), "utf8");
+  const releaseHost = transformFeaturedRegistryHost(plugin, hostSource);
   assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
   assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile));
+  assert.doesNotMatch(releaseHost, /import \{[^}]*installSettingsSection|settingsNamespace\('/);
+  assert.match(releaseHost, /ctx\.settings\.installSection/);
   assert.throws(() => validateFeaturedPackageContract(plugin, {
     ...packageJson,
     dependencies: { ...packageJson.dependencies, undici: "^8.0.0" },
@@ -403,8 +580,8 @@ test("Better Sidebar is pinned with its complete native and editor dependency cl
   const dependencies = resolveFeaturedOfflineDependencies(plugin, { appRoot: APP_ROOT, lockfile: serverLockfile });
   const licenseDependencies = resolveFeaturedLicenseDependencies(plugin, { appRoot: APP_ROOT, lockfile: serverLockfile });
   assert.equal(serverPackage.dependencies[plugin.name], undefined);
-  assert.equal(serverPackage.devDependencies[plugin.name], "0.16.0");
-  assert.equal(serverLockfile.packages[""]?.devDependencies?.[plugin.name], "0.16.0");
+  assert.equal(serverPackage.devDependencies[plugin.name], "0.18.0-alpha.0");
+  assert.equal(serverLockfile.packages[""]?.devDependencies?.[plugin.name], "0.18.0-alpha.0");
   assert.equal(serverLockfile.packages[`node_modules/${plugin.name}`]?.dev, true);
   assert.equal(plugin.evidence.offline_dependency_resolution, "package-lock-closure");
   assert.deepEqual(plugin.evidence.release_dependencies, {
@@ -429,12 +606,12 @@ test("Better Sidebar is pinned with its complete native and editor dependency cl
   assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
   const releaseManifest = projectFeaturedRegistryManifest(plugin, packageJson);
   assert.deepEqual(releaseManifest.dependencies, plugin.evidence.release_dependencies);
-  assert.equal(releaseManifest.peerDependencies["@deepseek-ai/dsh-session"], "0.1.1-rc.2");
+  assert.equal(releaseManifest.peerDependencies["@deepseek-ai/dsh-session"], "^0.1.2-alpha.2");
   assert.equal(releaseManifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");
   assert.equal(releaseManifest.peerDependencies.cordis, undefined);
   assert.equal(releaseManifest.peerDependencies["@huanlin/dsh-plugin-better-locale"], "^0.1.0");
   assert.deepEqual(releaseManifest.peerDependenciesMeta["@huanlin/dsh-plugin-better-locale"], { optional: true });
-  assert.equal(packageJson.peerDependencies["@deepseek-ai/dsh-session"], "^0.1.0-rc.8");
+  assert.equal(packageJson.peerDependencies["@deepseek-ai/dsh-session"], "^0.1.2-alpha.2");
   assert.equal(packageJson.peerDependencies.cordis, undefined);
   const hostSource = readFileSync(join(packageDir, plugin.evidence.entry), "utf8");
   assert.doesNotThrow(() => validateFeaturedRegistryReleaseDependencies(plugin, hostSource));

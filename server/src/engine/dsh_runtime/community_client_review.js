@@ -21,6 +21,13 @@ const TASK_BOARD_DEPENDENCIES = Object.freeze({
   schemastery: "^3.18.0",
 });
 
+const HARNESS_REMOTE_DEPENDENCIES = Object.freeze({
+  "@deepseek-ai/schemastery": "^3.18.1",
+  qrcode: "^1.5.4",
+  werift: "0.24.4",
+  zod: "^3.24.1",
+});
+
 const DSH_MARKET_DEPENDENCIES = Object.freeze({
   "js-yaml": "^4.1.0",
   undici: "^7.29.0",
@@ -36,6 +43,11 @@ export function reviewedCommunityClientDependencies() {
 /** Return the exact dependency projection reviewed for the task-board release. */
 export function reviewedTaskBoardDependencies() {
   return TASK_BOARD_DEPENDENCIES;
+}
+
+/** Return the exact dependency projection reviewed for the mobile remote release. */
+export function reviewedHarnessRemoteDependencies() {
+  return HARNESS_REMOTE_DEPENDENCIES;
 }
 
 /** Return the exact dependency projection reviewed for the default plugin market. */
@@ -78,10 +90,10 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
     }),
   })],
   ["@linxin666/dsh-client-ui-task-board", Object.freeze({
-    version: "0.2.7",
+    version: "0.3.9",
     bundlePatch: "./cordis.patch.yml",
     dependencies: TASK_BOARD_DEPENDENCIES,
-    integrity: "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
+    integrity: "sha512-xkjPPZCLH4AjNnTb2RGG9nMXzsFuCBFdcucYnL3UMaHs6/G+rADZpneyHNKeVggGlqSkbZ7qnM43zEYfudzjgw==",
     review: Object.freeze({
       session: "任务看板创建独立 DSH Session 执行任务，并读取 Workspace、Session 状态和完成历史",
       capabilities: Object.freeze([
@@ -89,6 +101,22 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
         "在 DSH_HOME 写入任务账本和执行记录",
         "按用户操作或 Host cron 启动 DSH Session 任务",
         "可选启动固定的系统防休眠 helper",
+      ]),
+    }),
+  })],
+  ["ds-harness-remote", Object.freeze({
+    version: "0.4.1",
+    bundlePatch: "./cordis.patch.yml",
+    dependencies: HARNESS_REMOTE_DEPENDENCIES,
+    requiredDshRuntime: "0.1.2-rc.1",
+    integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+    review: Object.freeze({
+      session: "同一 Remote 账号下的已授权设备可通过固定白名单读取并控制 Host 的 Workspace、Session、模型、权限、设置与凭据写入；移除设备后连接和凭据失效",
+      capabilities: Object.freeze([
+        "通过 dsh.r2049.cn 的外部账号、设备凭据和 membership 授权 Host、Web、Android 与另一台 Desktop",
+        "通过 Noise IK 加密的 LAN、P2P、TURN 或 Relay 链路远程控制当前 Harness",
+        "只暴露固定 Harness API 白名单和受限只读文件预览，不暴露直接 Shell、PTY 或通用文件 RPC",
+        "在 DSH_HOME 保存长期 X25519 身份私钥和设备凭据；托管服务可见账号、设备与必要网络元数据",
       ]),
     }),
   })],

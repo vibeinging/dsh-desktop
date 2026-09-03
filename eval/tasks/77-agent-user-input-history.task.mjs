@@ -95,7 +95,7 @@ export default {
         },
       );
       sid = output.sid;
-      assert.ok((output.autoResolvedUserInputIds || []).length === 1, '驱动真实回答一次 request_user_input', {
+      assert.ok((output.autoResolvedUserInputIds || []).length >= 1, '驱动真实回答 request_user_input', {
         criterion: 'user-input.real-lifecycle',
       });
       assert.eq(output.userInputErrors?.length || 0, 0, '回答 request_user_input 没有请求错误', {
@@ -113,10 +113,17 @@ export default {
       const history = await api('GET', `/api/projects/${pid}/sessions/${sid}/messages`);
       assert.status(history, 200, '读取回答后的真实历史');
       const messages = history.json?.data?.messages || [];
-      const userInput = messages
+      const userInputs = messages
         .filter((message) => message.role === 'assistant')
         .flatMap((message) => parseArray(message.content_items))
-        .find((item) => item.type === 'user_input');
+        .filter((item) => item.type === 'user_input');
+      const requestedConfigurationInputs = userInputs.filter((item) => (
+        parseObject(item.content).questions?.some((question) => question.question === '请选择运行配置')
+      ));
+      assert.eq(requestedConfigurationInputs.length, 1, '历史只保存一次运行配置 user_input', {
+        criterion: 'user-input.history',
+      });
+      const [userInput] = requestedConfigurationInputs;
       assert.eq(userInput?.title, 'resolved', 'user_input 最终状态写入历史', {
         criterion: 'user-input.history',
       });
@@ -132,41 +139,40 @@ export default {
         criterion: 'user-input.history',
       });
 
-      await driver.ui.goto('/agent');
-      await driver.raw.ev(`
-        localStorage.setItem('dsh:onboarding:completed:v1', 'true');
-        const pid = ${JSON.stringify(pid)};
-        const sid = ${JSON.stringify(sid)};
-        const detail = await window.electronAPI.apiRequest({
-          method: 'GET', url: '/api/projects/' + encodeURIComponent(pid),
-          headers: { 'Content-Type': 'application/json' }, body: null,
-        });
-        const { useProjectStore } = await import('/src/store/project.ts');
-        const { eventBus, EVENT_TYPES } = await import('/src/utils/eventBus.ts');
-        useProjectStore.getState().setCurrentProject(detail?.json?.data || { id: pid, name: ${JSON.stringify(projectName)} });
-        eventBus.emit(EVENT_TYPES.NEW_session_CREATED, { sessionId: sid, workspaceId: pid, projectId: pid });
-        return true;
-      `);
-      const conversationSelector = `[data-agent-conv-id="${sid}"]`;
-      await driver.ui.waitFor(conversationSelector, { timeout: 15_000 });
-      await driver.ui.click(conversationSelector, { timeout: 10_000 });
-      await driver.ui.waitFor(`[data-agent-session-id="${sid}"]`, { timeout: 15_000 });
-      await driver.raw.ev(`
-        for (const button of document.querySelectorAll('[data-agent-process-toggle]')) {
-          if (button.closest('[data-agent-process]')?.getAttribute('data-expanded') !== 'true') button.click();
-        }
-        return true;
-      `);
-      await driver.ui.waitFor('[data-agent-user-input="true"][data-state="resolved"]', { timeout: 15_000 });
+      const sessionDetail = await api('GET', `/api/projects/${pid}/sessions/${sid}`);
+      assert.status(sessionDetail, 200, '读取 App 与 DSH 会话绑定');
+      const sessionConfig = parseObject(sessionDetail.json?.data?.session_config);
+      const runtimeSessionId = String(sessionConfig.dsh_runtime_session_id || '');
+      assert.ok(Boolean(runtimeSessionId), 'App 会话保存 DSH runtime session id', {
+        criterion: 'user-input.ui-reload',
+      });
+
+      await driver.ui.goto('/');
+      await driver.raw.dismissOfficialModelPrompt();
+      const nativeSessions = await driver.raw.officialRpc('session.list');
+      const nativeSession = (nativeSessions.items || []).find((item) => item.sessionId === runtimeSessionId);
+      assert.ok(Boolean(nativeSession), '官方 Web 重载后列出对应 DSH 会话', {
+        criterion: 'user-input.ui-reload',
+      });
+      if (!nativeSession) return;
+      const nativeTitle = String(nativeSession.projections?.values?.title || projectName);
+      await driver.ui.clickText(nativeTitle, {
+        selector: '[role="treeitem"]',
+        timeout: 20_000,
+      });
+      const answeredSelector = '[data-tool="ask_user_question"][data-state="ok"]';
+      await driver.ui.waitFor(answeredSelector, { timeout: 20_000 });
+      await driver.ui.click(`${answeredSelector} [data-disclosure-row]`, { timeout: 10_000 });
+      await driver.raw.ev('await new Promise((resolve) => setTimeout(resolve, 250)); return true;');
       const rendered = await driver.raw.ev(`
-        const card = document.querySelector('[data-agent-user-input="true"][data-state="resolved"]');
+        const card = document.querySelector(${JSON.stringify(answeredSelector)});
         return {
           text: String(card?.textContent || '').replace(/\\s+/g, ' ').trim(),
-          submit: [...(card?.querySelectorAll('button') || [])].some((button) => String(button.textContent || '').trim() === '提交'),
-          enabledButtons: [...(card?.querySelectorAll('button') || [])].filter((button) => !button.disabled).length,
+          submit: [...(card?.querySelectorAll('button') || [])].some((button) => ['提交', 'Submit', 'submit'].includes(String(button.textContent || '').trim())),
+          pendingQuestion: Boolean(document.querySelector('[data-question-key]')),
         };
       `);
-      assert.ok(rendered.text.includes('已选择「使用推荐配置'), '历史重载 UI 展示真实选择值', {
+      assert.ok(rendered.text.includes('使用推荐配置'), '历史重载 UI 展示真实选择值', {
         criterion: 'user-input.ui-reload',
       });
       assert.ok(!rendered.text.includes('[object Object]'), '历史重载 UI 不显示对象字符串', {
@@ -175,7 +181,7 @@ export default {
       assert.eq(rendered.submit, false, '已回答历史不再显示提交按钮', {
         criterion: 'user-input.ui-reload',
       });
-      assert.eq(rendered.enabledButtons, 0, '已回答历史不能再次修改选项', {
+      assert.eq(rendered.pendingQuestion, false, '已回答历史不会恢复成待回答问题', {
         criterion: 'user-input.ui-reload',
       });
     } finally {

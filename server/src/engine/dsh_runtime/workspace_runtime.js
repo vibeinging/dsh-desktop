@@ -300,6 +300,7 @@ export class DshWorkspaceRuntime {
       resolveTurn = resolve;
       rejectTurn = reject;
     });
+    void completion.catch(() => {});
     const maybeSettle = () => {
       if (settled || !seenRunning || !idle || !turnEnd) return;
       settled = true;
@@ -319,6 +320,17 @@ export class DshWorkspaceRuntime {
       if (payload.type !== "session/event") return;
       notificationQueue = notificationQueue.then(async () => {
         const result = await adapter.handle(payload.event, payload.view || null);
+        if (result?.kind === "turn-start") {
+          this.turnId = result.turnId;
+          this.running = true;
+        }
+        if (result?.kind === "turn-end") turnEnd = result;
+        maybeSettle();
+      }).catch(rejectTurn);
+    };
+    const onSessionEvent = (event, view = null) => {
+      notificationQueue = notificationQueue.then(async () => {
+        const result = await adapter.handle(event, view);
         if (result?.kind === "turn-start") {
           this.turnId = result.turnId;
           this.running = true;
@@ -353,8 +365,50 @@ export class DshWorkspaceRuntime {
     this.client.on("stream-error", onStreamError);
     this.client.on("exit", onExit);
     agentContext?.signal?.addEventListener?.("abort", onAbort, { once: true });
+    let modernSessionController = null;
+    let modernSessionReady = null;
+    let modernSessionLoop = null;
+    if (this.client.remoteStreamProtocol === true) {
+      modernSessionController = new AbortController();
+      let resolveSnapshot;
+      let rejectSnapshot;
+      modernSessionReady = new Promise((resolve, reject) => {
+        resolveSnapshot = resolve;
+        rejectSnapshot = reject;
+      });
+      modernSessionLoop = (async () => {
+        let opened = false;
+        try {
+          for await (const frame of this.client.openRemoteStream("session/follow", {
+            request: {
+              address: { kind: "session", sessionId: this.sessionId },
+              maxMessages: 50,
+            },
+          }, modernSessionController.signal)) {
+            if (frame?.type === "snapshot") {
+              if (!opened) {
+                opened = true;
+                resolveSnapshot(frame);
+              }
+              continue;
+            }
+            if (frame?.type === "event") onSessionEvent(frame.event);
+          }
+          if (!modernSessionController.signal.aborted) {
+            const error = new Error("DSH session/follow 在 Turn 完成前结束");
+            error.code = "DSH_SESSION_EVENT_STREAM_ENDED";
+            rejectSnapshot(error);
+            rejectTurn(error);
+          }
+        } catch (error) {
+          rejectSnapshot(error);
+          rejectTurn(error);
+        }
+      })();
+    }
     try {
       if (agentContext?.signal?.aborted) throw abortError();
+      if (modernSessionReady) await modernSessionReady;
       const content = withSkillReferences(await dshPromptContent(turnInput(agentContext), {
         fallbackText: agentContext?.input_data?.user_message,
       }), agentContext);
@@ -406,6 +460,8 @@ export class DshWorkspaceRuntime {
       return { success: status === "completed", status, thread_id: this.sessionId };
     } finally {
       this.running = false;
+      modernSessionController?.abort();
+      await modernSessionLoop?.catch(() => {});
       this.client.off("mux", onMux);
       this.client.off("host", onHost);
       this.client.off("stream-error", onStreamError);

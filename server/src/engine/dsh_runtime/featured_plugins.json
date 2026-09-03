@@ -21,7 +21,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-product-host-ipc",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -84,7 +84,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-desktop-profile-host",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -134,7 +134,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-desktop-chrome",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -183,7 +183,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-project-tools",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -235,7 +235,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-canvas-tools",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -287,7 +287,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-structured-ui-tools",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -337,7 +337,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-model-inheritance",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -389,7 +389,7 @@
         "entry": "src/index.js",
         "patch_id": "product-bridge",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -440,7 +440,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-office-tools",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -491,7 +491,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-worktree",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -554,16 +554,16 @@
         "start DSH Session tasks from user actions or Host cron",
         "optionally start a fixed cross-platform sleep-prevention helper"
       ],
-      "license": "BSD-3-Clause",
+      "license": "Apache-2.0",
       "evidence": {
         "source_kind": "locked-registry-package",
         "release_source": "fixed-tarball",
-        "package_spec": "@linxin666/dsh-client-ui-task-board@0.2.7",
-        "package_version": "0.2.7",
-        "package_integrity": "sha512-9Gnd12bcCtUTf4UVI0h5Bzm/fPwn+PEQqqi9+dt80wden0RwivpK7hzQ8VGRjImX5dGESAYFvkStNObEpC3bLA==",
+        "package_spec": "@linxin666/dsh-client-ui-task-board@0.3.9",
+        "package_version": "0.3.9",
+        "package_integrity": "sha512-xkjPPZCLH4AjNnTb2RGG9nMXzsFuCBFdcucYnL3UMaHs6/G+rADZpneyHNKeVggGlqSkbZ7qnM43zEYfudzjgw==",
         "declared_license": "Apache-2.0",
         "license_path": "server/node_modules/@linxin666/dsh-client-ui-task-board/LICENSE",
-        "license_sha256": "02e1e3ebf73df5c1840c842a8e93b40942bf6e53a66acbe6c5643fc8664ff97d",
+        "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
         "package_dependencies": {
           "schemastery": "^3.18.0"
         },
@@ -600,8 +600,8 @@
         "source_entry": "src/index.ts",
         "patch_id": "ui-task-board",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
-          "declared_dsh_sdk": "^0.1.1-rc.1",
+          "dsh_sdk": "0.1.2-alpha.4",
+          "declared_dsh_sdk": ">=0.1.2-alpha.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -612,7 +612,8 @@
           "plugin_id": "ui-task-board",
           "requires": [
             "systemPrompt",
-            "apiProxy",
+            "typertGateway",
+            "workspaceRegistry",
             "webServer",
             "agents",
             "commands"
@@ -648,6 +649,120 @@
       }
     },
     {
+      "name": "ds-harness-remote",
+      "package_path": "server/node_modules/ds-harness-remote",
+      "repository": "https://github.com/liguobao/ds-harness-remote",
+      "default": true,
+      "user_manageable": true,
+      "portability": "portable",
+      "permissions": [
+        "连接 dsh.r2049.cn 的外部账号、设备目录、信令、TURN 与 Relay 服务",
+        "从同一账号下的 Web、Android 或另一台 Desktop 读取并控制当前 Harness 的 Workspace、Session、模型、权限、设置与凭据写入",
+        "在 DSH_HOME 保存长期 X25519 设备身份私钥和设备凭据",
+        "通过固定 Harness API 白名单运行远程请求；不开放直接 Shell、PTY 或通用文件 RPC，但 Harness Agent 仍可按原权限运行工具"
+      ],
+      "permissions_en": [
+        "connect to the external dsh.r2049.cn account, device directory, signaling, TURN, and Relay services",
+        "allow authorized Web, Android, or Desktop devices on the same account to read and control the current Harness Workspace, Session, models, permissions, settings, and credential writes",
+        "store long-lived X25519 device identity keys and device credentials under DSH_HOME",
+        "serve remote requests through a fixed Harness API allowlist without direct Shell, PTY, or general file RPC; the Harness Agent can still run tools under its normal permissions"
+      ],
+      "license": "MIT",
+      "evidence": {
+        "source_kind": "locked-registry-package",
+        "release_source": "fixed-tarball",
+        "package_spec": "ds-harness-remote@0.4.1",
+        "package_version": "0.4.1",
+        "package_integrity": "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+        "declared_license": "MIT",
+        "license_metadata": "missing-package-json-field",
+        "license_path": "server/node_modules/ds-harness-remote/LICENSE",
+        "license_sha256": "6e41a78bbbe0c3ed54d085b661eb5af5a7836f4d40460d54f1469f43b386285d",
+        "package_dependencies": {
+          "@deepseek-ai/schemastery": "^3.18.1",
+          "qrcode": "^1.5.4",
+          "werift": "0.24.4",
+          "zod": "^3.24.1"
+        },
+        "package_optional_dependencies": {
+          "@roamhq/wrtc": "0.10.0"
+        },
+        "release_optional_dependencies": {},
+        "release_transform": {
+          "id": "mounted-client-style-v1",
+          "path": "dist/client.js",
+          "source_sha256": "efaeff289f93529e69daece73e38dd6fbdb3ddd7cc528013e66f007bd2e12190",
+          "output_sha256": "7bc23db48d9d18494124595c493e503e241e1e0a05d9c5a403ea438a3d0c1d4b"
+        },
+        "release_host_transform": {
+          "id": "alpha2-settings-namespace-v1",
+          "path": "dist/index.js",
+          "source_sha256": "73a8642cb050878dfddaf83afcc24b7c89efe97c1f32c08c07998b348b7499d5",
+          "output_sha256": "b55d89b9f48368b478bc854e27c3e38b9946d14e722b42ee36cbb18177cce4e1"
+        },
+        "offline_dependencies": [],
+        "offline_dependency_resolution": "package-lock-closure",
+        "entry": "dist/index.js",
+        "client_entry": "dist/client.js",
+        "source_entry": "dist/index.js",
+        "patch_id": "ds-harness-remote",
+        "compatibility": {
+          "dsh_sdk": "0.1.2-alpha.4",
+          "declared_peer_sdk": ">=0.1.1-rc.2 <0.1.2 || >=0.1.2-alpha.1 <0.2.0",
+          "reviewed_upstream_commit": "814a0dd45f1c971995c0cc93319fdced20c69749",
+          "cordis": ">=4.0.1 <5"
+        },
+        "lifecycle_scripts": [],
+        "ignored_dependency_lifecycle_scripts": [
+          "@roamhq/wrtc@0.10.0 install"
+        ],
+        "native_dependencies": [
+          "optional @roamhq/wrtc@0.10.0; ignored scripts fall back to TypeScript werift or encrypted Relay"
+        ],
+        "network": "external-account-device-directory-signaling-turn-relay-and-adaptive-webrtc",
+        "client": true,
+        "composition": {
+          "plugin_id": "ds-harness-remote",
+          "requires": [
+            "settings",
+            "connection",
+            "typertGateway"
+          ],
+          "provides": [
+            "dshRemote",
+            "dshRemoteClient"
+          ],
+          "routes": [],
+          "slots": [
+            "shell.overlay",
+            "sidebar.footer.action",
+            "settings.plugin.item"
+          ],
+          "conflicts": [
+            "dsh-remote",
+            "@dsh-remote/plugin"
+          ]
+        },
+        "profile_install": "official-dsh-plugin-cli",
+        "profile_uninstall": "official-dsh-plugin-cli",
+        "regression": {
+          "unit": [
+            "eval/tests/dsh-trusted-client-plugins.test.mjs",
+            "eval/tests/dsh-profile-plugin-service.test.mjs"
+          ],
+          "profile": [
+            "eval/tests/dsh-profile-initialization.test.mjs",
+            "eval/tests/dsh-profile-plugin-service.test.mjs"
+          ],
+          "electron": [
+            "eval/tests/dsh-trusted-client-plugins.test.mjs",
+            "electron/scripts/smoke-packaged-featured-plugins.mjs"
+          ]
+        },
+        "cost_measurement": "complete lockfile-derived dependency closure, fixed tarball, Profile storage, Client activation, outbound control connection, and cold Web start"
+      }
+    },
+    {
       "name": "dsh-multimedia-webui-input",
       "package_path": "server/node_modules/dsh-multimedia-webui-input",
       "repository": "https://github.com/LCYLYM/dsh-attachments",
@@ -675,6 +790,13 @@
         "license_path": "server/node_modules/dsh-multimedia-webui-input/LICENSE",
         "license_sha256": "008d11ebaf44cc7b185137aad7e6b22eaacf7992d66440b19a8ee82f3e73095d",
         "package_dependencies": {},
+        "release_client_inject": [
+          "@deepseek-ai/dsh-api-session-controller",
+          "@deepseek-ai/dsh-client-ui-conversation",
+          "@deepseek-ai/dsh-client-ui-input-trigger",
+          "@deepseek-ai/dsh-client-ui-settings",
+          "@deepseek-ai/dsh-client-ui-slots"
+        ],
         "offline_dependencies": [],
         "release_files": [
           "cordis.patch.yml",
@@ -694,7 +816,7 @@
         "source_entry": "lib/index.js",
         "patch_id": "community-multimedia-webui-input",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "reviewed_upstream_commit": "028dc1f8dc9c7f963e714013b36adc4f48d88c2a",
           "cordis": "^4.0.1"
         },
@@ -769,9 +891,9 @@
         "source_kind": "locked-registry-package",
         "release_source": "fixed-tarball",
         "source_dependency_kind": "devDependency",
-        "package_spec": "dsh-better-sidebar@0.16.0",
-        "package_version": "0.16.0",
-        "package_integrity": "sha512-ym+tAlgip2odJFAr/YxFB6R3gAggHImEZpKw3+cPSQjIbeZG7oF9DwICgM3y3mXQneTvMUBvYwMjZUU6T5BuzA==",
+        "package_spec": "dsh-better-sidebar@0.18.0-alpha.0",
+        "package_version": "0.18.0-alpha.0",
+        "package_integrity": "sha512-XcJLX6IaZecJ1mKebgTE52/sB/QIvVBmDfR77Wos0jnjtj2cZEUEDlFixySzwyiVMvVJfy5qQlsITpAps5pd4w==",
         "declared_license": "MIT",
         "license_path": "server/node_modules/dsh-better-sidebar/LICENSE",
         "license_sha256": "f4d265194e0824721af0592462a71fe750c04db3565c23c5d6c65fdee25fb4b0",
@@ -812,26 +934,6 @@
           "schemastery": "^3.18.0",
           "ws": "^8.18.0"
         },
-        "release_peer_dependencies": {
-          "@deepseek-ai/cordis": "^4.0.1",
-          "@deepseek-ai/dsh-agent": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-client-locale": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-client-runtime": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-client-ui-conversation": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-client-ui-primitives": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-client-ui-settings": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-client-ui-slots": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-host-webserver": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-invariants": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-llm": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-session": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-settings": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-subagent": "0.1.1-rc.2",
-          "@deepseek-ai/dsh-tools": "0.1.1-rc.2",
-          "@huanlin/dsh-plugin-better-locale": "^0.1.0",
-          "react": "^18.2.0",
-          "react-dom": "^18.2.0"
-        },
         "offline_dependencies": [],
         "offline_dependency_resolution": "package-lock-closure",
         "entry": "lib/index.js",
@@ -839,8 +941,8 @@
         "source_entry": "src/index.ts",
         "patch_id": "better-sidebar",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
-          "declared_peer_sdk": "^0.1.0-rc.8",
+          "dsh_sdk": "0.1.2-alpha.4",
+          "declared_peer_sdk": "^0.1.2-alpha.2",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -933,6 +1035,24 @@
           "js-yaml": "^4.1.0",
           "undici": "^7.29.0"
         },
+        "release_peer_dependencies": {
+          "@deepseek-ai/cordis": "^4.0.2",
+          "@deepseek-ai/dsh-settings": "^0.1.2-alpha.4"
+        },
+        "release_client_inject": [
+          "@deepseek-ai/dsh-client-connection",
+          "@deepseek-ai/dsh-client-locale",
+          "@deepseek-ai/dsh-client-ui-primitives",
+          "@deepseek-ai/dsh-client-ui-settings",
+          "@deepseek-ai/dsh-client-ui-slots",
+          "@deepseek-ai/dsh-client-ui-theme"
+        ],
+        "release_host_transform": {
+          "id": "alpha2-settings-section-v1",
+          "path": "lib/settings.js",
+          "source_sha256": "28cbc032d4893a09b4f0adbc8e056f78d6b28a253875be0a183151c1b1318da1",
+          "output_sha256": "171cf4b734d95f763d01dd117c46f6ad3c9a9764ced06f05d50b6a7cafe332e5"
+        },
         "offline_dependencies": [
           {
             "name": "js-yaml",
@@ -967,7 +1087,7 @@
         "source_entry": "src/index.ts",
         "patch_id": "dsh-market",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
+          "dsh_sdk": "0.1.2-alpha.4",
           "declared_settings_sdk": "^0.1.0-rc.7",
           "cordis": "^4.0.1"
         },
@@ -1014,74 +1134,99 @@
       }
     },
     {
-      "name": "@nanmicoder/dsh-agent-teams",
-      "package_path": "server/node_modules/@nanmicoder/dsh-agent-teams",
-      "repository": "https://github.com/NanmiCoder/dsh-agent-teams",
+      "name": "@vibeinging/dsh-session-teams",
+      "package_path": "server/node_modules/@vibeinging/dsh-session-teams",
+      "repository": "https://github.com/vibeinging/dsh-session-teams",
       "default": true,
       "user_manageable": true,
       "portability": "portable",
       "permissions": [
-        "读取与续接当前 Profile 中的 DSH 子智能体会话",
-        "在当前工作区 .agent-teams/ 写入团队、任务与消息状态",
-        "注册 /agent-teams 命令与团队 Web UI，按用户指令创建和管理子智能体团队"
+        "跨当前 Profile 的可见会话窗口读取、路由并转发消息与任务（含子智能体接力）",
+        "通过官方 Session API 在 Profile 会话存储中写入团队、任务与可见窗口中继状态",
+        "按需创建顶层会话窗口，以当前工作区、模型与权限组合子智能体团队并执行调度"
       ],
       "permissions_en": [
-        "read and resume DSH sub-agent sessions in the current profile",
-        "write team, task and message state under .agent-teams/ in the current workspace",
-        "register the /agent-teams command and team Web UI to create and manage sub-agent teams on user request"
+        "read, route and relay messages and tasks across visible conversation windows in the current profile, including sub-agent handoff",
+        "write team, task and visible-window relay state through the official Session API in the Profile session store",
+        "create top-level conversation windows on demand and compose sub-agent teams scheduled with the current workspace, model, and permissions"
       ],
-      "license": "MIT",
+      "license": "BSD-3-Clause",
       "evidence": {
         "source_kind": "locked-registry-package",
         "release_source": "fixed-tarball",
-        "package_spec": "@nanmicoder/dsh-agent-teams@0.1.13",
-        "package_version": "0.1.13",
-        "package_integrity": "sha512-1r762+78NCwomc8t6cSx847AmEuAORKdIkIcdtgxB0Gk1qgjDUsJcwZ8O2oGFBICt+72pAwtj1n0yYGU1DLJTg==",
-        "declared_license": "MIT",
-        "license_path": "server/node_modules/@nanmicoder/dsh-agent-teams/LICENSE",
-        "license_sha256": "e4e722cd6f8bb374affe13b571a262e0e03d68407da555abf1b046eb7889d4ea",
-        "package_dependencies": {},
+        "package_spec": "@vibeinging/dsh-session-teams@0.1.1",
+        "package_version": "0.1.1",
+        "package_integrity": "sha512-SPEhCXMlfBsVu5shd/Zhx+uy4FdhgzxVQxSySIOYXh5N1q58tBJDvuB2ZtKdd3SJ6mFIWLcN6GzXCo7w+ldtwA==",
+        "declared_license": "BSD-3-Clause",
+        "license_path": "server/node_modules/@vibeinging/dsh-session-teams/LICENSE",
+        "license_sha256": "ba47b75495bca290478d9ad1ed1d3a8deb87ef72fb366a5357529ef8fe1e0617",
+        "package_dependencies": {
+          "@deepseek-ai/schemastery": "3.18.2",
+          "zod": "4.4.3"
+        },
+        "release_peer_dependencies": {
+          "@deepseek-ai/cordis": "4.0.2",
+          "@deepseek-ai/dsh-agent": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-api-session-controller": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-client-locale": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-client-ui-chat": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-client-ui-conversation": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-client-ui-renderer": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-client-ui-session": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-client-ui-slots": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-session": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-session-persistence": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-session-projection": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-session-title": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-system-prompt": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-tools": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
+          "react": "^18.2.0"
+        },
         "offline_dependencies": [],
+        "offline_dependency_resolution": "package-lock-closure",
         "entry": "lib/index.js",
+        "client_entry": "lib/client.js",
         "source_entry": "lib/index.js",
-        "patch_id": "agent-teams",
+        "patch_id": "session-teams",
         "compatibility": {
-          "dsh_sdk": "0.1.1-rc.2",
-          "cordis": "^4.0.1"
+          "dsh_sdk": "0.1.2-rc.1",
+          "declared_peer_sdk": "0.1.2-rc.1",
+          "cordis": "4.0.2"
         },
         "lifecycle_scripts": [],
         "native_dependencies": [],
         "network": "loopback-same-origin-only",
         "client": true,
         "composition": {
-          "plugin_id": "agent-teams",
+          "plugin_id": "session-teams",
           "requires": [
-            "tools",
-            "llm",
-            "subagents",
-            "systemPrompt",
-            "agents"
+            "systemPrompt"
           ],
           "provides": [],
           "routes": [],
-          "slots": [],
+          "slots": [
+            "conversation.chat.node",
+            "conversation.session.header.actions"
+          ],
           "conflicts": []
         },
         "profile_install": "official-dsh-plugin-cli",
         "profile_uninstall": "official-dsh-plugin-cli",
         "regression": {
           "unit": [
-            "eval/tests/dsh-profile-plugin-service.test.mjs",
             "eval/tests/dsh-trusted-client-plugins.test.mjs"
           ],
           "profile": [
-            "eval/tests/dsh-profile-initialization.test.mjs"
+            "eval/tests/dsh-profile-initialization.test.mjs",
+            "eval/tests/dsh-profile-plugin-service.test.mjs"
           ],
           "electron": [
-            "electron/scripts/smoke-packaged-offline.mjs"
+            "electron/scripts/smoke-packaged-featured-plugins.mjs"
           ]
         },
-        "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, and cold Web start"
+        "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, Client activation, and cold Web start"
       }
     }
   ]

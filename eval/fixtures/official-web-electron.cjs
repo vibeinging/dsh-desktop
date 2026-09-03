@@ -8,7 +8,25 @@ const userData = String(process.env.DSH_OFFICIAL_WEB_USER_DATA || "").trim();
 const communityUi = String(process.env.DSH_OFFICIAL_WEB_COMMUNITY_UI || "").trim();
 const screenshotPath = String(process.env.DSH_OFFICIAL_WEB_SCREENSHOT || "").trim();
 
-if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(surface)) {
+let surfaceUrl;
+try {
+  surfaceUrl = new URL(surface);
+} catch {
+  surfaceUrl = null;
+}
+const surfaceTokenNames = surfaceUrl ? [...surfaceUrl.searchParams.keys()] : [];
+const surfaceTokens = surfaceUrl ? surfaceUrl.searchParams.getAll("token") : [];
+if (!surfaceUrl
+  || surfaceUrl.protocol !== "http:"
+  || surfaceUrl.hostname !== "127.0.0.1"
+  || !surfaceUrl.port
+  || surfaceUrl.username
+  || surfaceUrl.password
+  || surfaceUrl.pathname !== "/"
+  || surfaceUrl.hash
+  || surfaceTokenNames.some((name) => name !== "token")
+  || surfaceTokens.length > 1
+  || (surfaceTokens.length === 1 && !surfaceTokens[0])) {
   throw new Error("DSH_OFFICIAL_WEB_URL must be an isolated loopback surface");
 }
 if (userData) app.setPath("userData", userData);
@@ -24,11 +42,11 @@ async function inspectOfficialSurface(window) {
       const resources = performance.getEntriesByType("resource").map((entry) => entry.name);
       return {
         officialWeb: Boolean(document.querySelector("#root") && globalThis.__DSH_BOOT__),
-        modelInheritanceClientLoaded: resources.some((url) => url.includes("/plugins/@vibeinging/dsh-model-inheritance/client.js")),
-        taskBoardClientLoaded: resources.some((url) => url.includes("/plugins/@linxin666/dsh-client-ui-task-board/client.js")),
-        betterSidebarClientLoaded: resources.some((url) => url.includes("/plugins/dsh-better-sidebar/client.js")),
-        compatClientLoaded: resources.some((url) => url.includes("/plugins/@linxin666/dsh-web-ui-all/client.js")),
-        productShellLoaded: resources.some((url) => url.includes("/plugins/@vibeinging/dsh-work-shell/client.js")),
+        modelInheritanceClientLoaded: resources.some((url) => url.includes("@vibeinging/dsh-model-inheritance/client.js")),
+        taskBoardClientLoaded: resources.some((url) => url.includes("@linxin666/dsh-client-ui-task-board/client.js")),
+        betterSidebarClientLoaded: resources.some((url) => url.includes("dsh-better-sidebar/client.js")),
+        compatClientLoaded: resources.some((url) => url.includes("@linxin666/dsh-web-ui-all/client.js")),
+        productShellLoaded: resources.some((url) => url.includes("@vibeinging/dsh-work-shell/client.js")),
         bodyChildCount: document.body.childElementCount,
       };
     })()`, true);
@@ -38,24 +56,45 @@ async function inspectOfficialSurface(window) {
   throw new Error(`official Web Client graph did not start: ${JSON.stringify(latest)}`);
 }
 
-async function dismissOfficialPrompts(window) {
-  for (const labels of [
-    ['继续', 'Continue'],
-    ['稍后配置', 'Later'],
-  ]) {
-    const deadline = Date.now() + 5_000;
-    while (Date.now() < deadline) {
-      const clicked = await window.webContents.executeJavaScript(`(() => {
-        const labels = new Set(${JSON.stringify(labels)});
-        const button = [...document.querySelectorAll('button,[role="button"]')]
-          .find((element) => labels.has((element.innerText || element.textContent || '').trim()));
-        button?.click();
-        return Boolean(button);
-      })()`, true).catch(() => false);
-      if (clicked) break;
-      await sleep(200);
-    }
+async function dismissPrompt(window, { labels, bodyNeedles, description, timeoutMs = 10_000 }) {
+  const deadline = Date.now() + timeoutMs;
+  let latest = null;
+  while (Date.now() < deadline) {
+    latest = await window.webContents.executeJavaScript(`(() => {
+      const labels = new Set(${JSON.stringify(labels)});
+      const bodyNeedles = ${JSON.stringify(bodyNeedles)};
+      const body = document.body.innerText || '';
+      const present = bodyNeedles.some((needle) => body.includes(needle));
+      if (!present) return { dismissed: true, buttons: [] };
+      const buttons = [...document.querySelectorAll('button,[role="button"]')]
+        .map((element) => ({
+          element,
+          text: (element.innerText || element.textContent || '').trim(),
+          rect: element.getBoundingClientRect(),
+        }))
+        .filter(({ element, text, rect }) => (
+          labels.has(text) && !element.disabled && rect.width > 0 && rect.height > 0
+        ));
+      buttons[0]?.element.click();
+      return { dismissed: false, buttons: buttons.map(({ text }) => text) };
+    })()`, true).catch(() => null);
+    if (latest?.dismissed) return;
+    await sleep(200);
   }
+  throw new Error(`${description}没有关闭: ${JSON.stringify(latest)}`);
+}
+
+async function dismissOfficialPrompts(window) {
+  await dismissPrompt(window, {
+    labels: ['继续', 'Continue'],
+    bodyNeedles: ['内测声明', 'Internal testing'],
+    description: '官方 Web 首次提示',
+  });
+  await dismissPrompt(window, {
+    labels: ['稍后配置', 'Later'],
+    bodyNeedles: ['添加一个 API Key 开始使用', 'Add an API Key to get started'],
+    description: '官方 Web 模型配置提示',
+  });
 }
 
 async function inspectBetterSidebar(window) {
@@ -142,42 +181,7 @@ async function inspectTaskBoard(window) {
     await sleep(200);
   }
   if (!latest?.entry) throw new Error(`task-board Client 没有显示官方 Web 入口: ${JSON.stringify(latest)}`);
-  await window.webContents.executeJavaScript(`(() => {
-    const button = [...document.querySelectorAll('button,[role="button"]')]
-      .find((element) => ['继续', 'Continue'].includes((element.innerText || element.textContent || '').trim()));
-    button?.click();
-    return Boolean(button);
-  })()`, true);
-  while (Date.now() < deadline) {
-    const dismissed = await window.webContents.executeJavaScript(
-      "!document.body.innerText.includes('内测声明') && !document.body.innerText.includes('Internal testing')",
-      true,
-    ).catch(() => false);
-    if (dismissed) break;
-    await sleep(200);
-  }
-  if (await window.webContents.executeJavaScript(
-    "document.body.innerText.includes('内测声明') || document.body.innerText.includes('Internal testing')",
-    true,
-  ).catch(() => true)) throw new Error('官方 Web 首次提示没有关闭');
-  await window.webContents.executeJavaScript(`(() => {
-    const button = [...document.querySelectorAll('button,[role="button"]')]
-      .find((element) => ['稍后配置', 'Later'].includes((element.innerText || element.textContent || '').trim()));
-    button?.click();
-    return Boolean(button);
-  })()`, true);
-  while (Date.now() < deadline) {
-    const dismissed = await window.webContents.executeJavaScript(
-      "!document.body.innerText.includes('添加一个 API Key 开始使用') && !document.body.innerText.includes('Add an API Key to get started')",
-      true,
-    ).catch(() => false);
-    if (dismissed) break;
-    await sleep(200);
-  }
-  if (await window.webContents.executeJavaScript(
-    "document.body.innerText.includes('添加一个 API Key 开始使用') || document.body.innerText.includes('Add an API Key to get started')",
-    true,
-  ).catch(() => true)) throw new Error('官方 Web 模型配置提示没有关闭');
+  await dismissOfficialPrompts(window);
   await window.webContents.executeJavaScript("document.querySelector('[data-dsh-taskboard-entry]')?.click()", true);
   while (Date.now() < deadline) {
     latest = await window.webContents.executeJavaScript(`(() => {

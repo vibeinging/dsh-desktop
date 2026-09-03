@@ -9,6 +9,7 @@ import { promisify } from "node:util"
 
 import {
   FEATURED_PLUGIN_APP_ROOT,
+  featuredPluginLibraryTarballName,
   featuredPluginManifest,
   featuredPlugins,
   featuredPluginTarballName,
@@ -64,12 +65,28 @@ export function validateFeaturedPackageContract(plugin, manifest) {
         || transform.path.split(/[\\/]/).includes(".."))) {
       throw new Error(`精选 registry 插件 release_transform 无效: ${plugin.name}`)
     }
-    if (manifest.license !== plugin.evidence.declared_license) {
+    const hostTransform = plugin.evidence.release_host_transform
+    if (hostTransform !== undefined
+      && (!hostTransform || typeof hostTransform !== "object" || Array.isArray(hostTransform)
+        || ["id", "path", "source_sha256", "output_sha256"]
+          .some((field) => typeof hostTransform[field] !== "string" || !hostTransform[field].trim())
+        || isAbsolute(hostTransform.path)
+        || hostTransform.path.split(/[\\/]/).includes(".."))) {
+      throw new Error(`精选 registry 插件 release_host_transform 无效: ${plugin.name}`)
+    }
+    const reviewedMissingLicense = manifest.license === undefined
+      && plugin.evidence.license_metadata === "missing-package-json-field"
+    if (!reviewedMissingLicense && manifest.license !== plugin.evidence.declared_license) {
       throw new Error(`精选 registry 插件声明许可证漂移: ${plugin.name}`)
     }
     if (manifest.version !== plugin.evidence.package_version
       || JSON.stringify(manifest.dependencies || {}) !== JSON.stringify(plugin.evidence.package_dependencies)) {
       throw new Error(`精选 registry 插件版本或依赖闭包漂移: ${plugin.name}`)
+    }
+    if (plugin.evidence.package_optional_dependencies !== undefined
+      && JSON.stringify(manifest.optionalDependencies || {})
+        !== JSON.stringify(plugin.evidence.package_optional_dependencies)) {
+      throw new Error(`精选 registry 插件可选依赖闭包漂移: ${plugin.name}`)
     }
     if (plugin.evidence.release_dependencies !== undefined) {
       const releaseDependencies = plugin.evidence.release_dependencies
@@ -89,6 +106,12 @@ export function validateFeaturedPackageContract(plugin, manifest) {
         || Object.values(plugin.evidence.release_peer_dependencies)
           .some((version) => typeof version !== "string" || !version.trim()))) {
       throw new Error(`精选 registry 插件发行 peer 投影无效: ${plugin.name}`)
+    }
+    if (plugin.evidence.release_client_inject !== undefined
+      && (!Array.isArray(plugin.evidence.release_client_inject)
+        || plugin.evidence.release_client_inject.length === 0
+        || plugin.evidence.release_client_inject.some((name) => typeof name !== "string" || !name.trim()))) {
+      throw new Error(`精选 registry 插件发行 Client 注入投影无效: ${plugin.name}`)
     }
     const clientExport = manifest.exports?.["./client"]
     const clientEntry = typeof clientExport === "string" ? clientExport : clientExport?.default
@@ -118,14 +141,32 @@ export function validateFeaturedPackageContract(plugin, manifest) {
 /** Apply the reviewed dependency and peer projection used only by a fixed registry release tarball. */
 export function projectFeaturedRegistryManifest(plugin, manifest) {
   if (plugin.evidence.source_kind !== "locked-registry-package") return structuredClone(manifest)
+  const projected = structuredClone(manifest)
   return {
-    ...structuredClone(manifest),
+    ...projected,
+    ...(plugin.evidence.license_metadata === "missing-package-json-field"
+      ? { license: plugin.evidence.declared_license }
+      : {}),
     ...(plugin.evidence.release_dependencies === undefined
       ? {}
       : { dependencies: { ...plugin.evidence.release_dependencies } }),
     ...(plugin.evidence.release_peer_dependencies === undefined
       ? {}
       : { peerDependencies: { ...plugin.evidence.release_peer_dependencies } }),
+    ...(plugin.evidence.release_optional_dependencies === undefined
+      ? {}
+      : { optionalDependencies: { ...plugin.evidence.release_optional_dependencies } }),
+    ...(plugin.evidence.release_client_inject === undefined
+      ? {}
+      : {
+          dsh: {
+            ...projected.dsh,
+            client: {
+              ...projected.dsh?.client,
+              inject: [...plugin.evidence.release_client_inject],
+            },
+          },
+        }),
   }
 }
 
@@ -268,11 +309,42 @@ export function validateFeaturedRegistryReleaseDependencies(plugin, hostSource) 
 export function transformFeaturedRegistryClient(plugin, sourceText) {
   const transform = plugin.evidence.release_transform
   if (!transform) return sourceText
-  if (transform.id !== "smart-attachment-picker-v4") {
-    throw new Error(`未知的精选 registry Client 发行适配: ${transform.id}`)
-  }
   if (sha256(Buffer.from(sourceText)) !== transform.source_sha256) {
     throw new Error(`精选 registry Client 发行适配源文件漂移: ${plugin.name}`)
+  }
+  if (transform.id === "mounted-client-style-v1") {
+    const componentTarget = "      function RemoteWorkspaceAction(props) {\n        let { t } = props,"
+    const componentReplacement = "      function RemoteWorkspaceAction(props) {\n        React.useEffect(installStyle, []);\n        let { t } = props,"
+    const styleEffectTarget = '), ctx.effect(installStyle, "ds-harness-remote: client styles"), ctx.slots.inject'
+    if (sourceText.split(componentTarget).length !== 2 || sourceText.split(styleEffectTarget).length !== 2) {
+      throw new Error(`精选 registry Remote Client 样式适配目标不唯一: ${plugin.name}`)
+    }
+    const output = sourceText
+      .replace(componentTarget, componentReplacement)
+      .replace(styleEffectTarget, "), ctx.slots.inject")
+    const outputSha256 = sha256(Buffer.from(output))
+    if (outputSha256 !== transform.output_sha256) {
+      throw new Error(`精选 registry Client 发行适配输出漂移: ${plugin.name}; expected=${transform.output_sha256}; actual=${outputSha256}`)
+    }
+    return output
+  }
+  if (transform.id === "alpha2-ui-conversation-v1") {
+    const injectTarget = '\t\t\t"conversationEvents",'
+    const registerTarget = "ctx.conversationEvents.register(agentTeamsCardDefinition);"
+    if (sourceText.split(injectTarget).length !== 2 || sourceText.split(registerTarget).length !== 2) {
+      throw new Error(`精选 registry Agent Teams Client 适配目标不唯一: ${plugin.name}`)
+    }
+    const output = sourceText
+      .replace(injectTarget, '\t\t\t"uiConversation",')
+      .replace(registerTarget, "ctx.uiConversation.events.register(agentTeamsCardDefinition);")
+    const outputSha256 = sha256(Buffer.from(output))
+    if (outputSha256 !== transform.output_sha256) {
+      throw new Error(`精选 registry Client 发行适配输出漂移: ${plugin.name}; expected=${transform.output_sha256}; actual=${outputSha256}`)
+    }
+    return output
+  }
+  if (transform.id !== "smart-attachment-picker-v4") {
+    throw new Error(`未知的精选 registry Client 发行适配: ${transform.id}`)
   }
   const dropEffect = /\n      React\.useEffect\(\(\) => \{\n        const dragover = event => \{[\s\S]*?\n      \}, \[accept, locked\]\);\n/
   const matches = sourceText.match(new RegExp(dropEffect.source, "g")) || []
@@ -416,6 +488,63 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
   return output
 }
 
+function replaceFeaturedHostTarget(sourceText, target, replacement, plugin) {
+  if (sourceText.split(target).length !== 2) {
+    throw new Error(`精选 registry Host 发行适配目标不唯一: ${plugin.name}`)
+  }
+  return sourceText.replace(target, replacement)
+}
+
+/** Apply one exact, hash-bound alpha compatibility adaptation to a registry Host entry. */
+export function transformFeaturedRegistryHost(plugin, sourceText) {
+  const transform = plugin.evidence.release_host_transform
+  if (!transform) return sourceText
+  if (sha256(Buffer.from(sourceText)) !== transform.source_sha256) {
+    throw new Error(`精选 registry Host 发行适配源文件漂移: ${plugin.name}`)
+  }
+  let output = sourceText
+  if (transform.id === "alpha2-settings-namespace-v1") {
+    output = replaceFeaturedHostTarget(
+      output,
+      'import { settingsNamespace } from "@deepseek-ai/dsh-settings";\n',
+      "",
+      plugin,
+    )
+    output = replaceFeaturedHostTarget(
+      output,
+      'settings?.register(settingsNamespace("ds-harness-remote"), Config, {',
+      'settings?.register("ds-harness-remote", Config, {',
+      plugin,
+    )
+  } else if (transform.id === "alpha2-settings-section-v1") {
+    output = replaceFeaturedHostTarget(
+      output,
+      "import { installSettingsSection, settingsNamespace } from '@deepseek-ai/dsh-settings';\n",
+      "",
+      plugin,
+    )
+    output = replaceFeaturedHostTarget(
+      output,
+      "export const MARKET_SETTINGS_NS = settingsNamespace('dsh-market');",
+      "export const MARKET_SETTINGS_NS = 'dsh-market';",
+      plugin,
+    )
+    output = replaceFeaturedHostTarget(
+      output,
+      "    installSettingsSection(ctx, MARKET_SETTINGS_NS, MarketSettings, entry, {",
+      "    ctx.settings.installSection(ctx, MARKET_SETTINGS_NS, MarketSettings, entry, {",
+      plugin,
+    )
+  } else {
+    throw new Error(`未知的精选 registry Host 发行适配: ${transform.id}`)
+  }
+  const outputSha256 = sha256(Buffer.from(output))
+  if (outputSha256 !== transform.output_sha256) {
+    throw new Error(`精选 registry Host 发行适配输出漂移: ${plugin.name}; expected=${transform.output_sha256}; actual=${outputSha256}`)
+  }
+  return output
+}
+
 /** Validate an exact registry package and its offline dependency closure against server/package-lock.json. */
 export function validateFeaturedPackageLock(plugin, lockfile, options = {}) {
   if (plugin.evidence.source_kind !== "locked-registry-package") return
@@ -483,6 +612,11 @@ async function prepareRegistryPackSource(plugin, sourceDir, root) {
       const clientPath = join(staged, plugin.evidence.release_transform.path)
       const source = await readFile(clientPath, "utf8")
       await writeFile(clientPath, transformFeaturedRegistryClient(plugin, source))
+    }
+    if (plugin.evidence.release_host_transform) {
+      const hostPath = join(staged, plugin.evidence.release_host_transform.path)
+      const source = await readFile(hostPath, "utf8")
+      await writeFile(hostPath, transformFeaturedRegistryHost(plugin, source))
     }
     for (const dependency of plugin.evidence.offline_dependencies) {
       const dependencySource = join(root, "server", dependency.lock_path || dependency.install_path)
@@ -681,12 +815,16 @@ export async function generateFeaturedPluginArtifacts({
     schema_version: 1,
     profile: manifest.profile,
     bundles: records.map(({ name }) => name),
-    commands: records.map(({ name, tarball, sha256: hash }) => ({
-      args: ["plugin", "--profile", manifest.profile, "add", "-w", `file:plugin-library/tarballs/${tarball}`, "--save-exact", "--offline", "--ignore-scripts"],
-      name,
-      tarball,
-      sha256: hash,
-    })),
+    commands: records.map(({ name, tarball, sha256: hash }) => {
+      const libraryTarball = featuredPluginLibraryTarballName(tarball, hash)
+      return {
+        args: ["plugin", "--profile", manifest.profile, "add", "-w", `file:plugin-library/tarballs/${libraryTarball}`, "--save-exact", "--offline", "--ignore-scripts"],
+        name,
+        tarball,
+        library_tarball: libraryTarball,
+        sha256: hash,
+      }
+    }),
   }))
   await writeFile(join(output, "permissions.json"), json({
     schema_version: 1,

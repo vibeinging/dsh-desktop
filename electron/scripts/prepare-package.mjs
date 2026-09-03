@@ -59,11 +59,21 @@ function supportedNode(version) {
   return major >= 24
 }
 
-function nodeVersion(nodePath) {
+/** Check whether one Node runtime can build native dependencies for the requested package target. */
+export function packageNodeMatchesTarget(runtime, targetPlatform, targetArch) {
+  return supportedNode(runtime?.version)
+    && runtime?.platform === targetPlatform
+    && runtime?.arch === targetArch
+}
+
+function nodeRuntime(nodePath) {
   try {
-    return execFileSync(nodePath, ['-p', 'process.version'], { encoding: 'utf8' }).trim()
+    return JSON.parse(execFileSync(nodePath, [
+      '-p',
+      'JSON.stringify({ version: process.version, platform: process.platform, arch: process.arch })',
+    ], { encoding: 'utf8' }).trim())
   } catch {
-    return ''
+    return null
   }
 }
 
@@ -204,30 +214,40 @@ export async function verifyPackagedBuiltinPlugins({
 }
 
 export async function preparePackage() {
-  if (!supportedNode(process.version) && process.env.DSH_PACKAGE_NODE_REEXEC !== '1') {
-    const candidates = [
-      process.env.DSH_PACKAGE_NODE_BIN,
-      '/opt/homebrew/bin/node',
-      '/usr/local/bin/node',
-    ].filter((value, index, all) => value && existsSync(value) && all.indexOf(value) === index)
-    const replacement = candidates.find((candidate) => supportedNode(nodeVersion(candidate)))
-    if (replacement) {
-      console.log(`[package] 使用 ${replacement} (${nodeVersion(replacement)}) 准备生产依赖`)
-      await run(replacement, process.argv.slice(1), {
-        cwd: process.cwd(),
-        env: { DSH_PACKAGE_NODE_REEXEC: '1' },
-      })
-      process.exit(0)
-    }
-    throw new Error(`当前 Node ${process.version} 太旧。请安装 Node 24 后重新执行 npm install`)
-  }
-
   const targetPlatform = arg('platform', process.platform)
   const targetArch = arg('arch', process.arch)
   if (!SUPPORTED_PLATFORMS.has(targetPlatform)) throw new Error(`不支持的目标平台: ${targetPlatform}`)
   if (!SUPPORTED_ARCHES.has(targetArch)) throw new Error(`不支持的目标架构: ${targetArch}`)
   if (targetPlatform !== process.platform) {
     throw new Error(`原生依赖必须在目标系统构建: 当前 ${process.platform}，目标 ${targetPlatform}`)
+  }
+
+  const currentRuntime = {
+    version: process.version,
+    platform: process.platform,
+    arch: process.arch,
+  }
+  if (!packageNodeMatchesTarget(currentRuntime, targetPlatform, targetArch)) {
+    if (process.env.DSH_PACKAGE_NODE_REEXEC === '1') {
+      throw new Error(`指定 Node ${process.version}/${process.platform}/${process.arch} 不能准备 ${targetPlatform}/${targetArch}`)
+    }
+    const candidates = [
+      process.env.DSH_PACKAGE_NODE_BIN,
+      '/opt/homebrew/bin/node',
+      '/usr/local/bin/node',
+    ].filter((value, index, all) => value && existsSync(value) && all.indexOf(value) === index)
+    const replacement = candidates
+      .map((path) => ({ path, runtime: nodeRuntime(path) }))
+      .find(({ runtime }) => packageNodeMatchesTarget(runtime, targetPlatform, targetArch))
+    if (replacement) {
+      console.log(`[package] 使用 ${replacement.path} (${replacement.runtime.version}/${replacement.runtime.arch}) 准备 ${targetPlatform}/${targetArch} 生产依赖`)
+      await run(replacement.path, process.argv.slice(1), {
+        cwd: process.cwd(),
+        env: { DSH_PACKAGE_NODE_REEXEC: '1' },
+      })
+      process.exit(0)
+    }
+    throw new Error(`当前 Node ${process.version}/${process.platform}/${process.arch} 不能准备 ${targetPlatform}/${targetArch}。请将 DSH_PACKAGE_NODE_BIN 指向 Node 24 或更高版本的 ${targetArch} 可执行文件`)
   }
 
   await rm(STAGED_SERVER_DIR, { recursive: true, force: true })

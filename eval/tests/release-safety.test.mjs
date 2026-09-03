@@ -350,9 +350,35 @@ test('Windows runner acceptance receipt requires every install lifecycle check',
     startedAt: '2026-08-21T00:00:00.000Z',
     completedAt: '2026-08-21T00:01:00.000Z',
   });
+  assert.ok(WINDOWS_ACCEPTANCE_CHECKS.includes('installer-custom-directory'));
+  assert.ok(WINDOWS_ACCEPTANCE_CHECKS.includes('installed-data-root-separation'));
+  assert.ok(WINDOWS_ACCEPTANCE_CHECKS.includes('dsh-data-preserved-after-uninstall'));
   assert.equal(isWindowsAcceptanceReceipt(receipt), true);
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, checks: receipt.checks.slice(1) }), false);
+  assert.equal(isWindowsAcceptanceReceipt({
+    ...receipt,
+    checks: receipt.checks.filter(({ name }) => name !== 'dsh-data-preserved-after-uninstall'),
+  }), false);
   assert.equal(isWindowsAcceptanceReceipt({ ...receipt, passed: false }), false);
+});
+
+test('Windows installer lets users choose the app directory without moving DSH data into it', () => {
+  const electronPackage = JSON.parse(readFileSync(join(process.cwd(), 'electron', 'package.json'), 'utf8'));
+  const mainSource = readFileSync(join(process.cwd(), 'electron', 'main.js'), 'utf8');
+  const packagedAppSmoke = readFileSync(join(process.cwd(), 'electron', 'scripts', 'smoke-packaged-app.mjs'), 'utf8');
+  const windowsAcceptance = readFileSync(join(process.cwd(), 'electron', 'scripts', 'smoke-windows-acceptance.mjs'), 'utf8');
+
+  assert.deepEqual(electronPackage.build.win.target, ['nsis']);
+  assert.equal(electronPackage.build.nsis.oneClick, false);
+  assert.equal(electronPackage.build.nsis.perMachine, false);
+  assert.equal(electronPackage.build.nsis.allowToChangeInstallationDirectory, true);
+  assert.match(mainSource, /const DATA_ROOT = process\.env\.DSH_DATA_ROOT/);
+  assert.match(mainSource, /path\.join\(os\.homedir\(\), '\.dsh'\)/);
+  assert.match(mainSource, /env\.DSH_RUNTIME_HOME = runtimeHomeOverride/);
+  assert.match(mainSource, /env\.DSH_NPM_PACKAGE_ROOT = path\.join\(SERVER_DIR/);
+  assert.match(packagedAppSmoke, /DSH_SMOKE_DATA_ROOT/);
+  assert.match(windowsAcceptance, /\/D=\$\{installDir\}/);
+  assert.match(windowsAcceptance, /dsh-data-preserved-after-uninstall/);
 });
 
 test('featured-plugin measurement rejects a plugin whose status is not passed', async () => {

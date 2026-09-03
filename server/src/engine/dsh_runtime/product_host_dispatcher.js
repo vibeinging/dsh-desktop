@@ -17,7 +17,11 @@
 // This module is transport-agnostic: it takes the inbound message and returns
 // the outbound message; the DshRuntimeClient owns the actual process.send.
 
+import { randomUUID } from "node:crypto";
+import { basename } from "node:path";
+
 import * as projectsService from "../../app/projects/index.js";
+import { CHAT_PROJECT_ID } from "../../app/projects/access.js";
 import * as sessionService from "../../app/chat/agent_misc.js";
 import {
   createProjectOfficeArtifact,
@@ -39,10 +43,14 @@ import {
   readAppInstructions,
 } from "../../app/agents/app_settings.js";
 import { buildProjectInstructionsMarkdown } from "../agents/workspace_context.js";
+import { bindDshSessionState } from "./session_state.js";
 
 const MAX_ITEMS = 200;
 const DESKTOP_NATIVE_TIMEOUT_MS = 30_000;
 const DESKTOP_FILE_DIALOG_TIMEOUT_MS = 180_000;
+const ANNOUNCED_SESSION_METHODS = new Set([
+  "conversationCreateScope",
+]);
 const DESKTOP_NATIVE_METHODS = new Set([
   "browserWorkspaceGetState",
   "browserWorkspaceSetVisible",
@@ -183,6 +191,194 @@ function randomRequestId() {
   return `native-${process.pid}-${nativeRequestSequence}`;
 }
 
+function parseSessionConfig(value) {
+  if (!value) return {};
+  if (typeof value === "object" && !Array.isArray(value)) return value;
+  try { return JSON.parse(value) || {}; } catch { return {}; }
+}
+
+function distinctIdentity(rows) {
+  const identities = new Map();
+  for (const row of rows) {
+    const projectId = String(row?.project_id || row?.projectId || "").trim();
+    const userId = String(row?.user_id || row?.userId || "").trim();
+    if (!projectId || !userId) continue;
+    identities.set(`${projectId}\u0000${userId}`, { projectId, userId });
+  }
+  return identities.size === 1 ? [...identities.values()][0] : null;
+}
+
+function normalizedIdentities(rows) {
+  const identities = new Map();
+  for (const row of rows) {
+    const projectId = String(row?.project_id || row?.projectId || "").trim();
+    const userId = String(row?.user_id || row?.userId || "").trim();
+    if (!projectId || !userId) continue;
+    identities.set(`${projectId}\u0000${userId}`, { projectId, userId });
+  }
+  return [...identities.values()];
+}
+
+const WORKSPACE_IDENTITY_SQL = `SELECT psf.project_id, pm.user_id
+   FROM project_source_folders psf
+   JOIN projects p ON p.id=psf.project_id AND p.deleted_at IS NULL
+   JOIN project_members pm ON pm.project_id=psf.project_id AND pm.deleted_at IS NULL
+  WHERE psf.local_path=$1 AND psf.deleted_at IS NULL`;
+
+function createNativeWorkspaceIdentity(db, context) {
+  if (typeof db?.transaction !== "function") return null;
+  return db.transaction((tx) => {
+    const current = normalizedIdentities(tx.query(WORKSPACE_IDENTITY_SQL, [context.cwd]));
+    if (current.length > 1) return null;
+    if (current.length === 1) return current[0];
+
+    const users = tx.query(
+      "SELECT id, company_id FROM users WHERE deleted_at IS NULL ORDER BY created_at ASC",
+    );
+    if (users.length !== 1) return null;
+    const userId = String(users[0]?.id || "").trim();
+    const companyId = String(users[0]?.company_id || "").trim();
+    if (!userId || !companyId) return null;
+
+    const projectId = randomUUID();
+    const requestedTitle = String(context.workspaceTitle || "").trim();
+    const folderTitle = basename(context.cwd).trim();
+    const projectTitle = (requestedTitle || folderTitle || context.cwd).slice(0, 100);
+    const displayName = (requestedTitle || folderTitle || projectTitle).slice(0, 160);
+    const adminRole = tx.queryOne(
+      `SELECT id FROM roles
+        WHERE deleted_at IS NULL
+          AND (code='project_admin' OR (is_system=true AND (name LIKE '%管理员%' OR code LIKE '%admin%')))
+        ORDER BY (code='project_admin') DESC, is_system DESC
+        LIMIT 1`,
+    );
+    tx.query(
+      `INSERT INTO projects
+         (id, company_id, name, description, instructions, status, created_at, updated_at)
+       VALUES ($1,$2,$3,NULL,'','active',now(),now())`,
+      [projectId, companyId, projectTitle],
+    );
+    tx.query(
+      `INSERT INTO project_members
+         (id, project_id, user_id, role_id, is_owner, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,true,now(),now())`,
+      [randomUUID(), projectId, userId, adminRole?.id || null],
+    );
+    tx.query(
+      `INSERT INTO project_source_folders
+         (id, project_id, local_path, display_name, access_mode, sort_order, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,'write',0,now(),now())`,
+      [randomUUID(), projectId, context.cwd, displayName],
+    );
+    return { projectId, userId };
+  }, { mode: "immediate" });
+}
+
+async function activeStoredIdentity(db, row) {
+  const projectId = String(row?.project_id || "").trim();
+  const userId = String(row?.created_by || "").trim();
+  if (!projectId || !userId) return null;
+  if (projectId === CHAT_PROJECT_ID) return { projectId, userId };
+  const membership = await db.queryOne(
+    `SELECT p.id
+       FROM projects p
+       JOIN project_members pm ON pm.project_id=p.id
+        AND pm.user_id=$2 AND pm.deleted_at IS NULL
+      WHERE p.id=$1 AND p.deleted_at IS NULL
+      LIMIT 1`,
+    [projectId, userId],
+  ).catch(() => null);
+  return membership ? { projectId, userId } : null;
+}
+
+/** Adopt a native DSH Session only when its Workspace maps to one App identity. */
+export async function adoptNativeDshProductSession(db, context) {
+  const dshSessionId = String(context?.dshSessionId || "").trim();
+  const workspaceId = String(context?.workspaceId || "").trim();
+  const cwd = String(context?.cwd || "").trim();
+  if (!dshSessionId || !workspaceId || !cwd || !db?.query || !db?.queryOne) return null;
+
+  const storedRows = await db.query(
+    `SELECT s.id, s.project_id, s.created_by, s.title, s.session_config
+       FROM sessions s
+      WHERE s.deleted_at IS NULL AND s.session_config IS NOT NULL`,
+  );
+  const parsedRows = storedRows.map((row) => ({ ...row, config: parseSessionConfig(row.session_config) }));
+  const exactRows = parsedRows.filter((row) => String(row.config.dsh_runtime_session_id || "").trim() === dshSessionId);
+  if (exactRows.length > 1) {
+    const error = new Error("同一个 DSH Session 对应多个 App Session，拒绝自动认领");
+    error.code = "DSH_PRODUCT_HOST_IDENTITY_CONFLICT";
+    throw error;
+  }
+  if (exactRows.length === 1) {
+    const row = exactRows[0];
+    const boundCwd = String(row.config.dsh_runtime_cwd || "").trim();
+    const identity = await activeStoredIdentity(db, row);
+    if (!identity || (boundCwd && boundCwd !== cwd)) return null;
+    const title = String(context?.title || "").trim();
+    if (title && title !== String(row.title || "").trim()) {
+      await db.query(
+        "UPDATE sessions SET title=$2, updated_at=now() WHERE id=$1 AND deleted_at IS NULL",
+        [row.id, title],
+      );
+    }
+    const binding = {
+      db,
+      dshSessionId,
+      appSessionId: String(row.id || "").trim(),
+      projectId: identity.projectId,
+      userId: identity.userId,
+      cwd,
+    };
+    bindDshSessionState(binding);
+    return binding;
+  }
+
+  const storedCandidates = [];
+  for (const row of parsedRows) {
+    if (String(row.config.dsh_runtime_cwd || "").trim() !== cwd) continue;
+    const identity = await activeStoredIdentity(db, row);
+    if (identity) storedCandidates.push(identity);
+  }
+  let identity = distinctIdentity(storedCandidates);
+  if (!identity && storedCandidates.length === 0) {
+    const folderCandidates = await db.query(WORKSPACE_IDENTITY_SQL, [cwd]);
+    const folderIdentities = normalizedIdentities(folderCandidates);
+    if (folderIdentities.length > 1) return null;
+    identity = folderIdentities[0] || createNativeWorkspaceIdentity(db, {
+      cwd,
+      workspaceTitle: String(context?.workspaceTitle || "").trim(),
+    });
+  }
+  if (!identity) return null;
+
+  const appSessionId = randomUUID();
+  const title = String(context?.title || "").trim() || "新建对话";
+  const sessionConfig = JSON.stringify({
+    runtime_backend: "dsh",
+    dsh_runtime_session_id: dshSessionId,
+    dsh_runtime_cwd: cwd,
+    dsh_runtime_workspace_id: workspaceId,
+  });
+  await db.query(
+    `INSERT INTO sessions
+       (id, project_id, created_by, title, description, source_type, source_id,
+        action_type, status, message_count, session_config, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,NULL,'agent',$2,'agentic_chat','active',0,$5,now(),now())`,
+    [appSessionId, identity.projectId, identity.userId, title, sessionConfig],
+  );
+  const binding = {
+    db,
+    dshSessionId,
+    appSessionId,
+    projectId: identity.projectId,
+    userId: identity.userId,
+    cwd,
+  };
+  bindDshSessionState(binding);
+  return binding;
+}
+
 /**
  * The business services the dispatcher calls. Held as a mutable registry so
  * tests can inject mocks (ES module exports are read-only at runtime). The
@@ -191,6 +387,14 @@ function randomRequestId() {
 export const services = {
   listProjects: projectsService.listProjects,
   listAgentSessions: sessionService.listAgentSessions,
+  createAgentSession: async (ctx, input) => {
+    const { createSession } = await import("../../app/session/index.js");
+    return createSession(ctx, input);
+  },
+  adoptNativeDshSession: async (context) => {
+    const db = await import("../../db.js");
+    return adoptNativeDshProductSession(db, context);
+  },
   createProjectOfficeArtifact,
   editProjectOfficeArtifact,
   inspectProjectOfficeArtifact,
@@ -218,6 +422,8 @@ export function overrideServices(overrides) {
 const HANDLERS = Object.freeze({
   projectList: handleProjectList,
   conversationList: handleConversationList,
+  conversationCreateScope: handleConversationCreateScope,
+  conversationCreate: handleConversationCreate,
   conversationContext: handleConversationContext,
   capabilitySnapshot: handleCapabilitySnapshot,
   skillList: handleSkillList,
@@ -350,42 +556,82 @@ export const nullProductHostDispatcher = {
 
 /**
  * Session-addressed dispatcher for the process-wide DSH child. Bindings are
- * established only from authorized dsh-work Session rows and remain available
- * across turns and child restarts. Each request selects its binding with the
- * DSH-owned sessionId; userId and projectId never come from the child payload.
+ * established from authorized App Session rows or an unambiguous parent-owned
+ * Workspace mapping and remain available across turns and child restarts. Each
+ * request selects its binding with the DSH-owned sessionId; userId and projectId
+ * never come from the child payload.
  */
-export function createSessionProductHostDispatcher({ nativeHost = createDesktopNativeHostTransport() } = {}) {
+export function createSessionProductHostDispatcher({
+  nativeHost = createDesktopNativeHostTransport(),
+  resolveNativeSessionContext = async () => null,
+} = {}) {
   const bindings = new Map();
   const nativeSessions = new Set();
+  const nativeAdoptions = new Map();
   const inFlight = new Map();
-  return {
-    bind(next) {
-      const dshSessionId = String(next?.dshSessionId || "").trim();
-      const appSessionId = String(next?.appSessionId || "").trim();
-      if (!dshSessionId || !appSessionId || !next?.db) {
-        const error = new Error("注册 DSH ProductHost 绑定需要 dshSessionId、appSessionId 和数据库连接");
-        error.code = "DSH_PRODUCT_HOST_BINDING_INVALID";
-        throw error;
-      }
-      const binding = {
-        db: next.db,
-        dshSessionId,
-        appSessionId,
-        userId: String(next.userId || ""),
-        projectId: String(next.projectId || "").trim() || null,
-      };
-      const current = bindings.get(dshSessionId);
-      if (current && (current.appSessionId !== binding.appSessionId
-        || current.userId !== binding.userId
-        || current.projectId !== binding.projectId)) {
-        const error = new Error("同一个 DSH session 不能改绑到另一项 DSH Desktop 身份");
+  let disposed = false;
+  const bind = (next) => {
+    const dshSessionId = String(next?.dshSessionId || "").trim();
+    const appSessionId = String(next?.appSessionId || "").trim();
+    if (!dshSessionId || !appSessionId || !next?.db) {
+      const error = new Error("注册 DSH ProductHost 绑定需要 dshSessionId、appSessionId 和数据库连接");
+      error.code = "DSH_PRODUCT_HOST_BINDING_INVALID";
+      throw error;
+    }
+    const binding = {
+      db: next.db,
+      dshSessionId,
+      appSessionId,
+      userId: String(next.userId || ""),
+      projectId: String(next.projectId || "").trim() || null,
+    };
+    const current = bindings.get(dshSessionId);
+    if (current && (current.appSessionId !== binding.appSessionId
+      || current.userId !== binding.userId
+      || current.projectId !== binding.projectId)) {
+      const error = new Error("同一个 DSH session 不能改绑到另一项 DSH Desktop 身份");
+      error.code = "DSH_PRODUCT_HOST_IDENTITY_CONFLICT";
+      throw error;
+    }
+    bindings.set(dshSessionId, binding);
+    nativeSessions.delete(dshSessionId);
+    return dshSessionId;
+  };
+  const adoptNative = async (dshSessionId) => {
+    if (disposed) return null;
+    const current = bindings.get(dshSessionId);
+    if (current) return current;
+    if (!nativeSessions.has(dshSessionId)) return null;
+    const running = nativeAdoptions.get(dshSessionId);
+    if (running) return running;
+    const adoption = (async () => {
+      const context = await resolveNativeSessionContext(dshSessionId);
+      if (!context) return null;
+      if (String(context.dshSessionId || "").trim() !== dshSessionId) {
+        const error = new Error("DSH Session 上下文返回了不同的 Session 标识");
         error.code = "DSH_PRODUCT_HOST_IDENTITY_CONFLICT";
         throw error;
       }
-      bindings.set(dshSessionId, binding);
-      nativeSessions.delete(dshSessionId);
-      return dshSessionId;
-    },
+      const binding = await services.adoptNativeDshSession(context);
+      if (!binding) return null;
+      if (String(binding.dshSessionId || "").trim() !== dshSessionId) {
+        const error = new Error("App Session 认领结果与发起请求的 DSH Session 不一致");
+        error.code = "DSH_PRODUCT_HOST_IDENTITY_CONFLICT";
+        throw error;
+      }
+      if (disposed || !nativeSessions.has(dshSessionId)) return null;
+      bind(binding);
+      return bindings.get(dshSessionId) || null;
+    })();
+    nativeAdoptions.set(dshSessionId, adoption);
+    try {
+      return await adoption;
+    } finally {
+      nativeAdoptions.delete(dshSessionId);
+    }
+  };
+  return {
+    bind,
     registerNativeHostSession(dshSessionId) {
       const key = String(dshSessionId || "").trim();
       if (!key || key.length > 160) {
@@ -430,8 +676,18 @@ export function createSessionProductHostDispatcher({ nativeHost = createDesktopN
       if (!handler) {
         return response(id, { ok: false, error: { code: "product-rejected", message: `不支持的 productHost 方法：${method}` } });
       }
-      const binding = bindings.get(dshSessionId);
-      const nativeOnly = !binding && nativeSessions.has(dshSessionId) && DESKTOP_NATIVE_METHODS.has(method);
+      let binding = bindings.get(dshSessionId);
+      if (!binding && nativeSessions.has(dshSessionId) && !DESKTOP_NATIVE_METHODS.has(method)) {
+        try {
+          binding = await adoptNative(dshSessionId);
+        } catch (error) {
+          const code = productErrorCode(error);
+          return response(id, { ok: false, error: { code, message: error?.message || String(error) } });
+        }
+      }
+      const nativeOnly = !binding
+        && nativeSessions.has(dshSessionId)
+        && (ANNOUNCED_SESSION_METHODS.has(method) || DESKTOP_NATIVE_METHODS.has(method));
       if (!binding && !nativeOnly) {
         return response(id, { ok: false, error: { code: "product-unavailable", message: "productHost 没有这个 DSH session 的授权绑定" } });
       }
@@ -444,6 +700,7 @@ export function createSessionProductHostDispatcher({ nativeHost = createDesktopN
           resolveProjectId: binding ? () => binding.projectId || null : () => null,
           resolveAppSessionId: binding ? () => binding.appSessionId : () => null,
           nativeHost,
+          productBound: Boolean(binding),
           sessionId: dshSessionId,
           method,
           payload: message.payload || {},
@@ -464,10 +721,13 @@ export function createSessionProductHostDispatcher({ nativeHost = createDesktopN
       return true;
     },
     async dispose() {
+      disposed = true;
       for (const pending of inFlight.values()) {
         pending.controller.abort(new DOMException("product-host dispatcher disposed", "AbortError"));
       }
       inFlight.clear();
+      await Promise.allSettled(nativeAdoptions.values());
+      nativeAdoptions.clear();
       bindings.clear();
       nativeSessions.clear();
       nativeHost.dispose?.();
@@ -519,6 +779,50 @@ async function handleConversationList({ db, resolveUserId, resolveProjectId, pay
   };
 }
 
+function handleConversationCreateScope({ productBound }) {
+  return { mode: productBound ? "product" : "dsh" };
+}
+
+async function handleConversationCreate({ db, resolveUserId, resolveProjectId, payload }) {
+  const userId = String(resolveUserId?.() || "").trim();
+  const projectId = String(resolveProjectId?.() || "").trim();
+  const title = String(payload?.title || "").trim();
+  if (!userId || !projectId) throw productRejected("conversationCreate 需要活动项目和用户绑定");
+  if (!title) throw productRejected("conversationCreate 需要 title");
+  const agentPreset = String(payload?.agentPreset || "").trim();
+  const ctx = { query: db.query, queryOne: db.queryOne, transaction: db.transaction, userId };
+  const result = await services.createAgentSession(ctx, {
+    params: { pid: projectId },
+    query: {},
+    body: {
+      title,
+      source_type: "agent",
+      source_id: projectId,
+      action_type: "agentic_chat",
+      ...(agentPreset ? { agent_preset: agentPreset } : {}),
+    },
+  });
+  const conversation = result?.data;
+  let sessionConfig = {};
+  try {
+    sessionConfig = typeof conversation?.session_config === "string"
+      ? JSON.parse(conversation.session_config)
+      : (conversation?.session_config || {});
+  } catch {
+    sessionConfig = {};
+  }
+  const dshSessionId = String(sessionConfig.dsh_runtime_session_id || "").trim();
+  const appSessionId = String(conversation?.id || "").trim();
+  if (!appSessionId || !dshSessionId) {
+    throw new Error("conversationCreate 没有返回完整的 App 和 DSH Session 标识");
+  }
+  return {
+    appSessionId,
+    dshSessionId,
+    title: String(conversation?.title || title),
+  };
+}
+
 async function handleConversationContext({
   db,
   resolveUserId,
@@ -544,7 +848,7 @@ async function handleConversationContext({
   }
   const temporary = session.action_type === "temporary_chat" || sessionConfig.temporary === true;
   const appInstructions = await readAppInstructions(db, userId);
-  const projectRow = projectId === "__chat__"
+  const projectRow = projectId === CHAT_PROJECT_ID
     ? null
     : await db.queryOne(
       "SELECT instructions FROM projects WHERE id=$1 AND deleted_at IS NULL LIMIT 1",

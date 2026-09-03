@@ -9,10 +9,11 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { DshProfilePluginService } from "../../server/src/engine/dsh_runtime/profile_plugin_service.js";
+import { fetchOfficialWebHtml } from "./official-web-test-helpers.mjs";
 
 const APP_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const DSH_CLI = resolve(APP_ROOT, "server/node_modules/@deepseek-ai/dsh/lib/bin.js");
-const TASK_BOARD_SOURCE = "@linxin666/dsh-client-ui-task-board@0.2.7";
+const TASK_BOARD_SOURCE = "@linxin666/dsh-client-ui-task-board@0.3.9";
 const requireFromElectron = createRequire(resolve(APP_ROOT, "electron/package.json"));
 const ELECTRON_EXECUTABLE = requireFromElectron("electron");
 const ELECTRON_FIXTURE = resolve(APP_ROOT, "eval/fixtures/official-web-electron.cjs");
@@ -47,7 +48,7 @@ function waitForOfficialSurface(child) {
     const timeout = setTimeout(() => rejectSurface(new Error(`official Web Profile did not start:\n${output}`)), 45_000);
     const inspect = (chunk) => {
       output += chunk.toString();
-      const match = output.match(/dsh web: (http:\/\/127\.0\.0\.1:\d+)/);
+      const match = output.match(/dsh web: (http:\/\/127\.0\.0\.1:\d+\/\?token=[^\s]+)/);
       if (!match) return;
       clearTimeout(timeout);
       resolveSurface(match[1]);
@@ -111,10 +112,7 @@ test("the independent task-board Bundle installs, runs, uninstalls, and restarts
       stdio: ["ignore", "pipe", "pipe"],
     });
     const surface = await waitForOfficialSurface(server);
-    const html = await fetch(surface).then((response) => {
-      assert.equal(response.ok, true);
-      return response.text();
-    });
+    const html = await fetchOfficialWebHtml(surface);
     assert.match(html, /@linxin666\/dsh-client-ui-task-board/);
 
     const electronEnv = {

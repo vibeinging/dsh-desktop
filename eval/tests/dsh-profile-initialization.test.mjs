@@ -61,6 +61,36 @@ function sourceEnvironment(home) {
   };
 }
 
+async function fixedArtifactEnvironment(home, root) {
+  const artifactDir = join(root, "featured-plugins");
+  await mkdir(artifactDir, { recursive: true });
+  const plugins = [];
+  for (const plugin of featuredPlugins()) {
+    const tarball = `${plugin.name.replace(/^@/, "").replaceAll("/", "-")}-0.0.1.tgz`;
+    const content = Buffer.from(`${plugin.name}:current`, "utf8");
+    await writeFile(join(artifactDir, tarball), content);
+    plugins.push({
+      ...plugin,
+      version: "0.0.1",
+      tarball,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    });
+  }
+  await writeFile(join(artifactDir, "manifest.json"), `${JSON.stringify({
+    schema_version: 1,
+    profile: "web",
+    plugins,
+  }, null, 2)}\n`);
+  return {
+    ...process.env,
+    DSH_RUNTIME_DISTRIBUTION: "npm",
+    DSH_FEATURED_PLUGIN_TARBALL_DIR: artifactDir,
+    DSH_FEATURED_PLUGIN_MANIFEST: join(artifactDir, "manifest.json"),
+    DSH_PROFILE_PLUGIN_LIBRARY: join(home, "plugin-library"),
+    DSH_HOME: home,
+  };
+}
+
 test("official plugin commands use DSH Home instead of the application install directory", () => {
   assert.equal(
     dshCommandWorkingDirectory({ root: "/read-only/app/dsh" }, { DSH_HOME: "/user/data/dsh" }),
@@ -293,6 +323,100 @@ test("an existing Profile receives defaults not previously offered without resto
     assert.deepEqual(additions, []);
   } finally {
     await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("an existing managed default moves to a content-addressed tarball without restoring removed defaults", async () => {
+  const root = await mkdtemp(join(tmpdir(), "dsh-profile-content-migration-"));
+  try {
+    const home = join(root, "home");
+    const api = profileApi();
+    const profileDir = api.resolveProfileDir("web", home);
+    await api.initProfile(profileDir, BASE_BUNDLES);
+    const names = featuredPluginNames();
+    const managedName = names[0];
+    const userOwnedName = names[1];
+    const library = join(home, "plugin-library", "tarballs");
+    await mkdir(library, { recursive: true });
+    const oldTarball = join(library, `${managedName.replace(/^@/, "").replaceAll("/", "-")}-0.0.1.tgz`);
+    await writeFile(oldTarball, "old content");
+    const manifestPath = join(profileDir, "package.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.dependencies[managedName] = `file:${oldTarball}`;
+    manifest.dependencies[userOwnedName] = "0.0.1";
+    manifest.dsh.profile.bundles.push(managedName, userOwnedName);
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    await writeFile(join(profileDir, PROFILE_FEATURED_STATE_FILENAME), `${JSON.stringify({
+      schema_version: 1,
+      profile: "web",
+      offered: [...names].sort(),
+    }, null, 2)}\n`);
+    const env = await fixedArtifactEnvironment(home, root);
+    const commands = [];
+    let failAfterManifestWrite = true;
+    const commandRunner = async (_resolved, args) => {
+      commands.push(args);
+      if (args[0] !== "plugin") return;
+      const source = String(args[args.indexOf("-w") + 1]);
+      const current = JSON.parse(await readFile(manifestPath, "utf8"));
+      current.dependencies[managedName] = source;
+      await writeFile(manifestPath, `${JSON.stringify(current, null, 2)}\n`);
+      if (failAfterManifestWrite) throw new Error("simulated install failure");
+    };
+    await assert.rejects(
+      ensureDshProfileInitialized({
+        resolved: { appBootPath: "unused" },
+        dshHome: home,
+        env,
+        appRoot: APP_ROOT,
+        profileApi: api,
+        commandRunner,
+      }),
+      /simulated install failure/,
+    );
+    const failedState = JSON.parse(await readFile(join(profileDir, PROFILE_FEATURED_STATE_FILENAME), "utf8"));
+    assert.equal(failedState.schema_version, 2);
+    assert.deepEqual(failedState.artifacts, {});
+
+    commands.length = 0;
+    failAfterManifestWrite = false;
+    const result = await ensureDshProfileInitialized({
+      resolved: { appBootPath: "unused" },
+      dshHome: home,
+      env,
+      appRoot: APP_ROOT,
+      profileApi: api,
+      commandRunner,
+    });
+    assert.equal(result.migrated, true);
+    assert.deepEqual(result.added, []);
+    assert.deepEqual(result.upgraded, [managedName]);
+    assert.equal(commands.length, 2);
+    assert.equal(commands[0].includes("--force"), true);
+    const migrated = JSON.parse(await readFile(manifestPath, "utf8"));
+    const source = migrated.dependencies[managedName];
+    const artifact = JSON.parse(await readFile(env.DSH_FEATURED_PLUGIN_MANIFEST, "utf8"))
+      .plugins.find((plugin) => plugin.name === managedName);
+    assert.equal(source.endsWith(`-${artifact.sha256}.tgz`), true);
+    assert.equal(migrated.dependencies[userOwnedName], "0.0.1");
+    assert.equal(existsSync(oldTarball), true);
+    for (const removedName of names.slice(2)) {
+      assert.equal(Object.hasOwn(migrated.dependencies, removedName), false);
+    }
+
+    commands.length = 0;
+    const restarted = await ensureDshProfileInitialized({
+      resolved: { appBootPath: "unused" },
+      dshHome: home,
+      env,
+      appRoot: APP_ROOT,
+      profileApi: api,
+      commandRunner,
+    });
+    assert.equal(restarted.migrated, false);
+    assert.deepEqual(commands, []);
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

@@ -82,13 +82,67 @@ function publicModelSummary(model) {
   };
 }
 
+export function dshBaseUrl(apiBase) {
+  const value = String(apiBase || '').trim().replace(/\/+$/u, '');
+  if (!value) throw new Error('当前 PRIMARY 模型缺少 API 地址');
+  return value.replace(/\/chat\/completions$/u, '');
+}
+
+function dshCatalogModel(model) {
+  const supportsImage = model.extra_config?.supports_image_input === true;
+  return {
+    id: model.model_name,
+    name: model.display_name,
+    inputModalities: supportsImage ? ['text', 'image'] : ['text'],
+    ...(supportsImage ? {
+      imagePixelBudget: 640000,
+      imageMaxBytes: 1048576,
+    } : {}),
+  };
+}
+
+async function requireSuccessfulResponse(response, message) {
+  if (response?.status >= 200 && response.status < 300) return response;
+  const detail = response?.json?.message || response?.json?.error || '';
+  throw new Error(`${message}: HTTP ${response?.status || 0}${detail ? ` (${detail})` : ''}`);
+}
+
+async function seedConfiguredDshPrimary(api, primary) {
+  if (primary.api_format !== 'chat_completions') {
+    throw new Error(`当前 PRIMARY 模型 ${primary.model_name} 使用 ${primary.api_format}，新版 DSH 隔离 Eval 只支持 chat_completions`);
+  }
+  if (!String(primary.api_key || '').trim()) {
+    throw new Error(`当前 PRIMARY 模型 ${primary.model_name} 没有可复制的 API 密钥`);
+  }
+
+  await requireSuccessfulResponse(
+    await api('POST', '/api/dsh/models/settings/mutate', {
+      ns: 'llm-deepseek',
+      ops: [
+        { op: 'set', path: ['apiKeyEnv'], value: 'DEEPSEEK_API_KEY' },
+        { op: 'set', path: ['baseURL'], value: dshBaseUrl(primary.api_base) },
+        { op: 'set', path: ['models'], value: [dshCatalogModel(primary)] },
+      ],
+    }),
+    `同步新版 DSH PRIMARY 模型 ${primary.model_name} 失败`,
+  );
+  await requireSuccessfulResponse(
+    await api('POST', '/api/dsh/models/credentials', {
+      ref: 'DEEPSEEK_API_KEY',
+      value: primary.api_key,
+    }),
+    `同步新版 DSH PRIMARY 模型凭据 ${primary.model_name} 失败`,
+  );
+}
+
 export async function seedConfiguredModels(api, {
   sourceDbPath = defaultConfiguredModelSourcePath(),
   models = null,
 } = {}) {
   if (typeof api !== 'function') throw new Error('复制当前模型配置需要可用的 App API');
   const configuredModels = models || readConfiguredModels(sourceDbPath);
-  if (!configuredModels.some((model) => model.category === 'PRIMARY')) {
+  const primary = configuredModels.find((model) => model.category === 'PRIMARY');
+  if (!primary) {
     throw new Error('当前模型配置中没有已启用的 PRIMARY 模型');
   }
 
@@ -101,6 +155,8 @@ export async function seedConfiguredModels(api, {
       throw new Error(`复制 ${model.category} 模型 ${model.model_name} 失败: HTTP ${response?.status || 0}`);
     }
   }
+
+  await seedConfiguredDshPrimary(api, primary);
 
   return {
     source: 'current-local-model-config',

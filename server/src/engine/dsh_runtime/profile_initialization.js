@@ -20,6 +20,7 @@ import { promisify } from "node:util";
 import { pathToFileURL } from "node:url";
 
 import {
+  featuredPluginLibraryTarballName,
   featuredPluginManifest,
   featuredPlugins,
   resolveFeaturedPackageDir,
@@ -76,22 +77,32 @@ function readFeaturedState(profileDir) {
     );
   }
   const offered = state.offered;
-  if (state.schema_version !== 1 || state.profile !== PROFILE_NAME
+  const artifacts = state.schema_version === 2 ? state.artifacts : {};
+  if (![1, 2].includes(state.schema_version) || state.profile !== PROFILE_NAME
     || !Array.isArray(offered)
     || offered.some((name) => typeof name !== "string" || !name.trim())
-    || new Set(offered).size !== offered.length) {
+    || new Set(offered).size !== offered.length
+    || !artifacts || typeof artifacts !== "object" || Array.isArray(artifacts)
+    || Object.entries(artifacts).some(([name, artifact]) => !name.trim()
+      || !artifact || typeof artifact !== "object" || Array.isArray(artifact)
+      || typeof artifact.version !== "string" || !artifact.version.trim()
+      || typeof artifact.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(artifact.sha256))) {
     throw profileError(`默认插件迁移状态无效：${path}`, "DSH_PROFILE_FEATURED_STATE_INVALID");
   }
-  return new Set(offered);
+  return {
+    offered: new Set(offered),
+    artifacts: new Map(Object.entries(artifacts)),
+  };
 }
 
-function writeFeaturedState(profileDir, offered) {
+function writeFeaturedState(profileDir, offered, artifacts = new Map()) {
   const path = featuredStatePath(profileDir);
   const temporary = `${path}.${process.pid}.${Date.now()}.tmp`;
   const state = {
-    schema_version: 1,
+    schema_version: 2,
     profile: PROFILE_NAME,
     offered: [...offered].sort(),
+    artifacts: Object.fromEntries([...artifacts.entries()].sort(([left], [right]) => left.localeCompare(right))),
   };
   try {
     writeFileSync(temporary, `${JSON.stringify(state, null, 2)}\n`, { mode: 0o600 });
@@ -105,21 +116,51 @@ function tarballPrefix(packageName) {
   return `${packageName.replace(/^@/, "").replaceAll("/", "-")}-`;
 }
 
+function dependencyFilePath(spec, profileDir) {
+  if (typeof spec !== "string" || !spec.startsWith("file:")) return null;
+  const path = spec.slice("file:".length);
+  return path ? resolve(profileDir, path) : null;
+}
+
+function isManagedFeaturedTarball(spec, plugin, profileDir, libraryRoot) {
+  const path = dependencyFilePath(spec, profileDir);
+  if (!path || !isWithinPath(join(libraryRoot, "tarballs"), path)) return false;
+  const filename = path.split(/[\\/]/).at(-1) || "";
+  return filename.startsWith(tarballPrefix(plugin.name)) && filename.endsWith(".tgz");
+}
+
+function sameFileDependency(left, right, profileDir) {
+  const leftPath = dependencyFilePath(left, profileDir);
+  const rightPath = dependencyFilePath(right, profileDir);
+  return Boolean(leftPath && rightPath && leftPath === rightPath);
+}
+
 function offeredFeaturedPlugins(profileDir, libraryRoot, manifest) {
   const persisted = readFeaturedState(profileDir);
-  const offered = persisted || new Set();
+  const offered = persisted?.offered || new Set();
+  const artifacts = persisted?.artifacts || new Map();
   const featuredNames = new Set(featuredPlugins().map((plugin) => plugin.name));
   for (const name of Object.keys(manifest.dependencies || {})) {
     if (featuredNames.has(name)) offered.add(name);
   }
-  if (persisted) return offered;
+  if (persisted) return { offered, artifacts };
   const tarballsDir = join(libraryRoot, "tarballs");
   const tarballs = existsSync(tarballsDir) ? readdirSync(tarballsDir) : [];
   for (const name of featuredNames) {
     const prefix = tarballPrefix(name);
     if (tarballs.some((filename) => filename.startsWith(prefix) && filename.endsWith(".tgz"))) offered.add(name);
   }
-  return offered;
+  return { offered, artifacts };
+}
+
+function artifactState(input) {
+  if (!input?.tarball || typeof input.version !== "string" || typeof input.sha256 !== "string") return null;
+  return { version: input.version, sha256: input.sha256 };
+}
+
+function sameArtifactState(state, input) {
+  const expected = artifactState(input);
+  return Boolean(expected && state?.version === expected.version && state?.sha256 === expected.sha256);
 }
 
 function artifactManifest(env) {
@@ -203,7 +244,10 @@ function pluginInputs(env, appRoot) {
 
 function materializeTarball(input, plugin, libraryRoot) {
   if (!input.tarball) return input.source;
-  const filename = String(input.tarballName || input.tarball.split(/[\\/]/).at(-1) || "");
+  const artifactFilename = String(input.tarballName || input.tarball.split(/[\\/]/).at(-1) || "");
+  const filename = input.sha256
+    ? featuredPluginLibraryTarballName(artifactFilename, input.sha256)
+    : artifactFilename;
   if (!/^[A-Za-z0-9._+-]+\.tgz$/.test(filename)) {
     throw profileError(`${plugin.name} 的固定 tarball 文件名无效`, "DSH_FEATURED_PLUGIN_TARBALL_INVALID");
   }
@@ -394,46 +438,75 @@ async function reconcileExistingProfile({
   }
   const manifest = api.readProfileManifest("dsh-work", profileDir);
   const libraryRoot = resolve(env.DSH_PROFILE_PLUGIN_LIBRARY || join(home, "plugin-library"));
-  const offered = offeredFeaturedPlugins(profileDir, libraryRoot, manifest);
-  const candidates = featuredPlugins().filter((plugin) => !offered.has(plugin.name));
-  if (candidates.length === 0) {
-    writeFeaturedState(profileDir, offered);
+  const { offered, artifacts } = offeredFeaturedPlugins(profileDir, libraryRoot, manifest);
+  const plugins = featuredPlugins();
+  const additions = plugins.filter((plugin) => !offered.has(plugin.name));
+  const managedInstalled = plugins.filter((plugin) => offered.has(plugin.name)
+    && isManagedFeaturedTarball(manifest.dependencies?.[plugin.name], plugin, profileDir, libraryRoot));
+  if (additions.length === 0 && managedInstalled.length === 0) {
+    writeFeaturedState(profileDir, offered, artifacts);
     return Object.freeze({ created: false, profileDir, initialized: false, migrated: false });
   }
   if (env.DSH_RUNTIME_DISTRIBUTION === "source" && env.DSH_FEATURED_PLUGIN_ALLOW_SOURCE !== "1") {
     return Object.freeze({ created: false, profileDir, initialized: false });
   }
   const inputsByName = new Map(pluginInputs(env, appRoot).map((input, index) => [
-    featuredPlugins()[index].name,
+    plugins[index].name,
     input,
   ]));
+  const managedReleasePlugins = managedInstalled.filter((plugin) => inputsByName.get(plugin.name)?.tarball);
+  const sourcesByName = new Map([...additions, ...managedReleasePlugins].map((plugin) => [
+    plugin.name,
+    materializeTarball(inputsByName.get(plugin.name), plugin, libraryRoot),
+  ]));
+  const upgrades = managedReleasePlugins.filter((plugin) => (
+    !sameFileDependency(
+      manifest.dependencies?.[plugin.name],
+      sourcesByName.get(plugin.name),
+      profileDir,
+    ) || !sameArtifactState(artifacts.get(plugin.name), inputsByName.get(plugin.name))
+  ));
+  const candidates = [...additions, ...upgrades];
+  if (candidates.length === 0) {
+    writeFeaturedState(profileDir, offered, artifacts);
+    return Object.freeze({ created: false, profileDir, initialized: false, migrated: false });
+  }
   const commandEnv = controlledDshPluginEnvironment({
     ...env,
     DSH_HOME: home,
     pnpm_config_lockfile: "false",
   }, { dshHome: home, libraryRoot });
-  writeFeaturedState(profileDir, offered);
+  writeFeaturedState(profileDir, offered, artifacts);
   const added = [];
+  const upgraded = [];
   for (const plugin of candidates) {
-    const input = inputsByName.get(plugin.name);
-    const source = materializeTarball(input, plugin, libraryRoot);
+    const source = sourcesByName.get(plugin.name);
     await commandRunner(resolved, [
       "plugin", "--profile", PROFILE_NAME, "add", "-w", source,
-      "--save-exact", "--offline", "--ignore-scripts",
+      "--save-exact", "--offline", "--ignore-scripts", "--force",
     ], commandEnv);
-    offered.add(plugin.name);
-    added.push(plugin.name);
+    if (additions.includes(plugin)) {
+      offered.add(plugin.name);
+      added.push(plugin.name);
+    } else {
+      upgraded.push(plugin.name);
+    }
   }
   const migratedManifest = api.readProfileManifest("dsh-work", profileDir);
-  assertInitialProfile(migratedManifest, added);
+  assertInitialProfile(migratedManifest, [...added, ...upgraded]);
   await commandRunner(resolved, ["--profile", PROFILE_NAME, "--dump-config"], commandEnv);
-  writeFeaturedState(profileDir, offered);
+  for (const plugin of candidates) {
+    const state = artifactState(inputsByName.get(plugin.name));
+    if (state) artifacts.set(plugin.name, state);
+  }
+  writeFeaturedState(profileDir, offered, artifacts);
   return Object.freeze({
     created: false,
     profileDir,
     initialized: false,
-    migrated: added.length > 0,
+    migrated: added.length > 0 || upgraded.length > 0,
     added: Object.freeze(added),
+    upgraded: Object.freeze(upgraded),
   });
 }
 
@@ -478,8 +551,12 @@ async function initializeUnlocked({
   }, { dshHome: stagingHome, libraryRoot });
   try {
     const stagingProfileDir = profilePath(api, stagingHome);
-    const template = api.PROFILE_TEMPLATES?.web || api.DEFAULT_PROFILE_BUNDLES || OFFICIAL_PROFILE_BUNDLES;
-    await api.initProfile(stagingProfileDir, template);
+    const profileTemplate = api.PROFILE_TEMPLATES?.web;
+    const templateBundles = Array.isArray(profileTemplate)
+      ? profileTemplate
+      : profileTemplate?.bundles || api.DEFAULT_PROFILE_BUNDLES || OFFICIAL_PROFILE_BUNDLES;
+    const templatePatchReload = Array.isArray(profileTemplate) ? undefined : profileTemplate?.patchReload;
+    await api.initProfile(stagingProfileDir, templateBundles, templatePatchReload);
     if (env.DSH_PROFILE_INITIALIZATION_MODE !== "safe") {
       for (const source of sources) {
         await commandRunner(resolved, [
@@ -499,6 +576,10 @@ async function initializeUnlocked({
     writeFeaturedState(
       stagingProfileDir,
       env.DSH_PROFILE_INITIALIZATION_MODE === "safe" ? [] : featuredPlugins().map((plugin) => plugin.name),
+      new Map(inputs.flatMap((input, index) => {
+        const state = artifactState(input);
+        return state ? [[featuredPlugins()[index].name, state]] : [];
+      })),
     );
     mkdirSync(dirname(finalProfileDir), { recursive: true });
     if (existsSync(finalManifestPath) || existsSync(finalProfileDir)) {

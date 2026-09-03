@@ -52,7 +52,7 @@ export default {
       assert.ok(String(bundle.answer?.text || '').includes('真实查询返回 2 行'), '证据包保存最终答案快照');
       assert.ok(/^sha256:[a-f0-9]{64}$/.test(String(bundle.answer?.text_hash || '')), '最终答案有不可变指纹');
       assert.ok(/^sha256:[a-f0-9]{64}$/.test(String(bundle.snapshot_hash || '')), '完整证据包有不可变指纹');
-      assert.eq(bundle.metadata?.environment_snapshot_ref?.version, 'agent_run_environment.v2', '证据包绑定运行环境快照合同');
+      assert.eq(bundle.metadata?.environment_snapshot_ref?.version, 'agent_run_environment.v3', '证据包绑定运行环境快照合同');
       assert.ok(/^sha256:[a-f0-9]{64}$/.test(String(bundle.metadata?.environment_snapshot_ref?.snapshot_hash || '')), '证据包绑定运行环境指纹');
       assert.eq(bundle.evidence?.[0]?.produced_by, 'data_source_executor', '证据包保留真实执行器证据');
       assert.ok(String(bundle.evidence?.[0]?.statement?.text || '').includes(imported.table), '证据包保留实际执行 SQL');

@@ -33,39 +33,38 @@ export default {
       },
       {
         id: 'shell.legacy-hidden',
-        description: '旧入口统一回到主窗口且不挂载旧页面',
+        description: '旧入口不再挂载旧页面',
         evidence: ['ui'],
       },
     ],
   },
   async run({ driver, assert }) {
-    const pid = await driver.ensureProjectRecord('smoke-eval');
-    assert.ok(!!pid, '可创建或选择项目', { criterion: 'project.available' });
+    const created = await driver.raw.officialRpc('workspace.create', { path: process.cwd() });
+    const workspaceId = created?.workspace?.workspaceId || created?.workspaceId;
+    assert.ok(!!workspaceId, '可创建或选择项目', { criterion: 'project.available' });
 
-    // 首次引导有独立用例；本用例只判定主窗口交互，避免异步弹窗遮挡输入框。
-    await driver.raw.ev(`
-      localStorage.setItem('dsh:onboarding:completed:v1', 'true');
-      return true;
-    `);
-    await driver.ui.goto('/agent');
-    await driver.ui.waitUntil(
-      `() => !document.querySelector('[aria-labelledby="dsh-onboarding-title"]')`,
-      { timeout: 5000, label: '主窗口没有首次引导遮挡' },
-    );
-    await driver.ui.waitFor('[data-testid="agent-message-input"]', { timeout: 15000 });
+    const composer = '[data-composer-input][contenteditable="true"]';
+    await driver.ui.goto('/');
+    await driver.raw.dismissOfficialModelPrompt();
+    await driver.ui.click('button[aria-label="新建会话"],button[aria-label="New session"]', { timeout: 15000 });
+    await driver.ui.waitFor(composer, { timeout: 15000 });
     assert.ok(
-      await driver.ui.exists('[data-testid="agent-message-input"]'),
+      await driver.ui.exists(composer),
       'app 主界面输入框可用',
       { criterion: 'shell.input-ready' },
     );
     const marker = `EVAL_INPUT_${Date.now().toString(36)}`;
-    await driver.ui.fill('[data-testid="agent-message-input"]', marker);
+    await driver.ui.click(composer);
+    await driver.raw.ev(`document.querySelector(${JSON.stringify(composer)})?.focus(); return true;`);
+    await driver.ui.typeText(marker);
     const typed = await driver.ui.waitUntil(
-      `() => document.querySelector('[data-testid="agent-message-input"]')?.value === ${JSON.stringify(marker)}`,
+      `() => document.querySelector(${JSON.stringify(composer)})?.textContent?.includes(${JSON.stringify(marker)})`,
       { timeout: 5000, label: '消息输入框接收真实键盘输入' },
     );
     assert.ok(typed, '真实鼠标和键盘可以填写消息', { criterion: 'shell.input-interactive' });
-    await driver.ui.fill('[data-testid="agent-message-input"]', '');
+    await driver.raw.ev(`document.querySelector(${JSON.stringify(composer)})?.focus(); return true;`);
+    await driver.ui.press(process.platform === 'darwin' ? 'Meta+A' : 'Ctrl+A');
+    await driver.ui.press('Backspace');
     assert.eq(
       await driver.ui.exists('#Sidebar'),
       false,
@@ -73,15 +72,14 @@ export default {
       { criterion: 'shell.legacy-hidden' },
     );
 
-    for (const path of ['/projects', '/database', `/project/${pid}/settings`, '/dashboard']) {
+    for (const path of ['/projects', '/database', `/project/${workspaceId}/settings`, '/dashboard']) {
       await driver.ui.goto(path);
-      await driver.ui.waitUntil(
-        `() => location.pathname === '/agent'`,
-        { timeout: 15000, label: `旧入口 ${path} 回到 app 主界面` },
-      );
       assert.eq(await driver.ui.exists('#Sidebar'), false, `${path} 不应显示旧侧边栏`, { criterion: 'shell.legacy-hidden' });
       assert.eq(await driver.ui.exists('[data-testid="database-page"]'), false, `${path} 不应显示旧数据库页`, { criterion: 'shell.legacy-hidden' });
       assert.eq(await driver.ui.exists('[data-testid="project-page"]'), false, `${path} 不应显示旧项目页`, { criterion: 'shell.legacy-hidden' });
     }
+    await driver.ui.goto('/');
+    await driver.ui.waitFor(composer, { timeout: 15000 });
+    assert.ok(await driver.ui.exists(composer), '旧入口检查后可返回 app 主界面', { criterion: 'shell.input-ready' });
   },
 };
