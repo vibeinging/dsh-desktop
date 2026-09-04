@@ -21,7 +21,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-product-host-ipc",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -84,7 +84,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-desktop-profile-host",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -134,7 +134,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-desktop-chrome",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -183,7 +183,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-project-tools",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -235,7 +235,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-canvas-tools",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -287,7 +287,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-structured-ui-tools",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -337,7 +337,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-model-inheritance",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -389,7 +389,7 @@
         "entry": "src/index.js",
         "patch_id": "product-bridge",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -440,7 +440,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-work-office-tools",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -491,7 +491,7 @@
         "entry": "src/index.js",
         "patch_id": "dsh-worktree",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "cordis": "^4.0.1"
         },
         "lifecycle_scripts": [],
@@ -600,7 +600,7 @@
         "source_entry": "src/index.ts",
         "patch_id": "ui-task-board",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "declared_dsh_sdk": ">=0.1.2-alpha.1",
           "cordis": "^4.0.1"
         },
@@ -707,7 +707,7 @@
         "source_entry": "dist/index.js",
         "patch_id": "ds-harness-remote",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "declared_peer_sdk": ">=0.1.1-rc.2 <0.1.2 || >=0.1.2-alpha.1 <0.2.0",
           "reviewed_upstream_commit": "814a0dd45f1c971995c0cc93319fdced20c69749",
           "cordis": ">=4.0.1 <5"
@@ -816,7 +816,7 @@
         "source_entry": "lib/index.js",
         "patch_id": "community-multimedia-webui-input",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "reviewed_upstream_commit": "028dc1f8dc9c7f963e714013b36adc4f48d88c2a",
           "cordis": "^4.0.1"
         },
@@ -941,7 +941,7 @@
         "source_entry": "src/index.ts",
         "patch_id": "better-sidebar",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "declared_peer_sdk": "^0.1.2-alpha.2",
           "cordis": "^4.0.1"
         },
@@ -1087,7 +1087,7 @@
         "source_entry": "src/index.ts",
         "patch_id": "dsh-market",
         "compatibility": {
-          "dsh_sdk": "0.1.2-alpha.4",
+          "dsh_sdk": "0.1.2-rc.1",
           "declared_settings_sdk": "^0.1.0-rc.7",
           "cordis": "^4.0.1"
         },

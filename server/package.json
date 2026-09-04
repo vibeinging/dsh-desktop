@@ -80,7 +80,7 @@
     "fast-uri": "^3.1.5"
   },
   "allowScripts": {
-    "@deepseek-ai/dsh-subprocess-local@0.1.2-alpha.4": true,
+    "@deepseek-ai/dsh-subprocess-local@0.1.2-rc.1": true,
     "node-pty@1.2.0-beta.15": true
   },
   "devDependencies": {
