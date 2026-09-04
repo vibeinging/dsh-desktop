@@ -23,17 +23,7 @@
 
 DSH Desktop (Bundle Edition) is a community-maintained desktop distribution. It runs the official [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) npm runtime and `dsh-web-app` directly, with a curated set of pinned community Bundles. There is no second Chat implementation or separate plugin database to maintain: the app starts from one official DSH Profile.
 
-<p align="center">
-  <a href="https://dshdesktopstation.com/"><strong>Website</strong></a>
-  &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="https://github.com/vibeinging/dsh-desktop/releases/latest"><strong>Download the latest release</strong></a>
-  &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="https://dshdesktopstation.com/en/remote/"><strong>Mobile remote</strong></a>
-  &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="#getting-started">Get started</a>
-  &nbsp;&nbsp;·&nbsp;&nbsp;
-  <a href="#installing-more-plugins">Install plugins</a>
-</p>
+[Website](https://dshdesktopstation.com/) · [Download the latest release](https://github.com/vibeinging/dsh-desktop/releases/latest) · [Mobile remote](https://dshdesktopstation.com/en/remote/) · [Get started](#getting-started) · [Install plugins](#installing-more-plugins)
 
 ## Download
 
@@ -112,29 +102,35 @@ The market uses the official settings Slot. It neither replaces settings nor cre
 
 Create an isolated Worktree from the active Session directory and open an official Session for the new workspace.
 
-### Optional: skin center
+## Bundled by default: mobile remote access
 
-![DSH Desktop running the Blue Fantasy dark skin from the skin center](docs/images/readme/dsh-skin-blue-fantasy-applied.png)
+New Profiles include the exactly pinned [`ds-harness-remote@0.4.1`](https://github.com/liguobao/ds-harness-remote/tree/v0.4.1), shipped alongside the DSH `0.1.2-rc.1` trial line. Open Remote in the sidebar, sign in, and enable remote access for this computer. You can then use [Remote Web](https://dsh.r2049.cn/app), the Android app, or another Desktop to open the same Host Workspaces and Sessions, continue conversations, send images, and respond to permission requests.
 
-The app keeps the official Web look by default. For a personalized interface, install the community-maintained [skin center](https://github.com/zhu1090093659/dsh-web) (`@linxin666/dsh-client-ui-skin-center`) from the plugin market: dozens of skins can be tried instantly, applied to disk, and reverted to the official look at any time.
-
-```bash
-dsh plugin --profile web add @linxin666/dsh-client-ui-skin-center
-```
-
-Skin assets carry their own upstream licenses (some CC BY-NC-SA or including character copyrights), so the skin center is not bundled by default; users opt in via the plugin market.
-
-### Bundled by default: mobile remote access
-
-New Profiles include the exactly pinned [`ds-harness-remote@0.4.1`](https://github.com/liguobao/ds-harness-remote/tree/v0.4.1), while the current trial line uses DSH `0.1.2-rc.1`. Although the upstream `0.4.1` peer range includes alpha releases, it still calls a Settings helper removed in alpha.2. The desktop package therefore applies a SHA-256-bound compatibility projection to that fixed tarball without modifying official DSH or the upstream repository source. Existing Profiles receive this new default once after an upgrade; disabling or removing it prevents later app updates from restoring it. Open Remote in the sidebar, sign in, and enable remote access for this computer. You can then use [Remote Web](https://dsh.r2049.cn/app), the Android app, or another Desktop to open the same Host Workspaces and Sessions, continue conversations, send images, and respond to permission requests.
-
-Special thanks to [DeepSeek Harness Remote Web](https://dsh.r2049.cn/app) for providing the remote entry point and supporting services currently available to the community, allowing DSH Desktop users to continue working from a phone or browser.
+- **Network boundary**: the Host creates outbound connections only and opens no public listening port; Remote tries LAN, P2P, TURN, and Relay in order, and every path carries Noise IK encrypted application traffic.
+- **Account and data**: the default currently uses the third-party `dsh.r2049.cn` account, device directory, signaling, and relay service; device identity and credentials stay under `DSH_HOME`. Remote access is unavailable until you sign in and enable the current computer.
+- **Authorized devices**: they control the Harness through a fixed API allowlist while the Agent can still run tools under its normal permissions; no direct Shell, PTY, or general file RPC is exposed.
+- **Removal**: existing Profiles receive this default once after an upgrade; disabling or removing it prevents later app updates from restoring it.
 
 ```bash
 dsh plugin --profile web remove ds-harness-remote
 ```
 
-The Host creates outbound connections only and opens no public listening port. Remote tries LAN, P2P, TURN, and Relay in order; every path carries Noise IK encrypted application traffic. The default currently uses the third-party `dsh.r2049.cn` account, device directory, signaling, and relay service. Remote access is unavailable until the user signs in and enables the current computer. Authorized devices can control the Harness through a fixed API allowlist, while the Agent can still run tools under the Host's normal permissions. The project does not yet provide a supported self-hosted Server, and its independent cryptographic review, real cross-network two-device coverage, and long-running stability validation remain incomplete. Remove the Bundle if remote access is not needed.
+> The project does not yet provide a supported self-hosted Server, and its independent cryptographic review, real cross-network two-device coverage, and long-running stability validation remain incomplete. Remove the Bundle if remote access is not needed. The desktop package applies a SHA-256-bound compatibility projection to that fixed tarball without modifying official DSH or the upstream repository source. See the [remote access guide](https://dshdesktopstation.com/remote/) for connection, security, and removal details.
+
+Special thanks to [DeepSeek Harness Remote Web](https://dsh.r2049.cn/app) for providing the remote entry point and supporting services currently available to the community, allowing DSH Desktop users to continue working from a phone or browser.
+
+## Bundled by default: conversation window teams
+
+New Profiles include [`@vibeinging/dsh-session-teams@0.1.1`](https://github.com/vibeinging/dsh-session-teams). It lets DSH conversation windows collaborate directly:
+
+- **Message another window**: tell the current window "hand this to `window name`", and the message lands as a real DSH message in the target window — visible there, durable, and clickable back to its source.
+- **Make a window the captain**: create a set of role windows, assign them tasks and dependencies, let members report back as real messages, and adjust work in plain language without tracking IDs.
+
+All team and window state is read and written through the official Session API in the current Profile; the plugin opens no external network connections. Remove it when not needed:
+
+```bash
+dsh plugin --profile web remove @vibeinging/dsh-session-teams
+```
 
 ## Why this route
 
@@ -172,6 +168,18 @@ dsh plugin --profile web remove <package>
 
 A plugin that follows the official DSH Bundle and `dshClient` contracts does not need a DSH Desktop rewrite. Plugins that require windows, native dialogs, or Browser Workspace must explicitly use the narrow desktop Host and report missing capabilities in other hosts.
 
+### Optional example: skin center
+
+![DSH Desktop running the Blue Fantasy dark skin from the skin center](docs/images/readme/dsh-skin-blue-fantasy-applied.png)
+
+The app keeps the official Web look by default. For a personalized interface, install the community-maintained [skin center](https://github.com/zhu1090093659/dsh-web) (`@linxin666/dsh-client-ui-skin-center`) from the plugin market: dozens of skins can be tried instantly, applied to disk, and reverted to the official look at any time.
+
+```bash
+dsh plugin --profile web add @linxin666/dsh-client-ui-skin-center
+```
+
+Skin assets carry their own upstream licenses (some CC BY-NC-SA or including character copyrights), so the skin center is not bundled by default; users opt in via the plugin market.
+
 ### Default plugins
 
 New Profiles include Better Sidebar, dshmarket, the task board, attachment input, Git Worktree, mobile remote access, session window teams, project tools, Canvas, Office output, structured results, and model inheritance. Every manageable Bundle can be disabled or removed.
@@ -192,7 +200,7 @@ New Profiles include Better Sidebar, dshmarket, the task board, attachment input
 | `@vibeinging/dsh-product-bridge` | desktop-adapter | product-host | `dsh plugin --profile web remove @vibeinging/dsh-product-bridge` | [local package](packages/dsh-product-bridge) |
 | `@vibeinging/dsh-office-tools` | desktop-adapter | office-artifact-host | `dsh plugin --profile web remove @vibeinging/dsh-office-tools` | [local package](packages/dsh-office-tools) |
 | `@vibeinging/dsh-client-ui-worktree` | portable | no Host permission | `dsh plugin --profile web remove @vibeinging/dsh-client-ui-worktree` | [local package](packages/dsh-worktree) |
-| `@linxin666/dsh-client-ui-task-board` | portable | read current DSH Session, Workspace, and completion history, write task ledger and run records under DSH_HOME, start DSH Session tasks from user actions or Host cron, optionally start a fixed cross-platform sleep-prevention helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [upstream repository](https://github.com/zhu1090093659/dsh-web-ui) |
+| `@linxin666/dsh-client-ui-task-board` | portable | read current DSH Session, Workspace, and completion history, write task ledger and run records under DSH_HOME, start DSH Session tasks from user actions or Host cron, optionally start a fixed cross-platform sleep-prevention helper | `dsh plugin --profile web remove @linxin666/dsh-client-ui-task-board` | [upstream repository](https://github.com/zhu1090093659/dsh-web) |
 | `ds-harness-remote` | portable | connect to the external dsh.r2049.cn account, device directory, signaling, TURN, and Relay services, allow authorized Web, Android, or Desktop devices on the same account to read and control the current Harness Workspace, Session, models, permissions, settings, and credential writes, store long-lived X25519 device identity keys and device credentials under DSH_HOME, serve remote requests through a fixed Harness API allowlist without direct Shell, PTY, or general file RPC; the Harness Agent can still run tools under its normal permissions | `dsh plugin --profile web remove ds-harness-remote` | [upstream repository](https://github.com/liguobao/ds-harness-remote) |
 | `dsh-multimedia-webui-input` | portable | read files and folders explicitly selected by the user, write attachments under .dsh/tmp/attachments in the active Session workspace, remove only plugin-owned attachment directories after a second user confirmation | `dsh plugin --profile web remove dsh-multimedia-webui-input` | [upstream repository](https://github.com/LCYLYM/dsh-attachments) |
 | `dsh-better-sidebar` | portable | read, search, create, modify, and delete files in the current Session workspace, run Git operations in the current Session workspace, start and stop local terminal processes; model-facing terminal tools are disabled by default, open user-entered web pages or external editors and receive files explicitly uploaded by the user, when enabled by the user, register the sidebar_open model tool to open workspace files, folders, or HTTP(S) pages in the current Session sidebar; disabled by default | `dsh plugin --profile web remove dsh-better-sidebar` | [upstream repository](https://github.com/omdsh-dev/DSH-better-sidebar) |
@@ -251,8 +259,8 @@ DSH Desktop chooses one official Web interface, one official Profile authority, 
 | [Cordis](https://github.com/cordiverse/cordis) | Plugin foundation |
 | [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | Default workspace sidebar, editor, Git, and terminal |
 | [dsh-market](https://github.com/dsh-market/dsh-market) | Default plugin market |
-| [dsh-web-ui](https://github.com/zhu1090093659/dsh-web-ui) | Upstream community repository for the default task board |
-| [dsh-web](https://github.com/zhu1090093659/dsh-web) | Upstream community ecosystem package for the skin center and task board (Apache-2.0) |
+| [dsh-session-teams](https://github.com/vibeinging/dsh-session-teams) | Default conversation window teams Bundle (maintained here, `@vibeinging/dsh-session-teams`) |
+| [dsh-web](https://github.com/zhu1090093659/dsh-web) | Upstream community ecosystem repository for the task board and skin center (Apache-2.0) |
 | [dshfind](https://www.dshfind.com/zh) | DSH learning, sharing, and plugin discovery community |
 
 ## Relationship to DeepSeek Harness

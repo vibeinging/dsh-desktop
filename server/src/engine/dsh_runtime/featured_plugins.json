@@ -538,7 +538,7 @@
     {
       "name": "@linxin666/dsh-client-ui-task-board",
       "package_path": "server/node_modules/@linxin666/dsh-client-ui-task-board",
-      "repository": "https://github.com/zhu1090093659/dsh-web-ui",
+      "repository": "https://github.com/zhu1090093659/dsh-web",
       "default": true,
       "user_manageable": true,
       "portability": "portable",
