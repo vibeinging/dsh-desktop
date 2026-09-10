@@ -1156,7 +1156,7 @@
         "release_source": "fixed-tarball",
         "package_spec": "@vibeinging/dsh-session-teams@0.1.2",
         "package_version": "0.1.2",
-        "package_integrity": "sha512-B+a8lBLM8GvnbKqoApK9jESBq9zVeXoKwx4NXBupShHqe+Uagor3DpxAw4eVgc8C/4sH54AXq+lDHgD6f6oUKw==",
+        "package_integrity": "sha512-N7mE8HJZHdw1rx/78WJmjr9j0pATHzOzC73ALR2ApP5yBRCsIFCsbuPKB6rFzgt2ubnnoo4dN/7PxhGqAdztpg==",
         "declared_license": "BSD-3-Clause",
         "license_path": "server/node_modules/@vibeinging/dsh-session-teams/LICENSE",
         "license_sha256": "ba47b75495bca290478d9ad1ed1d3a8deb87ef72fb366a5357529ef8fe1e0617",
@@ -1166,22 +1166,22 @@
         },
         "release_peer_dependencies": {
           "@deepseek-ai/cordis": "4.0.2",
-          "@deepseek-ai/dsh-agent": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-api-session-controller": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-client-locale": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-client-ui-chat": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-client-ui-conversation": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-client-ui-renderer": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-client-ui-session": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-client-ui-slots": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-llm": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-session": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-session-persistence": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-session-projection": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-session-title": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-system-prompt": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-tools": "0.1.2-rc.1",
-          "@deepseek-ai/dsh-workspace": "0.1.2-rc.1",
+          "@deepseek-ai/dsh-agent": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-api-session-controller": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-client-locale": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-client-ui-chat": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-client-ui-conversation": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-client-ui-renderer": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-client-ui-session": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-client-ui-slots": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-llm": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-session": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-session-persistence": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-session-projection": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-session-title": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-system-prompt": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-tools": "0.1.5-rc.1",
+          "@deepseek-ai/dsh-workspace": "0.1.5-rc.1",
           "react": "^18.2.0"
         },
         "offline_dependencies": [],
@@ -1192,7 +1192,7 @@
         "patch_id": "session-teams",
         "compatibility": {
           "dsh_sdk": "0.1.5-rc.1",
-          "declared_peer_sdk": "0.1.2-rc.1",
+          "declared_peer_sdk": "0.1.5-rc.1",
           "cordis": "4.0.2"
         },
         "lifecycle_scripts": [],
@@ -1226,7 +1226,8 @@
             "electron/scripts/smoke-packaged-featured-plugins.mjs"
           ]
         },
-        "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, Client activation, and cold Web start"
+        "cost_measurement": "bundled dependency closure, per-plugin tarball, Profile storage, Client activation, and cold Web start",
+        "source_dependency_kind": "devDependency"
       }
     }
   ]

@@ -352,9 +352,11 @@ export class DshRuntimeClient extends EventEmitter {
     if (resolved.launch === "cli") {
       launchPath = NPM_RUNTIME_CHILD_PATH;
       childEnv.DSH_CLI_ENTRY_PATH = resolved.entryPath;
-      // DSH 0.1.5 auto-opens the default browser on `web`; the desktop app
-      // renders the surface in its own window, so suppress the browser.
-      launchArgs = ["web", "--no-open", "--patch", CLIENT_PATCH_PATH];
+      // DSH 0.1.5's launcher parses its own flags first and hands everything
+      // after the profile token to the booted app, so --patch must precede the
+      // profile; --no-open is the web app's own flag and suppresses the
+      // auto-opened browser (the desktop app renders the surface itself).
+      launchArgs = ["--patch", CLIENT_PATCH_PATH, "--profile", "web", "--no-open"];
     }
     const child = this.spawn(launchPath, launchArgs, {
       execPath: process.execPath,

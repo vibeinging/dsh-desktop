@@ -721,7 +721,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         permissions: ["读取当前 DSH Session、Workspace 与完成历史", "在 DSH_HOME 写入任务账本和执行记录", "按用户操作或 Host cron 启动 DSH Session 任务", "可选启动固定的跨平台防休眠 helper"],
         native_dependencies: [],
         install_scripts: [],
-        review_note_zh: "作为独立 Bundle 内置，不安装聚合包；0.3.9 原生声明 DSH >=0.1.5-rc.1，并改用 Typert Gateway 与 Workspace Registry。Host 侧持有任务账本、cron 调度和默认关闭的防休眠 helper，不创建 Electron 启停器、插件市场或通用原生桥。",
+        review_note_zh: "作为独立 Bundle 内置，不安装聚合包；0.3.9 原生声明 DSH >=0.1.2-alpha.1，并改用 Typert Gateway 与 Workspace Registry。Host 侧持有任务账本、cron 调度和默认关闭的防休眠 helper，不创建 Electron 启停器、插件市场或通用原生桥。",
         priority: 21,
       },
     );
@@ -818,7 +818,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         compatibility: "sdk-migration-required",
         checked_at: "2026-08-16",
         checked_commit: "5d4628929aa2695cab7b4534670c0ca3c9cd7652",
-        preflight_blocker: "Two DSH SDK dependency ranges do not match the exact 0.1.5-rc.1 release line.",
+        preflight_blocker: "Two DSH SDK dependency ranges do not match the exact 0.1.2-alpha.4 release line.",
       }, {
         id: "distill",
         stars: 19,

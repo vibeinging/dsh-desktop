@@ -84,6 +84,7 @@
     "node-pty@1.2.0-beta.15": true
   },
   "devDependencies": {
-    "dsh-better-sidebar": "0.19.0"
+    "dsh-better-sidebar": "0.19.0",
+    "@vibeinging/dsh-session-teams": "0.1.2"
   }
 }
