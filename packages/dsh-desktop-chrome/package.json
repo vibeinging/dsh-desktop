@@ -28,7 +28,9 @@
   "dshWork": {
     "portability": {
       "level": "desktop-adapter",
-      "surfaces": ["dsh-desktop"],
+      "surfaces": [
+        "dsh-desktop"
+      ],
       "hostRequirements": [],
       "compatibilityTest": "eval/tests/dsh-desktop-chrome.test.mjs"
     }
@@ -45,6 +47,6 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-client-ui-theme": "^0.1.2-alpha.4"
+    "@deepseek-ai/dsh-client-ui-theme": "0.1.5-rc.1"
   }
 }

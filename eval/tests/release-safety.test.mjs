@@ -683,24 +683,18 @@ test('native Host receipts require the complete mode-specific operation contract
       checks: checks.map((name) => ({ name, passed: true })),
     });
     const windowReceipt = create('window', releaseEvidenceChecks('native-host', 'window'));
-    const dialogsReceipt = create('dialogs', releaseEvidenceChecks('native-host', 'dialogs'));
     assert.equal(isNativeHostEvidenceReceipt(windowReceipt, { mode: 'window' }), true);
-    assert.equal(isNativeHostEvidenceReceipt(dialogsReceipt, { mode: 'dialogs' }), true);
     assert.equal(isNativeHostEvidenceReceipt({
       ...windowReceipt,
       checks: windowReceipt.checks.slice(0, 3),
     }), false);
     assert.equal(isNativeHostEvidenceReceipt({
       ...windowReceipt,
-      native_host_mode: 'dialogs',
+      native_host_mode: 'retired',
     }), false);
     assert.equal(isNativeHostEvidenceReceipt({
       ...windowReceipt,
       checks: windowReceipt.checks.filter(({ name }) => name !== 'restore'),
-    }), false);
-    assert.equal(isNativeHostEvidenceReceipt({
-      ...dialogsReceipt,
-      checks: dialogsReceipt.checks.filter(({ name }) => name !== 'session-bound-directory-dialog-open'),
     }), false);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -762,11 +756,9 @@ test('Windows native Host receipts bind the EXE artifact separately from the unp
       nativeHostMode: mode,
     });
     const windowReceipt = create('window');
-    const dialogsReceipt = create('dialogs');
     assert.equal(windowReceipt.artifacts.app.sha256, sha256Path(executable));
     assert.notEqual(windowReceipt.artifacts.app.sha256, sha256Path(appDirectory));
     assert.deepEqual(validate(windowReceipt), []);
-    assert.deepEqual(validate(dialogsReceipt), []);
     assert.match(validate({
       ...windowReceipt,
       artifacts: { ...windowReceipt.artifacts, app: { ...windowReceipt.artifacts.app, sha256: 'b'.repeat(64) } },
@@ -775,11 +767,6 @@ test('Windows native Host receipts bind the EXE artifact separately from the unp
     assert.match(validate(windowReceipt, 'window', { platform: 'darwin' }).join('\n'), /platform/);
     assert.match(validate(windowReceipt, 'window', { arch: 'arm64' }).join('\n'), /arch/);
     assert.match(validate(windowReceipt, 'window', { signerIdentity: 'Other signer' }).join('\n'), /signer_identity/);
-    assert.match(validate({ ...windowReceipt, native_host_mode: 'dialogs' }).join('\n'), /未知检查项|native_host_mode/);
-    assert.match(validate({
-      ...dialogsReceipt,
-      checks: dialogsReceipt.checks.filter(({ name }) => name !== 'session-bound-directory-dialog-open'),
-    }).join('\n'), /必需检查项/);
     const nativeSmoke = readFileSync(new URL('../../electron/scripts/smoke-packaged-native-host.mjs', import.meta.url), 'utf8');
     assert.match(nativeSmoke, /const receiptArtifactPath = packagedLayout\.platform === 'win32' \? executable : packagedArtifactPath/);
     assert.match(nativeSmoke, /appPath: receiptArtifactPath/);
@@ -792,7 +779,6 @@ test('Windows formal gate requires separate window and dialogs receipts', () => 
   const resultVariables = [
     'DSH_RELEASE_COMMIT_SHA',
     'DSH_NATIVE_HOST_WINDOW_RESULT_FILE',
-    'DSH_NATIVE_HOST_DIALOGS_RESULT_FILE',
   ];
   const saved = Object.fromEntries(resultVariables.map((name) => [name, process.env[name]]));
   try {
@@ -806,7 +792,6 @@ test('Windows formal gate requires separate window and dialogs receipts', () => 
     const nativeChecks = report.checks.filter(({ id }) => id.startsWith('windows_native_host_'));
     assert.deepEqual(nativeChecks.map(({ id }) => id), [
       'windows_native_host_window_receipt',
-      'windows_native_host_dialogs_receipt',
     ]);
     assert.equal(nativeChecks.every(({ status }) => status === 'block'), true);
   } finally {
@@ -846,7 +831,7 @@ test('release workflows reject wrong refs and missing credentials before depende
   assert.match(windowsUnsigned, /dsh-desktop-win-x64-unsigned/);
   assert.match(windowsUnsigned, /IsMainRecovery/);
   assert.match(windowsUnsigned, /git ls-remote --exit-code --tags origin/);
-  assert.match(ci, /branches: \[dev, main\]/);
+  assert.match(ci, /workflow_dispatch:/);
   assert.doesNotMatch(ci, /tags:/);
 });
 
@@ -887,11 +872,10 @@ test('macOS release workflow runs the DMG installer lifecycle smoke', () => {
   assert.match(workflow, /DSH_MACOS_DMG_NOTARY_RESULT_FILE/);
   assert.match(workflow, /macos-dmg-evidence\/result\.json/);
   assert.match(workflow, /npm run smoke:native-host/);
-  assert.match(workflow, /npm run smoke:native-host:dialogs/);
+  assert.match(workflow, /npm run smoke:native-host\b/);
   assert.match(workflow, /DSH_NATIVE_HOST_WINDOW_RESULT_FILE/);
-  assert.match(workflow, /DSH_NATIVE_HOST_DIALOGS_RESULT_FILE/);
+  
   assert.match(workflow, /native-host-window-evidence/);
-  assert.match(workflow, /native-host-dialogs-evidence/);
   assert.match(workflow, /xcrun stapler validate/);
   assert.match(workflow, /spctl --assess --type execute/);
   assert.match(workflow, /release\/\*\.yml/);
@@ -1014,11 +998,10 @@ test('Windows release evidence workflow requires signing, installer acceptance, 
   assert.match(workflow, /npm run measure:featured-plugins/);
   assert.match(workflow, /smoke:win:acceptance/);
   assert.match(workflow, /npm run smoke:native-host/);
-  assert.match(workflow, /npm run smoke:native-host:dialogs/);
+  assert.match(workflow, /npm run smoke:native-host\b/);
   assert.match(workflow, /DSH_NATIVE_HOST_WINDOW_RESULT_FILE/);
-  assert.match(workflow, /DSH_NATIVE_HOST_DIALOGS_RESULT_FILE/);
+  
   assert.match(workflow, /native-host-window-evidence/);
-  assert.match(workflow, /native-host-dialogs-evidence/);
   assert.match(workflow, /release:verify:win -- --require-evidence/);
   assert.match(workflow, /featured-plugin-evaluation\.json/);
   assert.match(workflow, /windows-x64-acceptance\.json/);

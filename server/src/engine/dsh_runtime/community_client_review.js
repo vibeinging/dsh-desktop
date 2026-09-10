@@ -108,7 +108,7 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
     version: "0.4.1",
     bundlePatch: "./cordis.patch.yml",
     dependencies: HARNESS_REMOTE_DEPENDENCIES,
-    requiredDshRuntime: "0.1.2-rc.1",
+    requiredDshRuntime: "0.1.5-rc.1",
     integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
     review: Object.freeze({
       session: "同一 Remote 账号下的已授权设备可通过固定白名单读取并控制 Host 的 Workspace、Session、模型、权限、设置与凭据写入；移除设备后连接和凭据失效",

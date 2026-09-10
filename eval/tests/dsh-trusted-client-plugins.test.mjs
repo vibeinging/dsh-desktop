@@ -203,7 +203,7 @@ test("only audited community Client releases may enter the product Client graph"
   });
   const remotePolicy = reviewedCommunityClientPolicy("ds-harness-remote");
   assert.equal(remotePolicy.version, "0.4.1");
-  assert.equal(remotePolicy.requiredDshRuntime, "0.1.2-rc.1");
+  assert.equal(remotePolicy.requiredDshRuntime, "0.1.5-rc.1");
   assert.equal(isReviewedCommunityClient({
     name: "ds-harness-remote",
     manifest: {
@@ -580,8 +580,8 @@ test("Better Sidebar is pinned with its complete native and editor dependency cl
   const dependencies = resolveFeaturedOfflineDependencies(plugin, { appRoot: APP_ROOT, lockfile: serverLockfile });
   const licenseDependencies = resolveFeaturedLicenseDependencies(plugin, { appRoot: APP_ROOT, lockfile: serverLockfile });
   assert.equal(serverPackage.dependencies[plugin.name], undefined);
-  assert.equal(serverPackage.devDependencies[plugin.name], "0.18.0-alpha.0");
-  assert.equal(serverLockfile.packages[""]?.devDependencies?.[plugin.name], "0.18.0-alpha.0");
+  assert.equal(serverPackage.devDependencies[plugin.name], "0.19.0");
+  assert.equal(serverLockfile.packages[""]?.devDependencies?.[plugin.name], "0.19.0");
   assert.equal(serverLockfile.packages[`node_modules/${plugin.name}`]?.dev, true);
   assert.equal(plugin.evidence.offline_dependency_resolution, "package-lock-closure");
   assert.deepEqual(plugin.evidence.release_dependencies, {
@@ -606,12 +606,12 @@ test("Better Sidebar is pinned with its complete native and editor dependency cl
   assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
   const releaseManifest = projectFeaturedRegistryManifest(plugin, packageJson);
   assert.deepEqual(releaseManifest.dependencies, plugin.evidence.release_dependencies);
-  assert.equal(releaseManifest.peerDependencies["@deepseek-ai/dsh-session"], "^0.1.2-alpha.2");
-  assert.equal(releaseManifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.1");
+  assert.equal(releaseManifest.peerDependencies["@deepseek-ai/dsh-session"], "^0.1.5-rc.1");
+  assert.equal(releaseManifest.peerDependencies["@deepseek-ai/cordis"], "^4.0.2");
   assert.equal(releaseManifest.peerDependencies.cordis, undefined);
   assert.equal(releaseManifest.peerDependencies["@huanlin/dsh-plugin-better-locale"], "^0.1.0");
   assert.deepEqual(releaseManifest.peerDependenciesMeta["@huanlin/dsh-plugin-better-locale"], { optional: true });
-  assert.equal(packageJson.peerDependencies["@deepseek-ai/dsh-session"], "^0.1.2-alpha.2");
+  assert.equal(packageJson.peerDependencies["@deepseek-ai/dsh-session"], "^0.1.5-rc.1");
   assert.equal(packageJson.peerDependencies.cordis, undefined);
   const hostSource = readFileSync(join(packageDir, plugin.evidence.entry), "utf8");
   assert.doesNotThrow(() => validateFeaturedRegistryReleaseDependencies(plugin, hostSource));

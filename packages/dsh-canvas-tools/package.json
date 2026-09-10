@@ -22,8 +22,12 @@
   "dshWork": {
     "portability": {
       "level": "desktop-adapter",
-      "surfaces": ["dsh-desktop"],
-      "hostRequirements": ["product-host"]
+      "surfaces": [
+        "dsh-desktop"
+      ],
+      "hostRequirements": [
+        "product-host"
+      ]
     }
   },
   "files": [
@@ -34,12 +38,12 @@
   "license": "BSD-3-Clause",
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "^0.1.2-alpha.4",
-    "@deepseek-ai/dsh-tools": "^0.1.2-alpha.4"
+    "@deepseek-ai/dsh-agent": "0.1.5-rc.1",
+    "@deepseek-ai/dsh-tools": "0.1.5-rc.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "^0.1.2-alpha.4",
-    "@deepseek-ai/dsh-tools": "^0.1.2-alpha.4"
+    "@deepseek-ai/dsh-agent": "0.1.5-rc.1",
+    "@deepseek-ai/dsh-tools": "0.1.5-rc.1"
   }
 }

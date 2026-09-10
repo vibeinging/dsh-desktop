@@ -22,7 +22,10 @@
   "dshWork": {
     "portability": {
       "level": "portable",
-      "surfaces": ["official-web", "dsh-desktop"],
+      "surfaces": [
+        "official-web",
+        "dsh-desktop"
+      ],
       "hostRequirements": [],
       "compatibilityTest": "eval/tests/dsh-official-web-plugin-compat.test.mjs"
     }
@@ -35,12 +38,12 @@
   "license": "BSD-3-Clause",
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "^0.1.2-alpha.4",
-    "@deepseek-ai/dsh-invariants": "^0.1.2-alpha.4"
+    "@deepseek-ai/dsh-agent": "0.1.5-rc.1",
+    "@deepseek-ai/dsh-invariants": "0.1.5-rc.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "^0.1.2-alpha.4",
-    "@deepseek-ai/dsh-invariants": "^0.1.2-alpha.4"
+    "@deepseek-ai/dsh-agent": "0.1.5-rc.1",
+    "@deepseek-ai/dsh-invariants": "0.1.5-rc.1"
   }
 }

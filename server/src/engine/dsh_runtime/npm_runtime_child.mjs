@@ -26,7 +26,10 @@ export async function runNpmRuntimeChild(environment = process.env) {
   const entryPath = String(environment.DSH_CLI_ENTRY_PATH || "").trim();
   if (!entryPath) throw new Error("缺少 DSH_CLI_ENTRY_PATH");
   registerProfileModuleLoader(environment);
-  await import(npmRuntimeEntryUrl(entryPath));
+  const entry = await import(npmRuntimeEntryUrl(entryPath));
+  // Since DSH 0.1.5 the CLI entry only self-runs as the process main module
+  // (import.meta.main) and exports runCli for embedded launchers like this one.
+  if (typeof entry.runCli === "function") await entry.runCli();
 }
 
 const invokedScript = process.argv[1] ? resolve(process.argv[1]) : "";

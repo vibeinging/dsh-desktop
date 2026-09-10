@@ -28,7 +28,10 @@
   "dshWork": {
     "portability": {
       "level": "portable",
-      "surfaces": ["official-web", "dsh-desktop"],
+      "surfaces": [
+        "official-web",
+        "dsh-desktop"
+      ],
       "hostRequirements": [],
       "compatibilityTest": "eval/tests/dsh-work-references.test.mjs"
     }
@@ -45,6 +48,6 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-client-ui-input-trigger": "^0.1.2-alpha.4"
+    "@deepseek-ai/dsh-client-ui-input-trigger": "0.1.5-rc.1"
   }
 }

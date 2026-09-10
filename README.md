@@ -13,7 +13,7 @@
   <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
   <a href="https://dshfind.com/zh/plugins/vibeinging/dsh-desktop?ref=badge"><img src="https://dshfind.com/api/badge/vibeinging/dsh-desktop?lang=zh" alt="dshfind"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/DSH-0.1.2--rc.1-7C3AED?style=flat" alt="DSH 0.1.2-rc.1">
+  <img src="https://img.shields.io/badge/DSH-0.1.5--rc.1-7C3AED?style=flat" alt="DSH 0.1.5-rc.1">
   <img src="https://img.shields.io/badge/plugins-Profile%20Bundles-2563EB?style=flat" alt="Profile Bundles">
 </p>
 
@@ -104,7 +104,7 @@ DSH Desktop（插件集成版 / Bundle Edition）是一个社区维护的桌面�
 
 ## 默认内置：手机远程
 
-新 Profile 默认包含精确固定的 [`ds-harness-remote@0.4.1`](https://github.com/liguobao/ds-harness-remote/tree/v0.4.1)，与 DSH `0.1.2-rc.1` 试用线一起随包提供。打开侧栏 Remote，登录并为当前电脑启用远程访问后，就可以从 [Remote Web](https://dsh.r2049.cn/app)、Android App 或另一台 Desktop 打开同一 Host 的 Workspace 和 Session，继续对话、发送图片和处理权限请求。
+新 Profile 默认包含精确固定的 [`ds-harness-remote@0.4.1`](https://github.com/liguobao/ds-harness-remote/tree/v0.4.1)，与 DSH `0.1.5-rc.1` 试用线一起随包提供。打开侧栏 Remote，登录并为当前电脑启用远程访问后，就可以从 [Remote Web](https://dsh.r2049.cn/app)、Android App 或另一台 Desktop 打开同一 Host 的 Workspace 和 Session，继续对话、发送图片和处理权限请求。
 
 - **网络边界**：Host 只建立出站连接，不开放公网监听端口；Remote 依次尝试 LAN、P2P、TURN 与 Relay，所有路径都承载 Noise IK 加密后的业务流量。
 - **账号与数据**：当前默认连接 `dsh.r2049.cn` 的第三方账号、设备目录、信令和中继服务；设备身份与凭据保存在 `DSH_HOME`。未登录并启用当前电脑时不会提供远程访问。

@@ -133,9 +133,9 @@ test("Profile Bundle compatibility separates Host, Session, capabilities, and Cl
     name: "@example/mixed-plugin",
     dsh: { client: { platform: "web" } },
     peerDependencies: {
-      "@deepseek-ai/dsh-agent": "^0.1.2-alpha.4",
-      "@deepseek-ai/dsh-tools": "^0.1.2-alpha.4",
-      "@deepseek-ai/dsh-mcp-client": "^0.1.2-alpha.4",
+      "@deepseek-ai/dsh-agent": "^0.1.5-rc.1",
+      "@deepseek-ai/dsh-tools": "^0.1.5-rc.1",
+      "@deepseek-ai/dsh-mcp-client": "^0.1.5-rc.1",
     },
   }).map(({ id, status }) => ({ id, status })), [
     { id: "host", status: "profile_checked" },
@@ -266,14 +266,14 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
     name: "@example/current",
     peerDependencies: {
       "@deepseek-ai/cordis": "^4.0.2",
-      "@deepseek-ai/dsh-tools": "^0.1.2-alpha.4",
+      "@deepseek-ai/dsh-tools": "^0.1.5-rc.1",
     },
   }));
   assert.doesNotThrow(() => validateProfileBundleSdk({
     name: "@example/current-compatible-prerelease-range",
     peerDependencies: {
-      "@deepseek-ai/dsh-agent": "^0.1.2-alpha.1",
-      "@deepseek-ai/dsh-commands": "^0.1.2-alpha.1",
+      "@deepseek-ai/dsh-agent": "^0.1.5-rc.1",
+      "@deepseek-ai/dsh-commands": "^0.1.5-rc.1",
     },
   }));
   assert.doesNotThrow(() => validateProfileBundleSdk({
@@ -287,8 +287,8 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
     },
     peerDependencies: {
       "@deepseek-ai/cordis": ">=4.0.1 <5",
-      "@deepseek-ai/dsh-api-gateway": ">=0.1.1-rc.2 <0.1.2 || >=0.1.2-alpha.1 <0.2.0",
-      "@deepseek-ai/dsh-settings": ">=0.1.0-rc.6 <0.1.2 || >=0.1.2-alpha.1 <0.2.0",
+      "@deepseek-ai/dsh-api-gateway": ">=0.1.1-rc.2 <0.1.2 || >=0.1.5-rc.1 <0.2.0",
+      "@deepseek-ai/dsh-settings": ">=0.1.0-rc.6 <0.1.2 || >=0.1.5-rc.1 <0.2.0",
     },
     dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
   }));
@@ -304,7 +304,7 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
     name: "@example/current-with-optional-legacy-peer",
     peerDependencies: {
       "@deepseek-ai/cordis": "^4.0.2",
-      "@deepseek-ai/dsh-tools": "^0.1.2-alpha.4",
+      "@deepseek-ai/dsh-tools": "^0.1.5-rc.1",
       cordis: "^4.0.0-rc.7",
     },
     peerDependenciesMeta: { cordis: { optional: true } },
@@ -344,7 +344,7 @@ test("community plugin manifests report every current DSH migration blocker", ()
     },
     {
       code: "DSH_PROFILE_LEGACY_SDK",
-      message: "dsh-better-sidebar 有 1 个 DSH SDK 包不属于当前 0.1.2-rc.1 发布线",
+      message: "dsh-better-sidebar 有 1 个 DSH SDK 包不属于当前 0.1.5-rc.1 发布线",
     },
   ]);
   assert.deepEqual(inspectProfileBundleManifest({
@@ -371,7 +371,7 @@ test("current DSH browser plugins declare one verifiable client bundle", () => {
     exports: { "./client": { default: "./lib/client.js" } },
     peerDependencies: {
       "@deepseek-ai/cordis": "^4.0.2",
-      "@deepseek-ai/dsh-client-ui-slots": "^0.1.2-alpha.4",
+      "@deepseek-ai/dsh-client-ui-slots": "^0.1.5-rc.1",
     },
   }), []);
   assert.deepEqual(inspectProfileBundleManifest({
@@ -421,7 +421,7 @@ test("community dsh.client Bundles stay out of the privileged Electron renderer"
     integrity: "sha512-vuPCcZfBgJijpVyNpb9VJgSuIB+7Zo+4RsZiDN3m6We3T7uekDcr1FlbcB4+xNKFCnxaJKCKb1ROBCoXbyCfbQ==",
   }), [{
     code: "DSH_PROFILE_CLIENT_SDK_MISMATCH",
-    message: "@linxin666/dsh-chat-recovery@0.2.5 需要 DSH 0.1.0-rc.8，当前发行版固定为 0.1.2-rc.1",
+    message: "@linxin666/dsh-chat-recovery@0.2.5 需要 DSH 0.1.0-rc.8，当前发行版固定为 0.1.5-rc.1",
   }]);
   assert.equal(inspectCommunityClientIsolation({
     name: "@linxin666/dsh-client-ui-task-board",
@@ -721,7 +721,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         permissions: ["读取当前 DSH Session、Workspace 与完成历史", "在 DSH_HOME 写入任务账本和执行记录", "按用户操作或 Host cron 启动 DSH Session 任务", "可选启动固定的跨平台防休眠 helper"],
         native_dependencies: [],
         install_scripts: [],
-        review_note_zh: "作为独立 Bundle 内置，不安装聚合包；0.3.9 原生声明 DSH >=0.1.2-alpha.1，并改用 Typert Gateway 与 Workspace Registry。Host 侧持有任务账本、cron 调度和默认关闭的防休眠 helper，不创建 Electron 启停器、插件市场或通用原生桥。",
+        review_note_zh: "作为独立 Bundle 内置，不安装聚合包；0.3.9 原生声明 DSH >=0.1.5-rc.1，并改用 Typert Gateway 与 Workspace Registry。Host 侧持有任务账本、cron 调度和默认关闭的防休眠 helper，不创建 Electron 启停器、插件市场或通用原生桥。",
         priority: 21,
       },
     );
@@ -818,7 +818,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         compatibility: "sdk-migration-required",
         checked_at: "2026-08-16",
         checked_commit: "5d4628929aa2695cab7b4534670c0ca3c9cd7652",
-        preflight_blocker: "Two DSH SDK dependency ranges do not match the exact 0.1.2-alpha.4 release line.",
+        preflight_blocker: "Two DSH SDK dependency ranges do not match the exact 0.1.5-rc.1 release line.",
       }, {
         id: "distill",
         stars: 19,

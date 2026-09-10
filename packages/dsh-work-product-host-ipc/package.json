@@ -22,8 +22,15 @@
   "dshWork": {
     "portability": {
       "level": "desktop-adapter",
-      "surfaces": ["dsh-desktop"],
-      "hostRequirements": ["dsh-work-parent-ipc", "browser-workspace-host", "file-dialog-host", "window-host"]
+      "surfaces": [
+        "dsh-desktop"
+      ],
+      "hostRequirements": [
+        "dsh-work-parent-ipc",
+        "browser-workspace-host",
+        "file-dialog-host",
+        "window-host"
+      ]
     }
   },
   "files": [
@@ -34,10 +41,10 @@
   "license": "BSD-3-Clause",
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-host-webserver": "^0.1.2-alpha.4"
+    "@deepseek-ai/dsh-host-webserver": "0.1.5-rc.1"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-host-webserver": "^0.1.2-alpha.4"
+    "@deepseek-ai/dsh-host-webserver": "0.1.5-rc.1"
   }
 }

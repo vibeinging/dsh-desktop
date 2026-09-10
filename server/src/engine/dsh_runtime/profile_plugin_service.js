@@ -35,7 +35,7 @@ const DSH_WORK_HOST_COMPONENTS = new Map([
   ["sites", "dsh-work/sites"],
 ]);
 const DSH_WORK_HOST_ICONS = new Set(["archive", "dashboard", "file", "terminal", "world"]);
-const CURRENT_DSH_SDK_VERSION = "0.1.2-rc.1";
+const CURRENT_DSH_SDK_VERSION = "0.1.5-rc.1";
 const CURRENT_CORDIS_VERSION = "4.0.2";
 const COMMUNITY_PLUGIN_REGISTRY = readJson(new URL("./community_plugin_registry.json", import.meta.url));
 const EXACT_REGISTRY_SPEC = /^(?<name>(?:@[a-z0-9._~-]+\/)?[a-z0-9._~-]+)@(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/;

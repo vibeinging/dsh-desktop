@@ -13,7 +13,7 @@
   <a href="https://github.com/vibeinging/dsh-desktop"><img src="https://img.shields.io/github/stars/vibeinging/dsh-desktop?style=flat&amp;label=stars&amp;color=2563EB" alt="GitHub stars"></a>
   <a href="https://dshfind.com/en/plugins/vibeinging/dsh-desktop?ref=badge"><img src="https://dshfind.com/api/badge/vibeinging/dsh-desktop?lang=en" alt="dshfind"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2EA44F?style=flat" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/DSH-0.1.2--rc.1-7C3AED?style=flat" alt="DSH 0.1.2-rc.1">
+  <img src="https://img.shields.io/badge/DSH-0.1.5--rc.1-7C3AED?style=flat" alt="DSH 0.1.5-rc.1">
   <img src="https://img.shields.io/badge/plugins-Profile%20Bundles-2563EB?style=flat" alt="Profile Bundles">
 </p>
 
@@ -104,7 +104,7 @@ Create an isolated Worktree from the active Session directory and open an offici
 
 ## Bundled by default: mobile remote access
 
-New Profiles include the exactly pinned [`ds-harness-remote@0.4.1`](https://github.com/liguobao/ds-harness-remote/tree/v0.4.1), shipped alongside the DSH `0.1.2-rc.1` trial line. Open Remote in the sidebar, sign in, and enable remote access for this computer. You can then use [Remote Web](https://dsh.r2049.cn/app), the Android app, or another Desktop to open the same Host Workspaces and Sessions, continue conversations, send images, and respond to permission requests.
+New Profiles include the exactly pinned [`ds-harness-remote@0.4.1`](https://github.com/liguobao/ds-harness-remote/tree/v0.4.1), shipped alongside the DSH `0.1.5-rc.1` trial line. Open Remote in the sidebar, sign in, and enable remote access for this computer. You can then use [Remote Web](https://dsh.r2049.cn/app), the Android app, or another Desktop to open the same Host Workspaces and Sessions, continue conversations, send images, and respond to permission requests.
 
 - **Network boundary**: the Host creates outbound connections only and opens no public listening port; Remote tries LAN, P2P, TURN, and Relay in order, and every path carries Noise IK encrypted application traffic.
 - **Account and data**: the default currently uses the third-party `dsh.r2049.cn` account, device directory, signaling, and relay service; device identity and credentials stay under `DSH_HOME`. Remote access is unavailable until you sign in and enable the current computer.
