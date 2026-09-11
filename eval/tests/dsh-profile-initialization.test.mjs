@@ -326,7 +326,7 @@ test("an existing Profile receives defaults not previously offered without resto
   }
 });
 
-test("an existing managed default moves to a content-addressed tarball without restoring removed defaults", async () => {
+test("existing managed defaults (tarball or registry pins) move to content-addressed tarballs without restoring removed defaults", async () => {
   const root = await mkdtemp(join(tmpdir(), "dsh-profile-content-migration-"));
   try {
     const home = join(root, "home");
@@ -354,12 +354,16 @@ test("an existing managed default moves to a content-addressed tarball without r
     const env = await fixedArtifactEnvironment(home, root);
     const commands = [];
     let failAfterManifestWrite = true;
+    const artifactManifest = () => readFile(env.DSH_FEATURED_PLUGIN_MANIFEST, "utf8")
+      .then((text) => JSON.parse(text));
     const commandRunner = async (_resolved, args) => {
       commands.push(args);
       if (args[0] !== "plugin") return;
       const source = String(args[args.indexOf("-w") + 1]);
+      const artifact = (await artifactManifest()).plugins
+        .find((plugin) => source.endsWith(`-${plugin.sha256}.tgz`));
       const current = JSON.parse(await readFile(manifestPath, "utf8"));
-      current.dependencies[managedName] = source;
+      current.dependencies[artifact.name] = source;
       await writeFile(manifestPath, `${JSON.stringify(current, null, 2)}\n`);
       if (failAfterManifestWrite) throw new Error("simulated install failure");
     };
@@ -390,15 +394,15 @@ test("an existing managed default moves to a content-addressed tarball without r
     });
     assert.equal(result.migrated, true);
     assert.deepEqual(result.added, []);
-    assert.deepEqual(result.upgraded, [managedName]);
-    assert.equal(commands.length, 2);
+    assert.deepEqual([...result.upgraded].sort(), [managedName, userOwnedName].sort());
+    assert.equal(commands.length, 3);
     assert.equal(commands[0].includes("--force"), true);
     const migrated = JSON.parse(await readFile(manifestPath, "utf8"));
-    const source = migrated.dependencies[managedName];
-    const artifact = JSON.parse(await readFile(env.DSH_FEATURED_PLUGIN_MANIFEST, "utf8"))
-      .plugins.find((plugin) => plugin.name === managedName);
-    assert.equal(source.endsWith(`-${artifact.sha256}.tgz`), true);
-    assert.equal(migrated.dependencies[userOwnedName], "0.0.1");
+    const artifactList = JSON.parse(await readFile(env.DSH_FEATURED_PLUGIN_MANIFEST, "utf8")).plugins;
+    for (const name of [managedName, userOwnedName]) {
+      const artifact = artifactList.find((plugin) => plugin.name === name);
+      assert.equal(migrated.dependencies[name].endsWith(`-${artifact.sha256}.tgz`), true);
+    }
     assert.equal(existsSync(oldTarball), true);
     for (const removedName of names.slice(2)) {
       assert.equal(Object.hasOwn(migrated.dependencies, removedName), false);

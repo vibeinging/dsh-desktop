@@ -129,6 +129,20 @@ function isManagedFeaturedTarball(spec, plugin, profileDir, libraryRoot) {
   return filename.startsWith(tarballPrefix(plugin.name)) && filename.endsWith(".tgz");
 }
 
+/**
+ * Registry version pins (for example "0.1.1") are also featured-managed.
+ * Without this recognition an existing Profile keeps a stale registry pin
+ * forever — upgrades only re-point file: tarball pins — so a featured plugin
+ * shipped through npm stays on its old version across releases even when the
+ * manifest moved on, and the stale version can crash a newer runtime.
+ */
+function isManagedFeaturedRegistryPin(spec, plugin) {
+  return typeof spec === "string"
+    && spec.trim() !== ""
+    && !spec.startsWith("file:")
+    && spec.trim() !== plugin.evidence.package_version;
+}
+
 function sameFileDependency(left, right, profileDir) {
   const leftPath = dependencyFilePath(left, profileDir);
   const rightPath = dependencyFilePath(right, profileDir);
@@ -442,7 +456,8 @@ async function reconcileExistingProfile({
   const plugins = featuredPlugins();
   const additions = plugins.filter((plugin) => !offered.has(plugin.name));
   const managedInstalled = plugins.filter((plugin) => offered.has(plugin.name)
-    && isManagedFeaturedTarball(manifest.dependencies?.[plugin.name], plugin, profileDir, libraryRoot));
+    && (isManagedFeaturedTarball(manifest.dependencies?.[plugin.name], plugin, profileDir, libraryRoot)
+      || isManagedFeaturedRegistryPin(manifest.dependencies?.[plugin.name], plugin)));
   if (additions.length === 0 && managedInstalled.length === 0) {
     writeFeaturedState(profileDir, offered, artifacts);
     return Object.freeze({ created: false, profileDir, initialized: false, migrated: false });

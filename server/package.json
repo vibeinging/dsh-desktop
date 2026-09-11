@@ -1,7 +1,7 @@
 {
   "name": "@dsh/server",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "license": "MIT",
   "type": "module",
   "description": "\u684c\u9762\u7248\u672c\u5730\u540e\u7aef:\u670d\u52a1 app/renderer \u7684\u672c\u5730 API \u4e0e Agent/\u6570\u636e\u5f15\u64ce\u3002",

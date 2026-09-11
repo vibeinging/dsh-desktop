@@ -1,7 +1,7 @@
 {
   "name": "dsh-desktop",
   "productName": "DSH Desktop",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "license": "MIT",
   "description": "DSH Desktop\uff0c\u57fa\u4e8e DeepSeek Harness \u548c Electron \u6784\u5efa\u7684\u793e\u533a\u684c\u9762\u5e94\u7528",
   "author": "vibeinging",
