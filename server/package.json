@@ -52,7 +52,7 @@
     "@pdf-lib/fontkit": "1.1.1",
     "@vibeinging/dsh-session-teams": "0.1.1",
     "@vscode/ripgrep": "^1.18.0",
-    "@xmldom/xmldom": "0.8.13",
+    "@xmldom/xmldom": "0.8.15",
     "@yitrace/db": "0.1.8",
     "better-sqlite3": "^12.11.1",
     "docx": "9.6.1",
