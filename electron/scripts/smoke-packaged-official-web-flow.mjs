@@ -717,7 +717,7 @@ try {
     }
     output.push(`[smoke] INFO 问题/审批/队列请求链已由本地 fake DeepSeek 驱动; queue_screenshot=${queuedScreenshot}; question_screenshot=${questionScreenshot}; approval_screenshot=${approvalScreenshot}`)
   }
-  await waitFor(`['Session log', 'Session 日志', '会话日志'].some((label) => (document.body.innerText || '').includes(label))`, 'Session log')
+  await waitFor(`['Session log', 'Session 日志', '会话日志', '轨迹', 'Trajectory'].some((label) => (document.body.innerText || '').includes(label))`, 'Session log')
 
   const smokeSession = await findSmokeSession()
   const session = smokeSession.session
