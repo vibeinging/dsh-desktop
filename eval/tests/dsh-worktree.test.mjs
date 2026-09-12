@@ -69,7 +69,7 @@ test("the Worktree Bundle is an additive official Web plugin", () => {
   assert.match(packagedSmoke, /dsh-worktree-view/);
   assert.match(packagedSmoke, /feature\/worktree-preview/);
   assert.match(electronMain, /DSH_SMOKE_WORKSPACE_PATH/);
-  assert.match(electronMain, /method: 'workspace\/create'/);
+  assert.match(electronMain, /method: 'workspace\.create'/);
   assert.doesNotMatch(`${host}\n${client}`, /electronAPI|ipcRenderer|productHost|renderer\/src|querySelector/);
 });
 
