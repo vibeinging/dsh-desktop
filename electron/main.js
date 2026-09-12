@@ -172,6 +172,388 @@ async function smokeSmartAttachmentPicker(win) {
   })()`);
 }
 
+function getUserDataPath() {
+  if (process.platform === 'darwin') {
+    return path.join(os.homedir(), 'Library', 'Application Support', USER_DATA_DIR_NAME);
+  }
+  if (process.platform === 'win32') {
+    return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), USER_DATA_DIR_NAME);
+  }
+  return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config'), USER_DATA_DIR_NAME);
+}
+
+app.setName(APP_DISPLAY_NAME);
+app.setPath('userData', process.env.DSH_USER_DATA_DIR ? path.resolve(process.env.DSH_USER_DATA_DIR) : getUserDataPath());
+const rendererSurfacePort = loadOrCreateRendererSurfacePort({ userDataPath: app.getPath('userData') });
+
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) app.quit();
+
+let mainWindow = null;
+let backendProc = null;
+let backendState = 'stopped';
+let backendReadyPromise = null;
+let backendReadyResolve = null;
+let backendReadyReject = null;
+let backendReadyTimer = null;
+let backendShutdownResolve = null;
+let backendStopPromise = null;
+let backendRestartAttempts = 0;
+let backendStableTimer = null;
+let rendererSurfaceUrl = null;
+let integratedDesktopChrome = false;
+let runtimeHomeOverride = DATA_ROOT;
+let profileInitializationMode = 'normal';
+let mainWindowKind = 'official-web';
+let recoveryActionInFlight = false;
+let isQuitting = false;
+let allowFinalQuit = false;
+let closePromptOpen = false;
+let browserWorkspace = null;
+const pending = new Map(); // id → {handle,fail,timer}: route backend messages by id
+let reqSeq = 0;
+let appUpdateController = null;
+let appUpdateView = null;
+const CLOSE_BEHAVIOR_VALUES = new Set(['ask', 'minimize', 'quit']);
+
+const BROWSER_NATIVE_DECISIONS = new Set(['allow_once', 'allow_always', 'deny_always', 'deny']);
+
+function nativePayloadObject(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw Object.assign(new Error('Native Host 请求参数必须是对象'), { code: 'desktop-native-rejected' });
+  }
+  return payload;
+}
+
+function nativeOptionalString(payload, key, maxLength = 4096) {
+  const value = payload?.[key];
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string' || value.length > maxLength) {
+    throw Object.assign(new Error(`Native Host 参数 ${key} 无效`), { code: 'desktop-native-rejected' });
+  }
+  return value;
+}
+
+function nativeRequiredString(payload, key, maxLength = 4096) {
+  const value = nativeOptionalString(payload, key, maxLength);
+  if (!value) throw Object.assign(new Error(`Native Host 缺少参数 ${key}`), { code: 'desktop-native-rejected' });
+  return value;
+}
+
+function nativeOptionalBoolean(payload, key, fallback = false) {
+  const value = payload?.[key];
+  if (value == null) return fallback;
+  if (typeof value !== 'boolean') {
+    throw Object.assign(new Error(`Native Host 参数 ${key} 无效`), { code: 'desktop-native-rejected' });
+  }
+  return value;
+}
+
+function nativeTabId(payload) {
+  return nativeOptionalString(payload, 'tabId', 120);
+}
+
+function nativeDialogFilters(payload) {
+  const filters = payload?.filters;
+  if (filters == null) return undefined;
+  if (!Array.isArray(filters) || filters.length > 12) {
+    throw Object.assign(new Error('Native Host filters 无效'), { code: 'desktop-native-rejected' });
+  }
+  return filters.map((filter) => {
+    if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
+      throw Object.assign(new Error('Native Host 文件过滤器无效'), { code: 'desktop-native-rejected' });
+    }
+    const name = nativeRequiredString(filter, 'name', 80);
+    const extensions = filter.extensions;
+    if (!Array.isArray(extensions) || extensions.length === 0 || extensions.length > 32
+      || extensions.some((extension) => typeof extension !== 'string' || !/^[a-z0-9][a-z0-9+._-]{0,31}$/i.test(extension))) {
+      throw Object.assign(new Error('Native Host 文件扩展名无效'), { code: 'desktop-native-rejected' });
+    }
+    return { name, extensions: extensions.map((extension) => extension.toLowerCase()) };
+  });
+}
+
+function nativeDialogTitle(payload) {
+  return nativeOptionalString(payload, 'title', 120) || undefined;
+}
+
+function ensureMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    throw Object.assign(new Error('DSH Desktop 主窗口不可用'), { code: 'desktop-native-unavailable' });
+  }
+  return mainWindow;
+}
+
+function nativeBounds(payload) {
+  const value = nativePayloadObject(payload).bounds;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw Object.assign(new Error('Native Host 缺少 bounds'), { code: 'desktop-native-rejected' });
+  }
+  for (const key of ['x', 'y', 'width', 'height']) {
+    if (value[key] != null && (!Number.isFinite(Number(value[key])) || Number(value[key]) < 0)) {
+      throw Object.assign(new Error(`Native Host bounds.${key} 无效`), { code: 'desktop-native-rejected' });
+    }
+  }
+  return value;
+}
+
+function ensureBrowserWorkspace() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    throw Object.assign(new Error('Browser Workspace 主窗口不可用'), { code: 'desktop-native-unavailable' });
+  }
+  if (!browserWorkspace) {
+    browserWorkspace = new BrowserWorkspaceController({
+      WebContentsView,
+      browserSession: session.fromPartition(BROWSER_PARTITION),
+      getParentWindow: () => mainWindow,
+      userDataPath: app.getPath('userData'),
+      downloadDirectory: path.join(app.getPath('userData'), 'browser-downloads'),
+      onBeforeInput: (event, input) => appUpdateView?.onContentInput(event, input),
+      sendEvent: (channel, payload) => {
+        try {
+          if (backendProc?.connected) backendProc.send({ type: 'desktop-native-event', channel, payload });
+        } catch {
+          // The Server may be stopping while a browser permission request settles.
+        }
+      },
+      isDev,
+    });
+  }
+  return browserWorkspace;
+}
+
+function destroyBrowserWorkspace() {
+  try { browserWorkspace?.destroy(); } catch (error) {
+    console.warn('[electron] Browser Workspace 关闭失败:', error?.message || error);
+  }
+  browserWorkspace = null;
+}
+
+const BROWSER_NATIVE_HANDLERS = Object.freeze({
+  browserWorkspaceGetState: () => ensureBrowserWorkspace().getState(),
+  browserWorkspaceSetVisible: (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    return ensureBrowserWorkspace().setVisible(nativeOptionalBoolean(payload, 'visible'));
+  },
+  browserWorkspaceSetBounds: (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    return ensureBrowserWorkspace().setBounds(nativeBounds(payload));
+  },
+  browserWorkspaceCreateTab: (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    return ensureBrowserWorkspace().createTab(nativeOptionalString(payload, 'target') || 'about:blank');
+  },
+  browserWorkspaceActivateTab: (rawPayload) => ensureBrowserWorkspace().activateTab(nativeTabId(nativePayloadObject(rawPayload))),
+  browserWorkspaceCloseTab: (rawPayload) => ensureBrowserWorkspace().closeTab(nativeTabId(nativePayloadObject(rawPayload))),
+  browserWorkspaceNavigate: (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    return ensureBrowserWorkspace().navigate(nativeTabId(payload), nativeRequiredString(payload, 'target'));
+  },
+  browserWorkspaceGoBack: (rawPayload) => ensureBrowserWorkspace().goBack(nativeTabId(nativePayloadObject(rawPayload))),
+  browserWorkspaceGoForward: (rawPayload) => ensureBrowserWorkspace().goForward(nativeTabId(nativePayloadObject(rawPayload))),
+  browserWorkspaceReload: (rawPayload) => ensureBrowserWorkspace().reload(nativeTabId(nativePayloadObject(rawPayload))),
+  browserWorkspaceStop: (rawPayload) => ensureBrowserWorkspace().stop(nativeTabId(nativePayloadObject(rawPayload))),
+  browserWorkspaceFindInPage: (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    return ensureBrowserWorkspace().findInPage(
+      nativeTabId(payload),
+      nativeOptionalString(payload, 'text', 500) || '',
+      nativeOptionalBoolean(payload, 'forward', true),
+    );
+  },
+  browserWorkspaceStopFindInPage: (rawPayload) => ensureBrowserWorkspace().stopFindInPage(nativeTabId(nativePayloadObject(rawPayload))),
+  browserWorkspaceCapturePage: (rawPayload) => ensureBrowserWorkspace().capturePage(nativeTabId(nativePayloadObject(rawPayload))),
+  browserWorkspaceCaptureScreenshot: async (rawPayload) => {
+    const result = await ensureBrowserWorkspace().captureScreenshot(nativeTabId(nativePayloadObject(rawPayload)));
+    return { ...result, png: result.png.toString('base64') };
+  },
+  browserWorkspaceListPermissions: () => ensureBrowserWorkspace().listPermissions(),
+  browserWorkspaceRemovePermission: (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    return ensureBrowserWorkspace().removePermission(
+      nativeRequiredString(payload, 'origin', 512),
+      nativeRequiredString(payload, 'permission', 64),
+    );
+  },
+  browserWorkspaceResolvePermissionRequest: (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    const decision = nativeRequiredString(payload, 'decision', 32);
+    if (!BROWSER_NATIVE_DECISIONS.has(decision)) {
+      throw Object.assign(new Error('Native Host 权限决定无效'), { code: 'desktop-native-rejected' });
+    }
+    return ensureBrowserWorkspace().resolvePermissionRequest(
+      nativeRequiredString(payload, 'requestId', 160),
+      decision,
+    );
+  },
+});
+
+const FILE_DIALOG_NATIVE_HANDLERS = Object.freeze({
+  fileDialogOpenFiles: async (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    const properties = ['openFile'];
+    if (nativeOptionalBoolean(payload, 'multiple')) properties.push('multiSelections');
+    const result = await dialog.showOpenDialog(ensureMainWindow(), {
+      title: nativeDialogTitle(payload),
+      properties,
+      filters: nativeDialogFilters(payload),
+    });
+    return { canceled: Boolean(result.canceled), filePaths: result.canceled ? [] : result.filePaths };
+  },
+  fileDialogOpenDirectory: async (rawPayload) => {
+    const payload = nativePayloadObject(rawPayload);
+    const result = await dialog.showOpenDialog(ensureMainWindow(), {
+      title: nativeDialogTitle(payload),
+      properties: ['openDirectory'],
+      filters: nativeDialogFilters(payload),
+    });
+    return { canceled: Boolean(result.canceled), filePaths: result.canceled ? [] : result.filePaths };
+  },
+});
+
+const WINDOW_NATIVE_HANDLERS = Object.freeze({
+  windowGetState: () => {
+    const win = ensureMainWindow();
+    return {
+      focused: win.isFocused(),
+      maximized: win.isMaximized(),
+      minimized: win.isMinimized(),
+      fullScreen: win.isFullScreen(),
+      bounds: win.getBounds(),
+    };
+  },
+  windowFocus: () => {
+    const win = ensureMainWindow();
+    win.show();
+    win.focus();
+    return { focused: win.isFocused() };
+  },
+  windowMinimize: () => {
+    const win = ensureMainWindow();
+    win.minimize();
+    return { minimized: true };
+  },
+  windowMaximize: () => {
+    const win = ensureMainWindow();
+    if (!win.isMaximized()) win.maximize();
+    return { maximized: win.isMaximized() };
+  },
+  windowRestore: () => {
+    const win = ensureMainWindow();
+    if (win.isMinimized() || win.isMaximized()) win.restore();
+    return { minimized: win.isMinimized(), maximized: win.isMaximized() };
+  },
+});
+
+const DESKTOP_NATIVE_HANDLERS = Object.freeze({
+  ...BROWSER_NATIVE_HANDLERS,
+  ...FILE_DIALOG_NATIVE_HANDLERS,
+  ...WINDOW_NATIVE_HANDLERS,
+});
+
+function networkSettingsPath() {
+  return path.join(app.getPath('userData'), 'agent-network-settings.json');
+}
+
+function closeBehaviorPath() {
+  return path.join(app.getPath('userData'), 'window-close-behavior.json');
+}
+
+function normalizeNetworkSettings(value = {}) {
+  return {
+    httpProxy: normalizeProxyUrl(value.httpProxy),
+    noProxy: String(value.noProxy || '').trim(),
+    customCert: String(value.customCert || '').trim(),
+    ...normalizeWebSearchSettings(value),
+  };
+}
+
+function loadNetworkSettings() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(networkSettingsPath(), 'utf8'));
+    const normalized = normalizeNetworkSettings(raw);
+    // 旧版本可能把代理 userinfo 明文写入设置。读取时立即清除，不能再回传 renderer 或注入环境。
+    if (String(raw?.httpProxy || '').trim() !== normalized.httpProxy) {
+      writeNetworkSettingsFile(normalized);
+    }
+    return normalized;
+  } catch {
+    return normalizeNetworkSettings();
+  }
+}
+
+function writeNetworkSettingsFile(settings) {
+  fs.mkdirSync(path.dirname(networkSettingsPath()), { recursive: true });
+  fs.writeFileSync(networkSettingsPath(), JSON.stringify(settings, null, 2), { mode: 0o600 });
+  try { fs.chmodSync(networkSettingsPath(), 0o600); } catch { /* best effort on platforms without POSIX modes */ }
+}
+
+function saveNetworkSettings(settings) {
+  const strictProxy = normalizeProxyUrl(settings?.httpProxy, { strict: true });
+  const normalized = normalizeNetworkSettings({ ...settings, httpProxy: strictProxy });
+  writeNetworkSettingsFile(normalized);
+  return normalized;
+}
+
+function loadCloseBehavior() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(closeBehaviorPath(), 'utf8'));
+    const behavior = String(raw?.behavior || 'ask');
+    return CLOSE_BEHAVIOR_VALUES.has(behavior) ? behavior : 'ask';
+  } catch {
+    return 'ask';
+  }
+}
+
+function saveCloseBehavior(behavior) {
+  const normalized = CLOSE_BEHAVIOR_VALUES.has(behavior) ? behavior : 'ask';
+  fs.mkdirSync(path.dirname(closeBehaviorPath()), { recursive: true });
+  fs.writeFileSync(closeBehaviorPath(), JSON.stringify({ behavior: normalized }, null, 2));
+  return normalized;
+}
+
+// 运行时应用名由构建配置固定；官方 Web 没有改名或主题 IPC。
+let runtimeAppName = APP_DISPLAY_NAME;
+
+function splitNoProxy(value) {
+  return String(value || '')
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function mergedNoProxy(value) {
+  return [...new Set([...DEFAULT_NO_PROXY, ...splitNoProxy(value)])].join(',');
+}
+
+function applyNetworkEnv(env, settings = loadNetworkSettings()) {
+  for (const key of ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy']) {
+    delete env[key];
+  }
+  const proxyUrl = normalizeProxyUrl(settings.httpProxy);
+  if (proxyUrl) {
+    env.HTTP_PROXY = proxyUrl;
+    env.HTTPS_PROXY = proxyUrl;
+    env.ALL_PROXY = proxyUrl;
+    env.http_proxy = proxyUrl;
+    env.https_proxy = proxyUrl;
+    env.all_proxy = proxyUrl;
+  }
+
+  const noProxy = mergedNoProxy(settings.noProxy);
+  env.NO_PROXY = noProxy;
+  env.no_proxy = noProxy;
+
+  delete env.NODE_EXTRA_CA_CERTS;
+  const certPath = String(settings.customCert || '').trim();
+  if (certPath && fs.existsSync(certPath)) {
+    env.NODE_EXTRA_CA_CERTS = certPath;
+  } else if (certPath) {
+    console.warn(`[electron] 自定义证书不存在,已跳过: ${certPath}`);
+  }
+  applyWebSearchEnv(env, settings);
+}
+
 async function applyRendererNetworkProxy(settings = loadNetworkSettings()) {
   const proxyUrl = normalizeProxyUrl(settings.httpProxy);
   const sessions = [session.defaultSession];
@@ -1111,7 +1493,7 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
     });
     mainWindow.webContents.once('did-finish-load', async () => {
       try {
-        const deadline = Date.now() + 90_000;
+        const deadline = Date.now() + 30_000;
         let state = null;
         let nextClickIndex = 0;
         let onboardingSettled = !SMOKE_DISMISS_ONBOARDING;
@@ -1132,22 +1514,20 @@ function createWindow(surfaceUrl = rendererSurfaceUrl) {
               const request = {
                 type: 'client-request',
                 rpcId: crypto.randomUUID(),
-                method: 'workspace/create',
-                payload: { args: { request: { path: ${JSON.stringify(SMOKE_WORKSPACE_PATH)} } } },
+                method: 'workspace.create',
+                payload: { path: ${JSON.stringify(SMOKE_WORKSPACE_PATH)} },
               };
-              return fetch('/api/workspace/create', {
+              return fetch('/api/workspace.create', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify(request),
               }).then(async (response) => ({ status: response.status, body: await response.text() }));
             })()`);
-            const envelope = rpc?.status === 200 ? (() => { try { return JSON.parse(rpc.body); } catch { return null; } })() : null;
-            if (envelope?.result?.ok) {
-              workspaceCreated = true;
-              continue;
+            const envelope = rpc?.status === 200 ? JSON.parse(rpc.body) : null;
+            if (!envelope?.result?.ok) {
+              throw new Error(`Smoke Workspace 创建失败: ${JSON.stringify(envelope?.result?.error || rpc)}`);
             }
-            // 首启安装默认精选插件时 /api 路由注册完成晚于页面加载，404 属预期内抖动，重试到死线
-            await new Promise((resolve) => setTimeout(resolve, 1_000));
+            workspaceCreated = true;
             continue;
           }
           if (state.officialWeb && nextClickIndex < SMOKE_CLICK_SELECTORS.length) {

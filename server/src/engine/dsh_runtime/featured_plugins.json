@@ -1049,8 +1049,8 @@
         "offline_dependencies": [
           {
             "name": "js-yaml",
-            "version": "4.3.1",
-            "integrity": "sha512-CY6crGq313MX8GkwvB7tzgp99vjQxY1++5y10/BKN/GUfHqWaOGQMNZkBvqSzsZKWk/ijwHlWzzkLulsGHhjWQ==",
+            "version": "4.3.2",
+            "integrity": "sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA==",
             "license": "MIT",
             "license_path": "server/node_modules/js-yaml/LICENSE",
             "license_sha256": "a07bc24468b9654ce76a547d47a2db282d07733b715db4c73a98bd63961f9550",

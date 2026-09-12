@@ -546,8 +546,8 @@ test("the bundled multimedia input is pinned without inventing a dependency clos
   assert.match(releaseClient, /Attach files or a folder/);
   assert.match(packagedSmoke, /DSH_SMOKE_SMART_ATTACHMENT_PICKER = '1'/);
   assert.match(electronMain, /smokeSmartAttachmentPicker/);
-  assert.match(electronMain, /dsh-native-image-smoke\.png/);
-  assert.match(electronMain, /dsh-workspace-file-smoke\.txt/);
+  assert.match(electronMain, /aria-label="Attach files or a folder"/);
+  assert.doesNotMatch(electronMain, /dsh-native-image-smoke\.png/);
   assert.throws(() => transformFeaturedRegistryClient(plugin, `${clientSource}\n// drift`), /源文件漂移/);
   assert.throws(() => validateFeaturedPackageContract(plugin, {
     ...packageJson,
