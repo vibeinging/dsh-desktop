@@ -17,7 +17,11 @@
       "reviewed_at": "2026-08-31",
       "package_integrity": "sha512-DQRK0dg0duXhDOqw6LWy5m6GkG3oLiTXC9pM6W9mi1gCbqM1ofgSPuyPOGCsE+06qHsiF65j/urpvCyvhhCPNw==",
       "license": "MIT",
-      "permissions": ["读取和修改当前 DSH Profile", "通过受控 pnpm 执行用户确认的插件操作", "访问社区目录、npm、GitHub 和用户选择的备份服务"],
+      "permissions": [
+        "读取和修改当前 DSH Profile",
+        "通过受控 pnpm 执行用户确认的插件操作",
+        "访问社区目录、npm、GitHub 和用户选择的备份服务"
+      ],
       "review_note_zh": "作为默认独立 Bundle 挂入官方 Web 设置 Slot；发行包只在固定 tarball 中把旧 settings peer 与 Client 注入清单投影到新 SDK，不改上游源码。市场负责发现和交互，desktopProfiles、desktopPnpm 与官方 dsh plugin 命令保持 Profile 为唯一状态权威。安装脚本默认禁用，WebDAV/Gist 仅在用户配置后启用，Electron 重启仍由桌面壳负责。",
       "priority": 10
     },
@@ -40,12 +44,19 @@
       "asset_review": {
         "status": "blocked",
         "redistribution": "blocked",
-        "asset_licenses": ["Apache-2.0", "CC-BY-NC-SA-4.0"],
+        "asset_licenses": [
+          "Apache-2.0",
+          "CC-BY-NC-SA-4.0"
+        ],
         "reason_zh": "上游皮肤包明确说明 Maid Atelier 资产使用 CC BY-NC-SA 4.0；当前没有可核对的商业再分发授权，因此聚合包不能进入发行包。",
         "evidence": "https://www.npmjs.com/package/%40linxin666/dsh-skins",
         "reviewed_at": "2026-08-21"
       },
-      "permissions": ["读取本地仓库与图片", "启动 Git、SSH 与电源保持进程", "访问 SSH、远程 Web 和模型服务网络"],
+      "permissions": [
+        "读取本地仓库与图片",
+        "启动 Git、SSH 与电源保持进程",
+        "访问 SSH、远程 Web 和模型服务网络"
+      ],
       "review_note_zh": "全家桶含主机侧高权限能力。只允许精确的 0.1.20 包和 13 个同版本依赖进入 Client 图；安装前请确认这些权限符合你的环境。",
       "priority": 20
     },
@@ -64,7 +75,12 @@
       "package_integrity": "sha512-xkjPPZCLH4AjNnTb2RGG9nMXzsFuCBFdcucYnL3UMaHs6/G+rADZpneyHNKeVggGlqSkbZ7qnM43zEYfudzjgw==",
       "package_size_bytes": 1193256,
       "license": "Apache-2.0",
-      "permissions": ["读取当前 DSH Session、Workspace 与完成历史", "在 DSH_HOME 写入任务账本和执行记录", "按用户操作或 Host cron 启动 DSH Session 任务", "可选启动固定的跨平台防休眠 helper"],
+      "permissions": [
+        "读取当前 DSH Session、Workspace 与完成历史",
+        "在 DSH_HOME 写入任务账本和执行记录",
+        "按用户操作或 Host cron 启动 DSH Session 任务",
+        "可选启动固定的跨平台防休眠 helper"
+      ],
       "native_dependencies": [],
       "install_scripts": [],
       "review_note_zh": "作为独立 Bundle 内置，不安装聚合包；0.3.9 原生声明 DSH >=0.1.2-alpha.1，并改用 Typert Gateway 与 Workspace Registry。Host 侧持有任务账本、cron 调度和默认关闭的防休眠 helper，不创建 Electron 启停器、插件市场或通用原生桥。",
@@ -78,24 +94,28 @@
       "repository": "https://github.com/liguobao/ds-harness-remote",
       "stars": 130,
       "category": "remote",
-      "source": "ds-harness-remote@0.4.1",
+      "source": "ds-harness-remote@0.4.13",
       "compatibility": "bundled-default-alpha-reviewed",
       "release_policy": "bundled-default-user-manageable",
-      "reviewed_at": "2026-08-31",
-      "reviewed_commit": "814a0dd45f1c971995c0cc93319fdced20c69749",
-      "package_integrity": "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
-      "package_size_bytes": 3417598,
+      "reviewed_at": "2026-09-11",
+      "reviewed_commit": "3f1863dd4f0b4e786ebd67dc6b44cbaa6ac9fde1",
+      "package_integrity": "sha512-Q+Yt8YsGUg7oJhVM3lPRiyOC84fyR0qTB93k1hNYGlYv1R7zfkkH1/HYSslubr0XJx8GPFUxYuF/SQ3WeFXRPw==",
+      "package_size_bytes": 4932020,
       "license": "MIT",
-      "license_note_zh": "上游 npm 包的 package.json 没有 license 字段，但 tarball 内 LICENSE 是 MIT 原文；发行投影补写 MIT，并按 LICENSE SHA-256 固定。",
+      "license_note_zh": "上游 npm 包声明 MIT，tarball 内 LICENSE 与之一致；按 LICENSE SHA-256 固定。",
       "permissions": [
         "连接 dsh.r2049.cn 的外部账号、设备目录、信令、TURN 与 Relay 服务",
         "从同一账号下的 Web、Android 或另一台 Desktop 读取并控制当前 Harness 的 Workspace、Session、模型、权限、设置与凭据写入",
         "使用长期 X25519 设备身份和 Noise IK 端到端加密；托管服务仍可见账号、设备、连接时间、流量大小与必要网络元数据",
         "通过固定 Harness API 白名单运行远程请求；不开放直接 Shell、PTY 或通用文件 RPC，但 Harness Agent 仍可按原权限运行工具"
       ],
-      "native_dependencies": ["可选 @roamhq/wrtc 原生 WebRTC；安装脚本禁用时自动回退到纯 TypeScript werift 或加密 Relay"],
-      "ignored_dependency_lifecycle_scripts": ["@roamhq/wrtc 可选原生构建脚本"],
-      "review_note_zh": "作为可卸载的默认 Bundle 固定到 npm 0.4.1，并通过完整性、依赖、Client 图、Profile 初始化和 Electron 启动检查。Host 不开放公网监听端口，业务流量使用 Noise IK 加密，并在 WebRTC 不可用时回退加密 Relay。插件默认连接第三方 dsh.r2049.cn；只有用户登录并启用当前电脑后才提供远程访问。该项目尚无受支持的自建 Server，独立密码安全审查、真实双机跨网和长期稳定性验证仍未完成。",
+      "native_dependencies": [
+        "可选 @roamhq/wrtc 原生 WebRTC；安装脚本禁用时自动回退到纯 TypeScript werift 或加密 Relay"
+      ],
+      "ignored_dependency_lifecycle_scripts": [
+        "@roamhq/wrtc 可选原生构建脚本"
+      ],
+      "review_note_zh": "作为可卸载的默认 Bundle 固定到 npm 0.4.13（修复 0.1.5-rc.1 Cordis 严格 inject 下控制路由未挂载导致 /ds-harness-remote/* HTTP 405 的问题），并通过完整性、依赖、Client 图、Profile 初始化和 Electron 启动检查。Host 不开放公网监听端口，业务流量使用 Noise IK 加密，并在 WebRTC 不可用时回退加密 Relay。插件默认连接第三方 dsh.r2049.cn；只有用户登录并启用当前电脑后才提供远程访问。该项目尚无受支持的自建 Server，独立密码安全审查、真实双机跨网和长期稳定性验证仍未完成。",
       "priority": 22
     },
     {
@@ -143,12 +163,18 @@
       "asset_review": {
         "status": "blocked",
         "redistribution": "blocked",
-        "asset_licenses": ["Apache-2.0", "CC-BY-NC-SA-4.0"],
+        "asset_licenses": [
+          "Apache-2.0",
+          "CC-BY-NC-SA-4.0"
+        ],
         "reason_zh": "皮肤中心包内含 Maid Atelier 等内建资产；上游说明其中至少一组资产使用 CC BY-NC-SA 4.0，当前没有可核对的商业再分发授权。",
         "evidence": "https://www.npmjs.com/package/%40linxin666/dsh-skins",
         "reviewed_at": "2026-08-21"
       },
-      "permissions": ["读取官方 Web 的皮肤配置", "写入皮肤选择和页面外观"],
+      "permissions": [
+        "读取官方 Web 的皮肤配置",
+        "写入皮肤选择和页面外观"
+      ],
       "preflight_blocker": "包级 Apache-2.0 许可证不覆盖其中所有视觉资产；在逐项资产许可证和再分发授权完成前不能进入发行 Profile。",
       "priority": 23
     },
@@ -181,9 +207,20 @@
       "license": "MIT",
       "declared_dsh_peer": "^0.1.2-alpha.2",
       "verified_dsh_runtime": "0.1.2-alpha.4",
-      "permissions": ["读取、搜索、创建、修改和删除当前 Session 工作区文件", "在当前 Session 工作区执行 Git 操作", "启动和停止本地终端进程；模型终端工具默认关闭", "打开用户输入的网页或外部编辑器，并接收用户主动上传的文件", "用户开启后向模型注册 sidebar_open 工具，用于在当前会话侧栏打开工作区文件、文件夹或 HTTP(S) 页面；默认关闭"],
-      "native_dependencies": ["node-pty@1.1.0"],
-      "ignored_dependency_lifecycle_scripts": ["node-pty@1.1.0 install", "node-pty@1.1.0 postinstall"],
+      "permissions": [
+        "读取、搜索、创建、修改和删除当前 Session 工作区文件",
+        "在当前 Session 工作区执行 Git 操作",
+        "启动和停止本地终端进程；模型终端工具默认关闭",
+        "打开用户输入的网页或外部编辑器，并接收用户主动上传的文件",
+        "用户开启后向模型注册 sidebar_open 工具，用于在当前会话侧栏打开工作区文件、文件夹或 HTTP(S) 页面；默认关闭"
+      ],
+      "native_dependencies": [
+        "node-pty@1.1.0"
+      ],
+      "ignored_dependency_lifecycle_scripts": [
+        "node-pty@1.1.0 install",
+        "node-pty@1.1.0 postinstall"
+      ],
       "verification": "0.18.0-alpha.0 原生声明 alpha.2 SDK，已固定 npm 完整性、权限、依赖与许可证；发行验收仍要求官方 CLI Profile 安装、Client 挂载、停用、卸载恢复和打包 Electron 交互。",
       "priority": 20
     },
@@ -203,7 +240,11 @@
       "package_size_bytes": 192412,
       "required_dsh_runtime": "0.1.0-rc.8",
       "license": "BSD-3-Clause",
-      "permissions": ["读取当前会话的已完成消息", "按用户操作 fork 并重新提交文本消息", "在浏览器端监督可恢复错误的重试"],
+      "permissions": [
+        "读取当前会话的已完成消息",
+        "按用户操作 fork 并重新提交文本消息",
+        "在浏览器端监督可恢复错误的重试"
+      ],
       "preflight_blocker": "该版本仍使用旧浏览器插件 manifest，并以 0.1.0-rc.8 作为已审查运行线；当前试用版固定为 0.1.2-alpha.4，重新完成 Profile、Client 和 Electron 生命周期验收前不能进入精选默认清单。",
       "priority": 41
     },

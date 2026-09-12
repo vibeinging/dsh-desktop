@@ -278,9 +278,9 @@ test("Profile Bundle validation rejects the retired pre-release SDK shape", () =
   }));
   assert.doesNotThrow(() => validateProfileBundleSdk({
     name: "ds-harness-remote",
-    version: "0.4.1",
+    version: "0.4.13",
     dependencies: {
-      "@deepseek-ai/schemastery": "^3.18.1",
+      "@deepseek-ai/schemastery": "^3.18.2",
       qrcode: "^1.5.4",
       werift: "0.24.4",
       zod: "^3.24.1",
@@ -735,15 +735,15 @@ test("the Profile catalog is projected from the official Web Profile order", {
         repository: "https://github.com/liguobao/ds-harness-remote",
         stars: 130,
         category: "remote",
-        source: "ds-harness-remote@0.4.1",
+        source: "ds-harness-remote@0.4.13",
         compatibility: "bundled-default-alpha-reviewed",
         release_policy: "bundled-default-user-manageable",
-        reviewed_at: "2026-08-31",
-        reviewed_commit: "814a0dd45f1c971995c0cc93319fdced20c69749",
-        package_integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
-        package_size_bytes: 3417598,
+        reviewed_at: "2026-09-11",
+        reviewed_commit: "3f1863dd4f0b4e786ebd67dc6b44cbaa6ac9fde1",
+        package_integrity: "sha512-Q+Yt8YsGUg7oJhVM3lPRiyOC84fyR0qTB93k1hNYGlYv1R7zfkkH1/HYSslubr0XJx8GPFUxYuF/SQ3WeFXRPw==",
+        package_size_bytes: 4932020,
         license: "MIT",
-        license_note_zh: "上游 npm 包的 package.json 没有 license 字段，但 tarball 内 LICENSE 是 MIT 原文；发行投影补写 MIT，并按 LICENSE SHA-256 固定。",
+        license_note_zh: "上游 npm 包声明 MIT，tarball 内 LICENSE 与之一致；按 LICENSE SHA-256 固定。",
         permissions: [
           "连接 dsh.r2049.cn 的外部账号、设备目录、信令、TURN 与 Relay 服务",
           "从同一账号下的 Web、Android 或另一台 Desktop 读取并控制当前 Harness 的 Workspace、Session、模型、权限、设置与凭据写入",
@@ -752,7 +752,7 @@ test("the Profile catalog is projected from the official Web Profile order", {
         ],
         native_dependencies: ["可选 @roamhq/wrtc 原生 WebRTC；安装脚本禁用时自动回退到纯 TypeScript werift 或加密 Relay"],
         ignored_dependency_lifecycle_scripts: ["@roamhq/wrtc 可选原生构建脚本"],
-        review_note_zh: "作为可卸载的默认 Bundle 固定到 npm 0.4.1，并通过完整性、依赖、Client 图、Profile 初始化和 Electron 启动检查。Host 不开放公网监听端口，业务流量使用 Noise IK 加密，并在 WebRTC 不可用时回退加密 Relay。插件默认连接第三方 dsh.r2049.cn；只有用户登录并启用当前电脑后才提供远程访问。该项目尚无受支持的自建 Server，独立密码安全审查、真实双机跨网和长期稳定性验证仍未完成。",
+        review_note_zh: "作为可卸载的默认 Bundle 固定到 npm 0.4.13（修复 0.1.5-rc.1 Cordis 严格 inject 下控制路由未挂载导致 /ds-harness-remote/* HTTP 405 的问题），并通过完整性、依赖、Client 图、Profile 初始化和 Electron 启动检查。Host 不开放公网监听端口，业务流量使用 Noise IK 加密，并在 WebRTC 不可用时回退加密 Relay。插件默认连接第三方 dsh.r2049.cn；只有用户登录并启用当前电脑后才提供远程访问。该项目尚无受支持的自建 Server，独立密码安全审查、真实双机跨网和长期稳定性验证仍未完成。",
         priority: 22,
       },
     );

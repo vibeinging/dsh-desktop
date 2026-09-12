@@ -196,40 +196,40 @@ test("only audited community Client releases may enter the product Client graph"
 
   const harnessRemoteDependencies = reviewedHarnessRemoteDependencies();
   assert.deepEqual(harnessRemoteDependencies, {
-    "@deepseek-ai/schemastery": "^3.18.1",
+    "@deepseek-ai/schemastery": "^3.18.2",
     qrcode: "^1.5.4",
     werift: "0.24.4",
     zod: "^3.24.1",
   });
   const remotePolicy = reviewedCommunityClientPolicy("ds-harness-remote");
-  assert.equal(remotePolicy.version, "0.4.1");
+  assert.equal(remotePolicy.version, "0.4.13");
   assert.equal(remotePolicy.requiredDshRuntime, "0.1.5-rc.1");
   assert.equal(isReviewedCommunityClient({
     name: "ds-harness-remote",
     manifest: {
-      version: "0.4.1",
+      version: "0.4.13",
       dependencies: harnessRemoteDependencies,
       dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
     },
-    integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+    integrity: "sha512-Q+Yt8YsGUg7oJhVM3lPRiyOC84fyR0qTB93k1hNYGlYv1R7zfkkH1/HYSslubr0XJx8GPFUxYuF/SQ3WeFXRPw==",
   }), true);
   assert.equal(isReviewedCommunityClient({
     name: "ds-harness-remote",
     manifest: {
-      version: "0.4.1",
+      version: "0.4.13",
       dependencies: { ...harnessRemoteDependencies, werift: "0.24.5" },
       dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
     },
-    integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+    integrity: "sha512-Q+Yt8YsGUg7oJhVM3lPRiyOC84fyR0qTB93k1hNYGlYv1R7zfkkH1/HYSslubr0XJx8GPFUxYuF/SQ3WeFXRPw==",
   }), false);
   assert.deepEqual(reviewedCommunityClientReview({
     name: "ds-harness-remote",
     manifest: {
-      version: "0.4.1",
+      version: "0.4.13",
       dependencies: harnessRemoteDependencies,
       dsh: { bundle: { patch: "./cordis.patch.yml" }, client: { platform: "web" } },
     },
-    integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+    integrity: "sha512-Q+Yt8YsGUg7oJhVM3lPRiyOC84fyR0qTB93k1hNYGlYv1R7zfkkH1/HYSslubr0XJx8GPFUxYuF/SQ3WeFXRPw==",
   }), {
     session: "同一 Remote 账号下的已授权设备可通过固定白名单读取并控制 Host 的 Workspace、Session、模型、权限、设置与凭据写入；移除设备后连接和凭据失效",
     capabilities: [
@@ -394,7 +394,7 @@ test("the curated list keeps package names, source paths, and SPDX licenses alig
     assert.doesNotThrow(() => validateFeaturedPackageComposition(plugin, source, patch));
     const wrongSource = source.match(/^export const inject = .*$/m)
       ? source.replace(/^export const inject = .*$/m, 'export const inject = ["wrongService"];')
-      : source.replace(/\bctx\.inject\(\[[^\n]*\]/m, 'ctx.inject(["wrongService"]');
+      : source.replace(/\bctx\.inject\(\[[^\n]*\]/g, 'ctx.inject(["wrongService"]');
     assert.throws(
       () => validateFeaturedPackageComposition(plugin, wrongSource, patch),
       /composition\.requires/,
@@ -451,11 +451,11 @@ test("the bundled Remote plugin is pinned with an offline dependency closure", a
   });
   assert.equal(plugin.default, true);
   assert.equal(plugin.user_manageable, true);
-  assert.equal(packageJson.license, undefined);
+  assert.equal(packageJson.license, "MIT");
   const releaseManifest = projectFeaturedRegistryManifest(plugin, packageJson);
   const clientSource = readFileSync(join(packageDir, plugin.evidence.release_transform.path), "utf8");
   const releaseClient = transformFeaturedRegistryClient(plugin, clientSource);
-  const hostSource = readFileSync(join(packageDir, plugin.evidence.release_host_transform.path), "utf8");
+  const hostSource = readFileSync(join(packageDir, plugin.evidence.source_entry), "utf8");
   const releaseHost = transformFeaturedRegistryHost(plugin, hostSource);
   assert.equal(releaseManifest.license, "MIT");
   assert.deepEqual(releaseManifest.optionalDependencies, {});
@@ -468,13 +468,15 @@ test("the bundled Remote plugin is pinned with an offline dependency closure", a
   assert.doesNotMatch(releaseClient, /ctx\.effect\(installStyle, "ds-harness-remote: client styles"\)/);
   assert.match(releaseClient, /function RemoteWorkspaceAction\(props\) \{\s+React\.useEffect\(installStyle, \[\]\);/);
   assert.throws(() => transformFeaturedRegistryClient(plugin, `${clientSource}\n// drift`), /源文件漂移/);
-  assert.doesNotMatch(releaseHost, /settingsNamespace/);
-  assert.match(releaseHost, /settings\?\.register\("ds-harness-remote", Config/);
-  assert.throws(() => transformFeaturedRegistryHost(plugin, `${hostSource}\n// drift`), /源文件漂移/);
+  assert.equal(plugin.evidence.release_host_transform, undefined);
+  assert.equal(releaseHost, hostSource);
+  assert.doesNotMatch(hostSource, /settingsNamespace/);
+  assert.doesNotMatch(hostSource, /@deepseek-ai\/dsh-settings/);
+  assert.match(hostSource, /settings\?\.register\(pluginSettingsNamespace, Config/);
   assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
   assert.throws(() => validateFeaturedPackageContract({
     ...plugin,
-    evidence: { ...plugin.evidence, license_metadata: undefined },
+    evidence: { ...plugin.evidence, declared_license: "Apache-2.0" },
   }, packageJson), /声明许可证漂移/);
   assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile, {
     appRoot: APP_ROOT,
@@ -520,7 +522,7 @@ test("the bundled multimedia input is pinned without inventing a dependency clos
   assert.deepEqual(plugin.evidence.package_dependencies, {});
   assert.deepEqual(plugin.evidence.offline_dependencies, []);
   assert.deepEqual(plugin.evidence.release_files, ["cordis.patch.yml", "lib", "README.md", "README.zh.md", "LICENSE"]);
-  assert.equal(plugin.evidence.release_transform.id, "smart-attachment-picker-v4");
+  assert.equal(plugin.evidence.release_transform.id, "smart-attachment-picker-v5");
   assert.doesNotThrow(() => validateFeaturedPackageContract(plugin, packageJson));
   assert.doesNotThrow(() => validateFeaturedPackageLock(plugin, serverLockfile));
   const clientSource = readFileSync(join(resolveFeaturedPackageDir(plugin), plugin.evidence.release_transform.path), "utf8");

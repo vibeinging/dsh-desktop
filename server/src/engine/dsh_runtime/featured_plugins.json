@@ -671,15 +671,14 @@
       "evidence": {
         "source_kind": "locked-registry-package",
         "release_source": "fixed-tarball",
-        "package_spec": "ds-harness-remote@0.4.1",
-        "package_version": "0.4.1",
-        "package_integrity": "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+        "package_spec": "ds-harness-remote@0.4.13",
+        "package_version": "0.4.13",
+        "package_integrity": "sha512-Q+Yt8YsGUg7oJhVM3lPRiyOC84fyR0qTB93k1hNYGlYv1R7zfkkH1/HYSslubr0XJx8GPFUxYuF/SQ3WeFXRPw==",
         "declared_license": "MIT",
-        "license_metadata": "missing-package-json-field",
         "license_path": "server/node_modules/ds-harness-remote/LICENSE",
         "license_sha256": "6e41a78bbbe0c3ed54d085b661eb5af5a7836f4d40460d54f1469f43b386285d",
         "package_dependencies": {
-          "@deepseek-ai/schemastery": "^3.18.1",
+          "@deepseek-ai/schemastery": "^3.18.2",
           "qrcode": "^1.5.4",
           "werift": "0.24.4",
           "zod": "^3.24.1"
@@ -691,14 +690,8 @@
         "release_transform": {
           "id": "mounted-client-style-v1",
           "path": "dist/client.js",
-          "source_sha256": "efaeff289f93529e69daece73e38dd6fbdb3ddd7cc528013e66f007bd2e12190",
-          "output_sha256": "7bc23db48d9d18494124595c493e503e241e1e0a05d9c5a403ea438a3d0c1d4b"
-        },
-        "release_host_transform": {
-          "id": "alpha2-settings-namespace-v1",
-          "path": "dist/index.js",
-          "source_sha256": "73a8642cb050878dfddaf83afcc24b7c89efe97c1f32c08c07998b348b7499d5",
-          "output_sha256": "b55d89b9f48368b478bc854e27c3e38b9946d14e722b42ee36cbb18177cce4e1"
+          "source_sha256": "ef7d542ee272c0431b4f8d82c959ac2994908e074b85a227726a637e5c371093",
+          "output_sha256": "728ca92c0f9c4cdfcc5dab99dd0d8a2d1c559f08e58ab5b3ba9614df513765c4"
         },
         "offline_dependencies": [],
         "offline_dependency_resolution": "package-lock-closure",
@@ -708,8 +701,8 @@
         "patch_id": "ds-harness-remote",
         "compatibility": {
           "dsh_sdk": "0.1.5-rc.1",
-          "declared_peer_sdk": ">=0.1.1-rc.2 <0.1.2 || >=0.1.2-alpha.1 <0.2.0",
-          "reviewed_upstream_commit": "814a0dd45f1c971995c0cc93319fdced20c69749",
+          "declared_peer_sdk": ">=0.1.1-rc.2 <0.1.2 || >=0.1.2-alpha.1 <=0.1.2-rc.1 || >=0.1.5-alpha.1 <=0.1.5-rc.1",
+          "reviewed_upstream_commit": "3f1863dd4f0b4e786ebd67dc6b44cbaa6ac9fde1",
           "cordis": ">=4.0.1 <5"
         },
         "lifecycle_scripts": [],
@@ -806,10 +799,10 @@
           "LICENSE"
         ],
         "release_transform": {
-          "id": "smart-attachment-picker-v4",
+          "id": "smart-attachment-picker-v5",
           "path": "lib/client.js",
           "source_sha256": "80664dc90259b6312ac86259c5a3ccdacbc3b7674600e37f42404aeccc7834f4",
-          "output_sha256": "4d3f63a63c89cb098246ac80ff38a09f7f9c8e2dc5d5a5ef59d9f8b3f3c4e3bf"
+          "output_sha256": "f04881ae7afaa9f09f90271b753bdf27e4550892e01d95d64a74aa5690fb2ef5"
         },
         "entry": "lib/index.js",
         "client_entry": "lib/client.js",

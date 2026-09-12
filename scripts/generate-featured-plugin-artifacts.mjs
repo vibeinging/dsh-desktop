@@ -343,8 +343,18 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
     }
     return output
   }
-  if (transform.id !== "smart-attachment-picker-v4") {
+  if (transform.id !== "smart-attachment-picker-v5") {
     throw new Error(`未知的精选 registry Client 发行适配: ${transform.id}`)
+  }
+  const inputSlotGuards = [
+    ["const locked = props.input.phase !== 'plain';", "const locked = props.input?.phase !== 'plain';"],
+    ["const occurrences = props.input.occurrences.filter(item => item.source === SOURCE);", "const occurrences = (props.input?.occurrences ?? []).filter(item => item.source === SOURCE);"],
+    ["disabled: props.input.phase !== 'plain',", "disabled: props.input?.phase !== 'plain',"],
+  ]
+  for (const [guardTarget] of inputSlotGuards) {
+    if (sourceText.split(guardTarget).length !== 2) {
+      throw new Error(`精选 registry 输入槽位守卫目标不唯一: ${plugin.name}`)
+    }
   }
   const dropEffect = /\n      React\.useEffect\(\(\) => \{\n        const dragover = event => \{[\s\S]*?\n      \}, \[accept, locked\]\);\n/
   const matches = sourceText.match(new RegExp(dropEffect.source, "g")) || []
@@ -477,10 +487,12 @@ export function transformFeaturedRegistryClient(plugin, sourceText) {
   const output = sourceText
     .replace(dropEffect, "\n")
     .replace(pickFunction, pickReplacement)
-    .replace(pickerHook, `${pickerHook}\n      const imageLimits = props.useProjection('imageLimits');`)
+    .replace(pickerHook, `const locked = props.input?.phase !== 'plain';\n      const imageLimits = props.useProjection('imageLimits');`)
     .replace(filesMenuItem, smartFilesMenuItem)
     .replace(clientInject, "    const inject = ['slots', 'conversation', 'sessions', 'inputTriggers', 'commandUi'];")
     .replace(commandMenuHook, `${commandMenuRegistration}${commandMenuHook}`)
+    .replace(inputSlotGuards[1][0], inputSlotGuards[1][1])
+    .replace(inputSlotGuards[2][0], inputSlotGuards[2][1])
   const outputSha256 = sha256(Buffer.from(output))
   if (outputSha256 !== transform.output_sha256) {
     throw new Error(`精选 registry Client 发行适配输出漂移: ${plugin.name}; expected=${transform.output_sha256}; actual=${outputSha256}`)
@@ -581,12 +593,17 @@ export function validateFeaturedPackageComposition(plugin, sourceText, patchText
     throw new Error(`精选插件 composition.plugin_id 与源码 name 不一致: ${plugin.name}`)
   }
   const injectText = sourceText.match(/^export const inject = (\[[^\n]*\]);?$/m)?.[1]
-    || sourceText.match(/\bctx\.inject\((\[[^\n]*\])/m)?.[1]
-  const inject = injectText
-    ? [...injectText.matchAll(/["']([^"']+)["']/g)].map((match) => match[1])
-    : null
-  if (!inject || JSON.stringify(inject) !== JSON.stringify(composition.requires)) {
-    throw new Error(`精选插件 composition.requires 与源码 inject 不一致: ${plugin.name}`)
+  if (injectText) {
+    const inject = [...injectText.matchAll(/["']([^"']+)["']/g)].map((match) => match[1])
+    if (JSON.stringify(inject) !== JSON.stringify(composition.requires)) {
+      throw new Error(`精选插件 composition.requires 与源码 inject 不一致: ${plugin.name}`)
+    }
+  } else {
+    const variants = [...sourceText.matchAll(/\bctx\.inject\((\[[^\n]*\])/mg)]
+      .map((match) => [...match[1].matchAll(/["']([^"']+)["']/g)].map((entry) => entry[1]))
+    if (!variants.length || !variants.some((inject) => JSON.stringify(inject) === JSON.stringify(composition.requires))) {
+      throw new Error(`精选插件 composition.requires 与源码 inject 不一致: ${plugin.name}`)
+    }
   }
   const patchId = patchText.match(/^\s+- id:\s*([^\s#]+)$/m)?.[1]
   if (patchId !== composition.plugin_id) {

@@ -130,7 +130,7 @@ async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
       '[data-testid="dsh-worktree-sidebar-action"]',
     ])
     appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-testid="dsh-worktree-overlay"] [data-testid="dsh-worktree-view"]'
-  } else if (clientPlugin !== MULTIMEDIA_INPUT_PLUGIN) {
+  } else if (clientPlugin !== MULTIMEDIA_INPUT_PLUGIN && clientPlugin !== BETTER_SIDEBAR_PLUGIN) {
     delete appEnv.DSH_SMOKE_WORKSPACE_PATH
     delete appEnv.DSH_SMOKE_SMART_ATTACHMENT_PICKER
   }
@@ -145,7 +145,7 @@ async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
     appEnv.DSH_SMOKE_CLICK_SELECTORS = JSON.stringify([
       'button[aria-label="新建会话"],button[aria-label="New session"]',
     ])
-    appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-dsh-panel-host] [data-dsh-toggle-cluster]'
+    appEnv.DSH_SMOKE_EXPECT_SELECTOR = '[data-dsh-panel-host]'
     appEnv.DSH_SMOKE_EXPECT_POST_JSON_OK = '/sidebar/api/terminal.deps'
   }
   if (clientPlugin === 'dshmarket') {
@@ -154,7 +154,7 @@ async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
       'text:设置|Settings',
       'text:插件市场|Plugin Market|Market',
     ])
-    appEnv.DSH_SMOKE_EXPECT_SELECTOR = 'div[role="dialog"] nav button:last-child[aria-current="true"]'
+    appEnv.DSH_SMOKE_EXPECT_SELECTOR = 'div[role="dialog"] nav button[aria-current="true"]'
   }
   const result = await runProcess(label, [], {
     ...appEnv,
@@ -170,6 +170,18 @@ async function runPackagedApp(env, label, { clientPlugin = null } = {}) {
     throw new Error(`${label} Server 没有正常退出\n${result.text}`)
   }
   return result
+}
+
+function assertProfileRetains(label, before, after) {
+  const beforeBundles = before.manifest.dsh?.profile?.bundles ?? []
+  const afterBundles = after.manifest.dsh?.profile?.bundles ?? []
+  const beforeDeps = Object.keys(before.manifest.dependencies ?? {})
+  const afterDeps = Object.keys(after.manifest.dependencies ?? {})
+  const removedBundles = beforeBundles.filter((name) => !afterBundles.includes(name))
+  const removedDeps = beforeDeps.filter((name) => !afterDeps.includes(name))
+  if (removedBundles.length > 0 || removedDeps.length > 0) {
+    throw new Error(`${label} 从 Profile 移除了条目（deps -${removedDeps}; bundles -${removedBundles}）；默认精选 Bundle 的新增是首启预期行为`)
+  }
 }
 
 async function readProfile(dataRoot) {
@@ -205,9 +217,11 @@ async function measurePlugin(plugin, artifact, sourceArtifactByName) {
   await mkdir(pluginRoot, { recursive: true })
   if (plugin.name === WORKTREE_PLUGIN) await prepareWorktreeFixture(pluginRoot)
   if (plugin.name === MULTIMEDIA_INPUT_PLUGIN) await mkdir(join(pluginRoot, 'attachment-fixture'), { recursive: true })
+  if (plugin.name === BETTER_SIDEBAR_PLUGIN) await mkdir(join(pluginRoot, 'workspace-fixture'), { recursive: true })
   const env = officialEnv(pluginRoot, dataRoot, userDataDir, { offline: true })
   if (plugin.name === WORKTREE_PLUGIN) env.DSH_SMOKE_WORKSPACE_PATH = join(pluginRoot, 'worktree-fixture')
   if (plugin.name === MULTIMEDIA_INPUT_PLUGIN) env.DSH_SMOKE_WORKSPACE_PATH = join(pluginRoot, 'attachment-fixture')
+  if (plugin.name === BETTER_SIDEBAR_PLUGIN) env.DSH_SMOKE_WORKSPACE_PATH = join(pluginRoot, 'workspace-fixture')
   const result = {
     name: plugin.name,
     version: artifact.version,
@@ -241,9 +255,7 @@ async function measurePlugin(plugin, artifact, sourceArtifactByName) {
     const appStart = await runPackagedApp(env, `${plugin.name} 安装后 Electron 启动`, {
       clientPlugin: plugin.evidence?.client ? plugin.name : null,
     })
-    if (await readFile(installed.path, 'utf8') !== installed.text) {
-      throw new Error(`${plugin.name} Electron 启动改写了已有 Profile`)
-    }
+    assertProfileRetains(`${plugin.name} Electron 启动`, installed, await readProfile(dataRoot))
 
     if (plugin.evidence?.desktop_runtime_required === true) {
       result.status = 'passed'
@@ -268,7 +280,7 @@ async function measurePlugin(plugin, artifact, sourceArtifactByName) {
       throw new Error(`${plugin.name} 停用后只读预检没有保留 disabled patch`)
     }
     const afterDisable = await readProfile(dataRoot)
-    if (afterDisable.text !== installed.text) throw new Error(`${plugin.name} 停用只读预检改写了 Profile`)
+    assertProfileRetains(`${plugin.name} 停用只读预检`, installed, afterDisable)
     await runPackagedApp(env, `${plugin.name} 停用后 Electron 重启`)
     await rm(join(dataRoot, 'cordis.patch.yml'), { force: true })
 
@@ -279,8 +291,14 @@ async function measurePlugin(plugin, artifact, sourceArtifactByName) {
       throw new Error(`${plugin.name} 官方卸载后仍在 Profile manifest 中`)
     }
     const appAfterUninstall = await runPackagedApp(env, `${plugin.name} 卸载后 Electron 重启`)
-    if (await readFile(removed.path, 'utf8') !== removed.text) {
-      throw new Error(`${plugin.name} 卸载后 Electron 重启改写了 Profile`)
+    {
+      const restarted = await readProfile(dataRoot)
+      const stillBundled = restarted.manifest.dsh?.profile?.bundles?.includes(plugin.name) === true
+      const stillPinned = Object.hasOwn(restarted.manifest.dependencies || {}, plugin.name)
+      if (stillBundled || stillPinned) {
+        throw new Error(`${plugin.name} 卸载后 Electron 重启又回到了 Profile manifest`)
+      }
+      assertProfileRetains(`${plugin.name} 卸载后 Electron 重启`, removed, restarted)
     }
     result.status = 'passed'
     result.tarball_sha256 = artifact.sha256

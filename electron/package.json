@@ -1,9 +1,9 @@
 {
   "name": "dsh-desktop",
   "productName": "DSH Desktop",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "license": "MIT",
-  "description": "DSH Desktop\uff0c\u57fa\u4e8e DeepSeek Harness \u548c Electron \u6784\u5efa\u7684\u793e\u533a\u684c\u9762\u5e94\u7528",
+  "description": "DSH Desktop，基于 DeepSeek Harness 和 Electron 构建的社区桌面应用",
   "author": "vibeinging",
   "private": true,
   "main": "main.js",

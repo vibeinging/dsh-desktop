@@ -22,7 +22,7 @@ const TASK_BOARD_DEPENDENCIES = Object.freeze({
 });
 
 const HARNESS_REMOTE_DEPENDENCIES = Object.freeze({
-  "@deepseek-ai/schemastery": "^3.18.1",
+  "@deepseek-ai/schemastery": "^3.18.2",
   qrcode: "^1.5.4",
   werift: "0.24.4",
   zod: "^3.24.1",
@@ -105,11 +105,11 @@ const REVIEWED_COMMUNITY_CLIENTS = Object.freeze(new Map([
     }),
   })],
   ["ds-harness-remote", Object.freeze({
-    version: "0.4.1",
+    version: "0.4.13",
     bundlePatch: "./cordis.patch.yml",
     dependencies: HARNESS_REMOTE_DEPENDENCIES,
     requiredDshRuntime: "0.1.5-rc.1",
-    integrity: "sha512-W5VHmYNbvieggO4vDvvhG2dT401/TcS+fnVuJbWzLQR5D9HTAeYy+oO/Dlknr4/FVm9RnlUYEjDJk7bUpqz4Kg==",
+    integrity: "sha512-Q+Yt8YsGUg7oJhVM3lPRiyOC84fyR0qTB93k1hNYGlYv1R7zfkkH1/HYSslubr0XJx8GPFUxYuF/SQ3WeFXRPw==",
     review: Object.freeze({
       session: "同一 Remote 账号下的已授权设备可通过固定白名单读取并控制 Host 的 Workspace、Session、模型、权限、设置与凭据写入；移除设备后连接和凭据失效",
       capabilities: Object.freeze([

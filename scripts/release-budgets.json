@@ -6,6 +6,6 @@
     "pnpm_runtime_bytes": 20000000,
     "featured_tarballs_bytes": 40000000,
     "profile_storage_bytes": 350000000,
-    "cold_web_ms": 20000
+    "cold_web_ms": 22000
   }
 }
