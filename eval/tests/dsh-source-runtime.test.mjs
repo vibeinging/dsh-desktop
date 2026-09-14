@@ -177,7 +177,8 @@ test("packaged Electron launches the official CLI from an app-owned runtime path
   assert.match(mainSource, /DSH_NPM_PACKAGE_ROOT = path\.join\(SERVER_DIR, 'node_modules', '@deepseek-ai', 'dsh'\)/);
   assert.match(prepareSource, /installedDshRoot, 'lib', 'bin\.js'/);
   assert.match(verifySource, /serverNodeModules, '@deepseek-ai', 'dsh'/);
-  assert.equal(electronPackage.build.afterPack, undefined);
+  // 唯一允许的生命周期钩子是补写 app-update.yml 的固定脚本；禁止其它任意钩子。
+  assert.equal(electronPackage.build.afterPack, "./scripts/write-app-update-config.mjs");
   assert.equal(electronPackage.build.afterSign, undefined);
   assert.equal(electronPackage.build.artifactBuildStarted, undefined);
   assert.match(packagedRuntimeVerifier, /server', 'node_modules', '@deepseek-ai', 'dsh'/);

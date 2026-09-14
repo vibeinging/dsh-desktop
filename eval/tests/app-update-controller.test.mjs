@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, statSync, existsSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, statSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
@@ -347,6 +347,8 @@ test('packaged desktop exposes update UX and publishes updater metadata for both
   assert.doesNotMatch(mainSource, /promptForAvailableUpdate|发现新版本/)
   assert.match(mainSource, /handleAppUpdateRequest/)
   assert.equal(electronPackage.build.files.includes('app-update-requests.js'), true)
+  assert.equal(electronPackage.build.files.includes('app-update-config.js'), true)
+  assert.equal(electronPackage.build.afterPack, './scripts/write-app-update-config.mjs')
   assert.match(mainSource, /repository: UPDATE_REPOSITORY/)
   assert.match(electronPackage.scripts['package:mac:project'], /check:update-artifacts:mac/)
   assert.match(electronPackage.scripts['package:win:project'], /check:update-artifacts:win/)
@@ -360,7 +362,9 @@ test('packaged desktop exposes update UX and publishes updater metadata for both
 test('update artifact contract binds metadata to the current downloadable file', () => {
   const root = mkdtempSync(join(tmpdir(), 'dsh-update-artifacts-'))
   const release = join(root, 'release')
-  mkdirSync(release)
+  const macResources = join(release, 'mac-arm64', 'DSH Desktop.app', 'Contents', 'Resources')
+  mkdirSync(macResources, { recursive: true })
+  writeFileSync(join(macResources, 'app-update.yml'), 'provider: generic\nurl: https://updates.dsh.example/x\n')
   writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '1.2.3' }))
   const artifactName = 'dsh-desktop-1.2.3-mac-arm64.zip'
   const artifact = Buffer.from('signed update archive')
@@ -376,12 +380,17 @@ test('update artifact contract binds metadata to the current downloadable file',
   assert.deepEqual(inspectUpdateArtifacts(root, 'macos'), [])
   writeFileSync(join(release, artifactName), 'tampered archive')
   assert.match(inspectUpdateArtifacts(root, 'macos').join('\n'), /SHA-512/)
+  writeFileSync(join(release, artifactName), artifact)
+  rmSync(join(macResources, 'app-update.yml'))
+  assert.match(inspectUpdateArtifacts(root, 'macos').join('\n'), /app-update\.yml/)
 })
 
 test('Windows update artifact contract requires the EXE blockmap', () => {
   const root = mkdtempSync(join(tmpdir(), 'dsh-update-artifacts-win-'))
   const release = join(root, 'release')
-  mkdirSync(release)
+  const winResources = join(release, 'win-unpacked', 'resources')
+  mkdirSync(winResources, { recursive: true })
+  writeFileSync(join(winResources, 'app-update.yml'), 'provider: github\nowner: vibeinging\nrepo: dsh-desktop\n')
   writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '1.2.3' }))
   const artifactName = 'dsh-desktop-1.2.3-win-x64.exe'
   const artifact = Buffer.from('signed installer')
@@ -396,6 +405,90 @@ test('Windows update artifact contract requires the EXE blockmap', () => {
   assert.match(inspectUpdateArtifacts(root, 'windows').join('\n'), /blockmap/)
   writeFileSync(join(release, `${artifactName}.blockmap`), 'blockmap')
   assert.deepEqual(inspectUpdateArtifacts(root, 'windows'), [])
+  rmSync(join(winResources, 'app-update.yml'))
+  assert.match(inspectUpdateArtifacts(root, 'windows').join('\n'), /app-update\.yml/)
+})
+
+test('desktop updater self-heals a missing packaged app-update.yml before the first download', async () => {
+  const userDataPath = mkdtempSync(join(tmpdir(), 'dsh-updater-selfheal-'))
+  const resourcesPath = join(userDataPath, 'resources')
+  mkdirSync(resourcesPath, { recursive: true })
+  const controller = new AppUpdateController({
+    app: { getVersion: () => '1.0.0' },
+    updater: new FakeUpdater(),
+    fetch: async () => updateResponse(),
+    apiBaseUrl: 'https://updates.dsh.example',
+    platform: 'darwin',
+    arch: 'arm64',
+    channel: 'stable',
+    locale: 'zh-CN',
+    userDataPath,
+    dataRoot: userDataPath,
+    resourcesPath,
+    isPackaged: true,
+    logger: { info() {}, warn() {}, error() {} },
+  })
+
+  const configPath = join(resourcesPath, 'app-update.yml')
+  assert.equal(existsSync(configPath), true)
+  assert.equal(readFileSync(configPath, 'utf8'), [
+    'provider: generic',
+    'url: https://updates.dsh.example/api/desktop/updates/stable/darwin/arm64',
+    'useMultipleRangeRequest: false',
+    '',
+  ].join('\n'))
+
+  writeFileSync(configPath, 'provider: generic\nurl: https://fixture.local/feed\n')
+  const existing = new FakeUpdater()
+  new AppUpdateController({
+    app: { getVersion: () => '1.0.0' },
+    updater: existing,
+    fetch: async () => updateResponse(),
+    apiBaseUrl: 'https://updates.dsh.example',
+    platform: 'darwin',
+    arch: 'arm64',
+    channel: 'stable',
+    locale: 'zh-CN',
+    userDataPath,
+    dataRoot: userDataPath,
+    resourcesPath,
+    isPackaged: true,
+    logger: { info() {}, warn() {}, error() {} },
+  })
+  assert.match(readFileSync(configPath, 'utf8'), /fixture\.local/)
+  controller.destroy()
+})
+
+test('afterPack hook writes the missing macOS app-update.yml and never overwrites builders own copy', async () => {
+  const { default: writeAppUpdateConfig } = await import('../../electron/scripts/write-app-update-config.mjs')
+  const appOutDir = mkdtempSync(join(tmpdir(), 'dsh-afterpack-'))
+  const resourcesDir = join(appOutDir, 'Contents', 'Resources')
+  mkdirSync(resourcesDir, { recursive: true })
+  const context = (arch) => ({
+    electronPlatformName: 'darwin',
+    appOutDir,
+    arch,
+    packager: { getResourcesDir: (dir) => join(dir, 'Contents', 'Resources') },
+  })
+
+  await writeAppUpdateConfig(context('arm64'))
+  const configPath = join(resourcesDir, 'app-update.yml')
+  assert.equal(existsSync(configPath), true)
+  assert.match(readFileSync(configPath, 'utf8'), /provider: generic\nurl: https:\/\/dshdesktopstation\.com\/api\/desktop\/updates\/stable\/darwin\/arm64/)
+
+  // electron-builder 传入的 arch 是 Arch 枚举数字（arm64 = 3），必须映射回名称。
+  rmSync(configPath)
+  await writeAppUpdateConfig(context(3))
+  assert.match(readFileSync(configPath, 'utf8'), /stable\/darwin\/arm64/)
+
+  writeFileSync(configPath, 'provider: github\nowner: vibeinging\nrepo: dsh-desktop\n')
+  await writeAppUpdateConfig(context('arm64'))
+  assert.match(readFileSync(configPath, 'utf8'), /provider: github/)
+
+  await writeAppUpdateConfig({ ...context('arm64'), electronPlatformName: 'win32' })
+  const winOutDir = mkdtempSync(join(tmpdir(), 'dsh-afterpack-win-'))
+  await writeAppUpdateConfig({ electronPlatformName: 'win32', appOutDir: winOutDir, arch: 'x64', packager: { getResourcesDir: (dir) => join(dir, 'resources') } })
+  assert.equal(existsSync(join(winOutDir, 'resources', 'app-update.yml')), false)
 })
 
 test('desktop updater blocks installation when the authoritative Profile preflight fails', async () => {

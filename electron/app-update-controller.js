@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { buildAppUpdateConfigYaml, managedUpdateFeedUrl } = require('./app-update-config');
 
 const STATE_SCHEMA_VERSION = 1;
 const HISTORY_LIMIT = 20;
@@ -161,6 +162,7 @@ class AppUpdateController {
     this.locale = options.locale || 'zh-CN';
     this.userDataPath = options.userDataPath;
     this.dataRoot = options.dataRoot;
+    this.resourcesPath = options.resourcesPath || process.resourcesPath || null;
     this.isPackaged = Boolean(options.isPackaged);
     this.onStateChange = options.onStateChange || (() => {});
     this.prepareToInstall = options.prepareToInstall || (async () => {});
@@ -260,6 +262,38 @@ class AppUpdateController {
       }
       this._setState({ status: 'error', error: cleanError(error), progress: null });
     });
+    this._ensurePackagedUpdaterConfig();
+  }
+
+  /**
+   * downloadUpdate() 运行时仍会读取安装包内 Resources/app-update.yml；
+   * v0.2.4 及之前的 macOS 包缺少该文件（--dir 构建不生成），导致点击更新后
+   * 下载直接失败。应用对自身 bundle 具备写权限，这里在缺失时按当前更新源补写，
+   * 保证本次安装之后的每次升级都能走通。失败只记录，不阻断检查与下载。
+   */
+  _ensurePackagedUpdaterConfig() {
+    if (!this.isPackaged || !this.resourcesPath) return;
+    const configPath = path.join(this.resourcesPath, 'app-update.yml');
+    try {
+      fs.accessSync(configPath);
+      return;
+    } catch {
+      // 缺失时继续补写；已存在（含打包钩子或安装包自带）则绝不覆盖。
+    }
+    const yaml = buildAppUpdateConfigYaml({
+      apiBaseUrl: this.apiBaseUrl,
+      repository: this.repository,
+      channel: this.channel,
+      platform: this.platform,
+      arch: this.arch,
+    });
+    if (!yaml) return;
+    try {
+      fs.writeFileSync(configPath, yaml);
+      this.logger.info?.('[updater] 已补写安装包更新配置:', configPath);
+    } catch (error) {
+      this.logger.warn?.('[updater] 补写安装包更新配置失败:', cleanError(error));
+    }
   }
 
   _loadHistory() {
@@ -345,7 +379,7 @@ class AppUpdateController {
   }
 
   _trustedFeedUrl(candidate) {
-    const expected = `${this.apiBaseUrl}/api/desktop/updates/${this.channel}/${this.platform}/${this.arch}`;
+    const expected = managedUpdateFeedUrl(this.apiBaseUrl, this.channel, this.platform, this.arch);
     if (candidate !== expected) throw new Error('更新下载地址不受信任');
     const parsed = new URL(candidate);
     const base = new URL(this.apiBaseUrl);
@@ -367,7 +401,7 @@ class AppUpdateController {
   async _checkManaged() {
     const metadata = await this._fetchMetadata();
     let latest = metadata.latest;
-    const feedUrl = latest?.feed_url || `${this.apiBaseUrl}/api/desktop/updates/${this.channel}/${this.platform}/${this.arch}`;
+    const feedUrl = latest?.feed_url || managedUpdateFeedUrl(this.apiBaseUrl, this.channel, this.platform, this.arch);
     this.updater.setFeedURL({ provider: 'generic', url: this._trustedFeedUrl(feedUrl), useMultipleRangeRequest: false });
     const result = await this.updater.checkForUpdates();
     const updaterVersion = String(result?.updateInfo?.version || '');
