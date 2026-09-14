@@ -365,6 +365,8 @@ test('update artifact contract binds metadata to the current downloadable file',
   const macResources = join(release, 'mac-arm64', 'DSH Desktop.app', 'Contents', 'Resources')
   mkdirSync(macResources, { recursive: true })
   writeFileSync(join(macResources, 'app-update.yml'), 'provider: generic\nurl: https://updates.dsh.example/x\n')
+  writeFileSync(join(release, 'mac-arm64', 'DSH Desktop.app', 'Contents', 'Info.plist'),
+    '<plist><dict><key>CFBundleShortVersionString</key><string>1.2.3</string></dict></plist>')
   writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '1.2.3' }))
   const artifactName = 'dsh-desktop-1.2.3-mac-arm64.zip'
   const artifact = Buffer.from('signed update archive')
@@ -377,6 +379,12 @@ test('update artifact contract binds metadata to the current downloadable file',
     '',
   ].join('\n'))
 
+  assert.deepEqual(inspectUpdateArtifacts(root, 'macos'), [])
+  // 其它架构/旧版本残留目录不参与本次校验。
+  const staleResources = join(release, 'mac', 'DSH Desktop.app', 'Contents', 'Resources')
+  mkdirSync(staleResources, { recursive: true })
+  writeFileSync(join(staleResources, '..', 'Info.plist'),
+    '<plist><dict><key>CFBundleShortVersionString</key><string>1.2.2</string></dict></plist>')
   assert.deepEqual(inspectUpdateArtifacts(root, 'macos'), [])
   writeFileSync(join(release, artifactName), 'tampered archive')
   assert.match(inspectUpdateArtifacts(root, 'macos').join('\n'), /SHA-512/)

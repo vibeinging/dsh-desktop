@@ -33,15 +33,30 @@ function packagedAppRoots(releaseRoot, platform) {
     : [join(releaseRoot, 'win-unpacked')];
 }
 
+/** Read CFBundleShortVersionString from an XML Info.plist without a plist parser. */
+function macAppBundleVersion(appDir) {
+  try {
+    const plist = readFileSync(join(appDir, 'Contents', 'Info.plist'), 'utf8');
+    const match = plist.match(/<key>CFBundleShortVersionString<\/key>\s*<string>([^<]+)<\/string>/);
+    return match ? match[1].trim() : '';
+  } catch {
+    return '';
+  }
+}
+
 /**
  * electron-updater 的 downloadUpdate() 运行时读取安装包内 app-update.yml；
  * 缺失则更新按钮永远停在下载失败（v0.2.4 及之前的 macOS 包即此问题）。
  * 这里保证打进 zip/exe 的应用目录真的带有该文件。
+ * release 目录里可能残留其它架构或旧版本的 app 目录（例如上一次 x64 构建
+ * 留下的 release/mac），只有版本与本次一致的目录才代表当前产物，才需要校验。
  */
-function inspectPackagedUpdaterConfig(releaseRoot, platform) {
-  const roots = packagedAppRoots(releaseRoot, platform).filter(existsSync);
+function inspectPackagedUpdaterConfig(releaseRoot, platform, projectVersion) {
+  const roots = packagedAppRoots(releaseRoot, platform)
+    .filter(existsSync)
+    .filter((root) => platform !== 'macos' || macAppBundleVersion(root) === String(projectVersion || ''));
   if (roots.length === 0) {
-    return [`缺少已打包应用目录，无法确认 app-update.yml 已随包分发`];
+    return [`缺少与版本 ${projectVersion || '?'} 对应的已打包应用目录，无法确认 app-update.yml 已随包分发`];
   }
   const errors = [];
   for (const root of roots) {
@@ -94,7 +109,7 @@ export function inspectUpdateArtifacts(root = DEFAULT_ROOT, platform) {
   if (!existsSync(`${artifactPath}.blockmap`)) {
     errors.push(`缺少差分更新文件：release/${artifactName}.blockmap`);
   }
-  errors.push(...inspectPackagedUpdaterConfig(releaseRoot, platform));
+  errors.push(...inspectPackagedUpdaterConfig(releaseRoot, platform, project.version));
   return errors;
 }
 
