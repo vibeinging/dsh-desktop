@@ -26,6 +26,40 @@ function sha512Base64(path) {
   return createHash('sha512').update(readFileSync(path)).digest('base64');
 }
 
+/** Locate the packaged app directory the update archive was built from. */
+function packagedAppRoots(releaseRoot, platform) {
+  return platform === 'macos'
+    ? [join(releaseRoot, 'mac-arm64', 'DSH Desktop.app'), join(releaseRoot, 'mac', 'DSH Desktop.app')]
+    : [join(releaseRoot, 'win-unpacked')];
+}
+
+/**
+ * electron-updater 的 downloadUpdate() 运行时读取安装包内 app-update.yml；
+ * 缺失则更新按钮永远停在下载失败（v0.2.4 及之前的 macOS 包即此问题）。
+ * 这里保证打进 zip/exe 的应用目录真的带有该文件。
+ */
+function inspectPackagedUpdaterConfig(releaseRoot, platform) {
+  const roots = packagedAppRoots(releaseRoot, platform).filter(existsSync);
+  if (roots.length === 0) {
+    return [`缺少已打包应用目录，无法确认 app-update.yml 已随包分发`];
+  }
+  const errors = [];
+  for (const root of roots) {
+    const configPath = platform === 'macos'
+      ? join(root, 'Contents', 'Resources', 'app-update.yml')
+      : join(root, 'resources', 'app-update.yml');
+    if (!existsSync(configPath)) {
+      errors.push(`安装包缺少 ${platform === 'macos' ? 'Contents/Resources/' : 'resources/'}app-update.yml：${root}`);
+      continue;
+    }
+    const content = readFileSync(configPath, 'utf8');
+    if (!/^provider:\s*\S+/m.test(content)) {
+      errors.push(`app-update.yml 缺少 provider 配置：${configPath}`);
+    }
+  }
+  return errors;
+}
+
 /** Validate electron-builder metadata and the exact downloadable artifact it names. */
 export function inspectUpdateArtifacts(root = DEFAULT_ROOT, platform) {
   const contract = PLATFORM_CONTRACTS[platform];
@@ -60,6 +94,7 @@ export function inspectUpdateArtifacts(root = DEFAULT_ROOT, platform) {
   if (!existsSync(`${artifactPath}.blockmap`)) {
     errors.push(`缺少差分更新文件：release/${artifactName}.blockmap`);
   }
+  errors.push(...inspectPackagedUpdaterConfig(releaseRoot, platform));
   return errors;
 }
 

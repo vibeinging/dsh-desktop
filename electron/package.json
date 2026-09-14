@@ -91,6 +91,7 @@
     "files": [
       "main.js",
       "app-update-controller.js",
+      "app-update-config.js",
       "app-update-requests.js",
       "app-update-view.js",
       "app-update-preload.js",
@@ -187,6 +188,7 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true
     },
-    "artifactName": "dsh-desktop-${version}-${os}-${arch}.${ext}"
+    "artifactName": "dsh-desktop-${version}-${os}-${arch}.${ext}",
+    "afterPack": "./scripts/write-app-update-config.mjs"
   }
 }
