@@ -1,0 +1,85 @@
+name: Daily Download Stats
+
+# 每日下载量快照（云端版，替代依赖本机 ZCode 开着的本地定时任务）。
+# 21:30 北京时间 = 13:30 UTC。数据写入 stats/download-stats-history.json 并自动提交。
+# GitHub API 只返回当前累计值，每天采一次快照，日增量 = 相邻快照差。
+on:
+  schedule:
+    - cron: "30 13 * * *"   # 21:30 Asia/Shanghai
+  workflow_dispatch: {}      # 支持手动补录
+
+permissions:
+  contents: write
+
+concurrency:
+  group: download-stats
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: record download snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch stats and update history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - << 'PYEOF'
+          import json, os, subprocess, urllib.request, datetime
+
+          repo = "vibeinging/dsh-desktop"
+          req = urllib.request.Request(
+              f"https://api.github.com/repos/{repo}/releases?per_page=100",
+              headers={"Accept": "application/vnd.github+json",
+                       "Authorization": f"Bearer {os.environ['GH_TOKEN']}"})
+          releases = json.load(urllib.request.urlopen(req, timeout=30))
+
+          total = 0
+          latest = releases[0] if releases else None
+          latest_counts = {}
+          for rel in releases:
+              for asset in rel.get("assets", []):
+                  name = asset["name"]
+                  if not name.endswith((".dmg", ".exe", ".zip")):
+                      continue
+                  total += asset["download_count"]
+                  if rel is latest:
+                      kind = "exe" if name.endswith(".exe") else ("dmg" if name.endswith(".dmg") else "zip")
+                      latest_counts[kind] = latest_counts.get(kind, 0) + asset["download_count"]
+
+          today = datetime.datetime.now(datetime.timezone.utc).astimezone(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat()
+          path = "stats/download-stats-history.json"
+          try:
+              history = json.load(open(path, encoding="utf-8"))
+          except FileNotFoundError:
+              history = {"updated_at": None, "records": []}
+
+          record = {"date": today, "total": total,
+                    "latest": {"tag": latest["tag_name"] if latest else "", **latest_counts}}
+          history["records"] = [r for r in history.get("records", []) if r.get("date") != today]
+          history["records"].append(record)
+          history["records"].sort(key=lambda r: r["date"])
+          history["updated_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(history, f, ensure_ascii=False, indent=2)
+              f.write("\n")
+          prev = history["records"][-2]["total"] if len(history["records"]) >= 2 else None
+          delta = f" (+{total - prev})" if prev is not None else ""
+          print(f"[stats] {today} total={total}{delta} latest={record['latest']}")
+          PYEOF
+
+      - name: Commit snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add stats/download-stats-history.json
+          if git diff --cached --quiet; then
+            echo "[stats] no change"
+          else
+            git commit -m "chore(stats): daily download snapshot"
+            git push
+          fi
