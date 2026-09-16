@@ -3,9 +3,13 @@ name: Daily Download Stats
 # 每日下载量快照（云端版，替代依赖本机 ZCode 开着的本地定时任务）。
 # 21:30 北京时间 = 13:30 UTC。数据写入 stats/download-stats-history.json 并自动提交。
 # GitHub API 只返回当前累计值，每天采一次快照，日增量 = 相邻快照差。
+# 注：GitHub 定时任务常延迟数十分钟到数小时；脚本按「最近一个已过去的 21:30（北京）」
+# 归属日期，延迟跨过午夜也不会错记到下一天。16:30 UTC（次日 00:30 北京）的第二班
+# 是冗余补写，同一目标日幂等覆盖。
 on:
   schedule:
     - cron: "30 13 * * *"   # 21:30 Asia/Shanghai
+    - cron: "30 16 * * *"   # 次日 00:30 Asia/Shanghai（冗余补写）
   workflow_dispatch: {}      # 支持手动补录
 
 permissions:
@@ -51,7 +55,14 @@ jobs:
                       kind = "exe" if name.endswith(".exe") else ("dmg" if name.endswith(".dmg") else "zip")
                       latest_counts[kind] = latest_counts.get(kind, 0) + asset["download_count"]
 
-          today = datetime.datetime.now(datetime.timezone.utc).astimezone(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat()
+          bj = datetime.timezone(datetime.timedelta(hours=8))
+          now_bj = datetime.datetime.now(bj)
+          # 快照归属到「最近一个已过去的 21:30（北京）」：定时被延迟跨过午夜时，
+          # 仍然记在前一天，避免出现日期空档或错记到下一天。
+          target = now_bj.date()
+          if (now_bj.hour, now_bj.minute) < (21, 30):
+              target = target - datetime.timedelta(days=1)
+          today = target.isoformat()
           path = "stats/download-stats-history.json"
           try:
               history = json.load(open(path, encoding="utf-8"))
