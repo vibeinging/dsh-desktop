@@ -117,7 +117,7 @@ dsh plugin --profile web remove ds-harness-remote
 
 > The project does not yet provide a supported self-hosted Server, and its independent cryptographic review, real cross-network two-device coverage, and long-running stability validation remain incomplete. Remove the Bundle if remote access is not needed. The desktop package applies a SHA-256-bound compatibility projection to that fixed tarball without modifying official DSH or the upstream repository source. See the [remote access guide](https://dshdesktopstation.com/remote/) for connection, security, and removal details.
 
-Special thanks to [DeepSeek Harness Remote Web](https://dsh.r2049.cn/app) for providing the remote entry point and supporting services currently available to the community, allowing DSH Desktop users to continue working from a phone or browser.
+The mobile remote capability comes from [ds-harness-remote](https://github.com/liguobao/ds-harness-remote), open-sourced by [liguobao](https://github.com/liguobao); this project ships its pinned `0.4.1` by default. Special thanks to the original author for open-sourcing the Bundle and to [DeepSeek Harness Remote Web](https://dsh.r2049.cn/app) for providing the remote entry point and supporting services currently available to the community, allowing DSH Desktop users to continue working from a phone or browser.
 
 ## Bundled by default: conversation window teams
 
@@ -261,6 +261,7 @@ DSH Desktop chooses one official Web interface, one official Profile authority, 
 | [dsh-market](https://github.com/dsh-market/dsh-market) | Default plugin market |
 | [dsh-session-teams](https://github.com/vibeinging/dsh-session-teams) | Default conversation window teams Bundle (maintained here, `@vibeinging/dsh-session-teams`) |
 | [dsh-web](https://github.com/zhu1090093659/dsh-web) | Upstream community ecosystem repository for the task board and skin center (Apache-2.0) |
+| [ds-harness-remote](https://github.com/liguobao/ds-harness-remote) | Upstream of the default mobile remote Bundle (maintained by liguobao, includes the Remote Web and Android entry points) |
 | [dshfind](https://www.dshfind.com/zh) | DSH learning, sharing, and plugin discovery community |
 
 ## Relationship to DeepSeek Harness

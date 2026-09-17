@@ -117,7 +117,7 @@ dsh plugin --profile web remove ds-harness-remote
 
 > 该项目尚未提供受支持的自建 Server，独立密码安全审查、真实双机跨网和长期稳定性验证仍未完成；不需要远程能力时可以直接卸载。桌面发行包对该固定 tarball 应用带 SHA-256 校验的兼容投影，不修改官方 DSH 或上游仓库源码。连接方式、安全边界与停用方法也见[手机远程说明](https://dshdesktopstation.com/remote/)。
 
-特别感谢 [DeepSeek Harness Remote Web](https://dsh.r2049.cn/app) 为社区提供当前可用的远程入口与配套服务，让 DSH Desktop 用户可以从手机或浏览器继续工作。
+手机远程能力来自 [liguobao](https://github.com/liguobao) 开源的 [ds-harness-remote](https://github.com/liguobao/ds-harness-remote)，本项目固定其 `0.4.1` 版本默认内置。特别感谢原作者开源这一 Bundle，并经由 [DeepSeek Harness Remote Web](https://dsh.r2049.cn/app) 为社区提供当前可用的远程入口与配套服务，让 DSH Desktop 用户可以从手机或浏览器继续工作。
 
 ## 默认内置：会话窗口团队
 
@@ -261,6 +261,7 @@ DSH Desktop 选择“官方 Web 单一界面 + 官方 Profile 单一权威 + 精
 | [dsh-market](https://github.com/dsh-market/dsh-market) | 默认插件市场 |
 | [dsh-session-teams](https://github.com/vibeinging/dsh-session-teams) | 默认会话窗口团队 Bundle（本项目维护，`@vibeinging/dsh-session-teams`） |
 | [dsh-web](https://github.com/zhu1090093659/dsh-web) | 任务看板与皮肤中心的上游社区生态仓库（Apache-2.0） |
+| [ds-harness-remote](https://github.com/liguobao/ds-harness-remote) | 默认手机远程 Bundle 上游（liguobao 维护，含 Remote Web 与 Android 入口） |
 | [dshfind](https://www.dshfind.com/zh) | DSH 学习、分享与插件发现社区 |
 
 ## 与 DeepSeek Harness 的关系
