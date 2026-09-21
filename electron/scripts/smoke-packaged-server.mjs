@@ -109,8 +109,13 @@ try {
   if (!messages.some((message) => message?.event === 'shutdown-complete')) {
     throw new Error(`随包 Server 没有返回 shutdown-complete\n${output.join('')}`)
   }
-  if (!output.join('').includes('vexdb_lite 向量扩展已加载')) {
-    throw new Error(`随包 Server 没有加载 vexdb_lite\n${output.join('')}`)
+  const serverLog = output.join('')
+  // darwin/win32 要求 vexdb_lite 真实加载；linux 暂无 .so 构建，
+  // 接受 db.js 的"降级为关键词召回"路径（与 scripts/doctor.mjs 同一口径）。
+  const vexdbLoaded = serverLog.includes('vexdb_lite 向量扩展已加载')
+  const vexdbDegraded = process.platform === 'linux' && serverLog.includes('向量召回降级为关键词')
+  if (!vexdbLoaded && !vexdbDegraded) {
+    throw new Error(`随包 Server 没有加载 vexdb_lite\n${serverLog}`)
   }
   console.log(`[smoke] 随包 Server 和 Agent 运行时正常: node=${ready.node} arch=${ready.arch}`)
 } finally {
