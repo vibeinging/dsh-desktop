@@ -199,10 +199,6 @@
     "linux": {
       "icon": "icons/icon.png",
       "category": "Utility",
-      "desktop": {
-        "Name": "DSH Desktop",
-        "Comment": "DSH Desktop，基于 DeepSeek Harness 和 Electron 构建的社区桌面应用"
-      },
       "target": [
         "AppImage"
       ]
