@@ -10,7 +10,7 @@ const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SERVER_DIR = join(APP_DIR, 'server');
 const SUPPORTED = process.platform === 'darwin'
   ? new Set(['arm64', 'x64'])
-  : process.platform === 'win32'
+  : process.platform === 'win32' || process.platform === 'linux'
     ? new Set(['x64'])
     : new Set();
 
@@ -115,7 +115,12 @@ try {
     });
   });
   assertReady(ready.arch === process.arch, `Server 架构不一致: ${ready.arch}`);
-  assertReady(output.join('').includes('vexdb_lite 向量扩展已加载'), `vexdb_lite 没有正常加载\n${output.join('')}`);
+  const serverLog = output.join('');
+  // darwin/win32 要求 vexdb_lite 真实加载；linux 暂无 .so 构建，
+  // 接受 db.js 的"降级为关键词召回"路径（见 server/src/db.js loadVectorExtension）。
+  const vexdbLoaded = serverLog.includes('vexdb_lite 向量扩展已加载');
+  const vexdbDegraded = process.platform === 'linux' && serverLog.includes('向量召回降级为关键词');
+  assertReady(vexdbLoaded || vexdbDegraded, `vexdb_lite 没有正常加载\n${serverLog}`);
   child.send({ type: 'lifecycle', event: 'shutdown' });
   const exited = await exitPromise;
   assertReady(exited.code === 0, `Server 退出失败(code=${exited.code})\n${output.join('')}`);
