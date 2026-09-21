@@ -199,6 +199,7 @@
     "linux": {
       "icon": "icons/icon.png",
       "category": "Utility",
+      "executableName": "dsh-desktop",
       "target": [
         "AppImage"
       ]

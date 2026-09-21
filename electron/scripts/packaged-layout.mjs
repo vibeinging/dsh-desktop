@@ -22,8 +22,12 @@ function windowsExecutable(dir) {
 }
 
 function linuxExecutable(dir) {
-  const preferred = join(dir, 'DSH Desktop');
-  if (existsSync(preferred)) return preferred;
+  // electron-builder 的 Linux 可执行名默认取包名（dsh-desktop）而非 productName；
+  // 显式配置见 electron/package.json 的 linux.executableName。
+  for (const name of ['DSH Desktop', 'dsh-desktop']) {
+    const candidate = join(dir, name);
+    if (existsSync(candidate)) return candidate;
+  }
   const candidates = readdirSync(dir)
     .filter((name) => !name.includes('.'))
     .filter((name) => !isDirectory(join(dir, name)));
