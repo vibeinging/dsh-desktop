@@ -204,7 +204,8 @@
       ]
     },
     "appImage": {
-      "license": "../LICENSE"
+      "license": "../LICENSE",
+      "artifactName": "dsh-desktop-${version}-${os}-x64.${ext}"
     },
     "artifactName": "dsh-desktop-${version}-${os}-${arch}.${ext}",
     "afterPack": "./scripts/write-app-update-config.mjs"

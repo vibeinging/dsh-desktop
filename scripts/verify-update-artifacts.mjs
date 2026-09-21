@@ -109,7 +109,10 @@ export function inspectUpdateArtifacts(root = DEFAULT_ROOT, platform) {
   if (!expectedSha512 || expectedSha512 !== sha512Base64(artifactPath)) {
     errors.push(`更新元数据 SHA-512 与产物不一致：release/${artifactName}`);
   }
-  if (!existsSync(`${artifactPath}.blockmap`)) {
+  // AppImage 的差分数据内嵌在文件尾部（AppImageUpdater 走
+  // FileWithEmbeddedBlockMapDifferentialDownloader），没有也不需要外部 blockmap；
+  // macOS zip 与 Windows NSIS 仍要求外部 .blockmap。
+  if (platform !== 'linux' && !existsSync(`${artifactPath}.blockmap`)) {
     errors.push(`缺少差分更新文件：release/${artifactName}.blockmap`);
   }
   errors.push(...inspectPackagedUpdaterConfig(releaseRoot, platform, project.version));
