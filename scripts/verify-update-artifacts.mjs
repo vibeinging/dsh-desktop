@@ -9,6 +9,7 @@ const DEFAULT_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const PLATFORM_CONTRACTS = Object.freeze({
   macos: Object.freeze({ metadata: 'latest-mac.yml', extension: '.zip' }),
   windows: Object.freeze({ metadata: 'latest.yml', extension: '.exe' }),
+  linux: Object.freeze({ metadata: 'latest-linux.yml', extension: '.AppImage' }),
 });
 
 function yamlScalar(text, key) {
@@ -28,9 +29,11 @@ function sha512Base64(path) {
 
 /** Locate the packaged app directory the update archive was built from. */
 function packagedAppRoots(releaseRoot, platform) {
-  return platform === 'macos'
-    ? [join(releaseRoot, 'mac-arm64', 'DSH Desktop.app'), join(releaseRoot, 'mac', 'DSH Desktop.app')]
-    : [join(releaseRoot, 'win-unpacked')];
+  if (platform === 'macos') {
+    return [join(releaseRoot, 'mac-arm64', 'DSH Desktop.app'), join(releaseRoot, 'mac', 'DSH Desktop.app')];
+  }
+  if (platform === 'linux') return [join(releaseRoot, 'linux-unpacked')];
+  return [join(releaseRoot, 'win-unpacked')];
 }
 
 /** Read CFBundleShortVersionString from an XML Info.plist without a plist parser. */

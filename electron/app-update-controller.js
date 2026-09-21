@@ -7,7 +7,7 @@ const STATE_SCHEMA_VERSION = 1;
 const HISTORY_LIMIT = 20;
 const METADATA_LIMIT_BYTES = 1024 * 1024;
 const DEFAULT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const SUPPORTED_TARGETS = new Set(['darwin-arm64', 'darwin-x64', 'win32-x64']);
+const SUPPORTED_TARGETS = new Set(['darwin-arm64', 'darwin-x64', 'win32-x64', 'linux-x64']);
 const GITHUB_REPOSITORY_PART = /^[A-Za-z0-9_.-]{1,100}$/;
 const UPDATE_CLIENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

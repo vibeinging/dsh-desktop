@@ -21,8 +21,20 @@ function windowsExecutable(dir) {
   return join(dir, candidates[0]);
 }
 
+function linuxExecutable(dir) {
+  const preferred = join(dir, 'DSH Desktop');
+  if (existsSync(preferred)) return preferred;
+  const candidates = readdirSync(dir)
+    .filter((name) => !name.includes('.'))
+    .filter((name) => !isDirectory(join(dir, name)));
+  if (candidates.length !== 1) {
+    throw new Error(`无法确定 Linux 主程序，请直接传入可执行文件路径: ${dir}`);
+  }
+  return join(dir, candidates[0]);
+}
+
 export function resolvePackagedLayout(input) {
-  if (!input) throw new Error('请传入 .app、Windows .exe 或 win-unpacked 目录');
+  if (!input) throw new Error('请传入 .app、Windows .exe、Linux 目录或可执行文件');
   const target = resolve(input);
 
   if (target.endsWith('.app') && isDirectory(target)) {
@@ -34,14 +46,34 @@ export function resolvePackagedLayout(input) {
     };
   }
 
-  const windowsDir = isDirectory(target) ? target : dirname(target);
-  const executable = isDirectory(target) ? windowsExecutable(target) : target;
-  if (extname(executable).toLowerCase() === '.exe' && isDirectory(join(windowsDir, 'resources'))) {
-    return {
-      platform: 'win32',
-      executable,
-      resourcesDir: join(windowsDir, 'resources'),
-    };
+  const appDir = isDirectory(target) ? target : dirname(target);
+  const hasResources = isDirectory(join(appDir, 'resources'));
+
+  if (hasResources) {
+    if (isDirectory(target)) {
+      // unpacked 目录：win-unpacked 里有 .exe；linux-unpacked 只有无扩展名主程序。
+      const hasWindowsExe = readdirSync(target)
+        .some((name) => extname(name).toLowerCase() === '.exe');
+      if (hasWindowsExe) {
+        return {
+          platform: 'win32',
+          executable: windowsExecutable(target),
+          resourcesDir: join(appDir, 'resources'),
+        };
+      }
+      // AppImage 是 squashfs 单文件，不能直接当目录探测；冒烟一律指向 linux-unpacked。
+      return {
+        platform: 'linux',
+        executable: linuxExecutable(target),
+        resourcesDir: join(appDir, 'resources'),
+      };
+    }
+    if (extname(target).toLowerCase() === '.exe') {
+      return { platform: 'win32', executable: target, resourcesDir: join(appDir, 'resources') };
+    }
+    if (existsSync(target)) {
+      return { platform: 'linux', executable: target, resourcesDir: join(appDir, 'resources') };
+    }
   }
 
   throw new Error(`不支持的打包产物: ${target}`);

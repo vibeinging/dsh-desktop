@@ -28,6 +28,11 @@ jobs:
             package_script: package:win:dir
             smoke_server: smoke:win:server
             smoke_app: smoke:win:app
+          - name: Linux x64
+            os: ubuntu-24.04
+            package_script: package:linux:dir
+            smoke_server: smoke:linux:server
+            smoke_app: smoke:linux:app
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -56,6 +61,12 @@ jobs:
           # 让 npm 在安装时把 resolved host 替换回官方 registry
           npm_config_replace_registry_host: registry.npmjs.org
 
+      - name: Install headless display (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libfuse2
+
       - name: Check native runtime
         run: npm run doctor
 
@@ -73,4 +84,13 @@ jobs:
         run: npm --prefix electron run ${{ matrix.smoke_server }}
 
       - name: Smoke packaged app
+        if: runner.os != 'Linux'
         run: npm --prefix electron run ${{ matrix.smoke_app }}
+
+      # headless Linux 上 Electron 需要 xvfb，Chromium 沙箱需要 userns/SUID；
+      # 仅 CI 冒烟禁用沙箱，真实 Linux 桌面不受影响。
+      - name: Smoke packaged app (xvfb)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm --prefix electron run ${{ matrix.smoke_app }}
+        env:
+          ELECTRON_DISABLE_SANDBOX: '1'

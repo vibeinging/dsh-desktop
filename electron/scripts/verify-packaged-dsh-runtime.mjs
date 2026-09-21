@@ -12,11 +12,11 @@ export function verifyPackagedDshRuntime(appInput) {
   const manifestPath = join(root, 'package.json')
   const entryPath = join(root, 'lib', 'bin.js')
   if (!existsSync(manifestPath) || !existsSync(entryPath)) {
-    throw new Error(`Windows 产物缺少官方 DSH CLI npm 依赖: ${root}`)
+    throw new Error(`打包产物缺少官方 DSH CLI npm 依赖: ${root}`)
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
   if (manifest.name !== '@deepseek-ai/dsh') {
-    throw new Error(`Windows 产物 DSH CLI 包名不正确: ${manifest.name || 'unknown'}`)
+    throw new Error(`打包产物 DSH CLI 包名不正确: ${manifest.name || 'unknown'}`)
   }
   return { root, version: manifest.version || null }
 }
@@ -24,5 +24,5 @@ export function verifyPackagedDshRuntime(appInput) {
 if (process.argv[1] && resolve(process.argv[1]) === SCRIPT_PATH) {
   const input = process.argv[2]
   const result = verifyPackagedDshRuntime(input)
-  console.log(`[build] Windows 产物包含官方 DSH CLI: ${result.version || 'unknown'}`)
+  console.log(`[build] 打包产物包含官方 DSH CLI: ${result.version || 'unknown'}`)
 }

@@ -1,0 +1,105 @@
+name: Linux Release
+
+# 手动触发的 Linux AppImage 构建。
+# 与 windows-release.yml 同策略：刻意不挂在 push/PR 上，日常验证由 ci.yml 负责，
+# 本工作流只在需要出 AppImage 安装包时消耗一次 Linux runner 时间。
+# Linux 定位为"附加发布"：不阻塞 macOS/Windows 双平台发版节奏（见 RELEASE.md）。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-linux:
+    name: linux x64 appimage (unsigned)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+            electron/package-lock.json
+
+      - name: Validate release ref
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          EXPECTED_TAG="v$VERSION"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" = "$EXPECTED_TAG" ]; then
+            exit 0
+          fi
+          if [ "$GITHUB_REF_TYPE" = "branch" ] && [ "$GITHUB_REF_NAME" = "main" ]; then
+            git ls-remote --exit-code --tags origin "refs/tags/$EXPECTED_TAG"
+            exit $?
+          fi
+          # dev 分支 = 预发布测试构建：不要求 tag，产物仅作测试分发，
+          # 不代表正式发版（正式构建必须走 tag/main）。
+          if [ "$GITHUB_REF_TYPE" = "branch" ] && [ "$GITHUB_REF_NAME" = "dev" ]; then
+            echo "dev test build (no release tag required)"
+            exit 0
+          fi
+          echo "Release workflow must run from tag $EXPECTED_TAG, main, or dev (test)" >&2
+          exit 1
+
+      # xvfb 供 headless Electron 冒烟；libfuse2 供 AppImage 工具链（Ubuntu 24.04 默认不带）
+      - name: Install headless display and fuse runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libfuse2
+
+      # 缓存 Electron 发行包与 electron-builder 工具链，省去每次冷下载
+      - name: Cache electron & builder downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/electron-builder
+          key: electron-linux-x64-v1
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+        env:
+          # lock 文件生成自国内镜像(r2.cnpmjs.org)，其证书已过期且海外不可达；
+          # 让 npm 在安装时把 resolved host 替换回官方 registry
+          npm_config_replace_registry_host: registry.npmjs.org
+
+      - name: Check native runtime
+        run: npm run doctor
+
+      - name: Build AppImage
+        run: npm run package:linux
+
+      - name: Smoke packaged server
+        run: npm --prefix electron run smoke:linux:server
+
+      # app 冒烟拉起完整 Electron 窗口，headless CI 需要 xvfb；
+      # Chromium 沙箱在 CI 容器里需要 userns/SUID 支持，冒烟环境禁用。
+      # 真实 Linux 桌面不受此影响（chrome-sandbox 随包分发）。
+      - name: Smoke packaged app
+        run: xvfb-run -a npm --prefix electron run smoke:linux:app
+        env:
+          ELECTRON_DISABLE_SANDBOX: '1'
+
+      # 传 AppImage 与更新元数据（linux-unpacked 目录数百 MB，不占 artifact 存储）
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-desktop-linux-x64-unsigned
+          path: |
+            release/*.AppImage
+            release/latest-linux.yml
+            release/*.blockmap
+          if-no-files-found: error
+          retention-days: 14

@@ -21,6 +21,8 @@
     "seal:featured-plugins:mac": "node ../scripts/run-with-project-node.mjs node ../scripts/sign-featured-macos-native-artifacts.mjs",
     "prepare:win": "node ../scripts/run-with-project-node.mjs node scripts/prepare-package.mjs --platform win32 --arch x64",
     "verify:win:runtime": "node ../scripts/run-with-project-node.mjs node scripts/verify-packaged-dsh-runtime.mjs ../release/win-unpacked",
+    "prepare:linux": "node ../scripts/run-with-project-node.mjs node scripts/prepare-package.mjs --platform linux --arch x64",
+    "verify:linux:runtime": "node ../scripts/run-with-project-node.mjs node scripts/verify-packaged-dsh-runtime.mjs ../release/linux-unpacked",
     "smoke:packaged-server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs \"../release/mac-arm64/DSH Desktop.app\"",
     "smoke:packaged-app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs \"../release/mac-arm64/DSH Desktop.app\"",
     "smoke:packaged-offline": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-offline.mjs \"../release/mac-arm64/DSH Desktop.app\"",
@@ -43,6 +45,8 @@
     "smoke:win:server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs ../release/win-unpacked",
     "smoke:win:app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs ../release/win-unpacked",
     "smoke:win:acceptance": "node ../scripts/run-with-project-node.mjs node scripts/smoke-windows-acceptance.mjs",
+    "smoke:linux:server": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-server.mjs ../release/linux-unpacked",
+    "smoke:linux:app": "node ../scripts/run-with-project-node.mjs node scripts/smoke-packaged-app.mjs ../release/linux-unpacked",
     "package:mac:dir": "node ../scripts/run-with-project-node.mjs npm run package:mac:dir:project",
     "package:mac:dir:project": "npm run prepare:mac && npm run verify:official-web-assets && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --dir",
     "package:mac:x64:dir": "node ../scripts/run-with-project-node.mjs npm run package:mac:x64:dir:project",
@@ -56,7 +60,11 @@
     "package:win:unsigned": "node ../scripts/run-with-project-node.mjs npm run package:win:unsigned:project",
     "package:win:unsigned:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 --publish never && npm --prefix .. run check:update-artifacts:win && npm run verify:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers",
     "package:win": "node ../scripts/run-with-project-node.mjs npm run package:win:project",
-    "package:win:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 --publish never -c.forceCodeSigning=true && npm --prefix .. run check:update-artifacts:win && npm run verify:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers"
+    "package:win:project": "npm --prefix .. run release:check:win:static && npm run prepare:win && npm run verify:official-web-assets && electron-builder --win --x64 --publish never -c.forceCodeSigning=true && npm --prefix .. run check:update-artifacts:win && npm run verify:win:runtime && npm --prefix .. run release:verify:win -- --allow-blockers",
+    "package:linux:dir": "node ../scripts/run-with-project-node.mjs npm run package:linux:dir:project",
+    "package:linux:dir:project": "npm run prepare:linux && npm run verify:official-web-assets && electron-builder --linux --x64 --dir && npm run verify:linux:runtime",
+    "package:linux": "node ../scripts/run-with-project-node.mjs npm run package:linux:project",
+    "package:linux:project": "npm run prepare:linux && npm run verify:official-web-assets && electron-builder --linux AppImage --x64 --publish never && npm --prefix .. run check:update-artifacts:linux && npm run verify:linux:runtime"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.2",
@@ -187,6 +195,20 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "icon": "icons/icon.png",
+      "category": "Utility",
+      "desktop": {
+        "Name": "DSH Desktop",
+        "Comment": "DSH Desktop，基于 DeepSeek Harness 和 Electron 构建的社区桌面应用"
+      },
+      "target": [
+        "AppImage"
+      ]
+    },
+    "appImage": {
+      "license": "../LICENSE"
     },
     "artifactName": "dsh-desktop-${version}-${os}-${arch}.${ext}",
     "afterPack": "./scripts/write-app-update-config.mjs"

@@ -20,11 +20,13 @@ const PNPM_BIN_DIR = join(APP_DIR, '.desktop-build', 'pnpm-bin')
 const PNPM_RUNTIME_DIR = join(APP_DIR, '.desktop-build', 'pnpm-runtime')
 export const BUNDLED_PNPM_FILES = ['bin', 'dist', 'LICENSE', 'package.json']
 const SUPPORTED_ARCHES = new Set(['arm64', 'x64'])
-const SUPPORTED_PLATFORMS = new Set(['darwin', 'win32'])
+const SUPPORTED_PLATFORMS = new Set(['darwin', 'win32', 'linux'])
 const AGENT_RUNTIME_TARGETS = {
   'darwin-arm64': ['codex-darwin-arm64', 'aarch64-apple-darwin', 'codex'],
   'darwin-x64': ['codex-darwin-x64', 'x86_64-apple-darwin', 'codex'],
   'win32-x64': ['codex-win32-x64', 'x86_64-pc-windows-msvc', 'codex.exe'],
+  'linux-x64': ['codex-linux-x64', 'x86_64-unknown-linux-musl', 'codex'],
+  'linux-arm64': ['codex-linux-arm64', 'aarch64-unknown-linux-musl', 'codex'],
 }
 
 function arg(name, fallback) {

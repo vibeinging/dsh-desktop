@@ -193,8 +193,9 @@ test('desktop updater records successful upgrade after the new app starts', () =
     updater: new FakeUpdater(),
     fetch: async () => updateResponse(),
     apiBaseUrl: 'https://updates.dsh.example',
+    // linux-arm64 仍是未支持目标：用禁用态验证 pending 历史记录不影响升级回执
     platform: 'linux',
-    arch: 'x64',
+    arch: 'arm64',
     userDataPath,
     dataRoot: join(userDataPath, 'data'),
     isPackaged: true,

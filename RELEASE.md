@@ -2,6 +2,7 @@
 
 > 双平台同发是硬性要求：**macOS 与 Windows 安装包必须随同一个版本发布**。
 > Release 资产不满 9 项（mac 5 + win 4），发版就没有完成。
+> Linux AppImage 为**附加平台**（见 6L 节），不阻塞也不计入 9 项要求。
 >
 > 历史教训：v0.2.2 / v0.2.3 只发了 macOS，Windows 用户无包可装；
 > v0.2.1–v0.2.4 的 macOS 包缺 `app-update.yml`，应用内更新一点就失败
@@ -95,6 +96,41 @@ gh release upload vX.Y.Z \
 
 > 若工作流失败：Windows runner 上偶发「等待官方 Web … 超时」类验收抖动，直接重跑一次；
 > 连续失败才需要排查。**没有 Windows 产物就不要对外宣传新版**。
+
+## 6L. Linux AppImage（附加发布，不阻塞 mac/win）
+
+> Linux 定位为**附加平台**：`package:linux` 出问题**不阻塞**双平台发版，
+> 也**不要求**与 mac/win 同 tag。追赶到任一已发布版本均可。
+> 资产 9 项要求不包含 Linux；发布 Linux 后为 9+3 项（AppImage / AppImage.blockmap / latest-linux.yml）。
+
+```bash
+# 触发（用已发布的 tag ref；工作流校验 tag 与 package.json 版本一致）
+gh workflow run linux-release.yml --ref vX.Y.Z
+sleep 8 && gh run list --workflow=linux-release.yml --limit 1
+
+# 等待完成（约 15–30 分钟），下载产物
+gh run watch <run-id>
+rm -rf /tmp/dsh-linux && mkdir -p /tmp/dsh-linux
+gh run download <run-id> -n dsh-desktop-linux-x64-unsigned -D /tmp/dsh-linux
+
+# 附加 3 项到 Release
+gh release upload vX.Y.Z \
+  /tmp/dsh-linux/dsh-desktop-X.Y.Z-linux-x64.AppImage \
+  /tmp/dsh-linux/dsh-desktop-X.Y.Z-linux-x64.AppImage.blockmap \
+  /tmp/dsh-linux/latest-linux.yml
+```
+
+注意事项：
+
+- **只做 x64**；arm64 未支持（更新器白名单与官网 TARGETS 均未放行）。
+- CI 冒烟用 `xvfb` + `ELECTRON_DISABLE_SANDBOX=1`（headless 容器限制），
+  真实 Linux 桌面不受影响；**发布前应在真实 Ubuntu 桌面至少手动启动一次**
+  AppImage（`chmod +x` 后运行；Ubuntu 24.04 需先 `sudo apt install libfuse2`）。
+- 无签名机制（Linux 桌面生态无强制签名），完整性依赖 latest-linux.yml 的 SHA-512。
+- 发版后验证托管服务：`.../api/desktop/updates/stable/linux/x64/latest-linux.yml` → `version: X.Y.Z`
+  （需要 `dsh-website` 的 `linux-x64` TARGET 与 AppImage 资产解析已部署上线）。
+- Linux 尚无 Windows 九项验收等价物（`smoke:linux:*` 只覆盖 server/app 冒烟），
+  完整 acceptance 脚本是后续工作；在此之前保持"附加发布"定位。
 
 ## 7. 发版验收清单（全部勾完才算发版完成）
 
