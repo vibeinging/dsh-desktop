@@ -114,8 +114,11 @@ function parseSmokePostJsonPath(raw) {
 
 async function captureSmokeScreenshot(name = SMOKE_SCREENSHOT_NAME) {
   if (!SMOKE_SCREENSHOT_DIR || !mainWindow || mainWindow.isDestroyed()) return null;
+  // 截图目录来自环境变量：name 只接受纯 basename，且 resolve 后必须仍在目录内。
+  if (typeof name !== 'string' || name !== path.basename(name)) return null;
   const targetDir = path.resolve(SMOKE_SCREENSHOT_DIR);
-  const targetPath = path.join(targetDir, name);
+  const targetPath = path.resolve(targetDir, name);
+  if (targetPath !== targetDir && !targetPath.startsWith(targetDir + path.sep)) return null;
   fs.mkdirSync(targetDir, { recursive: true });
   const debuggerAgent = mainWindow.webContents.debugger;
   let attached = false;
