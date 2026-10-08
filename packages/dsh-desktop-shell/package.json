@@ -1,0 +1,49 @@
+{
+  "name": "@vibeinging/dsh-desktop-shell",
+  "description": "Desktop shell integrations: promotes the dshmarket plugin market to a first-class home panel",
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "build:client": "node ./scripts/build-client.mjs"
+  },
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "src/index.js",
+    "src/client/index.js",
+    "lib/client.js",
+    "scripts/build-client.mjs",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "BSD-3-Clause",
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.0-rc.1",
+    "dshmarket": "1.66.3",
+    "react": "^18.2.0"
+  }
+}

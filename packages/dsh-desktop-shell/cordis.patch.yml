@@ -1,0 +1,6 @@
+# Desktop shell integrations Bundle. Host half is inert; the client half promotes
+# the dshmarket plugin market to a first-class home panel and retires its settings
+# section, so plugin discovery lives beside plugin management instead of in 设置.
+- insert:
+    - id: dsh-desktop-shell
+      name: '@vibeinging/dsh-desktop-shell'
