@@ -4,7 +4,7 @@ window.__ModuleLoader__.load({
     /** Browser half: official Web slot contributions backed by DSH Workspaces. */
 
     function createWorktreeClient(React) {
-      const { createElement: h, useCallback, useEffect, useMemo, useState, useSyncExternalStore } = React;
+      const { createElement: h, useCallback, useEffect, useMemo, useState } = React;
       const inject = ["slots", "workspaces"];
       const route = "/dsh-worktree";
       const maxBranchLength = 120;
@@ -152,50 +152,6 @@ window.__ModuleLoader__.load({
       font-size: 12px;
       line-height: 1.6;
     }
-    .dsh-worktree-sidebar-action {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      min-width: 32px;
-      height: 32px;
-      padding: 0 8px;
-      border: 0;
-      border-radius: 6px;
-      background: transparent;
-      color: var(--dsw-alias-fg-subtle, #686d78);
-      font: inherit;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    .dsh-worktree-sidebar-action:hover { background: var(--dsw-alias-bg-layer-2, #eceef2); color: var(--dsw-alias-fg-base, #20232a); }
-    .dsh-worktree-sidebar-action:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring, #5474cc); outline-offset: 2px; }
-    .dsh-worktree-branch-mark { width: 14px; height: 14px; }
-    .dsh-worktree-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      justify-content: flex-end;
-      pointer-events: auto;
-      background: color-mix(in srgb, var(--dsw-alias-bg-base, #f7f7f9) 38%, transparent);
-    }
-    .dsh-worktree-overlay-panel {
-      position: relative;
-      box-sizing: border-box;
-      width: min(920px, calc(100% - 24px));
-      max-width: 100%;
-      height: 100%;
-      border-left: 1px solid var(--dsw-alias-border-l1, rgb(35 39 47 / 13%));
-      background: var(--dsw-alias-bg-base, #f7f7f9);
-      box-shadow: -22px 0 52px rgb(22 26 35 / 12%);
-    }
-    .dsh-worktree-overlay-close {
-      position: absolute;
-      z-index: 2;
-      top: 14px;
-      right: 16px;
-    }
-    .dsh-worktree-overlay-empty { padding: 72px 44px; color: var(--dsw-alias-fg-subtle, #686d78); font-size: 13px; }
     @container (max-width: 560px) {
       .dsh-worktree-heading, .dsh-worktree-row { grid-template-columns: 1fr; align-items: start; }
       .dsh-worktree-heading .dsh-worktree-button { justify-self: start; }
@@ -204,27 +160,11 @@ window.__ModuleLoader__.load({
       .dsh-worktree-actions { justify-content: flex-start; }
       .dsh-worktree-path { white-space: normal; overflow-wrap: anywhere; }
     }
-    @media (max-width: 720px) {
-      .dsh-worktree-overlay-panel { width: 100vw; }
-    }
     @media (prefers-color-scheme: dark) {
       .dsh-worktree-view { color: var(--dsw-alias-fg-base, #e8e9ee); background: var(--dsw-alias-bg-base, #17181c); }
       .dsh-worktree-button, .dsh-worktree-input { background: var(--dsw-alias-bg-layer-1, #202126); }
     }
     `;
-
-      let overlayOpen = false;
-      const overlayListeners = new Set();
-      const setOverlayOpen = (next) => {
-        if (overlayOpen === next) return;
-        overlayOpen = next;
-        for (const listener of overlayListeners) listener();
-      };
-      const subscribeOverlay = (listener) => {
-        overlayListeners.add(listener);
-        return () => overlayListeners.delete(listener);
-      };
-      const useOverlayOpen = () => useSyncExternalStore(subscribeOverlay, () => overlayOpen, () => false);
 
       async function requestWorktrees(payload) {
         const response = await fetch(route, {
@@ -480,61 +420,6 @@ window.__ModuleLoader__.load({
         );
       }
 
-      function BranchMark() {
-        return h("svg", { className: "dsh-worktree-branch-mark", viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true" },
-          h("circle", { cx: "4", cy: "3", r: "1.5", stroke: "currentColor", strokeWidth: "1.4" }),
-          h("circle", { cx: "4", cy: "13", r: "1.5", stroke: "currentColor", strokeWidth: "1.4" }),
-          h("circle", { cx: "12", cy: "5", r: "1.5", stroke: "currentColor", strokeWidth: "1.4" }),
-          h("path", { d: "M4 4.5v7M5.5 10.5c4 0 5-1.8 5-4", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round" }),
-        );
-      }
-
-      function WorktreeSidebarAction({ wide }) {
-        useEffect(installStyle, []);
-        return h("button", {
-          type: "button",
-          className: "dsh-worktree-sidebar-action",
-          "aria-label": "打开 Git Worktree",
-          onClick: () => setOverlayOpen(true),
-          "data-testid": "dsh-worktree-sidebar-action",
-        }, h(BranchMark), wide ? h("span", null, "Worktree") : null);
-      }
-
-      function WorktreeOverlay({ useSessions, useWorkspaces, createWorkspace, deleteWorkspace, startSession }) {
-        const open = useOverlayOpen();
-        const sessionId = useSessions((state) => state.current);
-        useEffect(() => {
-          if (!open) return undefined;
-          const onKeyDown = (event) => {
-            if (event.key !== "Escape") return;
-            event.preventDefault();
-            setOverlayOpen(false);
-          };
-          document.addEventListener("keydown", onKeyDown);
-          return () => document.removeEventListener("keydown", onKeyDown);
-        }, [open]);
-        if (!open) return null;
-        return h("div", {
-          className: "dsh-worktree-overlay",
-          role: "presentation",
-          onMouseDown: (event) => {
-            if (event.currentTarget === event.target) setOverlayOpen(false);
-          },
-          "data-testid": "dsh-worktree-overlay",
-        },
-        h("aside", { className: "dsh-worktree-overlay-panel", "aria-label": "Git Worktree 管理" },
-          h("button", {
-            type: "button",
-            className: "dsh-worktree-button dsh-worktree-overlay-close",
-            onClick: () => setOverlayOpen(false),
-            "aria-label": "关闭 Git Worktree",
-          }, "关闭"),
-          sessionId
-            ? h(WorktreeView, { sessionId, useWorkspaces, createWorkspace, deleteWorkspace, startSession })
-            : h("div", { className: "dsh-worktree-overlay-empty" }, "请先在一个 Git Workspace 中打开会话，再管理 Worktree。"),
-        ));
-      }
-
       function installStyle(documentRef = document) {
         const style = documentRef.createElement("style");
         style.id = styleId;
@@ -558,17 +443,6 @@ window.__ModuleLoader__.load({
           label: () => "Worktree",
           inject: workspaceActions,
         }, WorktreeView));
-        ctx.slots.inject("sidebar.footer.action", () => ctx.slots.register({
-          name: "sidebar.footer.action",
-          id: "worktree",
-          order: 10,
-        }, WorktreeSidebarAction));
-        ctx.slots.inject("shell.overlay", () => ctx.slots.register({
-          name: "shell.overlay",
-          id: "worktree",
-          order: 10,
-          inject: workspaceActions,
-        }, WorktreeOverlay));
       }
 
       return { apply, inject };
