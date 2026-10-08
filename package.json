@@ -24,6 +24,7 @@
     "release:verify:mac:x64": "node scripts/run-with-project-node.mjs node scripts/release-safety.mjs --scope macos --app \"release/mac/DSH Desktop.app\"",
     "release:verify:win": "node scripts/run-with-project-node.mjs node scripts/release-safety.mjs --scope windows --app \"release/win-unpacked/DSH Desktop.exe\"",
     "check:deps": "node scripts/run-with-project-node.mjs node scripts/bootstrap.mjs --check",
+    "check:upstream-readiness": "node scripts/run-with-project-node.mjs node scripts/check-upstream-readiness.mjs",
     "dev": "node scripts/run-with-project-node.mjs node scripts/dev.mjs",
     "dev:electron": "node scripts/run-with-project-node.mjs npm --prefix electron run dev",
     "typecheck": "node scripts/run-with-project-node.mjs node scripts/release-boundary.mjs --syntax",
