@@ -1,7 +1,7 @@
 {
   "name": "@vibeinging/dsh-desktop-shell",
   "description": "Desktop shell integrations: promotes the dshmarket plugin market to a first-class home panel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "packageManager": "pnpm@11.22.0",
   "engines": {
@@ -42,8 +42,8 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-client-ui-slots": "0.2.0-rc.1",
-    "dshmarket": "1.66.3",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.2.0-rc.1",
+    "dshmarket": "^1.66.3",
     "react": "^18.2.0"
   }
 }
