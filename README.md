@@ -31,7 +31,8 @@ DSH Desktop（插件集成版 / Bundle Edition）是一个社区维护的桌面�
 | --- | --- | --- |
 | macOS Apple Silicon | 下载 `.dmg`，拖入“应用程序” | Developer ID 签名并完成 Apple 公证 |
 | Windows x64 | 下载 `.exe`，选择安装范围与客户端目录 | 以当前 [Release](https://github.com/vibeinging/dsh-desktop/releases/latest) 页面提供的产物为准 |
-| macOS Intel / Linux | 暂无正式安装包 | 可以从源码运行 |
+| Linux x64 | AppImage | 测试邀请阶段，见 [Linux 支持跟踪 Issue #19](https://github.com/vibeinging/dsh-desktop/issues/19) |
+| macOS Intel | 暂无正式安装包 | 可以从源码运行 |
 
 各平台直链与文件大小见[官网下载页](https://dshdesktopstation.com/#download)；首跑常见问题（Gatekeeper、SmartScreen、API Key、国内下载）见[官网 FAQ](https://dshdesktopstation.com/#faq)。
 
@@ -244,11 +245,13 @@ open "release/mac-arm64/DSH Desktop.app"
 
 详见[隐私说明](PRIVACY.md)、[安全说明](SECURITY.md)和[第三方说明](THIRD_PARTY_NOTICES.md)。
 
-## 与其他社区桌面项目的区别
+## 与官方桌面端和其他社区桌面的区别
 
 DSH Desktop 选择“官方 Web 单一界面 + 官方 Profile 单一权威 + 精选社区 Bundle + 窄 Native Host”。它不追求再做一套完整前端，而是把桌面体验做成 DSH 插件生态的一个可靠发行组合。
 
-[DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) 是另一个独立社区桌面发行版，更强调完整桌面 Shell 与跨平台客户端体验；[dataelement/dsh-desktop](https://github.com/dataelement/dsh-desktop) 也是独立社区项目。三个项目的代码、发行和路线互不从属，用户可以按界面、插件方式和平台产物选择。
+**与官方桌面端（`@deepseek-ai/dsh-desktop`）**：官方在 DeepSeek Harness 仓库内维护自己的 Electron 桌面壳——无监听端口、与 DSH 运行时同版本锁定、使用独立的 `profiles/desktop`，截至本文写作尚未公开发布安装包。两者定位互补、可以共存：官方桌面端是官方的最小核心体验；DSH Desktop 今天即可下载安装，预装固定版本并通过验证的插件组合，把插件市场、版本兼容和桌面能力打包成完整发行版。两者使用不同的 Profile 目录，同时安装互不干扰。本项目也在跟进官方桌面壳的演进，并验证基于官方壳构建插件集成版的路线。
+
+与其他社区项目：[DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) 是另一个独立社区桌面发行版，更强调完整桌面 Shell 与跨平台客户端体验；[dataelement/dsh-desktop](https://github.com/dataelement/dsh-desktop) 也是独立社区项目。各项目的代码、发行和路线互不从属，用户可以按界面、插件方式和平台产物选择。
 
 ## 相关项目
 
@@ -256,6 +259,7 @@ DSH Desktop 选择“官方 Web 单一界面 + 官方 Profile 单一权威 + 精
 | --- | --- |
 | [dsh-website](https://github.com/vibeinging/dsh-website) | 本项目官网（DSH Desktop Station · [dshdesktopstation.com](https://dshdesktopstation.com/)） |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Agent、Session、Tool、Skill、MCP、Profile 与官方 Web 运行时 |
+| [官方桌面端 apps/desktop](https://github.com/deepseek-ai/deepseek-harness/tree/main/apps/desktop) | DeepSeek 官方 Electron 桌面壳（上游仓库内维护） |
 | [Cordis](https://github.com/cordiverse/cordis) | 插件化基础 |
 | [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | 默认工作区侧栏、编辑器、Git 与终端 |
 | [dsh-market](https://github.com/dsh-market/dsh-market) | 默认插件市场 |

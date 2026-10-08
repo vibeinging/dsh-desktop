@@ -31,7 +31,8 @@ DSH Desktop (Bundle Edition) is a community-maintained desktop distribution. It 
 | --- | --- | --- |
 | macOS Apple Silicon | Download the `.dmg` and drag it to Applications | Developer ID signed and Apple notarized |
 | Windows x64 | Download the `.exe`, then choose the install scope and app directory | Use the artifacts published on the current [Release](https://github.com/vibeinging/dsh-desktop/releases/latest) page |
-| macOS Intel / Linux | No formal installer yet | Run from source |
+| Linux x64 | AppImage | Invite-only testing, tracked in [Linux support issue #19](https://github.com/vibeinging/dsh-desktop/issues/19) |
+| macOS Intel | No formal installer yet | Run from source |
 
 Direct download links and file sizes are listed on the [website download page](https://dshdesktopstation.com/#download); first-run questions (Gatekeeper, SmartScreen, API keys, slow downloads) are covered in the [website FAQ](https://dshdesktopstation.com/#faq).
 
@@ -244,11 +245,13 @@ Local directory builds are for development. End-user signed installers are publi
 
 See the [privacy notice](PRIVACY.md), [security policy](SECURITY.md), and [third-party notices](THIRD_PARTY_NOTICES.md).
 
-## Difference from other community desktop projects
+## Difference from the official desktop and other community desktops
 
 DSH Desktop chooses one official Web interface, one official Profile authority, curated community Bundles, and a narrow Native Host. It does not build a second full front end; it makes the desktop experience a reliable distribution of the DSH plugin ecosystem.
 
-[DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) is another independent community distribution with more emphasis on a complete desktop shell and cross-platform client experience. [dataelement/dsh-desktop](https://github.com/dataelement/dsh-desktop) is also an independent community project. Their code, releases, and product routes are separate; users can choose by interface, plugin model, and available platform artifacts.
+**Versus the official desktop (`@deepseek-ai/dsh-desktop`)**: the official project maintains its own Electron shell inside the DeepSeek Harness repository — no listening ports, version-locked to the DSH runtime, and using a dedicated `profiles/desktop` — but as of this writing it has not published public installers. The two are complementary and can coexist: the official desktop is the minimal core experience from DeepSeek, while DSH Desktop is installable today and ships a fixed, verified bundle lineup that packages the plugin market, version compatibility, and desktop capabilities into a complete distribution. They use separate Profile directories, so installing both side by side does not interfere. This project also tracks the official shell and is validating a bundle edition built on top of it.
+
+Other community projects: [DSH Desktop by anywhere-labs](https://github.com/anywhere-labs/deepseek-harness-desktop) is another independent community distribution with more emphasis on a complete desktop shell and cross-platform client experience. [dataelement/dsh-desktop](https://github.com/dataelement/dsh-desktop) is also an independent community project. Their code, releases, and product routes are separate; users can choose by interface, plugin model, and available platform artifacts.
 
 ## Related projects
 
@@ -256,6 +259,7 @@ DSH Desktop chooses one official Web interface, one official Profile authority, 
 | --- | --- |
 | [dsh-website](https://github.com/vibeinging/dsh-website) | Official website of this project (DSH Desktop Station · [dshdesktopstation.com](https://dshdesktopstation.com/)) |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Agent, Session, Tool, Skill, MCP, Profile, and official Web runtime |
+| [Official desktop (apps/desktop)](https://github.com/deepseek-ai/deepseek-harness/tree/main/apps/desktop) | DeepSeek's official Electron shell, maintained in the upstream repository |
 | [Cordis](https://github.com/cordiverse/cordis) | Plugin foundation |
 | [DSH Better Sidebar](https://github.com/omdsh-dev/DSH-better-sidebar) | Default workspace sidebar, editor, Git, and terminal |
 | [dsh-market](https://github.com/dsh-market/dsh-market) | Default plugin market |
