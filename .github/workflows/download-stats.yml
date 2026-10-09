@@ -43,7 +43,9 @@ jobs:
           releases = json.load(urllib.request.urlopen(req, timeout=30))
 
           total = 0
-          latest = releases[0] if releases else None
+          # 预发布（nightly/rc）计入总量，但"最新版"取最新的稳定 Release。
+          stable = [r for r in releases if not r.get("prerelease")]
+          latest = stable[0] if stable else (releases[0] if releases else None)
           latest_counts = {}
           for rel in releases:
               for asset in rel.get("assets", []):
