@@ -411,7 +411,7 @@ export function createWorktreeClient(React) {
           })),
         ) : null,
         !loading && !error && snapshot?.gitRepository && rows.length === 1
-          ? h("div", { className: "dsh-worktree-empty", "data-testid": "dsh-worktree-empty" }, "还没有受管 Worktree。新建后会直接打开一个隔离会话。")
+          ? h("div", { className: "dsh-worktree-empty", "data-testid": "dsh-worktree-empty" }, "除上方主检出外还没有受管 Worktree。新建后会直接打开一个隔离会话。")
           : null,
       ),
     );
@@ -433,6 +433,7 @@ export function createWorktreeClient(React) {
       deleteWorkspace: (workspaceId) => ctx.workspaces.delete(workspaceId),
       startSession: (workspaceId) => ctx.workspaces.startSession(workspaceId),
     });
+    ctx.effect(() => installStyle(), "dsh worktree: view styles");
     ctx.slots.inject("conversation.view", () => ctx.slots.register({
       name: "conversation.view",
       id: "worktree",
