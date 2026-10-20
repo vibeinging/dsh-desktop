@@ -91,6 +91,7 @@ window.__ModuleLoader__.load({
       function FooterShareAction({ wide }) {
         const [open, setOpen] = useState(false);
         const [copied, setCopied] = useState(false);
+        const [failed, setFailed] = useState(false);
         const wrapRef = useRef(null);
 
         useEffect(() => {
@@ -110,18 +111,35 @@ window.__ModuleLoader__.load({
         }, [open]);
 
         useEffect(() => {
-          if (!copied) return undefined;
-          const timer = setTimeout(() => setCopied(false), 1800);
+          if (!copied && !failed) return undefined;
+          const message = copied || failed;
+          const timer = setTimeout(() => { if (message === copied) setCopied(false); else setFailed(false); }, 1800);
           return () => clearTimeout(timer);
-        }, [copied]);
+        }, [copied, failed]);
 
         const copyShare = useCallback(async () => {
+          // navigator.clipboard rejects without a focused document (e.g. during automation);
+          // fall back to the execCommand path so a user click always gets feedback.
+          let ok = false;
           try {
             await navigator.clipboard.writeText(SHARE_TEXT);
-            setCopied(true);
+            ok = true;
           } catch {
-            // Clipboard unavailable (permissions or non-secure context): keep the menu open for a retry.
+            try {
+              const scratch = document.createElement("textarea");
+              scratch.value = SHARE_TEXT;
+              scratch.style.position = "fixed";
+              scratch.style.opacity = "0";
+              document.body.append(scratch);
+              scratch.select();
+              ok = document.execCommand("copy");
+              scratch.remove();
+            } catch {
+              ok = false;
+            }
           }
+          setCopied(ok);
+          setFailed(!ok);
         }, []);
 
         return h("div", { className: "dsh-shell-footer-wrap", ref: wrapRef },
@@ -150,7 +168,7 @@ window.__ModuleLoader__.load({
               "data-ok": copied ? "true" : undefined,
               "data-testid": "dsh-shell-share-copy",
               onClick: () => { void copyShare(); },
-            }, h(ShareIcon), h("span", null, copied ? "已复制，去粘贴吧" : "复制分享文案")),
+            }, h(ShareIcon), h("span", null, copied ? "已复制，去粘贴吧" : failed ? "复制失败，再试一次" : "复制分享文案")),
           ) : null);
       }
 
