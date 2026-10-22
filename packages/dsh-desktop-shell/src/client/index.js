@@ -22,15 +22,21 @@ const FOOTER_CSS = `
   min-height: 30px; padding: 0 8px; margin: 0;
   border: none; border-radius: 7px; background: transparent;
   color: var(--dsw-alias-fg-subtle, #686d78); font: inherit; font-size: 12px;
+  white-space: nowrap; line-height: 1.4;
   cursor: pointer; transition: background-color 140ms ease, color 140ms ease;
 }
 .dsh-shell-footer-button:hover { background: var(--dsw-alias-bg-layer-2, rgb(35 39 47 / 8%)); color: var(--dsw-alias-fg-base, inherit); }
 .dsh-shell-footer-button:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring, #5474cc); outline-offset: 1px; }
+/* 宿主环境可能给 svg 设大尺寸或不约束，双保险：CSS 锁定 + 组件里 svg 自带 width/height 属性。 */
+.dsh-shell-footer-button svg, .dsh-shell-footer-wrap > svg, .dsh-shell-footer-menu svg {
+  width: 16px; height: 16px; flex: 0 0 auto;
+}
 .dsh-shell-footer-menu {
   position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 60;
-  display: flex; flex-direction: column; min-width: 208px; padding: 4px;
+  display: flex; flex-direction: column; width: max-content; min-width: 208px;
+  padding: 4px; box-sizing: border-box;
   border: 1px solid var(--dsw-alias-border-l1, rgb(35 39 47 / 14%));
-  border-radius: 10px;
+  border-radius: 10px; line-height: 1.4;
   background: var(--dsw-alias-bg-layer-1, #fff);
   box-shadow: 0 10px 28px rgb(15 18 24 / 16%);
 }
@@ -38,7 +44,8 @@ const FOOTER_CSS = `
   display: flex; align-items: center; gap: 9px;
   padding: 8px 10px; border: none; border-radius: 7px;
   background: transparent; color: inherit; font: inherit; font-size: 12.5px;
-  text-decoration: none; cursor: pointer; text-align: left; width: 100%; box-sizing: border-box;
+  white-space: nowrap; text-decoration: none; cursor: pointer; text-align: left;
+  width: 100%; box-sizing: border-box;
 }
 .dsh-shell-footer-item:hover { background: var(--dsw-alias-bg-layer-2, #f0f1f4); }
 .dsh-shell-footer-item[data-ok="true"] { color: var(--dsw-alias-accent-fg, #34519a); }
@@ -62,7 +69,7 @@ export function createForkShellClient(React) {
   }
 
   function MarketIcon() {
-    return h("svg", { viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true" },
+    return h("svg", { viewBox: "0 0 16 16", width: "16", height: "16", fill: "none", "aria-hidden": "true" },
       h("path", { d: "M2.5 4.5v7a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-7", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round" }),
       h("path", { d: "M1.5 4.5h13L11 2H5L1.5 4.5Z", stroke: "currentColor", strokeWidth: "1.4", strokeLinejoin: "round" }),
       h("path", { d: "M6.5 8h3", stroke: "currentColor", strokeWidth: "1.4", strokeLinecap: "round" }),
@@ -70,7 +77,7 @@ export function createForkShellClient(React) {
   }
 
   function StarIcon() {
-    return h("svg", { viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true" },
+    return h("svg", { viewBox: "0 0 16 16", width: "16", height: "16", fill: "none", "aria-hidden": "true" },
       h("path", {
         d: "M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6L8 1.8z",
         stroke: "currentColor", strokeWidth: "1.3", strokeLinejoin: "round",
@@ -78,7 +85,7 @@ export function createForkShellClient(React) {
   }
 
   function ShareIcon() {
-    return h("svg", { viewBox: "0 0 16 16", fill: "none", "aria-hidden": "true" },
+    return h("svg", { viewBox: "0 0 16 16", width: "16", height: "16", fill: "none", "aria-hidden": "true" },
       h("path", { d: "M11 5.5V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h1.5", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round", strokeLinejoin: "round" }),
       h("path", { d: "M10.5 2.5 13 5l-2.5 2.5", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round", strokeLinejoin: "round" }),
       h("path", { d: "M13 5H7.5", stroke: "currentColor", strokeWidth: "1.3", strokeLinecap: "round" }),

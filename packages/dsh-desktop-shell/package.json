@@ -1,7 +1,7 @@
 {
   "name": "@vibeinging/dsh-desktop-shell",
   "description": "Desktop shell integrations: promotes the dshmarket plugin market to a first-class home panel",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "packageManager": "pnpm@11.22.0",
   "engines": {
