@@ -16,7 +16,7 @@ window.__ModuleLoader__.load({
      */
 
     const REPO_URL = "https://github.com/vibeinging/dsh-desktop?utm_source=dsh-desktop-app";
-    const SHARE_TEXT = "DSH Desktop — DeepSeek Harness 桌面增强版：插件生态、小鲸鱼记账、Worktree、上下文洞察开箱即用\nhttps://github.com/vibeinging/dsh-desktop";
+    const SHARE_TEXT = "DSH Desktop — DeepSeek Harness 桌面增强版：各种小编精选插件开箱即用——小鲸鱼记账、Worktree、上下文洞察…\nhttps://github.com/vibeinging/dsh-desktop";
     const FOOTER_STYLE_ID = "dsh-desktop-shell-footer-style";
     const FOOTER_CSS = `
     .dsh-shell-footer-wrap { position: relative; display: inline-flex; }
