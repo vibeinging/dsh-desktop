@@ -6,6 +6,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { generateFeaturedPluginArtifacts } from '../../scripts/generate-featured-plugin-artifacts.mjs'
+import { ensureWin32HeadlessConsolePatch } from '../../server/src/engine/dsh_runtime/win32_headless_console_patch.js'
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url)
 const SCRIPT_DIR = dirname(SCRIPT_PATH)
@@ -304,6 +305,10 @@ export async function preparePackage() {
     || !existsSync(join(installedDshRoot, 'lib', 'bin.js'))) {
     throw new Error(`随包官方 DSH CLI 不完整: ${installedDshRoot}`)
   }
+  ensureWin32HeadlessConsolePatch({
+    serverRoot: STAGED_SERVER_DIR,
+    platform: targetPlatform,
+  })
 
   const agentRuntimeTarget = AGENT_RUNTIME_TARGETS[`${targetPlatform}-${targetArch}`]
   if (!agentRuntimeTarget) throw new Error(`Agent 运行时不支持打包目标: ${targetPlatform}/${targetArch}`)

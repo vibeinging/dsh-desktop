@@ -27,6 +27,10 @@ import {
   npmRuntimeEntryUrl,
   registerProfileModuleLoader,
 } from "../../server/src/engine/dsh_runtime/npm_runtime_child.mjs";
+import {
+  ensureWin32HeadlessConsolePatch,
+  patchWin32ProcessSource,
+} from "../../server/src/engine/dsh_runtime/win32_headless_console_patch.js";
 import { dshModelOptions, encodeDshModelRoute } from "../../server/src/engine/dsh_runtime/model_route.js";
 import { featuredPluginNames } from "../../server/src/engine/dsh_runtime/featured_plugins.js";
 import { generateFeaturedPluginArtifacts } from "../../scripts/generate-featured-plugin-artifacts.mjs";
@@ -1501,5 +1505,48 @@ test("real app-pinned DSH npm package boots through its public CLI entry", {
   } finally {
     await client.close();
     await rm(runtimeHome, { recursive: true, force: true });
+  }
+});
+
+test("win32 headless console patch adds CREATE_NO_WINDOW and ensureHeadlessConsole idempotently", async () => {
+  const sampleUnpatched = [
+    '\t\tgetStdHandle: bind(kernel32, "GetStdHandle", PVOID, ["int"]),',
+    "function createRestrictedProcess(api, options, commandLine, creationFlags, startupInfo, processInfo) {",
+    "\treturn api.createProcessAsUserW(options.token, null, commandLine, null, null, 1, creationFlags, null, options.cwd, startupInfo, processInfo);",
+    "}",
+    "\t\tencodeStartupInfo(startupInfo, {",
+    "\t\t\tcb: 104,",
+    "\t\t\tdwFlags: 256,",
+    "\t\t\thStdInput: stdio.stdin,",
+    "\t\t});",
+    "function spawnCurrentTokenJobProcess(api, options) {",
+    '\treturn spawnJobProcess(api, options, () => targetCarrierHandles(api, options.stdio), "CreateProcessW", (startupInfo, processInfo) => api.createProcessW(options.applicationName, commandLine, null, null, 1, 1028, environment, options.cwd, startupInfo, processInfo));',
+    "}",
+  ].join("\n");
+
+  const first = patchWin32ProcessSource(sampleUnpatched);
+  assert.equal(first.changed, true);
+  assert.match(first.code, /getConsoleCP: bind\(kernel32, "GetConsoleCP"/);
+  assert.match(first.code, /ensureHeadlessConsole\(api\);/);
+  assert.match(first.code, /dwFlags: 257,\n\t\t\twShowWindow: 0,/);
+  assert.match(first.code, /1, 134218756, environment/);
+
+  const second = patchWin32ProcessSource(first.code);
+  assert.equal(second.changed, false);
+  assert.equal(second.code, first.code);
+
+  const tmpRoot = await mkdtemp(join(tmpdir(), "dsh-win32-patch-"));
+  try {
+    const libDir = join(tmpRoot, "node_modules", "@deepseek-ai", "dsh-win32-process", "lib");
+    await mkdir(libDir, { recursive: true });
+    const targetFile = join(libDir, "index.js");
+    await writeFile(targetFile, sampleUnpatched, "utf8");
+    const nonWin = ensureWin32HeadlessConsolePatch({ serverRoot: tmpRoot, platform: "darwin" });
+    assert.equal(nonWin.patched, false);
+    const winRes = ensureWin32HeadlessConsolePatch({ serverRoot: tmpRoot, platform: "win32" });
+    assert.equal(winRes.patched, true);
+    assert.equal(readFileSync(targetFile, "utf8"), first.code);
+  } finally {
+    await rm(tmpRoot, { recursive: true, force: true });
   }
 });

@@ -7,6 +7,7 @@
 import { register } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { ensureWin32HeadlessConsolePatch } from "./win32_headless_console_patch.js";
 
 /** Return a portable ESM URL for the fixed DSH CLI entry. */
 export function npmRuntimeEntryUrl(entryPath) {
@@ -25,6 +26,9 @@ export function registerProfileModuleLoader(environment = process.env) {
 export async function runNpmRuntimeChild(environment = process.env) {
   const entryPath = String(environment.DSH_CLI_ENTRY_PATH || "").trim();
   if (!entryPath) throw new Error("缺少 DSH_CLI_ENTRY_PATH");
+  ensureWin32HeadlessConsolePatch({
+    anchorPath: String(environment.DSH_RUNTIME_INSTALL_ANCHOR || entryPath).trim(),
+  });
   registerProfileModuleLoader(environment);
   const entry = await import(npmRuntimeEntryUrl(entryPath));
   // Since DSH 0.1.5 the CLI entry only self-runs as the process main module
